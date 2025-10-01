@@ -11,6 +11,7 @@ import trimesh
 from typing import TYPE_CHECKING
 
 import omni.log
+import isaacsim.core.utils.prims as prim_utils
 
 import isaaclab.sim as sim_utils
 from isaaclab.markers import VisualizationMarkers
@@ -241,10 +242,21 @@ class TerrainImporter:
         # store the mesh name
         self.terrain_prim_paths.append(prim_path)
 
+        # # import the mesh
+        # create_prim_from_mesh(
+        #     prim_path, mesh, visual_material=self.cfg.visual_material, physics_material=self.cfg.physics_material
+        # )
         # import the mesh
         create_prim_from_mesh(
-            prim_path, mesh, visual_material=self.cfg.visual_material, physics_material=self.cfg.physics_material
+            prim_path, 
+            mesh, 
+            visual_material=self.cfg.visual_material, 
+            physics_material=self.cfg.physics_material, 
+            disable_colllider=self.cfg.disable_collider,
         )
+        if self.cfg.disable_visualization:
+            # disable the visualization of the terrain
+            prim_utils.set_prim_attribute_value(prim_path, "visibility", "invisible")
 
     def import_usd(self, name: str, usd_path: str):
         """Import a mesh from a USD file.

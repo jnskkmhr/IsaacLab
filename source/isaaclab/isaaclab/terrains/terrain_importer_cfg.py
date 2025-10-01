@@ -101,3 +101,12 @@ class TerrainImporterCfg:
 
     debug_vis: bool = False
     """Whether to enable visualization of terrain origins for the terrain. Defaults to False."""
+
+
+    """
+    Collider settings
+    """
+    disable_collider: bool = False
+    """Whether to disable the collider for the terrain. Defaults to False."""
+    disable_visualization: bool = False
+    """Whether to disable the visualization of the terrain. Defaults to False."""
