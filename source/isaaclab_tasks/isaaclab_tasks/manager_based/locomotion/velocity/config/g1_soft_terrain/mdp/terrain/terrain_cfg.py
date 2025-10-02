@@ -44,5 +44,5 @@ FlatTerrain = TerrainImporterCfg(
         ),
     debug_vis=True,
     disable_collider=True,
-    disable_visualization=True,
+    # disable_visualization=True,
 )

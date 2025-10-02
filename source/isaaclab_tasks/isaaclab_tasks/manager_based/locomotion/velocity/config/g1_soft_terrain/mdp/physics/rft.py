@@ -123,15 +123,13 @@ class RFT_EMF:
         self.body_pos[:, :, :] = body_pos
         self.body_quat[:, :, :] = body_quat
         self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
-        # self.body_rot_mat_roll_yaw = self._body_rot_mat_roll_yaw
         
         roll, pitch, yaw = euler_xyz_from_quat(body_quat.view(-1, 4))
-        print(f"roll pitch yaw: {roll[0]*180/math.pi} {pitch[0]*180/math.pi} {yaw[0]*180/math.pi}")
         self.body_rot_mat_roll_yaw[:, :, :, :] = \
             matrix_from_euler(
                 torch.stack(
-                # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
-                (roll, torch.zeros_like(pitch), yaw), dim=-1),
+                (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+                # (roll, torch.zeros_like(pitch), yaw), dim=-1),
                 convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
 
         self.body_lin_vel[:, :, :] = body_lin_vel
@@ -151,10 +149,8 @@ class RFT_EMF:
     
     @property
     def contact_wrench_b(self)->torch.Tensor:
-        # contact_force_b = torch.einsum('ebji,ebj->ebi', self.body_rot_mat.transpose(-1, -2), self.contact_force) # (num_envs, num_bodies, 3)
-        # contact_torque_b = torch.einsum('ebji,ebj->ebi', self.body_rot_mat.transpose(-1, -2), self.contact_torque) # (num_envs, num_bodies, 3)
-        contact_force_b = (self.body_rot_mat @ self.contact_force.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
-        contact_torque_b = (self.body_rot_mat @ self.contact_torque.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+        contact_force_b = (self.body_rot_mat.transpose(-1, -2) @ self.contact_force.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+        contact_torque_b = (self.body_rot_mat.transpose(-1, -2) @ self.contact_torque.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
         return torch.cat((contact_force_b, contact_torque_b), dim=-1) # (num_envs, num_bodies, 6)
     
     @property
@@ -188,14 +184,21 @@ class RFT_EMF:
         """
         Update contact points' kinematic states.
         """
-        self.contact_point_pos = self.body_pos.unsqueeze(2) + torch.einsum('ebij,ebpj->ebpi', self.body_rot_mat, self.contact_point_offset)
+        R = self.body_rot_mat.unsqueeze(2)
+        p = self.contact_point_offset.unsqueeze(-1)
+        self.contact_point_pos = self.body_pos.unsqueeze(2) + (R @ p).squeeze(-1)
+        
         roll, pitch, yaw = euler_xyz_from_quat(self.body_quat.view(-1, 4))
         self.contact_point_euler = torch.stack((roll, pitch, yaw), dim=-1).view(self.num_envs, self.num_bodies, 1, 3).repeat(1, 1, self.num_contact_points, 1)
         self.contact_point_lin_vel = self.body_lin_vel.unsqueeze(2) + \
             torch.cross(self.body_ang_vel.unsqueeze(2), self.contact_point_pos - self.body_pos.unsqueeze(2), dim=-1)
         
+        # pre-rotate roll and yaw
+        Rt = self.body_rot_mat_roll_yaw.transpose(-1, -2).unsqueeze(2)
+        v = self.contact_point_lin_vel.clone().unsqueeze(-1)
+        self.contact_point_lin_vel_b = (Rt @ v).squeeze(-1)
+        
         # compute velocity angle
-        self.contact_point_lin_vel_b = torch.einsum('ebji,ebpj->ebpi', self.body_rot_mat_roll_yaw.transpose(-1, -2), self.contact_point_lin_vel.clone())
         self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel_b[..., 2], self.contact_point_lin_vel_b[..., 0])
         self.contact_point_intrusion_angle = torch.where(
             self.contact_point_intrusion_angle > torch.pi/2, 
@@ -207,8 +210,6 @@ class RFT_EMF:
             -torch.pi - self.contact_point_intrusion_angle,
             self.contact_point_intrusion_angle
             )
-        print("left intrusion angle (deg): ", self.contact_point_intrusion_angle[0,0,:5]*180/math.pi)
-        print("right intrusion angle (deg): ", self.contact_point_intrusion_angle[0,-1,-5:]*180/math.pi)
         
     def compute_force(self)->None:
         """
@@ -265,7 +266,9 @@ class RFT_EMF:
         
         # rotate normal force back to simulation global frame
         force_normal = force_normal.reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
-        force_normal = torch.einsum('ebji,ebpj->ebpi', self.body_rot_mat_roll_yaw, force_normal).reshape(self.num_envs, -1, 3)
+        R = self.body_rot_mat_roll_yaw.unsqueeze(2)
+        p = force_normal.unsqueeze(-1)
+        force_normal = (R @ p).squeeze(-1).reshape(self.num_envs, -1, 3)
         
         return force_normal
     

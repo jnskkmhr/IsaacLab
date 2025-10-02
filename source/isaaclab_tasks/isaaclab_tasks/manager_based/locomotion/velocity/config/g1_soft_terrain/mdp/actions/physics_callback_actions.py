@@ -51,7 +51,7 @@ class PhysicsCallbackAction(ActionTerm):
         # get physics backend
         material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
-        num_contact_points = 1600 # 20 x 20 grid
+        num_contact_points = 1600 # 40 x 40 grid
         self.rft = RFT_EMF(cfg=material_cfg, num_envs=self.num_envs, num_bodies=num_bodies, num_contact_points=num_contact_points, device=self.device)
         
     """
