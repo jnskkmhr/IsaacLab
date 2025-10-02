@@ -51,7 +51,7 @@ class PhysicsCallbackAction(ActionTerm):
         # get physics backend
         material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
-        num_contact_points = 400 # 20 x 20 grid
+        num_contact_points = 1600 # 20 x 20 grid
         self.rft = RFT_EMF(cfg=material_cfg, num_envs=self.num_envs, num_bodies=num_bodies, num_contact_points=num_contact_points, device=self.device)
         
     """
@@ -89,22 +89,23 @@ class PhysicsCallbackAction(ActionTerm):
             forces = contact_wrench_b[:, :, :3],
             torques = contact_wrench_b[:, :, 3:6],
             body_ids = self._body_ids,
+            is_global=False,
         )
         
     
     @property
     def body_pos(self)->torch.Tensor:
-        return self._asset.data.body_pose_w[:, self._body_ids, :3] - self._env.scene.env_origins.unsqueeze(1)
+        return self._asset.data.body_com_pose_w[:, self._body_ids, :3] - self._env.scene.env_origins.unsqueeze(1)
     
     @property
     def body_quat(self)->torch.Tensor:
-        return self._asset.data.body_pose_w[:, self._body_ids, 3:7]
+        return self._asset.data.body_com_pose_w[:, self._body_ids, 3:7]
     
     @property
     def body_lin_vel(self)->torch.Tensor:
-        return self._asset.data.body_vel_w[:, self._body_ids, :3]
+        return self._asset.data.body_com_vel_w[:, self._body_ids, :3]
     
     @property
     def body_ang_vel(self)->torch.Tensor:
-        return self._asset.data.body_vel_w[:, self._body_ids, 3:6]
+        return self._asset.data.body_com_vel_w[:, self._body_ids, 3:6]
     

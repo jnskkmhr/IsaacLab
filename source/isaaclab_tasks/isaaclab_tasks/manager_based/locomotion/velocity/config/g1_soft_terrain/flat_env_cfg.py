@@ -29,7 +29,14 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         
         # Randomization 
         self.events.reset_base.params = {
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "z": (-0.1, -0.1), "yaw": (0, 0)},
+            "pose_range": 
+                {"x": (-0.0, 0.0), 
+                 "y": (-0.0, 0.0), 
+                 "z": (-0.15, -0.15), 
+                #  "yaw": (math.pi/2, math.pi/2), 
+                "yaw": (0,0), 
+                # "yaw": (-math.pi, math.pi),
+                 },
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -60,13 +67,13 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         
         # light and view settings
         self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
-        self.viewer = ViewerCfg(
-            eye=(-0.0, -2.5, 0.0), 
-            lookat=(0.0, -0.8, 0.0),
-            resolution=(1920, 1080), 
-            origin_type="asset_root", 
-            asset_name="robot"
-        )
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.5, -2.5, 0.0), 
+        #     lookat=(0.0, -0.8, 0.0),
+        #     resolution=(1920, 1080), 
+        #     origin_type="asset_root", 
+        #     asset_name="robot"
+        # )
 
 
 class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
@@ -77,7 +84,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = 5.0
-        self.episode_length_s = 20.0
+        self.episode_length_s = 10.0
         # disable randomization for play
         self.observations.policy.enable_corruption = False
         # remove random pushing
@@ -85,8 +92,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.push_robot = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.2, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.resampling_time_range = (20.0, 20.0)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)

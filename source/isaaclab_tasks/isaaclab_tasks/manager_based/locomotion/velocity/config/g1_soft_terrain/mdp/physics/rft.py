@@ -2,7 +2,7 @@ from dataclasses import MISSING
 import math
 import torch
 from isaaclab.utils import configclass
-from isaaclab.utils.math import matrix_from_quat, euler_xyz_from_quat
+from isaaclab.utils.math import matrix_from_quat, euler_xyz_from_quat, matrix_from_euler
 from typing import Tuple
 
 @configclass
@@ -83,6 +83,7 @@ class RFT_EMF:
         self.body_pos = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         self.body_quat = torch.zeros((self.num_envs, self.num_bodies, 4), device=self.device)
         self.body_rot_mat = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+        self.body_rot_mat_roll_yaw = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
         self.body_lin_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         self.body_ang_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
 
@@ -90,6 +91,7 @@ class RFT_EMF:
         self.contact_point_pos = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         self.contact_point_euler = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         self.contact_point_lin_vel = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_lin_vel_b = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         self.contact_point_intrusion_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
         self.contact_point_lin_vel_prev = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         
@@ -121,6 +123,17 @@ class RFT_EMF:
         self.body_pos[:, :, :] = body_pos
         self.body_quat[:, :, :] = body_quat
         self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
+        # self.body_rot_mat_roll_yaw = self._body_rot_mat_roll_yaw
+        
+        roll, pitch, yaw = euler_xyz_from_quat(body_quat.view(-1, 4))
+        print(f"roll pitch yaw: {roll[0]*180/math.pi} {pitch[0]*180/math.pi} {yaw[0]*180/math.pi}")
+        self.body_rot_mat_roll_yaw[:, :, :, :] = \
+            matrix_from_euler(
+                torch.stack(
+                # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+                (roll, torch.zeros_like(pitch), yaw), dim=-1),
+                convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
+
         self.body_lin_vel[:, :, :] = body_lin_vel
         self.body_ang_vel[:, :, :] = body_ang_vel
 
@@ -138,14 +151,17 @@ class RFT_EMF:
     
     @property
     def contact_wrench_b(self)->torch.Tensor:
-        contact_force_b = torch.einsum('ebji,ebj->ebi', self.body_rot_mat.transpose(-1, -2), self.contact_force) # (num_envs, num_bodies, 3)
-        contact_torque_b = torch.einsum('ebji,ebj->ebi', self.body_rot_mat.transpose(-1, -2), self.contact_torque) # (num_envs, num_bodies, 3)
+        # contact_force_b = torch.einsum('ebji,ebj->ebi', self.body_rot_mat.transpose(-1, -2), self.contact_force) # (num_envs, num_bodies, 3)
+        # contact_torque_b = torch.einsum('ebji,ebj->ebi', self.body_rot_mat.transpose(-1, -2), self.contact_torque) # (num_envs, num_bodies, 3)
+        contact_force_b = (self.body_rot_mat @ self.contact_force.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+        contact_torque_b = (self.body_rot_mat @ self.contact_torque.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
         return torch.cat((contact_force_b, contact_torque_b), dim=-1) # (num_envs, num_bodies, 6)
     
     @property
     def contact_point_wrench(self)->torch.Tensor:
         return torch.cat((self.contact_point_force, self.contact_point_torque), dim=-1) # (num_envs, num_bodies, num_contact_points, 6)
-    
+        
+
     
     """
     helper functions.
@@ -177,7 +193,10 @@ class RFT_EMF:
         self.contact_point_euler = torch.stack((roll, pitch, yaw), dim=-1).view(self.num_envs, self.num_bodies, 1, 3).repeat(1, 1, self.num_contact_points, 1)
         self.contact_point_lin_vel = self.body_lin_vel.unsqueeze(2) + \
             torch.cross(self.body_ang_vel.unsqueeze(2), self.contact_point_pos - self.body_pos.unsqueeze(2), dim=-1)
-        self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel[..., 2], self.contact_point_lin_vel[..., 0])
+        
+        # compute velocity angle
+        self.contact_point_lin_vel_b = torch.einsum('ebji,ebpj->ebpi', self.body_rot_mat_roll_yaw.transpose(-1, -2), self.contact_point_lin_vel.clone())
+        self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel_b[..., 2], self.contact_point_lin_vel_b[..., 0])
         self.contact_point_intrusion_angle = torch.where(
             self.contact_point_intrusion_angle > torch.pi/2, 
             torch.pi - self.contact_point_intrusion_angle, 
@@ -188,25 +207,27 @@ class RFT_EMF:
             -torch.pi - self.contact_point_intrusion_angle,
             self.contact_point_intrusion_angle
             )
+        print("left intrusion angle (deg): ", self.contact_point_intrusion_angle[0,0,:5]*180/math.pi)
+        print("right intrusion angle (deg): ", self.contact_point_intrusion_angle[0,-1,-5:]*180/math.pi)
         
     def compute_force(self)->None:
         """
         Compute contact forces and torques.
         """
-        fz = self.get_resistive_force(
+        f_normal = self.get_resistive_force(
             self.contact_point_pos.reshape(self.num_envs, -1, 3),
-            self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
+            self.contact_point_lin_vel_b.reshape(self.num_envs, -1, 3),
             self.contact_point_lin_vel_prev.reshape(self.num_envs, -1, 3),
-            self.contact_point_euler.reshape(self.num_envs, -1, 3)[..., 1], # beta
+            -self.contact_point_euler.reshape(self.num_envs, -1, 3)[..., 1], # beta = - pitch (physics ppl's coordinate is different from robotics)
             self.contact_point_intrusion_angle.reshape(self.num_envs, -1), # gamma
         )
         
-        fx, fy = self.get_coulomb_friction_force(
+        f_tangential = self.get_coulomb_friction_force(
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
-            fz
+            f_normal[:, :, 2]
         )
 
-        force = torch.stack((fx, fy, fz), dim=-1).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
+        force = (f_normal+f_tangential).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
         torque = torch.cross((self.contact_point_pos - self.body_pos.unsqueeze(2)), force, dim=-1)
         
         self.contact_point_force[:, :, :, :] = force
@@ -217,7 +238,7 @@ class RFT_EMF:
         self.contact_torque[:, :, :] = torch.sum(torque, dim=2) # (num_envs, num_bodies, 3)
         
         # update velocity history
-        self.contact_point_lin_vel_prev[:, :, :, :] = self.contact_point_lin_vel[:, :, :, :]
+        self.contact_point_lin_vel_prev[:, :, :, :] = self.contact_point_lin_vel_b[:, :, :, :]
     
     def get_resistive_force(
         self, 
@@ -227,7 +248,8 @@ class RFT_EMF:
         beta:torch.Tensor, 
         gamma:torch.Tensor)->torch.Tensor:
         """
-        Find resistive force per foot. 
+        Compute normal force using RFT z component.
+        Computed force is in simulation global frame.
         """
         dA = self.surface_area/self.num_contact_points
         depth = -foot_pos[:, :, -1]
@@ -238,22 +260,32 @@ class RFT_EMF:
         self.force_gm = alpha_z * depth * dA * depth_mask * (1e6) #m^3 to cm^3 since alpha is N/cm^3
         self.emf_filtering(foot_velocity, foot_velocity_prev, depth)
         
-        return self.force_ema
+        force_normal = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+        force_normal[:, :, -1] = self.force_ema
+        
+        # rotate normal force back to simulation global frame
+        force_normal = force_normal.reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
+        force_normal = torch.einsum('ebji,ebpj->ebpi', self.body_rot_mat_roll_yaw, force_normal).reshape(self.num_envs, -1, 3)
+        
+        return force_normal
     
-    def get_coulomb_friction_force(self, foot_velocity:torch.Tensor, fz:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+    def get_coulomb_friction_force(self, foot_velocity:torch.Tensor, fz:torch.Tensor)->torch.Tensor:
         """
-        Get tangential force using Coulomb friction model.
+        Get tangential force using Coulomb friction model. 
+        Computed force is in simulation global frame.
         Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
         """
         # combines Coulomb friction and Stribeck friction model
         vt = torch.sqrt(foot_velocity[:, :, 0]**2 + foot_velocity[:, :, 1]**2)
-        v_cf = 0.05 # Coulomb friction velocity threshold
-        v_st = 0.01 # Stribeck friction velocity threshold
+        vt_unit_vec = foot_velocity[:, :, :2]/(vt.unsqueeze(2) + 1e-6)
+        v_cf = 0.1 # Coulomb friction velocity threshold
+        v_st = 0.05 # Stribeck friction velocity threshold
         friction_force = self.dynamic_friction_coef * torch.abs(fz) * torch.tanh(vt/v_cf) + \
             math.sqrt(2*math.e) * (self.static_friction_coef - self.dynamic_friction_coef) * torch.abs(fz) * torch.exp(-(vt/v_st)**2) * (vt/v_st)
-        tangential_force = -friction_force.unsqueeze(2) * (foot_velocity[:, :, :2]/(vt.unsqueeze(2) + 1e-6))
-
-        return tangential_force[:, :, 0], tangential_force[:, :, 1]
+        friction_force = -friction_force.unsqueeze(2) * vt_unit_vec
+        tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+        tangential_force[:, :, :2] = friction_force
+        return tangential_force
 
     def emf_filtering(self, velocity:torch.Tensor, velocity_prev:torch.Tensor, depth:torch.Tensor):
         """

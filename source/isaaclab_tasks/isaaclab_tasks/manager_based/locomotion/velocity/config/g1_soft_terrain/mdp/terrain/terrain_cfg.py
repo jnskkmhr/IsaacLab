@@ -40,7 +40,9 @@ FlatTerrain = TerrainImporterCfg(
             mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
             project_uvw=True,
             texture_scale=(0.25, 0.25),
+            albedo_brightness=0.1,
         ),
-    debug_vis=False,
+    debug_vis=True,
     disable_collider=True,
+    disable_visualization=True,
 )
