@@ -42,7 +42,6 @@ FlatTerrain = TerrainImporterCfg(
             texture_scale=(0.25, 0.25),
             albedo_brightness=0.1,
         ),
-    debug_vis=True,
     disable_collider=True,
     # disable_visualization=True,
 )

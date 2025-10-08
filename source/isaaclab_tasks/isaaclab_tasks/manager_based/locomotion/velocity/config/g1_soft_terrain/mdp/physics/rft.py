@@ -54,7 +54,7 @@ class RFT_EMF:
                  num_contact_points: int,
                  device: torch.device,
                  static_friction_coef: float=1.0, 
-                 dynamic_friction_coef: float=0.4, 
+                 dynamic_friction_coef: float=0.5, 
                  ):
         """
         Resistive Force Theory based soft terrain contact solver.
@@ -128,8 +128,8 @@ class RFT_EMF:
         self.body_rot_mat_roll_yaw[:, :, :, :] = \
             matrix_from_euler(
                 torch.stack(
-                (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
-                # (roll, torch.zeros_like(pitch), yaw), dim=-1),
+                # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+                (roll, torch.zeros_like(pitch), yaw), dim=-1),
                 convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
 
         self.body_lin_vel[:, :, :] = body_lin_vel
@@ -256,8 +256,9 @@ class RFT_EMF:
         depth = -foot_pos[:, :, -1]
         
         alpha_x, alpha_z = self.compute_elementary_force(beta, gamma) # get RFT force
+        hardness = 1.0
+        alpha_z = hardness * alpha_z
         depth_mask = depth > 0 # apply resistive force only when foot is penetrating
-        
         self.force_gm = alpha_z * depth * dA * depth_mask * (1e6) #m^3 to cm^3 since alpha is N/cm^3
         self.emf_filtering(foot_velocity, foot_velocity_prev, depth)
         
@@ -281,13 +282,14 @@ class RFT_EMF:
         # combines Coulomb friction and Stribeck friction model
         vt = torch.sqrt(foot_velocity[:, :, 0]**2 + foot_velocity[:, :, 1]**2)
         vt_unit_vec = foot_velocity[:, :, :2]/(vt.unsqueeze(2) + 1e-6)
-        v_cf = 0.1 # Coulomb friction velocity threshold
-        v_st = 0.05 # Stribeck friction velocity threshold
-        friction_force = self.dynamic_friction_coef * torch.abs(fz) * torch.tanh(vt/v_cf) + \
-            math.sqrt(2*math.e) * (self.static_friction_coef - self.dynamic_friction_coef) * torch.abs(fz) * torch.exp(-(vt/v_st)**2) * (vt/v_st)
-        friction_force = -friction_force.unsqueeze(2) * vt_unit_vec
+        v_cf = 0.05 # Coulomb friction velocity threshold
+        v_st = 0.01 # Stribeck friction velocity threshold
+        friction_force = (self.dynamic_friction_coef * torch.tanh(vt/v_cf) + \
+            math.sqrt(2*math.e) * (self.static_friction_coef - self.dynamic_friction_coef) * torch.exp(-(vt/v_st)**2) * (vt/v_st)) * torch.abs(fz)
+        friction_force_vec = -friction_force.unsqueeze(2) * vt_unit_vec
+        
         tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
-        tangential_force[:, :, :2] = friction_force
+        tangential_force[:, :, :2] = friction_force_vec
         return tangential_force
 
     def emf_filtering(self, velocity:torch.Tensor, velocity_prev:torch.Tensor, depth:torch.Tensor):
@@ -299,7 +301,8 @@ class RFT_EMF:
         depth_mask = depth > 0
         mask = increment_mask & tau_r_boundary & depth_mask
         self.tau_r[mask] += self.c_r
-        self.force_ema = (1-0.8*self.tau_r)*self.force_gm + 0.8*self.tau_r*self.force_ema
+        coef = 0.8
+        self.force_ema = (1-coef*self.tau_r)*self.force_gm + coef*self.tau_r*self.force_ema
 
     def compute_elementary_force(self, beta:torch.Tensor, gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         """

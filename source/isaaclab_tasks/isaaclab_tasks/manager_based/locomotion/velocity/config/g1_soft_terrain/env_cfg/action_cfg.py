@@ -16,7 +16,8 @@ class G1ActionsCfg:
         asset_name="robot", 
         joint_names=[".*"], 
         scale=0.5, 
-        use_default_offset=True) 
+        use_default_offset=True, 
+        ) 
     
     physics_callback = g1_mdp.PhysicsCallbackActionCfg(
         asset_name="robot",
