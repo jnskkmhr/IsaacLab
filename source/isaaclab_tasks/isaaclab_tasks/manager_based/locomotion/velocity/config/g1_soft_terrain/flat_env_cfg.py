@@ -93,7 +93,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.physics_material = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.6, 0.6)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False

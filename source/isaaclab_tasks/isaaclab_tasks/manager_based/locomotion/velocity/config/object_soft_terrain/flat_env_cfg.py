@@ -48,7 +48,7 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 "yaw": (-math.pi, math.pi),
                  },
             "velocity_range": {
-                "x": (1.0, 1.0),
+                "x": (0.0, .0),
                 "y": (0.0, 0.0),
                 "z": (0.0, 0.0), 
                 "roll": (0.0, 0.0),

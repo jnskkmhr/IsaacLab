@@ -49,6 +49,7 @@ class PhysicsCallbackAction(ActionTerm):
         self._processed_actions = torch.zeros_like(self.raw_actions)
         
         # wrench buffer
+        self.contact_wrench = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
         # get physics backend
@@ -103,6 +104,7 @@ class PhysicsCallbackAction(ActionTerm):
         body_ang_vel = self.body_ang_vel.clone()
         self.rft.update(body_pos, body_quat, body_lin_vel, body_ang_vel)
         
+        self.contact_wrench = self.rft.contact_wrench # (num_envs, num_bodies, 6)
         self.contact_wrench_b = self.rft.contact_wrench_b # (num_envs, num_bodies, 6)
         self._asset.set_external_force_and_torque(
             forces = self.contact_wrench_b[:, :, :3],

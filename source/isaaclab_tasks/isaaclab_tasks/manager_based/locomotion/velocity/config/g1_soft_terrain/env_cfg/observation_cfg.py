@@ -10,6 +10,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as g1_mdp
 
 
 @configclass
@@ -41,6 +42,26 @@ class G1ObservationsCfg:
         def __post_init__(self):
             self.enable_corruption = True
             self.concatenate_terms = True
+            
+    @configclass
+    class ContactCfg(ObsGroup):
+        """Observations for policy group."""
+
+        # observation terms (order preserved)
+        # contact_forces = ObsTerm(
+        #     func=g1_mdp.hard_contact_forces, # type: ignore
+        #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*_ankle_roll_link"])},
+        # )
+        soft_contact_forces = ObsTerm(
+            func=g1_mdp.soft_contact_forces, # type: ignore
+            params={"action_term_name": "physics_callback"},
+        )
+        
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
+    contact: ContactCfg = ContactCfg()

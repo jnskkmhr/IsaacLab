@@ -42,7 +42,7 @@ class PoppySeedCPCfg(MaterialCfg):
     C01: float = 0.086
     C_11: float = 0.018
     D10: float = 0.046
-    hardness: float = 3.0
+    hardness: float = 1.0
 
 
 """
@@ -57,7 +57,7 @@ class RFT_EMF:
                  num_contact_points: int,
                  device: torch.device,
                  static_friction_coef: float=1.0, 
-                 dynamic_friction_coef: float=0.5, 
+                 dynamic_friction_coef: float=0.3, 
                  ):
         """
         Resistive Force Theory based soft terrain contact solver.
@@ -343,6 +343,216 @@ class RFT_EMF:
         self.tau_r[env_ids] = 0.0
         self.contact_point_lin_vel_prev[env_ids] = 0.0
 
+@configclass
+class Material3DRFTCfg:
+    # c1^k
+    c1_1 = 0.00212
+    c1_2 = -0.02320
+    c1_3 = -0.20890
+    c1_4 = -0.43083
+    c1_5 = -0.00259
+    c1_6 = 0.48872
+    c1_7 = -0.00415
+    c1_8 = 0.07204
+    c1_9 = -0.02750
+    c1_10 = -0.08772
+    c1_11 = 0.01992
+    c1_12 = -0.45961
+    c1_13 = 0.40799
+    c1_14 = -0.10107
+    c1_15 = -0.06576
+    c1_16 = 0.05664
+    c1_17 = -0.09269
+    c1_18 = 0.01892
+    c1_19 = 0.01033
+    c1_20 = 0.15120
+
+    # c2^k
+    c2_1 = -0.06796
+    c2_2 = -0.10941
+    c2_3 = 0.04725
+    c2_4 = -0.06914
+    c2_5 = -0.05835
+    c2_6 = -0.65880
+    c2_7 = -0.11985
+    c2_8 = 0.25739
+    c2_9 = -0.26834
+    c2_10 = 0.02692
+    c2_11 = -0.00736
+    c2_12 = 0.63758
+    c2_13 = 0.08997
+    c2_14 = 0.21069
+    c2_15 = 0.04748
+    c2_16 = 0.27066
+    c2_17 = 0.18519
+    c2_18 = 0.04934
+    c2_19 = 0.13527
+    c2_20 = -0.33207
+
+    # c3^k
+    c3_1 = -0.02634
+    c3_2 = -0.03436
+    c3_3 = 0.45256
+    c3_4 = 0.00835
+    c3_5 = 0.02553
+    c3_6 = -1.31290
+    c3_7 = -0.05532
+    c3_8 = 0.06790
+    c3_9 = -0.61404
+    c3_10 = 0.02287
+    c3_11 = 0.02927
+    c3_12 = 0.95406
+    c3_13 = 0.09701
+    c3_14 = -0.11028
+    c3_15 = 0.01487
+    c3_16 = 0.20770
+    c3_17 = 0.10911
+    c3_18 = -0.04097
+    c3_19 = 0.07881
+    c3_20 = -0.27519
+    
+    hardness: float = 1.0 # type: ignore
+        
+# class RFT_3D:
+#     def __init__(self, 
+#                  cfg: Material3DRFTCfg, 
+#                  num_envs: int,
+#                  num_bodies: int, 
+#                  num_contact_points: int,
+#                  device: torch.device,
+#                  static_friction_coef: float=1.0, 
+#                  dynamic_friction_coef: float=0.3, 
+#                  ):
+#         """
+#         Resistive Force Theory based soft terrain contact solver.
+#         https://www.science.org/doi/10.1126/science.1229163
+#         """
+        
+#         self.cfg = cfg
+#         self.num_envs = num_envs
+#         self.num_bodies = num_bodies
+#         self.num_contact_points = num_contact_points
+#         self.device = device
+        
+#         self.contact_edge_x = (-0.06, 0.14)
+#         self.contact_edge_y = (-0.03, 0.03)
+#         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
+        
+#         self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+#         self.static_friction_coef = static_friction_coef
+#         self.dynamic_friction_coef = dynamic_friction_coef
+        
+#         self.create_tensors()
+#         self.create_contact_points()
+    
+#     """
+#     Initializations.
+#     """
+#     def create_tensors(self):
+#         self.body_pos = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self.body_quat = torch.zeros((self.num_envs, self.num_bodies, 4), device=self.device)
+#         self.body_rot_mat = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+#         self.body_rot_mat_roll_yaw = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+#         self.body_lin_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self.body_ang_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+
+#         self.contact_point_offset = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_pos = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_euler = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_lin_vel = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_lin_vel_b = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_intrusion_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
+#         self.contact_point_lin_vel_prev = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        
+#         self.contact_point_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_torque = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_filtered_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        
+#         # lumped force and torque
+#         self.contact_force = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        
+#         self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+#         self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+#         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+        
+#     def create_contact_points(self)->None:
+#         """
+#         Create contact points in contact surface in root body frame (e.g. foot link frame). 
+#         """
+#         num_contact_point_side = int(math.sqrt(self.num_contact_points))
+#         assert num_contact_point_side**2 == self.num_contact_points, "num_contact_points must be a perfect square"
+#         contact_point_offset_x = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_contact_point_side, device=self.device)
+#         contact_point_offset_y = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_contact_point_side, device=self.device)
+#         contact_point_offset_y, contact_point_offset_x = torch.meshgrid(contact_point_offset_y, contact_point_offset_x, indexing='ij')
+#         contact_point_offset = torch.stack((
+#             contact_point_offset_x.flatten(), 
+#             contact_point_offset_y.flatten(), 
+#             -0.035/2 * torch.ones_like(contact_point_offset_x).flatten()
+#             ), dim=-1)
+#         contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
+#         self.contact_point_offset[:, :, :, :] = contact_point_offset
+        
+#     """
+#     operations.
+#     """
+    
+#     def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor):
+#         """
+#         Args:
+#         body_pos: (num_envs, num_bodies, 3)
+#         body_quat: (num_envs, num_bodies, 4)
+#         body_lin_vel: (num_envs, num_bodies, 3)
+#         body_ang_vel: (num_envs, num_bodies, 3)
+#         """
+#         self.body_pos[:, :, :] = body_pos
+#         self.body_quat[:, :, :] = body_quat
+#         self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
+        
+#         roll, pitch, yaw = euler_xyz_from_quat(body_quat.view(-1, 4))
+#         self.body_rot_mat_roll_yaw[:, :, :, :] = \
+#             matrix_from_euler(
+#                 torch.stack(
+#                 (roll, torch.zeros_like(pitch), yaw), dim=-1),
+#                 convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
+
+#         self.body_lin_vel[:, :, :] = body_lin_vel
+#         self.body_ang_vel[:, :, :] = body_ang_vel
+
+#         self.process_contact_points()
+#         self.compute_force()
+        
+#     def process_contact_points(self)->None:
+#         """
+#         Update contact points' kinematic states.
+#         """
+#         R = self.body_rot_mat.unsqueeze(2)
+#         p = self.contact_point_offset.unsqueeze(-1)
+#         self.contact_point_pos = self.body_pos.unsqueeze(2) + (R @ p).squeeze(-1)
+        
+#         roll, pitch, yaw = euler_xyz_from_quat(self.body_quat.view(-1, 4))
+#         self.contact_point_euler = torch.stack((roll, pitch, yaw), dim=-1).view(self.num_envs, self.num_bodies, 1, 3).repeat(1, 1, self.num_contact_points, 1)
+#         self.contact_point_lin_vel = self.body_lin_vel.unsqueeze(2) + \
+#             torch.cross(self.body_ang_vel.unsqueeze(2), self.contact_point_pos - self.body_pos.unsqueeze(2), dim=-1)
+        
+#         # pre-rotate roll and yaw
+#         Rt = self.body_rot_mat_roll_yaw.transpose(-1, -2).unsqueeze(2)
+#         v = self.contact_point_lin_vel.clone().unsqueeze(-1)
+#         self.contact_point_lin_vel_b = (Rt @ v).squeeze(-1)
+        
+#         # compute velocity angle
+#         self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel_b[..., 2], self.contact_point_lin_vel_b[..., 0])
+#         self.contact_point_intrusion_angle = torch.where(
+#             self.contact_point_intrusion_angle > torch.pi/2, 
+#             torch.pi - self.contact_point_intrusion_angle, 
+#             self.contact_point_intrusion_angle
+#             )
+#         self.contact_point_intrusion_angle = torch.where(
+#             self.contact_point_intrusion_angle < -torch.pi/2,
+#             -torch.pi - self.contact_point_intrusion_angle,
+#             self.contact_point_intrusion_angle
+#             )
+        
 
 if __name__ == "__main__":
     material_cfg = PoppySeedLPCfg()
