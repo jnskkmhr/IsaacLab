@@ -15,7 +15,9 @@ import isaaclab.utils.string as string_utils
 from isaaclab.assets.articulation import Articulation
 from isaaclab.managers.action_manager import ActionTerm
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp import PoppySeedCPCfg, PoppySeedLPCfg, RFT_EMF
+from isaaclab_tasks.manager_based.locomotion.velocity.config.object_soft_terrain.mdp import (
+    PoppySeedCPCfg, PoppySeedLPCfg, RFT_EMF
+)
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
@@ -54,7 +56,7 @@ class PhysicsCallbackAction(ActionTerm):
         # get physics backend
         material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
-        num_contact_points = int(40*40) # 40 x 40 grid
+        num_contact_points = 1600 # 40 x 40 grid
         self.rft = RFT_EMF(cfg=material_cfg, num_envs=self.num_envs, num_bodies=num_bodies, num_contact_points=num_contact_points, device=self.device)
         
     """

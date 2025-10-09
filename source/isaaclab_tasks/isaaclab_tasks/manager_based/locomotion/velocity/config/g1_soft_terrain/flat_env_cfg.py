@@ -32,9 +32,10 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
+                #  "z": (0.05, 0.05), 
                  "z": (-0.15, -0.15), 
-                "yaw": (0,0), 
-                # "yaw": (-math.pi, math.pi),
+                # "yaw": (0,0), 
+                "yaw": (-math.pi, math.pi),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -89,10 +90,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # remove random pushing
         self.events.base_external_force_torque = None
         self.events.push_robot = None
+        self.events.physics_material = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.7)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)

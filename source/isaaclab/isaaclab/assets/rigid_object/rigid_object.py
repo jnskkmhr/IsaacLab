@@ -18,6 +18,9 @@ import isaaclab.sim as sim_utils
 import isaaclab.utils.math as math_utils
 import isaaclab.utils.string as string_utils
 
+from isaaclab.markers import VisualizationMarkers
+from isaaclab.markers.config import FRAME_MARKER_CFG
+
 from ..asset_base import AssetBase
 from .rigid_object_data import RigidObjectData
 
@@ -551,6 +554,25 @@ class RigidObject(AssetBase):
         )
         default_root_state = torch.tensor(default_root_state, dtype=torch.float, device=self.device)
         self._data.default_root_state = default_root_state.repeat(self.num_instances, 1)
+        
+    def _set_debug_vis_impl(self, debug_vis: bool):
+        """Set debug visualization into visualization objects.
+
+        This function is responsible for creating the visualization objects if they don't exist
+        and input ``debug_vis`` is True. If the visualization objects exist, the function should
+        set their visibility into the stage.
+        """
+        # create a marker if necessary
+        if debug_vis:
+            if not hasattr(self, "origin_visualizer"):
+                self.origin_visualizer = VisualizationMarkers(
+                    cfg=FRAME_MARKER_CFG.replace(prim_path="/Visuals/TerrainOrigin") # type: ignore
+                )
+            # set visibility
+            self.origin_visualizer.set_visibility(True)
+        else:
+            if hasattr(self, "origin_visualizer"):
+                self.origin_visualizer.set_visibility(False)
 
     """
     Internal simulation callbacks.
@@ -562,3 +584,15 @@ class RigidObject(AssetBase):
         super()._invalidate_initialize_callback(event)
         # set all existing views to None to invalidate them
         self._root_physx_view = None
+
+    def _debug_vis_callback(self, event):
+        """Callback for debug visualization.
+
+        This function calls the visualization objects and sets the data to visualize into them.
+        """
+        scales = 0.2 * torch.ones((self.num_instances, 3), device=self.device)
+        self.origin_visualizer.visualize(
+                    self._data.root_com_pos_w.reshape(-1, 3), 
+                    self._data.root_com_quat_w.reshape(-1, 4),
+                    scales,
+                )

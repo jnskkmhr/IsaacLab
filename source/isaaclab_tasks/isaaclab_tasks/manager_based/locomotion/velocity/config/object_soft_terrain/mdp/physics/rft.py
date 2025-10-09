@@ -42,7 +42,7 @@ class PoppySeedCPCfg(MaterialCfg):
     C01: float = 0.086
     C_11: float = 0.018
     D10: float = 0.046
-    hardness: float = 1.0
+    hardness: float = 3.0
 
 
 """
@@ -72,7 +72,6 @@ class RFT_EMF:
         
         self.contact_edge_x = (-0.06, 0.14)
         self.contact_edge_y = (-0.03, 0.03)
-        self.foot_depth = 0.035
         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
         
         self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
@@ -131,8 +130,7 @@ class RFT_EMF:
         self.body_rot_mat_roll_yaw[:, :, :, :] = \
             matrix_from_euler(
                 torch.stack(
-                # (roll, torch.zeros_like(pitch), yaw), dim=-1),
-                (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+                (roll, torch.zeros_like(pitch), yaw), dim=-1),
                 convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
 
         self.body_lin_vel[:, :, :] = body_lin_vel
@@ -178,7 +176,7 @@ class RFT_EMF:
         contact_point_offset = torch.stack((
             contact_point_offset_x.flatten(), 
             contact_point_offset_y.flatten(), 
-            -self.foot_depth * torch.ones_like(contact_point_offset_x).flatten()
+            -0.035/2 * torch.ones_like(contact_point_offset_x).flatten()
             ), dim=-1)
         contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
         self.contact_point_offset[:, :, :, :] = contact_point_offset
@@ -286,11 +284,9 @@ class RFT_EMF:
         Computed force is in simulation global frame.
         Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
         """
-        
+        # combines Coulomb friction and Stribeck friction model
         vt = torch.sqrt(foot_velocity[:, :, 0]**2 + foot_velocity[:, :, 1]**2)
         vt_unit_vec = foot_velocity[:, :, :2]/(vt.unsqueeze(2) + 1e-6)
-        
-        # combines Coulomb friction and Stribeck friction model
         # v_cf = 0.05 # Coulomb friction velocity threshold
         # v_st = 0.01 # Stribeck friction velocity threshold
         # friction_force = (self.dynamic_friction_coef * torch.tanh(vt/v_cf) + \
