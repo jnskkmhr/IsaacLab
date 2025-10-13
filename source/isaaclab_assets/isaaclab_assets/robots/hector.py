@@ -1,0 +1,119 @@
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+import isaaclab.sim as sim_utils
+from isaaclab.actuators import ImplicitActuatorCfg, IdealPDActuatorCfg, DelayedPDActuatorCfg
+from isaaclab.assets.articulation import ArticulationCfg
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
+
+
+HECTOR_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robot/HECTOR/hector_flat_foot_small_bounding_cube.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True,
+            solver_position_iteration_count=4,
+            solver_velocity_iteration_count=0,
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.56),
+        rot=(1.0, 0.0, 0.0, 0.0),
+        joint_vel={".*": 0.0},
+        joint_pos={
+            'L_hip_joint': 0.0,
+            'L_hip2_joint': 0.0,
+            'L_thigh_joint': 0.0,
+            'L_calf_joint': 0.0,
+            'L_toe_joint': 0.0,
+            'R_hip_joint': 0.0,
+            'R_hip2_joint': 0.0,
+            'R_thigh_joint': 0.0,
+            'R_calf_joint': 0.0,
+            'R_toe_joint': 0.0,
+        },
+    ),
+    soft_joint_pos_limit_factor=0.9,
+    # we use direct torque control for this robot, so no PD gains necessary
+    actuators={
+        "feet": ImplicitActuatorCfg(
+            joint_names_expr=[
+                "L_hip_joint",
+                "L_hip2_joint",
+                "L_thigh_joint",
+                "L_calf_joint",
+                "R_hip_joint",
+                "R_hip2_joint",
+                "R_thigh_joint",
+                "R_calf_joint",
+            ],
+            effort_limit=67.0,
+            velocity_limit=30.0,
+            stiffness={
+                "L_hip_joint": 0,
+                "L_hip2_joint": 0,
+                "L_thigh_joint": 0,
+                "L_calf_joint": 0,
+                "R_hip_joint": 0,
+                "R_hip2_joint": 0,
+                "R_thigh_joint": 0,
+                "R_calf_joint": 0,
+            },
+            damping={
+                "L_hip_joint": 0.0,
+                "L_hip2_joint": 0.0,
+                "L_thigh_joint": 0.0,
+                "L_calf_joint": 0.0,
+                "R_hip_joint": 0.0,
+                "R_hip2_joint": 0.0,
+                "R_thigh_joint": 0.0,
+                "R_calf_joint": 0.0,
+            },
+            armature={
+                "L_hip_joint": 0,
+                "L_hip2_joint": 0,
+                "L_thigh_joint": 0,
+                "L_calf_joint": 0,
+                "R_hip_joint": 0,
+                "R_hip2_joint": 0,
+                "R_thigh_joint": 0,
+                "R_calf_joint": 0,
+            },
+            # min_delay=0,  # physics time steps (min: 1.0*0=0.0ms)
+            # max_delay=8,  # physics time steps (max: 1.0*8=8.0ms)
+        ),
+        "toes": ImplicitActuatorCfg(
+            joint_names_expr=[
+                "L_toe_joint",
+                "R_toe_joint",
+            ],
+            effort_limit=33.5,
+            velocity_limit=30.0,
+            stiffness={
+                "L_toe_joint": 0,
+                "R_toe_joint": 0,
+            },
+            damping={
+                "L_toe_joint": 0.0,
+                "R_toe_joint": 0.0,
+            },
+            armature={
+                "L_toe_joint": 0.000,
+                "R_toe_joint": 0.000,
+            },
+        ),
+    },
+)

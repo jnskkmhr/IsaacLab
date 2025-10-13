@@ -338,6 +338,7 @@ G1_CFG = ArticulationCfg(
             joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
             stiffness=20.0,
             damping=2.0,
+            # damping={".*_ankle_pitch_joint": 2.0, ".*_ankle_roll_joint": 2.0},
             armature=0.01,
         ),
         "arms": ImplicitActuatorCfg(

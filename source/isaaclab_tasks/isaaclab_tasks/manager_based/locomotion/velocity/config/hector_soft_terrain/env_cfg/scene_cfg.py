@@ -17,13 +17,13 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import G1_MINIMAL_CFG  # type: ignore # isort: skip
+from isaaclab_assets import HECTOR_CFG  # type: ignore # isort: skip
 from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 
 
 
 @configclass
-class G1SceneCfg(InteractiveSceneCfg):
+class HECTORSceneCfg(InteractiveSceneCfg):
     """Configuration for the terrain scene with a legged robot."""
 
     # ground terrain
@@ -48,10 +48,10 @@ class G1SceneCfg(InteractiveSceneCfg):
         disable_collider=True,
     )
     # robots
-    robot: ArticulationCfg = G1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = HECTOR_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     # sensors
     height_scanner = RayCasterCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/torso_link",
+        prim_path="{ENV_REGEX_NS}/Robot/base",
         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
         ray_alignment="yaw",
         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
@@ -67,14 +67,14 @@ class G1SceneCfg(InteractiveSceneCfg):
         )
     # detailed single foot contact reporting
     contact_forces_LF = ContactSensorCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/left_ankle_roll_link", 
+        prim_path="{ENV_REGEX_NS}/Robot/L_toe", 
         filter_prim_paths_expr=["/World/ground/terrain/mesh"], 
         history_length=3, 
         track_air_time=True, 
         track_friction_forces=True,
         )
     contact_forces_RF = ContactSensorCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/right_ankle_roll_link", 
+        prim_path="{ENV_REGEX_NS}/Robot/R_toe", 
         filter_prim_paths_expr=["/World/ground/terrain/mesh"], 
         history_length=3, 
         track_air_time=True, 

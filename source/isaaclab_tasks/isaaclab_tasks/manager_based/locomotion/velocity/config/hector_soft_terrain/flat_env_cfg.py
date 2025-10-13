@@ -7,12 +7,12 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 from isaaclab.envs.common import ViewerCfg
 
-from .rough_env_cfg import G1RoughEnvCfg
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as g1_mdp
+from .rough_env_cfg import HECTORRoughEnvCfg
+import isaaclab_tasks.manager_based.locomotion.velocity.config.hector_soft_terrain.mdp as hector_mdp
 
 
 @configclass
-class G1FlatEnvCfg(G1RoughEnvCfg):
+class HECTORFlatEnvCfg(HECTORRoughEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -45,17 +45,18 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.base_external_force_torque = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
-        # Rewards
-        self.rewards.track_ang_vel_z_exp.weight = 1.0
-        self.rewards.lin_vel_z_l2.weight = -0.2
-        self.rewards.action_rate_l2.weight = -0.005
-        self.rewards.dof_acc_l2.weight = -1.0e-7
-        self.rewards.feet_air_time.weight = 0.75
-        self.rewards.feet_air_time.params["threshold"] = 0.4
-        self.rewards.dof_torques_l2.weight = -2.0e-6
-        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
-            "robot", joint_names=[".*_hip_.*", ".*_knee_joint"]
-        )
+        # # Rewards
+        # self.rewards.track_ang_vel_z_exp.weight = 1.0
+        # self.rewards.lin_vel_z_l2.weight = -0.2
+        # self.rewards.action_rate_l2.weight = -0.005
+        # self.rewards.dof_acc_l2.weight = -1.0e-7
+        # self.rewards.feet_air_time.weight = 0.75
+        # self.rewards.feet_air_time.params["threshold"] = 0.4
+        # self.rewards.dof_torques_l2.weight = -2.0e-6
+        # self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
+        #     "robot", joint_names=[".*_hip_.*", ".*_knee_joint"]
+        # )
+        
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
@@ -64,7 +65,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         # light and view settings
         self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
         self.viewer = ViewerCfg(
-            eye=(-0.0, -2.5, 0.0), 
+            eye=(-0.0, -2.0, 0.0), 
             lookat=(0.0, -0.8, 0.0),
             resolution=(1920, 1080), 
             origin_type="asset_root", 
@@ -72,7 +73,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         )
 
 
-class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
+class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
@@ -83,7 +84,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.episode_length_s = 20.0
         
         # make soft terrain
-        self.scene.terrain = g1_mdp.FlatTerrain
+        self.scene.terrain = hector_mdp.FlatTerrain
         self.scene.terrain.disable_collider = True  # soft terrain
         
         # disable randomization for play
@@ -95,19 +96,12 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.physics_material = None
         self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
         
-        # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.6, 0.6)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
-        self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
-        
         # Randomization 
         self.events.reset_base.params = {
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
-                 "z": (-0.15, -0.15), 
+                 "z": (-0.05, -0.05), 
                 "yaw": (0, 0),
                  },
             "velocity_range": {
@@ -119,3 +113,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
+        
+        # Commands
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.6)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.heading_command = False
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)

@@ -10,11 +10,11 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as g1_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.hector_soft_terrain.mdp as hector_mdp
 
 
 @configclass
-class G1ObservationsCfg:
+class HECTORObservationsCfg:
     """Observation specifications for the MDP."""
 
     @configclass
@@ -50,20 +50,20 @@ class G1ObservationsCfg:
         # observation terms (order preserved)
         
         # hard_contact_forces_lf = ObsTerm(
-        #     func=g1_mdp.foot_hard_contact_forces, # type: ignore
+        #     func=hector_mdp.foot_hard_contact_forces, # type: ignore
         #     params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
         #                                         #  body_names=[".*_ankle_roll_link"], 
         #                                          )},
         # )
         # hard_contact_forces_rf = ObsTerm(
-        #     func=g1_mdp.foot_hard_contact_forces, # type: ignore
+        #     func=hector_mdp.foot_hard_contact_forces, # type: ignore
         #     params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
         #                                         #  body_names=[".*_ankle_roll_link"], 
         #                                          )},
         # )
         
         soft_contact_forces = ObsTerm(
-            func=g1_mdp.soft_contact_forces, # type: ignore
+            func=hector_mdp.soft_contact_forces, # type: ignore
             params={"action_term_name": "physics_callback"},
         )
         

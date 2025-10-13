@@ -75,10 +75,10 @@ class RFT_EMF:
         self.num_contact_points = num_contact_points
         self.device = device
         
-        self.contact_edge_x = (-0.06, 0.14)
-        self.contact_edge_y = (-0.03, 0.03)
-        self.contact_edge_z = (-0.035, 0.0)
-        self.foot_depth = 0.035
+        self.contact_edge_x = (-0.06, 0.09)
+        self.contact_edge_y = (-0.05, 0.05)
+        self.contact_edge_z = (-0.042, 0.0)
+        self.foot_depth = 0.04
         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
         
         self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
@@ -197,19 +197,6 @@ class RFT_EMF:
         )
 
         self.contact_point_offset[:, :, :, :] = contact_point_offset
-        
-        # num_contact_point_side = int(math.sqrt(self.num_contact_points))
-        # assert num_contact_point_side**2 == self.num_contact_points, "num_contact_points must be a perfect square"
-        # contact_point_offset_x = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_contact_point_side, device=self.device)
-        # contact_point_offset_y = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_contact_point_side, device=self.device)
-        # contact_point_offset_y, contact_point_offset_x = torch.meshgrid(contact_point_offset_y, contact_point_offset_x, indexing='ij')
-        # contact_point_offset = torch.stack((
-        #     contact_point_offset_x.flatten(), 
-        #     contact_point_offset_y.flatten(), 
-        #     -self.foot_depth * torch.ones_like(contact_point_offset_x).flatten()
-        #     ), dim=-1)
-        # contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
-        # self.contact_point_offset[:, :, :, :] = contact_point_offset
         
     def process_contact_points(self)->None:
         """

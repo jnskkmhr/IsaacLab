@@ -222,11 +222,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             base_too_low = term_dones[:, base_too_low_idx] if base_too_low_idx is not None else None
             time_out = term_dones[:, time_out_idx] if time_out_idx is not None else None
 
-        if args_cli.video:
-            timestep += 1
-            # Exit the play loop after recording one video
-            if timestep == args_cli.video_length:
-                break
+        # if args_cli.video:
+        #     timestep += 1
+        #     # Exit the play loop after recording one video
+        #     if timestep == args_cli.video_length:
+        #         break
 
         # time delay for real-time evaluation
         sleep_time = dt - (time.time() - start_time)
