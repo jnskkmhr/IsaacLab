@@ -22,6 +22,7 @@ class HECTORObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
+        base_pos = ObsTerm(func=mdp.root_pos_w, noise=Unoise(n_min=-0.05, n_max=0.05)) # type: ignore
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.1, n_max=0.1)) # type: ignore
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.2, n_max=0.2)) # type: ignore
         projected_gravity = ObsTerm(
@@ -52,13 +53,11 @@ class HECTORObservationsCfg:
         # hard_contact_forces_lf = ObsTerm(
         #     func=hector_mdp.foot_hard_contact_forces, # type: ignore
         #     params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
-        #                                         #  body_names=[".*_ankle_roll_link"], 
         #                                          )},
         # )
         # hard_contact_forces_rf = ObsTerm(
         #     func=hector_mdp.foot_hard_contact_forces, # type: ignore
         #     params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
-        #                                         #  body_names=[".*_ankle_roll_link"], 
         #                                          )},
         # )
         
@@ -74,4 +73,4 @@ class HECTORObservationsCfg:
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
-    # contact: ContactCfg = ContactCfg()
+    contact: ContactCfg = ContactCfg()

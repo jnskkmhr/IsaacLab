@@ -49,23 +49,21 @@ class G1ObservationsCfg:
 
         # observation terms (order preserved)
         
-        # hard_contact_forces_lf = ObsTerm(
-        #     func=g1_mdp.foot_hard_contact_forces, # type: ignore
-        #     params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
-        #                                         #  body_names=[".*_ankle_roll_link"], 
-        #                                          )},
-        # )
-        # hard_contact_forces_rf = ObsTerm(
-        #     func=g1_mdp.foot_hard_contact_forces, # type: ignore
-        #     params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
-        #                                         #  body_names=[".*_ankle_roll_link"], 
-        #                                          )},
-        # )
-        
-        soft_contact_forces = ObsTerm(
-            func=g1_mdp.soft_contact_forces, # type: ignore
-            params={"action_term_name": "physics_callback"},
+        hard_contact_forces_lf = ObsTerm(
+            func=g1_mdp.foot_hard_contact_forces, # type: ignore
+            params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
+                                                 )},
         )
+        hard_contact_forces_rf = ObsTerm(
+            func=g1_mdp.foot_hard_contact_forces, # type: ignore
+            params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
+                                                 )},
+        )
+        
+        # soft_contact_forces = ObsTerm(
+        #     func=g1_mdp.soft_contact_forces, # type: ignore
+        #     params={"action_term_name": "physics_callback"},
+        # )
         
 
         def __post_init__(self):
@@ -74,4 +72,4 @@ class G1ObservationsCfg:
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
-    # contact: ContactCfg = ContactCfg()
+    contact: ContactCfg = ContactCfg()

@@ -84,7 +84,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         
         # make soft terrain
         self.scene.terrain = g1_mdp.FlatTerrain
-        self.scene.terrain.disable_collider = True  # soft terrain
+        # self.scene.terrain.disable_collider = True  # soft terrain
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -96,7 +96,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.6, 0.6)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
@@ -107,7 +107,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
-                 "z": (-0.15, -0.15), 
+                #  "z": (-0.06, -0.06), 
                 "yaw": (0, 0),
                  },
             "velocity_range": {

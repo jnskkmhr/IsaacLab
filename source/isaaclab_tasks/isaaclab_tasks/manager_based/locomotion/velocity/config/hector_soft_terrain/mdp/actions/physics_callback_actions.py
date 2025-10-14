@@ -54,10 +54,9 @@ class PhysicsCallbackAction(ActionTerm):
         
         # get physics backend
         material_cfg = PoppySeedCPCfg()
+        # material_cfg = PoppySeedLPCfg()
         num_bodies = len(body_ids)
-        contact_point_per_dimension = 10
-        num_contact_points = int(contact_point_per_dimension**3)
-        self.rft = RFT_EMF(cfg=material_cfg, num_envs=self.num_envs, num_bodies=num_bodies, num_contact_points=num_contact_points, device=self.device)
+        self.rft = RFT_EMF(material_cfg=material_cfg, num_envs=self.num_envs, num_bodies=num_bodies, device=self.device)
         
     """
     properties.

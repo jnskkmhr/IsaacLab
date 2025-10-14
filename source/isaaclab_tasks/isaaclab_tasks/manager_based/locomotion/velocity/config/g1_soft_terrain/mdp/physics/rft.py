@@ -47,8 +47,20 @@ class PoppySeedCPCfg(MaterialCfg):
     C01: float = 0.086
     C_11: float = 0.018
     D10: float = 0.046
-    hardness: float = 1.0
-
+    hardness: float = 4.0
+    
+@configclass
+class IntruderGeometryCfg:
+    """
+    Intruder surface is approximated as rectangle.
+    contact_edge_*: tuple of lower and upper bounds of corner from intruder link origin.
+    """
+    # contact_edge_x: Tuple[float, float] = (-0.07, 0.14) # length in x direction (m)
+    # contact_edge_x: Tuple[float, float] = (-0.065, 0.141) # length in x direction (m)
+    contact_edge_x: Tuple[float, float] = (-1.3*0.065, 1.3*0.141) # length in x direction (m)
+    contact_edge_y: Tuple[float, float] = (-0.0368, 0.0368) # length in y direction (m)
+    contact_edge_z: Tuple[float, float] = (-0.04, 0.0) # length in z direction (m)
+    num_contact_points:int = 20*20
 
 """
 2D RFT with dynamic inertial modification (DRFT) + exponential moving average filtering.
@@ -56,11 +68,11 @@ class PoppySeedCPCfg(MaterialCfg):
 
 class RFT_EMF:
     def __init__(self, 
-                 cfg: MaterialCfg, 
                  num_envs: int,
                  num_bodies: int, 
-                 num_contact_points: int,
                  device: torch.device,
+                 material_cfg: MaterialCfg=PoppySeedCPCfg(), 
+                 intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
                  static_friction_coef: float=1.0, 
                  dynamic_friction_coef: float=0.5, 
                  ):
@@ -68,17 +80,17 @@ class RFT_EMF:
         Resistive Force Theory based soft terrain contact solver.
         https://www.science.org/doi/10.1126/science.1229163
         """
-        
-        self.cfg = cfg
+
+        self.cfg = material_cfg
         self.num_envs = num_envs
         self.num_bodies = num_bodies
-        self.num_contact_points = num_contact_points
+        self.num_contact_points = intruder_cfg.num_contact_points
         self.device = device
         
-        self.contact_edge_x = (-0.06, 0.14)
-        self.contact_edge_y = (-0.03, 0.03)
-        self.contact_edge_z = (-0.035, 0.0)
-        self.foot_depth = 0.035
+        self.contact_edge_x = intruder_cfg.contact_edge_x
+        self.contact_edge_y = intruder_cfg.contact_edge_y
+        self.contact_edge_z = intruder_cfg.contact_edge_z
+        self.foot_depth = self.contact_edge_z[1] - self.contact_edge_z[0]
         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
         
         self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
@@ -137,8 +149,8 @@ class RFT_EMF:
         self.body_rot_mat_roll_yaw[:, :, :, :] = \
             matrix_from_euler(
                 torch.stack(
-                # (roll, torch.zeros_like(pitch), yaw), dim=-1),
-                (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+                (roll, torch.zeros_like(pitch), yaw), dim=-1),
+                # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
                 convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
 
         self.body_lin_vel[:, :, :] = body_lin_vel
@@ -176,40 +188,40 @@ class RFT_EMF:
         """
         Create contact points in contact surface in root body frame (e.g. foot link frame). 
         """
-        num_points_per_axis = round(self.num_contact_points ** (1/3))
-        assert num_points_per_axis ** 3 == self.num_contact_points, \
-            "num_contact_points must be a perfect cube for 3D grid"
+        # num_points_per_axis = round(self.num_contact_points ** (1/3))
+        # assert num_points_per_axis ** 3 == self.num_contact_points, \
+        #     "num_contact_points must be a perfect cube for 3D grid"
 
-        # Create 1D coordinates for each axis
-        xs = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_points_per_axis, device=self.device)
-        ys = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_points_per_axis, device=self.device)
-        zs = torch.linspace(self.contact_edge_z[0], self.contact_edge_z[1], num_points_per_axis, device=self.device)
+        # # Create 1D coordinates for each axis
+        # xs = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_points_per_axis, device=self.device)
+        # ys = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_points_per_axis, device=self.device)
+        # zs = torch.linspace(self.contact_edge_z[0], self.contact_edge_z[1], num_points_per_axis, device=self.device)
 
-        # Create full 3D meshgrid (Y, X, Z for consistency)
-        yy, xx, zz = torch.meshgrid(ys, xs, zs, indexing='ij')
+        # # Create full 3D meshgrid (Y, X, Z for consistency)
+        # yy, xx, zz = torch.meshgrid(ys, xs, zs, indexing='ij')
 
-        # Stack to form (N, 3) point coordinates
-        contact_point_offset = torch.stack((xx.flatten(), yy.flatten(), zz.flatten()), dim=-1)  # (N, 3)
+        # # Stack to form (N, 3) point coordinates
+        # contact_point_offset = torch.stack((xx.flatten(), yy.flatten(), zz.flatten()), dim=-1)  # (N, 3)
 
-        # Broadcast to (num_envs, num_bodies, num_contact_points, 3)
-        contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(
-            self.num_envs, self.num_bodies, 1, 1
-        )
+        # # Broadcast to (num_envs, num_bodies, num_contact_points, 3)
+        # contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(
+        #     self.num_envs, self.num_bodies, 1, 1
+        # )
 
-        self.contact_point_offset[:, :, :, :] = contact_point_offset
-        
-        # num_contact_point_side = int(math.sqrt(self.num_contact_points))
-        # assert num_contact_point_side**2 == self.num_contact_points, "num_contact_points must be a perfect square"
-        # contact_point_offset_x = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_contact_point_side, device=self.device)
-        # contact_point_offset_y = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_contact_point_side, device=self.device)
-        # contact_point_offset_y, contact_point_offset_x = torch.meshgrid(contact_point_offset_y, contact_point_offset_x, indexing='ij')
-        # contact_point_offset = torch.stack((
-        #     contact_point_offset_x.flatten(), 
-        #     contact_point_offset_y.flatten(), 
-        #     -self.foot_depth * torch.ones_like(contact_point_offset_x).flatten()
-        #     ), dim=-1)
-        # contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
         # self.contact_point_offset[:, :, :, :] = contact_point_offset
+        
+        num_contact_point_side = int(math.sqrt(self.num_contact_points))
+        assert num_contact_point_side**2 == self.num_contact_points, "num_contact_points must be a perfect square"
+        contact_point_offset_x = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_contact_point_side, device=self.device)
+        contact_point_offset_y = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_contact_point_side, device=self.device)
+        contact_point_offset_y, contact_point_offset_x = torch.meshgrid(contact_point_offset_y, contact_point_offset_x, indexing='ij')
+        contact_point_offset = torch.stack((
+            contact_point_offset_x.flatten(), 
+            contact_point_offset_y.flatten(), 
+            -self.foot_depth * torch.ones_like(contact_point_offset_x).flatten()
+            ), dim=-1)
+        contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
+        self.contact_point_offset[:, :, :, :] = contact_point_offset
         
     def process_contact_points(self)->None:
         """
@@ -572,7 +584,7 @@ if __name__ == "__main__":
     num_bodies = 2
     num_contact_points = 100
     device = torch.device('cuda:0')
-    rft = RFT_EMF(cfg=material_cfg, num_envs=num_envs, num_bodies=num_bodies, num_contact_points=num_contact_points, device=device)
+    rft = RFT_EMF(material_cfg=material_cfg, num_envs=num_envs, num_bodies=num_bodies, device=device)
     body_pos = torch.zeros((10, 2, 3), device=torch.device('cuda:0'))
     body_quat = torch.tensor([1, 0, 0, 0], device=torch.device('cuda:0')).unsqueeze(0).unsqueeze(0).repeat(10, 2, 1)
     body_lin_vel = torch.zeros((10, 2, 3), device=torch.device('cuda:0'))
