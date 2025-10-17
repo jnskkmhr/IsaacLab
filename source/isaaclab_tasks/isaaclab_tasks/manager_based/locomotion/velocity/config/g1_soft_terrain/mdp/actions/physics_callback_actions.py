@@ -55,7 +55,13 @@ class PhysicsCallbackAction(ActionTerm):
         # get physics backend
         material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
-        self.rft = RFT_EMF(material_cfg=material_cfg, num_envs=self.num_envs, num_bodies=num_bodies, device=self.device)
+        self.contact_solver = RFT_EMF(
+            material_cfg=material_cfg, 
+            num_envs=self.num_envs, 
+            num_bodies=num_bodies, 
+            device=self.device, 
+            dt=env.physics_dt,
+            )
         
     """
     properties.
@@ -101,10 +107,10 @@ class PhysicsCallbackAction(ActionTerm):
         body_quat = self.body_quat.clone()
         body_lin_vel = self.body_lin_vel.clone()
         body_ang_vel = self.body_ang_vel.clone()
-        self.rft.update(body_pos, body_quat, body_lin_vel, body_ang_vel)
+        self.contact_solver.update(body_pos, body_quat, body_lin_vel, body_ang_vel)
         
-        self.contact_wrench = self.rft.contact_wrench # (num_envs, num_bodies, 6)
-        self.contact_wrench_b = self.rft.contact_wrench_b # (num_envs, num_bodies, 6)
+        self.contact_wrench = self.contact_solver.contact_wrench # (num_envs, num_bodies, 6)
+        self.contact_wrench_b = self.contact_solver.contact_wrench_b # (num_envs, num_bodies, 6)
         self._asset.set_external_force_and_torque(
             forces = self.contact_wrench[:, :, :3],
             torques = self.contact_wrench[:, :, 3:6],
@@ -114,5 +120,5 @@ class PhysicsCallbackAction(ActionTerm):
     
     def reset(self, env_ids: torch.Tensor):
         self.contact_wrench_b[env_ids] = 0.0
-        self.rft.reset(env_ids)
+        self.contact_solver.reset(env_ids)
     

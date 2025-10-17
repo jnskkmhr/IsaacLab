@@ -10,11 +10,11 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as g1_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.hector.mdp as hector_mdp
 
 
 @configclass
-class G1ObservationsCfg:
+class HECTORObservationsCfg:
     """Observation specifications for the MDP."""
 
     @configclass
@@ -22,6 +22,7 @@ class G1ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
+        base_pos = ObsTerm(func=mdp.root_pos_w, noise=Unoise(n_min=-0.05, n_max=0.05)) # type: ignore
         base_lin_vel = ObsTerm(func=mdp.base_lin_vel, noise=Unoise(n_min=-0.1, n_max=0.1)) # type: ignore
         base_ang_vel = ObsTerm(func=mdp.base_ang_vel, noise=Unoise(n_min=-0.2, n_max=0.2)) # type: ignore
         projected_gravity = ObsTerm(
@@ -49,20 +50,15 @@ class G1ObservationsCfg:
 
         # observation terms (order preserved)
         
-        # hard_contact_forces_lf = ObsTerm(
-        #     func=g1_mdp.foot_hard_contact_forces, # type: ignore
-        #     params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
-        #                                          )},
-        # )
-        # hard_contact_forces_rf = ObsTerm(
-        #     func=g1_mdp.foot_hard_contact_forces, # type: ignore
-        #     params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
-        #                                          )},
-        # )
-        
-        soft_contact_forces = ObsTerm(
-            func=g1_mdp.soft_contact_forces, # type: ignore
-            params={"action_term_name": "physics_callback"},
+        hard_contact_forces_lf = ObsTerm(
+            func=hector_mdp.foot_hard_contact_forces, # type: ignore
+            params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
+                                                 )},
+        )
+        hard_contact_forces_rf = ObsTerm(
+            func=hector_mdp.foot_hard_contact_forces, # type: ignore
+            params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
+                                                 )},
         )
         
 
@@ -72,4 +68,4 @@ class G1ObservationsCfg:
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
-    contact: ContactCfg = ContactCfg()
+    # contact: ContactCfg = ContactCfg()

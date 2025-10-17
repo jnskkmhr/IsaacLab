@@ -17,7 +17,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import HECTOR_MPC_CFG  # type: ignore # isort: skip
+from isaaclab_assets import HECTOR_CFG  # type: ignore # isort: skip
 from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 
 
@@ -48,7 +48,7 @@ class HECTORSceneCfg(InteractiveSceneCfg):
         disable_collider=True,
     )
     # robots
-    robot: ArticulationCfg = HECTOR_MPC_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = HECTOR_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     # sensors
     height_scanner = RayCasterCfg(
         prim_path="{ENV_REGEX_NS}/Robot/base",
@@ -65,21 +65,21 @@ class HECTORSceneCfg(InteractiveSceneCfg):
         track_air_time=True, 
         track_friction_forces=False,
         )
-    # detailed single foot contact reporting
-    contact_forces_LF = ContactSensorCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/L_toe", 
-        filter_prim_paths_expr=["/World/ground/terrain/mesh"], 
-        history_length=3, 
-        track_air_time=True, 
-        track_friction_forces=True,
-        )
-    contact_forces_RF = ContactSensorCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/R_toe", 
-        filter_prim_paths_expr=["/World/ground/terrain/mesh"], 
-        history_length=3, 
-        track_air_time=True, 
-        track_friction_forces=True,
-        )
+    # # detailed single foot contact reporting
+    # contact_forces_LF = ContactSensorCfg(
+    #     prim_path="{ENV_REGEX_NS}/Robot/L_toe", 
+    #     filter_prim_paths_expr=["/World/ground/terrain/mesh"], 
+    #     history_length=3, 
+    #     track_air_time=True, 
+    #     track_friction_forces=True,
+    #     )
+    # contact_forces_RF = ContactSensorCfg(
+    #     prim_path="{ENV_REGEX_NS}/Robot/R_toe", 
+    #     filter_prim_paths_expr=["/World/ground/terrain/mesh"], 
+    #     history_length=3, 
+    #     track_air_time=True, 
+    #     track_friction_forces=True,
+    #     )
     # lights
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",
