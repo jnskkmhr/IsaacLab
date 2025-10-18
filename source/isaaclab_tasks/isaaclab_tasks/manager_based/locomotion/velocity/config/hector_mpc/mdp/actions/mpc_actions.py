@@ -19,7 +19,7 @@ from isaaclab.envs import ManagerBasedEnv
 from . import actions_cfg
 from .util.robot_helper import RobotCore
 from .util.mpc_controller import MPC_Conf, MPCController
-from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_soft_terrain.mdp.marker import (
+from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_mpc.mdp.marker import (
     FootPlacementVisualizer, 
     PositionTrajectoryVisualizer, 
     SwingFootVisualizer, 

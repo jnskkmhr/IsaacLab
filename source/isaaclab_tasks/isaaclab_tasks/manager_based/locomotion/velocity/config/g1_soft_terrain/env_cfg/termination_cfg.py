@@ -22,7 +22,7 @@ class G1TerminationsCfg:
     base_too_low = DoneTerm(
         func=g1_mdp.root_height_below_minimum_adaptive,  # type: ignore
         params={
-            "minimum_height": 0.4,
+            "minimum_height": 0.3,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
         },
     )

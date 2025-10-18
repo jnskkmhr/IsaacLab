@@ -334,6 +334,15 @@ class TerrainImporter:
         # update the env origins
         self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
 
+    def update_terrain_height(self, height: float):
+        prim_path = self.cfg.prim_path + f"/terrain"
+        prim_utils.set_prim_attribute_value(
+            prim_path, 
+            "xformOp:translate", 
+            [0.0, 0.0, height], 
+        )
+        
+
     """
     Internal helpers.
     """

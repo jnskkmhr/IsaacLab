@@ -8,7 +8,7 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.hector_soft_terrain.mdp as hector_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.hector_mpc.mdp as hector_mdp
 
 @configclass
 class HECTORTerminationsCfg:

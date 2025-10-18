@@ -12,7 +12,7 @@ from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
 
 HECTOR_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robot/HECTOR/hector_flat_foot_small_bounding_cube.usd",
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robot/HECTOR/hector_flat_foot_small.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -60,8 +60,7 @@ HECTOR_CFG = ArticulationCfg(
                 "R_thigh_joint",
                 "R_toe_joint",
             ],
-            effort_limit=33.5,
-            velocity_limit=30.0,
+            effort_limit_sim=33.5,
             stiffness={
                 "L_hip_joint": 40.0,
                 "L_hip2_joint": 40.0,
@@ -103,8 +102,7 @@ HECTOR_CFG = ArticulationCfg(
                 "L_calf_joint",
                 "R_calf_joint",
             ],
-            effort_limit=67.0,
-            velocity_limit=30.0,
+            effort_limit_sim=67.0,
             stiffness={
                 "L_calf_joint": 120.0,
                 "R_calf_joint": 120.0,
@@ -172,8 +170,7 @@ HECTOR_MPC_CFG = ArticulationCfg(
                 "R_thigh_joint",
                 "R_toe_joint",
             ],
-            effort_limit=33.5,
-            velocity_limit=30.0,
+            effort_limit_sim=33.5,
             stiffness={
                 "L_hip_joint": 0.0,
                 "L_hip2_joint": 0.0,
@@ -215,8 +212,7 @@ HECTOR_MPC_CFG = ArticulationCfg(
                 "L_calf_joint",
                 "R_calf_joint",
             ],
-            effort_limit=67.0,
-            velocity_limit=30.0,
+            effort_limit_sim=67.0,
             stiffness={
                 "L_calf_joint": 0.0,
                 "R_calf_joint": 0.0,

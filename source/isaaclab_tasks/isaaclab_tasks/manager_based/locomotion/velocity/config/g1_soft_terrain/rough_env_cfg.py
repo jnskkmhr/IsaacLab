@@ -21,6 +21,7 @@ from .env_cfg import (
     G1RewardsCfg, 
     G1SceneCfg,
     G1TerminationsCfg,
+    G1CurriculumCfg, 
 )
 
 
@@ -31,6 +32,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     observations: G1ObservationsCfg = G1ObservationsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
     terminations: G1TerminationsCfg = G1TerminationsCfg()
+    curriculum: G1CurriculumCfg = G1CurriculumCfg()
 
     def __post_init__(self):
         # post init of parent

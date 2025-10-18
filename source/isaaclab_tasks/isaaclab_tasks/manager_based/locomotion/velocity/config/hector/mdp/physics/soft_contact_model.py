@@ -52,7 +52,7 @@ class PoppySeedCPCfg(MaterialCfg):
     C01: float = 0.086
     C_11: float = 0.018
     D10: float = 0.046
-    stiffness: float = 1.0
+    stiffness: float = 10.0
     static_friction_coef: float = 1.0
     dynamic_friction_coef: float = 0.5
 

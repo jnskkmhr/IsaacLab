@@ -71,7 +71,7 @@ class IntruderGeometryCfg:
     # contact_edge_x: Tuple[float, float] = (-0.065, 0.141) # length in x direction (m)
     contact_edge_x: Tuple[float, float] = (-1.3*0.065, 1.3*0.141) # length in x direction (m)
     contact_edge_y: Tuple[float, float] = (-0.0368, 0.0368) # length in y direction (m)
-    contact_edge_z: Tuple[float, float] = (-0.039, 0.0) # length in z direction (m)
+    contact_edge_z: Tuple[float, float] = (-0.039+0.005, 0.0) # length in z direction (m)
     num_contact_points:int = 20*20
 
 """
@@ -91,6 +91,15 @@ class RFT_EMF:
         """
         Resistive Force Theory based soft terrain contact solver.
         https://www.science.org/doi/10.1126/science.1229163
+        
+        Args: 
+            num_envs: number of parallel environments
+            num_bodies: number of bodies using soft contact model per env
+            device: torch device
+            dt: simulation time step
+            history_length: length of history for force tracking
+            material_cfg: material configuration
+            intruder_cfg: intruder geometry configuration
         """
 
         self.cfg = material_cfg
@@ -139,6 +148,9 @@ class RFT_EMF:
         self.contact_point_offset[:, :, :, :] = contact_point_offset
         
     def create_internal_tensors(self):
+        """
+        Create buffer tensors.
+        """
         self.body_pos = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         self.body_quat = torch.zeros((self.num_envs, self.num_bodies, 4), device=self.device)
         self.body_rot_mat = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
@@ -179,6 +191,9 @@ class RFT_EMF:
         self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
         
     def initialize_data(self):
+        """
+        Initialize soft contact data.
+        """
         self._data.net_forces_w = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         self._data.net_forces_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, 3), device=self.device)
         self._data.force_matrix_w = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
@@ -195,12 +210,15 @@ class RFT_EMF:
     
     def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor):
         """
+        Update soft contact model.
+        
         Args:
-        body_pos: (num_envs, num_bodies, 3)
-        body_quat: (num_envs, num_bodies, 4)
-        body_lin_vel: (num_envs, num_bodies, 3)
-        body_ang_vel: (num_envs, num_bodies, 3)
+            body_pos: intruder position. (num_envs, num_bodies, 3)
+            body_quat: intruder orientation in quaternion form. (num_envs, num_bodies, 4)
+            body_lin_vel: intruder linear velocity wrt global frame. (num_envs, num_bodies, 3)
+            body_ang_vel: intruder angular velocity wrt global frame. (num_envs, num_bodies, 3)
         """
+        
         self._timestamp += self.dt
         self.body_pos[:, :, :] = body_pos
         self.body_quat[:, :, :] = body_quat
@@ -222,24 +240,29 @@ class RFT_EMF:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
         
+        # print("contact force:", self.contact_force)
         # print("current air time:")
         # print(self.data.current_air_time)
         # print("current contact time:")
         # print(self.data.current_contact_time)
         
-    def update_ground_stiffness(self, move_up: torch.Tensor, move_down:torch.Tensor):
+    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor):
         """
         Update ground stiffness (N/m) for each env.
+        Implementation is similar to terrain curriculum used in terrain importer class.
+        
         Args:
-            ground_stiffness: (len(env_id),)
+            env_ids: tensor of env ids to update
+            move_up: tensor of env ids to increase softness level (len(env_ids),)
+            move_down: tensor of env ids to decrease softness level (len(env_ids),)
         """
-        if len(move_up) > 0:
-            self.soft_level[move_up] += 1
-            self.soft_level = torch.clamp(self.soft_level, 0, self.max_level)
-        if len(move_down) > 0:
-            self.soft_level[move_down] -= 1
-            self.soft_level = torch.clamp(self.soft_level, 0, self.max_level)
-        self.stiffness = 10.0 - self.soft_level
+        self.soft_level[env_ids] += 1 * move_up - 1 * move_down
+        self.soft_level[env_ids] = torch.where(
+            self.soft_level[env_ids] >= self.max_level,
+            torch.randint_like(self.soft_level[env_ids], self.max_level),
+            torch.clip(self.soft_level[env_ids], 0),
+        )
+        self.stiffness = self.max_level - self.soft_level
 
     
     """
@@ -273,6 +296,9 @@ class RFT_EMF:
     def _update_data(self, env_ids:torch.Tensor)->None:
         """
         Update soft contact data.
+        
+        Args:
+            env_ids: tensor of env ids to update
         """
         self._data.net_forces_w[env_ids, :, :] = self.contact_force[env_ids, :, :] # type: ignore
         self._data.force_matrix_w[env_ids, :, :, :] = self.contact_point_force[env_ids, :, :, :] # type: ignore
@@ -382,8 +408,16 @@ class RFT_EMF:
         beta:torch.Tensor, 
         gamma:torch.Tensor)->torch.Tensor:
         """
-        Compute normal force using RFT z component.
-        Computed force is in simulation global frame.
+        Compute normal force wrt global frame using RFT z component.
+        
+        Args: 
+            foot_pos: contact point position in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            foot_velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
+            gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
+        Returns:
+            force_normal: normal force in global frame. (num_envs, num_bodies*num_contact_points, 3)
         """
         dA = self.surface_area/self.num_contact_points
         depth = -foot_pos[:, :, -1]
@@ -413,6 +447,13 @@ class RFT_EMF:
         """
         Compute elementary force per foot using Fourier series expansion. 
         See the original paper. 
+        
+        Args: 
+            beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
+            gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
+        Returns:
+            alpha_x: elementary force coefficient in x direction. (num_envs, num_bodies*num_contact_points)
+            alpha_z: elementary force coefficient in z direction. (num_envs, num_bodies*num_contact_points)
         """
         alpha_z = torch.zeros_like(beta) # A00
         alpha_z += self.cfg.A00*torch.cos(2*torch.pi*(0*beta/torch.pi)) #A00
@@ -434,6 +475,11 @@ class RFT_EMF:
         """
         Exponential moving filtering
         See KAIST science robotics supplementary material S12.
+        
+        Args:
+            velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            depth: contact point penetration depth. (num_envs, num_bodies*num_contact_points)
         """
         coef = 0.8
         increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
@@ -451,6 +497,12 @@ class RFT_EMF:
         Get tangential force using Coulomb friction model. 
         Computed force is in simulation global frame.
         Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
+        
+        Args:
+            foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            fz: normal force in z direction in global frame. (num_envs, num_bodies*num_contact_points)
+        Returns:
+            tangential_force: tangential force in global frame. (num_envs, num_bodies*num_contact_points, 3)
         """
         
         vt = torch.sqrt(foot_velocity[:, :, 0]**2 + foot_velocity[:, :, 1]**2)
@@ -477,6 +529,14 @@ class RFT_EMF:
         return tangential_force
     
     def filter_tangential_velocity(self, vt, vt_unit_vec, dt, tau=0.02):
+        """
+        Filter tangential velocity using exponential moving average.
+        Args:
+            vt: tangential velocity magnitude. (num_envs, num_bodies*num_contact_points)
+            vt_unit_vec: tangential velocity unit vector. (num_envs, num_bodies*num_contact_points, 2)
+            dt: time step
+            tau: time constant
+        """
         # alpha = dt / (tau + dt)
         alpha = 0.9
         self.vt_filtered = (1 - alpha) * self.vt_filtered + alpha * vt
@@ -488,6 +548,11 @@ class RFT_EMF:
         )
     
     def reset(self, env_ids:torch.Tensor):
+        """
+        Reset internal states for given env ids.
+        Args:
+            env_ids: tensor of env ids to reset
+        """
         self.force_gm[env_ids] = 0.0
         self.force_ema[env_ids] = 0.0
         self.tau_r[env_ids] = 0.0

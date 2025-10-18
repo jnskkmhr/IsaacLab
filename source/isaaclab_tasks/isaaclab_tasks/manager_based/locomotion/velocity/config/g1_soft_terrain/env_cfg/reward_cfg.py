@@ -39,7 +39,28 @@ class G1RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_.*", ".*_knee_joint"])},
         ) 
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.005) # type: ignore
-    feet_air_time = RewTerm(
+    
+    # hard contact
+    feet_air_time_hard_contact = RewTerm(
+        func=mdp.feet_air_time_positive_biped,
+        weight=0.25,
+        params={
+            "command_name": "base_velocity",
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+            "threshold": 0.4,
+        },
+    )
+    feet_slide_hard_contact = RewTerm(
+        func=mdp.feet_slide,
+        weight=-0.1,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
+        },
+    )
+    
+    # soft contact
+    feet_air_time_soft_contact = RewTerm(
         func=g1_mdp.feet_air_time_positive_biped,
         weight=0.25,
         params={
@@ -48,7 +69,7 @@ class G1RewardsCfg:
             "threshold": 0.4,
         },
     )
-    feet_slide = RewTerm(
+    feet_slide_soft_contact = RewTerm(
         func=g1_mdp.feet_slide,
         weight=-0.1,
         params={

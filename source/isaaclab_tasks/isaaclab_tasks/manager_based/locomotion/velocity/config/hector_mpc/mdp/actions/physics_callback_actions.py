@@ -15,7 +15,7 @@ import isaaclab.utils.string as string_utils
 from isaaclab.assets.articulation import Articulation
 from isaaclab.managers.action_manager import ActionTerm
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_soft_terrain.mdp import PoppySeedCPCfg, PoppySeedLPCfg, RFT_EMF
+from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_mpc.mdp import PoppySeedCPCfg, PoppySeedLPCfg, RFT_EMF
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv

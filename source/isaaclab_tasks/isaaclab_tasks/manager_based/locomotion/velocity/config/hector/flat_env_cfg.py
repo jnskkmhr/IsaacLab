@@ -32,7 +32,7 @@ class HECTORFlatEnvCfg(HECTORRoughEnvCfg):
         self.rewards.action_rate_l2.weight = -0.005
         self.rewards.dof_acc_l2.weight = -1.0e-7
         self.rewards.feet_air_time.weight = 0.75
-        self.rewards.feet_air_time.params["threshold"] = 0.3 # maximum step duration
+        self.rewards.feet_air_time.params["threshold"] = 0.4 # maximum step duration
         self.rewards.dof_torques_l2.weight = -2.0e-6
         self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
             "robot", 
@@ -47,14 +47,14 @@ class HECTORFlatEnvCfg(HECTORRoughEnvCfg):
         # light
         self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
         
-        # # viewer setting
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -2.0, -0.1), 
-        #     lookat=(0.0, -0.0, 0.0),
-        #     resolution=(1920, 1080), 
-        #     origin_type="asset_root", 
-        #     asset_name="robot"
-        # )
+        # viewer setting
+        self.viewer = ViewerCfg(
+            eye=(-0.0, -2.0, -0.1), 
+            lookat=(0.0, -0.0, 0.0),
+            resolution=(1920, 1080), 
+            origin_type="asset_root", 
+            asset_name="robot"
+        )
 
 
 class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
@@ -67,6 +67,10 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
         self.episode_length_s = 20.0
+        
+        # make soft terrain
+        self.scene.terrain = hector_mdp.FlatTerrain
+        self.scene.terrain.disable_collider = True  # soft terrain
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -82,8 +86,7 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
-                "yaw": (0, 0),
-                # "yaw": (-math.pi, math.pi),
+                "yaw": (-math.pi, math.pi),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
