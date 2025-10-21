@@ -69,7 +69,7 @@ class IntruderGeometryCfg:
     contact_edge_x: Tuple[float, float] = (-1.3*0.054, 1.3*0.091) # length in x direction (m)
     contact_edge_y: Tuple[float, float] = (-0.0365, 0.0365) # length in y direction (m)
     contact_edge_z: Tuple[float, float] = (-0.0486+0.006, 0.0) # length in z direction (m)
-    num_contact_points:int = 100*100
+    num_contact_points:int = 20*20
 
 """
 2D RFT with dynamic inertial modification (DRFT) + exponential moving average filtering.
@@ -357,6 +357,15 @@ class RFT_EMF:
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
             f_normal[:, :, 2]
         )
+        
+        # p = f_normal.clone().reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3).unsqueeze(-1)
+        # R = self.body_rot_mat.unsqueeze(2)
+        # contact_point_lin_vel_local = (R.transpose(-1, -2) @ self.contact_point_lin_vel.unsqueeze(-1)).squeeze(-1).reshape(self.num_envs, -1, 3)
+        # force_normal_local = (R.transpose(-1, -2) @ p).squeeze(-1).reshape(self.num_envs, -1, 3)
+        # f_tangential = self._get_coulomb_friction_force(
+        #     contact_point_lin_vel_local,
+        #     force_normal_local[:, :, 2]
+        # )
 
         force = (f_normal+f_tangential).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
         torque = torch.cross((self.contact_point_pos - self.body_pos.unsqueeze(2)), force, dim=-1)
@@ -458,19 +467,25 @@ class RFT_EMF:
         # vt = self.vt_filtered
         # vt_unit_vec = self.vt_unit_filtered
         
-        # # combines Coulomb friction and Stribeck friction model
-        # v_cf = 0.05 # Coulomb friction velocity threshold
-        # v_st = 0.01 # Stribeck friction velocity threshold
-        # friction_force = (self.dynamic_friction_coef * torch.tanh(vt/v_cf) + \
-        #     math.sqrt(2*math.e) * (self.static_friction_coef - self.dynamic_friction_coef) * torch.exp(-(vt/v_st)**2) * (vt/v_st)) * torch.abs(fz)
+        # combines Coulomb friction and Stribeck friction model
+        v_cf = 0.1 # Coulomb friction velocity threshold
+        v_st = 0.01 # Stribeck friction velocity threshold
+        friction_force = (self.dynamic_friction_coef * torch.tanh(vt/v_cf) + \
+            math.sqrt(2*math.e) * (self.static_friction_coef - self.dynamic_friction_coef) * torch.exp(-(vt/v_st)**2) * (vt/v_st)) * torch.abs(fz)
+        friction_force_vec = -friction_force.unsqueeze(2) * vt_unit_vec
         
         # # Coulomb friction under slip
-        friction_force = self.dynamic_friction_coef * torch.abs(fz)
-        
-        friction_force_vec = -friction_force.unsqueeze(2) * vt_unit_vec
+        # friction_force = self.dynamic_friction_coef * torch.abs(fz)
+        # friction_force_vec = -friction_force.unsqueeze(2) * vt_unit_vec
         
         tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
         tangential_force[:, :, :2] = friction_force_vec
+        
+        # # rotate back to global frame
+        # tangential_force = tangential_force.reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
+        # R = self.body_rot_mat.unsqueeze(2)
+        # tangential_force = (R @ tangential_force.unsqueeze(-1)).squeeze(-1).reshape(self.num_envs, -1, 3)
+        
         return tangential_force
     
     def filter_tangential_velocity(self, vt, vt_unit_vec, dt, tau=0.02):

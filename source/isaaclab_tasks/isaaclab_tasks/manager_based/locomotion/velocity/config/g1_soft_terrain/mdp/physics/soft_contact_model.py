@@ -71,7 +71,7 @@ class IntruderGeometryCfg:
     # contact_edge_x: Tuple[float, float] = (-0.065, 0.141) # length in x direction (m)
     contact_edge_x: Tuple[float, float] = (-1.3*0.065, 1.3*0.141) # length in x direction (m)
     contact_edge_y: Tuple[float, float] = (-0.0368, 0.0368) # length in y direction (m)
-    contact_edge_z: Tuple[float, float] = (-0.039+0.005, 0.0) # length in z direction (m)
+    contact_edge_z: Tuple[float, float] = (-0.039, 0.0) # length in z direction (m)
     num_contact_points:int = 20*20
 
 """
@@ -115,7 +115,7 @@ class RFT_EMF:
         self.foot_depth = self.contact_edge_z[1] - self.contact_edge_z[0]
         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
         
-        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+        self.c_r = 0.01 # 100/f (e.g. f=2000hz -> 0.05)
         self.static_friction_coef = material_cfg.static_friction_coef
         self.dynamic_friction_coef = material_cfg.dynamic_friction_coef
         self.history_length = history_length
@@ -386,6 +386,17 @@ class RFT_EMF:
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
             f_normal[:, :, 2]
         )
+        
+        # TODO: verify coulomb friction should be in each body's local frame or global frame?
+        # p = f_normal.clone().reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3).unsqueeze(-1)
+        # R = self.body_rot_mat.unsqueeze(2)
+        # contact_point_lin_vel_local = (R.transpose(-1, -2) @ self.contact_point_lin_vel.unsqueeze(-1)).squeeze(-1).reshape(self.num_envs, -1, 3)
+        # force_normal_local = (R.transpose(-1, -2) @ p).squeeze(-1).reshape(self.num_envs, -1, 3)
+        # f_tangential = self._get_coulomb_friction_force(
+        #     contact_point_lin_vel_local,
+        #     force_normal_local[:, :, 2]
+        # )
+        
 
         force = (f_normal+f_tangential).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
         torque = torch.cross((self.contact_point_pos - self.body_pos.unsqueeze(2)), force, dim=-1)
@@ -506,26 +517,34 @@ class RFT_EMF:
         """
         
         vt = torch.sqrt(foot_velocity[:, :, 0]**2 + foot_velocity[:, :, 1]**2)
-        vt_unit_vec = foot_velocity[:, :, :2]/(vt.unsqueeze(2) + 1e-6)
+        vt_dir = foot_velocity[:, :, :2]/(vt.unsqueeze(2) + 1e-6)
         
-        # # filter tangential velocity
-        # self.filter_tangential_velocity(vt, vt_unit_vec, dt=1/200)
+        # filter tangential velocity
+        # self.filter_tangential_velocity(vt, vt_dir, dt=1/200)
         # vt = self.vt_filtered
-        # vt_unit_vec = self.vt_unit_filtered
+        # vt_dir = self.vt_unit_filtered
         
         # # combines Coulomb friction and Stribeck friction model
-        # v_cf = 0.05 # Coulomb friction velocity threshold
+        # v_cf = 0.2 # Coulomb friction velocity threshold
         # v_st = 0.01 # Stribeck friction velocity threshold
         # friction_force = (self.dynamic_friction_coef * torch.tanh(vt/v_cf) + \
         #     math.sqrt(2*math.e) * (self.static_friction_coef - self.dynamic_friction_coef) * torch.exp(-(vt/v_st)**2) * (vt/v_st)) * torch.abs(fz)
+        # friction_force_vec = -friction_force.unsqueeze(2) * vt_dir
         
-        # # Coulomb friction under slip
-        friction_force = self.dynamic_friction_coef * torch.abs(fz)
-        
-        friction_force_vec = -friction_force.unsqueeze(2) * vt_unit_vec
+        # Coulomb friction
+        kf = 1.0
+        friction_force = torch.minimum(-self.dynamic_friction_coef * fz, kf * vt)
+        friction_force_vec = friction_force.unsqueeze(2) * vt_dir
         
         tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
         tangential_force[:, :, :2] = friction_force_vec
+        
+        # TODO: verify coulomb friction should be in each body's local frame or global frame?
+        # # rotate back to global frame
+        # tangential_force = tangential_force.reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
+        # R = self.body_rot_mat.unsqueeze(2)
+        # tangential_force = (R @ tangential_force.unsqueeze(-1)).squeeze(-1).reshape(self.num_envs, -1, 3)
+        
         return tangential_force
     
     def filter_tangential_velocity(self, vt, vt_unit_vec, dt, tau=0.02):
@@ -538,7 +557,7 @@ class RFT_EMF:
             tau: time constant
         """
         # alpha = dt / (tau + dt)
-        alpha = 0.9
+        alpha = 0.95
         self.vt_filtered = (1 - alpha) * self.vt_filtered + alpha * vt
 
         # For direction, normalize after filtering

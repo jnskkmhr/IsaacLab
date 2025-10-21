@@ -39,7 +39,7 @@ class HECTORRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # Sim times
         self.sim.dt = 1/200
         self.decimation = 2
-        self.sim.render_interval = 2*self.decimation
+        self.sim.render_interval = self.decimation
 
         # Randomization
         self.events.push_robot = None

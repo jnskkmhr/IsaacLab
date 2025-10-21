@@ -106,19 +106,19 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         
         # Randomization 
         self.events.reset_base.params = {
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
-                #  "z": (-0.06, -0.06), 
-                "yaw": (0, 0),
+                "yaw": (-math.pi, math.pi),
+                # "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),

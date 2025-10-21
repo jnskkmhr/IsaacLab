@@ -102,7 +102,6 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
-                #  "z": (-0.05, -0.05), 
                 "yaw": (0, 0),
                 # "yaw": (-math.pi, math.pi),
                  },
@@ -117,9 +116,9 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         }
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.3, 0.3)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
-        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
+        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
