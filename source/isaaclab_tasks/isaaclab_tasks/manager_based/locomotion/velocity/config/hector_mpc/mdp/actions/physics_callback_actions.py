@@ -15,7 +15,9 @@ import isaaclab.utils.string as string_utils
 from isaaclab.assets.articulation import Articulation
 from isaaclab.managers.action_manager import ActionTerm
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_mpc.mdp import PoppySeedCPCfg, PoppySeedLPCfg, RFT_EMF
+from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_mpc.mdp import (
+    PoppySeedCPCfg, PoppySeedLPCfg, RFT_2D, Material3DRFTCfg, RFT_3D
+)
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
@@ -56,12 +58,23 @@ class PhysicsCallbackAction(ActionTerm):
         material_cfg = PoppySeedCPCfg()
         # material_cfg = PoppySeedLPCfg()
         num_bodies = len(body_ids)
-        self.rft = RFT_EMF(
+        self.rft = RFT_2D(
             material_cfg=material_cfg, 
             num_envs=self.num_envs, 
             num_bodies=num_bodies, 
             device=self.device, 
             dt=env.physics_dt,)
+        
+        # # get physics backend
+        # material_cfg = Material3DRFTCfg()
+        # num_bodies = len(body_ids)
+        # self.rft = RFT_3D(
+        #     material_cfg=material_cfg, 
+        #     num_envs=self.num_envs, 
+        #     num_bodies=num_bodies, 
+        #     device=self.device, 
+        #     dt=env.physics_dt,
+        #     )
         
     """
     properties.

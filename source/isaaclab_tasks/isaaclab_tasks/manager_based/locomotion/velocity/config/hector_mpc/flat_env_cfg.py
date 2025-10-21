@@ -63,7 +63,7 @@ class HECTORFlatEnvCfg(HECTORRoughEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
         # light and view settings
-        self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
+        self.scene.sky_light.init_state.rot = (0.86603, 0, 0, 0.5)  # yaw=60deg
         self.viewer = ViewerCfg(
             eye=(-0.0, -2.0, -0.1), 
             lookat=(0.0, -0.0, 0.0),
@@ -103,7 +103,7 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
                 "yaw": (0, 0),
-                # "yaw": (-math.pi, math.pi),
+                # "yaw": (math.pi/2, math.pi/2),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -116,9 +116,10 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         }
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.3, 0.3)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         # self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
+        self.commands.base_velocity.debug_vis = False

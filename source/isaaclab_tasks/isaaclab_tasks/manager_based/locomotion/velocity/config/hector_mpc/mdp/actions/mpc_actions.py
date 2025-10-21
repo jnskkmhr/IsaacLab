@@ -111,9 +111,14 @@ class BlindLocomotionMPCAction(ActionTerm):
         self.foot_placement_height = np.zeros(self.num_envs, dtype=np.float32)
         
         # markers
-        self.foot_placement_visualizer = FootPlacementVisualizer("/Visuals/foot_placement")
-        self.foot_position_visualizer = SwingFootVisualizer("/Visuals/foot_position")
-        self.foot_trajectory_visualizer = PositionTrajectoryVisualizer("/Visuals/foot_trajectory", color=(0.0, 0.0, 1.0))
+        if self.cfg.debug_vis:
+            self.foot_placement_visualizer = FootPlacementVisualizer("/Visuals/foot_placement")
+            self.foot_position_visualizer = SwingFootVisualizer("/Visuals/foot_position")
+            self.foot_trajectory_visualizer = PositionTrajectoryVisualizer("/Visuals/foot_trajectory", color=(0.0, 0.0, 1.0))
+        else:
+            self.foot_placement_visualizer = None
+            self.foot_position_visualizer = None
+            self.foot_trajectory_visualizer = None
         
         # command
         self.command = torch.zeros(self.num_envs, 3, device=self.device, dtype=torch.float32)

@@ -72,7 +72,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         
         # light and view settings
-        self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
+        self.scene.sky_light.init_state.rot = (0.86603, 0, 0, 0.5)  # yaw=60deg
         self.viewer = ViewerCfg(
             eye=(-0.0, -2.5, 0.0), 
             lookat=(0.0, -0.8, 0.0),
@@ -106,19 +106,21 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.debug_vis = False
         
         # Randomization 
         self.events.reset_base.params = {
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
-                "yaw": (-math.pi, math.pi),
-                # "yaw": (0, 0),
+                #  "z": (-0.05, -0.05), 
+                # "yaw": (-math.pi, math.pi),
+                "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),

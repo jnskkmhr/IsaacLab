@@ -63,9 +63,9 @@ class BlindLocomotionMPCActionCfg(ActionTermCfg):
     # -- horizon is half of walking step (one foot swing)
     nominal_mpc_dt: float = 0.025
     """Nominal MPC dt of the robot."""
-    double_support_duration: int = 0 # 0.05s double support
+    double_support_duration: int = 2 # 0.05s double support
     """Double support duration of the robot."""
-    single_support_duration: int = 10 # 0.2s single support
+    single_support_duration: int = 8 # 0.2s single support
     """Single support duration of the robot."""
 
     nominal_cp1_coef: float = 1/3

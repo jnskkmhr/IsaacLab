@@ -20,7 +20,7 @@ class HECTORActionsCfg:
             (2.0, 2.0, 4.0,        1.0, 1.0, 1.0,       0.2/13.856,  0.2/13.856,  0.2/13.856,     0.2/0.5413,  0.2/0.52,  0.2/0.0691,    0.25, 0.15, 0.66)
         ), 
         negative_action_clip_idx=[13],
-        debug_vis=True,
+        # debug_vis=True,
     )
     
     physics_callback = hector_mdp.PhysicsCallbackActionCfg(
