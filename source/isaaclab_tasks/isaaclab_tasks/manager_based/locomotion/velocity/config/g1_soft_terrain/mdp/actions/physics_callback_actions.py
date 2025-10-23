@@ -15,7 +15,7 @@ import isaaclab.utils.string as string_utils
 from isaaclab.assets.articulation import Articulation
 from isaaclab.managers.action_manager import ActionTerm
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.hector_mpc.mdp import (
+from isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp import (
     PoppySeedCPCfg, PoppySeedLPCfg, RFT_2D, Material3DRFTCfg, RFT_3D
 )
 
@@ -56,7 +56,7 @@ class PhysicsCallbackAction(ActionTerm):
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
         # get physics backend
-        # material_cfg = PoppySeedCPCfg()
+        # material_cfg = PoppySeedLPCfg()
         material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
         self.contact_solver = RFT_2D(
@@ -65,6 +65,7 @@ class PhysicsCallbackAction(ActionTerm):
             num_bodies=num_bodies, 
             device=self.device, 
             dt=env.physics_dt,
+            max_terrain_level=1,
             )
         
         # # get physics backend
@@ -127,10 +128,10 @@ class PhysicsCallbackAction(ActionTerm):
         self.contact_wrench = self.contact_solver.contact_wrench # (num_envs, num_bodies, 6)
         self.contact_wrench_b = self.contact_solver.contact_wrench_b # (num_envs, num_bodies, 6)
         self._asset.set_external_force_and_torque(
-            forces = self.contact_wrench[:, :, :3],
-            torques = self.contact_wrench[:, :, 3:6],
+            forces = self.contact_wrench_b[:, :, :3],
+            torques = self.contact_wrench_b[:, :, 3:6],
             body_ids = self._body_ids,
-            is_global=True,
+            # is_global=True,
         )
     
     def reset(self, env_ids: torch.Tensor):

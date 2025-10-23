@@ -78,6 +78,7 @@ class IntruderGeometryCfg:
 2D RFT with dynamic inertial modification (DRFT) + exponential moving average filtering.
 """
 
+# NOTE: old implementation 
 class RFT_2D:
     def __init__(self, 
                  num_envs: int,
@@ -85,11 +86,12 @@ class RFT_2D:
                  device: torch.device,
                  dt:float, 
                  history_length: int = 3,
+                 max_terrain_level: int = 10,
                  material_cfg: MaterialCfg=PoppySeedCPCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
                  ):
         """
-        Soft contact model based on 2D RFT proposed in
+        Resistive Force Theory based soft terrain contact solver.
         https://www.science.org/doi/10.1126/science.1229163
         
         Args: 
@@ -108,6 +110,7 @@ class RFT_2D:
         self.num_contact_points = intruder_cfg.num_contact_points
         self.device = device
         self.dt = dt
+        self.max_terrain_level = max_terrain_level
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
@@ -120,71 +123,16 @@ class RFT_2D:
         self.dynamic_friction_coef = material_cfg.dynamic_friction_coef
         self.history_length = history_length
 
-        self._data: SoftContactData = SoftContactData()
         self.create_internal_tensors()
         self.create_contact_points()
+        
+        self._data: SoftContactData = SoftContactData()
         self.initialize_data()
     
     """
     Initialization.
     """
-        
-    def create_internal_tensors(self):
-        """
-        Create buffer tensors.
-        """
-        self.body_pos = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
-        self.body_quat = torch.zeros((self.num_envs, self.num_bodies, 4), device=self.device)
-        self.body_rot_mat = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
-        self.body_lin_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
-        self.body_ang_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
-
-        self.contact_point_offset = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self.n_dir = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self.contact_point_pos = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self.contact_point_lin_vel = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self.contact_point_lin_vel_prev = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self.contact_point_tilt_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
-        self.contact_point_intrusion_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
-        
-        self.contact_point_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self.contact_point_torque = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        
-        self.vt_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
-        self.vt_unit_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 2), device=self.device)
-        
-        # lumped force and torque
-        self.contact_force = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
-        self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
-        
-        self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
-        self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
-        self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
-        
-        self.stiffness = self.cfg.stiffness * torch.ones(self.num_envs, device=self.device)
-        self.soft_level = torch.zeros(self.num_envs, device=self.device)
-        self.max_level = 1
-        
-        self._timestamp = torch.zeros(self.num_envs, device=self.device)
-        self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
-        
-        
-        self.body_rot_mat_roll_yaw = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
-        self.contact_point_lin_vel_b = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        
-    def initialize_data(self):
-        """
-        Initialize soft contact data.
-        """
-        self._data.net_forces_w = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
-        self._data.net_forces_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, 3), device=self.device)
-        self._data.force_matrix_w = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self._data.force_matrix_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        self._data.last_air_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
-        self._data.current_air_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
-        self._data.last_contact_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
-        self._data.current_contact_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
-        
+    
     def create_contact_points(self)->None:
         """
         Create contact points in contact surface in root body frame (e.g. foot link frame). 
@@ -201,7 +149,123 @@ class RFT_2D:
             ), dim=-1)
         contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
         self.contact_point_offset[:, :, :, :] = contact_point_offset
+        
+    def create_internal_tensors(self):
+        """
+        Create buffer tensors.
+        """
+        self.body_pos = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        self.body_quat = torch.zeros((self.num_envs, self.num_bodies, 4), device=self.device)
+        self.body_rot_mat = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+        self.body_rot_mat_roll_yaw = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+        self.body_lin_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        self.body_ang_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        
+        self.is_contact = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), dtype=torch.bool, device=self.device)
+
+        self.contact_point_offset = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_pos = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_euler = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_lin_vel = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_lin_vel_b = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_intrusion_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
+        self.contact_point_lin_vel_prev = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        
+        self.contact_point_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_torque = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self.contact_point_filtered_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        
+        self.vt_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+        self.vt_unit_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 2), device=self.device)
+        
+        # lumped force and torque
+        self.contact_force = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        
+        self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+        self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+        self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+        
+        self.stiffness = self.cfg.stiffness * torch.ones(self.num_envs, device=self.device)
+        self.soft_level = torch.zeros(self.num_envs, device=self.device)
+        
+        self._timestamp = torch.zeros(self.num_envs, device=self.device)
+        self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
+        
+    def initialize_data(self):
+        """
+        Initialize soft contact data.
+        """
+        self._data.net_forces_w = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        self._data.net_forces_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, 3), device=self.device)
+        self._data.force_matrix_w = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self._data.force_matrix_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        self._data.last_air_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+        self._data.current_air_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+        self._data.last_contact_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+        self._data.current_contact_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+        
+        
+    """
+    operations.
+    """
     
+    def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor):
+        """
+        Update soft contact model.
+        
+        Args:
+            body_pos: intruder position. (num_envs, num_bodies, 3)
+            body_quat: intruder orientation in quaternion form. (num_envs, num_bodies, 4)
+            body_lin_vel: intruder linear velocity wrt global frame. (num_envs, num_bodies, 3)
+            body_ang_vel: intruder angular velocity wrt global frame. (num_envs, num_bodies, 3)
+        """
+        
+        self._timestamp += self.dt
+        self.body_pos[:, :, :] = body_pos
+        self.body_quat[:, :, :] = body_quat
+        self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
+        
+        roll, pitch, yaw = euler_xyz_from_quat(body_quat.view(-1, 4))
+        self.body_rot_mat_roll_yaw[:, :, :, :] = \
+            matrix_from_euler(
+                torch.stack(
+                (roll, torch.zeros_like(pitch), yaw), dim=-1),
+                # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+                convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
+
+        self.body_lin_vel[:, :, :] = body_lin_vel
+        self.body_ang_vel[:, :, :] = body_ang_vel
+
+        self._process_contact_points()
+        self._compute_force()
+        self._update_data(torch.arange(self.num_envs, device=self.device))
+        self._timestamp_last_update[:] = self._timestamp[:]
+        
+        # print("contact force:", self.contact_force)
+        # print("current air time:")
+        # print(self.data.current_air_time)
+        # print("current contact time:")
+        # print(self.data.current_contact_time)
+        
+    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor):
+        """
+        Update ground stiffness (N/m) for each env.
+        Implementation is similar to terrain curriculum used in terrain importer class.
+        
+        Args:
+            env_ids: tensor of env ids to update
+            move_up: tensor of env ids to increase softness level (len(env_ids),)
+            move_down: tensor of env ids to decrease softness level (len(env_ids),)
+        """
+        self.soft_level[env_ids] += 1 * move_up - 1 * move_down
+        self.soft_level[env_ids] = torch.where(
+            self.soft_level[env_ids] >= self.max_terrain_level,
+            torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
+            torch.clip(self.soft_level[env_ids], 0),
+        )
+        self.stiffness = self.max_terrain_level - self.soft_level
+
     
     """
     properties.
@@ -225,67 +289,6 @@ class RFT_2D:
     def contact_point_wrench(self)->torch.Tensor:
         return torch.cat((self.contact_point_force, self.contact_point_torque), dim=-1) # (num_envs, num_bodies, num_contact_points, 6)
         
-    """
-    operations.
-    """
-    
-    def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor):
-        """
-        Update soft contact model.
-        
-        Args:
-            body_pos: intruder position. (num_envs, num_bodies, 3)
-            body_quat: intruder orientation in quaternion form. (num_envs, num_bodies, 4)
-            body_lin_vel: intruder linear velocity wrt global frame. (num_envs, num_bodies, 3)
-            body_ang_vel: intruder angular velocity wrt global frame. (num_envs, num_bodies, 3)
-        """
-        
-        # copy intruder kinematic states to buffers
-        self.body_pos[:, :, :] = body_pos
-        self.body_quat[:, :, :] = body_quat
-        self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
-        self.body_lin_vel[:, :, :] = body_lin_vel
-        self.body_ang_vel[:, :, :] = body_ang_vel
-        
-        roll, pitch, yaw = euler_xyz_from_quat(body_quat.view(-1, 4))
-        self.body_rot_mat_roll_yaw[:, :, :, :] = \
-            matrix_from_euler(
-                torch.stack(
-                (roll, torch.zeros_like(pitch), yaw), dim=-1),
-                # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
-                convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
-        
-        # evaluate contact forces
-        self._eval_contacts()
-        
-        self._timestamp += self.dt
-        self._update_data(torch.arange(self.num_envs, device=self.device))
-        self._timestamp_last_update[:] = self._timestamp[:]
-        
-        # print("contact force:", self.contact_force)
-        # print("current air time:")
-        # print(self.data.current_air_time)
-        # print("current contact time:")
-        # print(self.data.current_contact_time)
-        
-    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor):
-        """
-        Update ground stiffness (N/m) for each env.
-        Implementation is similar to terrain curriculum used in terrain importer class.
-        
-        Args:
-            env_ids: tensor of env ids to update
-            move_up: tensor of env ids to increase softness level (len(env_ids),)
-            move_down: tensor of env ids to decrease softness level (len(env_ids),)
-        """
-        self.soft_level[env_ids] += 1 * move_up - 1 * move_down
-        self.soft_level[env_ids] = torch.where(
-            self.soft_level[env_ids] >= self.max_level,
-            torch.randint_like(self.soft_level[env_ids], self.max_level),
-            torch.clip(self.soft_level[env_ids], 0),
-        )
-        self.stiffness = self.max_level - self.soft_level
-        
 
     
     """
@@ -295,7 +298,6 @@ class RFT_2D:
     def _update_data(self, env_ids:torch.Tensor)->None:
         """
         Update soft contact data.
-        Majority of implementations are from IsaacLab's contact sensor class.
         
         Args:
             env_ids: tensor of env ids to update
@@ -336,100 +338,60 @@ class RFT_2D:
         )
         
         
-    def _eval_contacts(self)->None:
+    def _process_contact_points(self)->None:
         """
-        Update contact points' kinematic states and compute contact forces.
+        Update contact points' kinematic states.
         """
-        # compute contact points in global frame
         R = self.body_rot_mat.unsqueeze(2)
         p = self.contact_point_offset.unsqueeze(-1)
         self.contact_point_pos = self.body_pos.unsqueeze(2) + (R @ p).squeeze(-1)
         
-        # compute contact normal
-        # normal facing downward as defined in 3D RFT paper.
-        n = torch.tensor([0.0, 0.0, -1.0], device=self.device).view(1, 1, 1, 3).repeat(self.num_envs, self.num_bodies, self.num_contact_points, 1)
-        self.n_dir = (R @ n.unsqueeze(-1)).squeeze(-1)
-        
-        # compute contact point linear velocity in global frame
+        roll, pitch, yaw = euler_xyz_from_quat(self.body_quat.view(-1, 4))
+        self.contact_point_euler = torch.stack((roll, pitch, yaw), dim=-1).view(self.num_envs, self.num_bodies, 1, 3).repeat(1, 1, self.num_contact_points, 1)
         self.contact_point_lin_vel = self.body_lin_vel.unsqueeze(2) + \
             torch.cross(self.body_ang_vel.unsqueeze(2), self.contact_point_pos - self.body_pos.unsqueeze(2), dim=-1)
-            
-        # NOTE: new implementation
-        # compute unit vectors (z, n, v, r, t)
-        # see S7 eq.4 from https://www.pnas.org/doi/10.1073/pnas.2214017120
-        n = self.n_dir.clone()
-        z = torch.tensor([0.0, 0.0, 1.0], device=self.device).view(1, 1, 1, 3).repeat(self.num_envs, self.num_bodies, self.num_contact_points, 1)
-        vr = self.contact_point_lin_vel - (self.contact_point_lin_vel * z).sum(dim=-1, keepdim=True) * z.squeeze(-1)
-        vr_norm = torch.norm(vr, dim=-1, keepdim=True)
-        nr = self.n_dir - (self.n_dir * z).sum(dim=-1, keepdim=True) * z.squeeze(-1)
-        nr_norm = torch.norm(nr, dim=-1, keepdim=True)
-        r = vr / (vr_norm+1e-6)
-        r[vr_norm.squeeze(-1) < 1e-6] = nr[vr_norm.squeeze(-1) < 1e-6]/(nr_norm[vr_norm.squeeze(-1) < 1e-6]+1e-6)
-        v = self.contact_point_lin_vel.clone()/(torch.norm(self.contact_point_lin_vel, dim=-1, keepdim=True) + 1e-8)
         
-        # compute contact point tilt angle (beta)
-        # see S7 eq.5 from https://www.pnas.org/doi/10.1073/pnas.2214017120
-        ndotr = (n * r).sum(dim=-1)
-        ndotz = (n * z).sum(dim=-1)
-        mask1 = (ndotr >= 0) * (ndotz >= 0)
-        mask2 = (ndotr >= 0) * (ndotz < 0)
-        mask3 = (ndotr < 0) * (ndotz >= 0)
-        mask4 = (ndotr < 0) * (ndotz < 0)
-        self.contact_point_tilt_angle[mask1] = -torch.acos(ndotz[mask1])
-        self.contact_point_tilt_angle[mask2] = torch.pi - torch.acos(ndotz[mask2])
-        self.contact_point_tilt_angle[mask3] = torch.acos(ndotz[mask3])
-        self.contact_point_tilt_angle[mask4] = -torch.pi + torch.acos(ndotz[mask4])
+        # pre-rotate roll and yaw
+        Rt = self.body_rot_mat_roll_yaw.transpose(-1, -2).unsqueeze(2)
+        v = self.contact_point_lin_vel.clone().unsqueeze(-1)
+        self.contact_point_lin_vel_b = (Rt @ v).squeeze(-1)
         
-        # compute contact point velocity angle (gamma)
-        # see S7 eq.6 from https://www.pnas.org/doi/10.1073/pnas.2214017120
-        vdotr = (v * r).sum(dim=-1)
-        vdotz = (v * z).sum(dim=-1)
-        mask1 = vdotz < 0 
-        mask2 = vdotz >= 0
-        self.contact_point_intrusion_angle[mask1] = torch.acos(vdotr[mask1])
-        self.contact_point_intrusion_angle[mask2] = -torch.acos(vdotr[mask2])
+        # compute velocity angle
+        self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel_b[..., 2], self.contact_point_lin_vel_b[..., 0])
+        self.contact_point_intrusion_angle = torch.where(
+            self.contact_point_intrusion_angle > torch.pi/2, 
+            torch.pi - self.contact_point_intrusion_angle, 
+            self.contact_point_intrusion_angle
+            )
+        self.contact_point_intrusion_angle = torch.where(
+            self.contact_point_intrusion_angle < -torch.pi/2,
+            -torch.pi - self.contact_point_intrusion_angle,
+            self.contact_point_intrusion_angle
+            )
         
-        # # NOTE: old implementation
-        # # compute tilt angle
-        # _, pitch, _ = euler_xyz_from_quat(self.body_quat.view(-1, 4))
-        # self.contact_point_tilt_angle = pitch.view(self.num_envs, self.num_bodies, 1).repeat(1, 1, self.num_contact_points)
+        # TODO: later replace simple height based contact detection with actual contact pair checking to handle rough terrain
+        self.is_contact = -self.contact_point_pos[..., 2] > 0.0
         
-        # # pre-rotate roll and yaw
-        # Rt = self.body_rot_mat_roll_yaw.transpose(-1, -2).unsqueeze(2)
-        # v = self.contact_point_lin_vel.clone().unsqueeze(-1)
-        # self.contact_point_lin_vel_b = (Rt @ v).squeeze(-1)
-        
-        # # compute velocity angle
-        # self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel_b[..., 2], self.contact_point_lin_vel_b[..., 0])
-        # self.contact_point_intrusion_angle = torch.where(
-        #     self.contact_point_intrusion_angle > torch.pi/2, 
-        #     torch.pi - self.contact_point_intrusion_angle, 
-        #     self.contact_point_intrusion_angle
-        #     )
-        # self.contact_point_intrusion_angle = torch.where(
-        #     self.contact_point_intrusion_angle < -torch.pi/2,
-        #     -torch.pi - self.contact_point_intrusion_angle,
-        #     self.contact_point_intrusion_angle
-        #     )
-        # # END of old implementation
-        
-        # compute contact forces
-        # see eq.1 in https://www.pnas.org/doi/10.1073/pnas.2214017120
-        f_normal, fn = self._get_normal_force(
+    def _compute_force(self)->None:
+        """
+        Compute contact forces and torques.
+        """
+        f_normal = self._get_resistive_force(
             self.contact_point_pos.reshape(self.num_envs, -1, 3),
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
             self.contact_point_lin_vel_prev.reshape(self.num_envs, -1, 3),
-            self.contact_point_tilt_angle.reshape(self.num_envs, -1),
+            -self.contact_point_euler.reshape(self.num_envs, -1, 3)[..., 1], # beta = - pitch (physics ppl's coordinate is different from robotics)
             self.contact_point_intrusion_angle.reshape(self.num_envs, -1), # gamma
         )
         
-        f_tangential = self._get_tangential_force(
+        f_tangential = self._get_coulomb_friction_force(
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
-            fn, 
+            f_normal.norm(dim=-1),
         )
 
         force = (f_normal+f_tangential).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
         torque = torch.cross((self.contact_point_pos - self.body_pos.unsqueeze(2)), force, dim=-1)
+        
         self.contact_point_force[:, :, :, :] = force
         self.contact_point_torque[:, :, :, :] = torque
         
@@ -440,76 +402,13 @@ class RFT_2D:
         # update velocity history
         self.contact_point_lin_vel_prev[:, :, :, :] = self.contact_point_lin_vel[:, :, :, :]
     
-    # def _get_normal_force(
-    #     self, 
-    #     foot_pos:torch.Tensor, 
-    #     foot_velocity:torch.Tensor, 
-    #     foot_velocity_prev:torch.Tensor, 
-    #     beta:torch.Tensor, 
-    #     gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
-    #     """
-    #     Compute normal force wrt global frame using RFT z component.
-        
-    #     Args: 
-    #         foot_pos: contact point position in global frame. (num_envs, num_bodies*num_contact_points, 3)
-    #         foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
-    #         foot_velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
-    #         beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
-    #         gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
-    #     Returns:
-    #         force_normal: normal force in global frame. (num_envs, num_bodies*num_contact_points, 3)
-    #     """
-    #     dA = self.surface_area/self.num_contact_points
-    #     depth = -foot_pos[:, :, -1]
-    #     is_contact = depth > 0 # apply resistive force only when foot is penetrating
-        
-    #     _, alpha_z = self._compute_elementary_force(beta, gamma) # get RFT force
-    #     self.force_gm = self.stiffness[:, None] * alpha_z * depth * dA * is_contact * (1e6) #m^3 to cm^3 since alpha is N/cm^3
-    #     self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
-        
-    #     # Dynamic RFT
-    #     lam = 1.0
-    #     rho = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
-    #     vn = (self.contact_point_lin_vel * (-self.n_dir)).sum(dim=-1) # (num_envs, num_bodies, num_contact_points)
-    #     fn = self.force_ema.reshape(self.num_envs, self.num_bodies, self.num_contact_points) + lam * rho * vn**2
-        
-    #     force_normal = (fn.unsqueeze(-1) * (-self.n_dir)).reshape(self.num_envs, -1, 3)
-    #     fn = fn.reshape(self.num_envs, -1)
-
-    #     return force_normal, fn
-    
-    # def _get_tangential_force(self, v:torch.Tensor, fn:torch.Tensor)->torch.Tensor:
-    #     """
-    #     Get tangential force using Coulomb friction model. 
-    #     Computed force is in simulation global frame.
-    #     Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
-        
-    #     Args:
-    #         foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
-    #         fz: normal force in z direction in global frame. (num_envs, num_bodies*num_contact_points)
-    #     Returns:
-    #         tangential_force: tangential force in global frame. (num_envs, num_bodies*num_contact_points, 3)
-    #     """
-    #     vn = (v * (-self.n_dir).reshape(self.num_envs, -1, 3)).sum(dim=-1) # (num_envs, num_bodies*num_contact_points)
-    #     vt = v - vn.unsqueeze(-1) * (-self.n_dir).reshape(self.num_envs, -1, 3) # (num_envs, num_bodies*num_contact_points, 3)
-    #     vt_norm = torch.norm(vt, dim=-1) # (num_envs, num_bodies*num_contact_points)
-    #     vt_dir = vt / (vt_norm.unsqueeze(-1) + 1e-6) # (num_envs, num_bodies*num_contact_points, 3)
-        
-    #     # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
-    #     kf = 1.0
-    #     ft = torch.minimum(-self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
-    #     tangential_force = ft.unsqueeze(-1) * vt_dir
-
-    #     return tangential_force
-    
-    
-    def _get_normal_force(
+    def _get_resistive_force(
         self, 
         foot_pos:torch.Tensor, 
         foot_velocity:torch.Tensor, 
         foot_velocity_prev:torch.Tensor, 
         beta:torch.Tensor, 
-        gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+        gamma:torch.Tensor)->torch.Tensor:
         """
         Compute normal force wrt global frame using RFT z component.
         
@@ -530,10 +429,11 @@ class RFT_2D:
         self.force_gm = self.stiffness[:, None] * alpha_z * depth * dA * is_contact * (1e6) #m^3 to cm^3 since alpha is N/cm^3
         self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
         
-        force_normal = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
-        force_normal[:, :, :, -1] = self.force_ema.reshape(self.num_envs, self.num_bodies, self.num_contact_points)
+        force_normal = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+        force_normal[:, :, -1] = self.force_ema
         
         # rotate normal force back to simulation global frame
+        force_normal = force_normal.reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
         R = self.body_rot_mat_roll_yaw.unsqueeze(2)
         p = force_normal.unsqueeze(-1)
         force_normal = (R @ p).squeeze(-1).reshape(self.num_envs, -1, 3)
@@ -541,35 +441,9 @@ class RFT_2D:
         # add dynamic inertial term from DRFT
         lam = 1.0
         rho = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
-        vn = foot_velocity[:, :, 2]
-        force_normal[:, :, 2] = force_normal[:, :, 2] + is_contact * lam * rho * vn**2
+        force_normal[:, :, 2] = force_normal[:, :, 2] + lam * rho * is_contact * foot_velocity[:, :, 2]**2
 
-        return force_normal, force_normal[:, :, 2]
-    
-    def _get_tangential_force(self, v:torch.Tensor, fn:torch.Tensor)->torch.Tensor:
-        """
-        Get tangential force using Coulomb friction model. 
-        Computed force is in simulation global frame.
-        Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
-        
-        Args:
-            foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
-            fz: normal force in z direction in global frame. (num_envs, num_bodies*num_contact_points)
-        Returns:
-            tangential_force: tangential force in global frame. (num_envs, num_bodies*num_contact_points, 3)
-        """
-        vt_norm = torch.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
-        vt_dir = v[:, :, :2]/(vt_norm.unsqueeze(2) + 1e-6)
-        
-        # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
-        kf = 10.0
-        ft = torch.minimum(-self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
-        friction_force_vec = ft.unsqueeze(-1) * vt_dir
-        
-        tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
-        tangential_force[:, :, :2] = friction_force_vec
-        
-        return tangential_force
+        return force_normal
     
     def _compute_elementary_force(self, beta:torch.Tensor, gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -619,10 +493,32 @@ class RFT_2D:
         
         self.force_ema[depth_mask] = (1-coef*self.tau_r[depth_mask])*self.force_gm[depth_mask] + coef*self.tau_r[depth_mask]*self.force_ema[depth_mask]
         self.force_ema[~depth_mask] = 0.0
+    
+    def _get_coulomb_friction_force(self, v:torch.Tensor, fn:torch.Tensor)->torch.Tensor:
+        """
+        Get tangential force using Coulomb friction model. 
+        Computed force is in simulation global frame.
+        Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
         
-    """
-    reset.
-    """
+        Args:
+            foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+            fz: normal force in z direction in global frame. (num_envs, num_bodies*num_contact_points)
+        Returns:
+            tangential_force: tangential force in global frame. (num_envs, num_bodies*num_contact_points, 3)
+        """
+        
+        vt_norm = torch.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
+        vt_dir = v[:, :, :2]/(vt_norm.unsqueeze(2) + 1e-6)
+        
+        # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
+        kf = 1e2
+        ft = torch.minimum(-self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
+        
+        friction_force_vec = ft.unsqueeze(-1) * vt_dir
+        
+        tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+        tangential_force[:, :, :2] = friction_force_vec
+        return tangential_force
     
     def reset(self, env_ids:torch.Tensor):
         """
@@ -634,6 +530,566 @@ class RFT_2D:
         self.force_ema[env_ids] = 0.0
         self.tau_r[env_ids] = 0.0
         self.contact_point_lin_vel_prev[env_ids] = 0.0
+
+# NOTE: new implementation
+# TODO: check which parts are giving nan
+# class RFT_2D:
+#     def __init__(self, 
+#                  num_envs: int,
+#                  num_bodies: int, 
+#                  device: torch.device,
+#                  dt:float, 
+#                  history_length: int = 3,
+#                  max_terrain_level: int = 10,
+#                  material_cfg: MaterialCfg=PoppySeedCPCfg(), 
+#                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
+#                  ):
+#         """
+#         Soft contact model based on 2D RFT proposed in
+#         https://www.science.org/doi/10.1126/science.1229163
+        
+#         Args: 
+#             num_envs: number of parallel environments
+#             num_bodies: number of bodies using soft contact model per env
+#             device: torch device
+#             dt: simulation time step
+#             history_length: length of history for force tracking
+#             material_cfg: material configuration
+#             intruder_cfg: intruder geometry configuration
+#         """
+
+#         self.cfg = material_cfg
+#         self.num_envs = num_envs
+#         self.num_bodies = num_bodies
+#         self.num_contact_points = intruder_cfg.num_contact_points
+#         self.device = device
+#         self.dt = dt
+#         self.max_terrain_level = max_terrain_level
+        
+#         self.contact_edge_x = intruder_cfg.contact_edge_x
+#         self.contact_edge_y = intruder_cfg.contact_edge_y
+#         self.contact_edge_z = intruder_cfg.contact_edge_z
+#         self.foot_depth = self.contact_edge_z[1] - self.contact_edge_z[0]
+#         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
+        
+#         self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+#         self.static_friction_coef = material_cfg.static_friction_coef
+#         self.dynamic_friction_coef = material_cfg.dynamic_friction_coef
+#         self.history_length = history_length
+
+#         self._data: SoftContactData = SoftContactData()
+#         self.create_internal_tensors()
+#         self.create_contact_points()
+#         self.initialize_data()
+    
+#     """
+#     Initialization.
+#     """
+        
+#     def create_internal_tensors(self):
+#         """
+#         Create buffer tensors.
+#         """
+#         self.body_pos = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self.body_quat = torch.zeros((self.num_envs, self.num_bodies, 4), device=self.device)
+#         self.body_rot_mat = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+#         self.body_lin_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self.body_ang_vel = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+
+#         self.contact_point_offset = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.n_dir = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_pos = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_lin_vel = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_lin_vel_prev = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_tilt_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
+#         self.contact_point_intrusion_angle = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points), device=self.device)
+        
+#         self.contact_point_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self.contact_point_torque = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        
+#         self.vt_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+#         self.vt_unit_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 2), device=self.device)
+        
+#         # lumped force and torque
+#         self.contact_force = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+        
+#         self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+#         self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+#         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
+        
+#         self.stiffness = self.cfg.stiffness * torch.ones(self.num_envs, device=self.device)
+#         self.soft_level = torch.zeros(self.num_envs, device=self.device)
+        
+#         self._timestamp = torch.zeros(self.num_envs, device=self.device)
+#         self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
+        
+        
+#         self.body_rot_mat_roll_yaw = torch.zeros((self.num_envs, self.num_bodies, 3, 3), device=self.device)
+#         self.contact_point_lin_vel_b = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+        
+#     def initialize_data(self):
+#         """
+#         Initialize soft contact data.
+#         """
+#         self._data.net_forces_w = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
+#         self._data.net_forces_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, 3), device=self.device)
+#         self._data.force_matrix_w = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self._data.force_matrix_w_history = torch.zeros((self.num_envs, self.history_length, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         self._data.last_air_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+#         self._data.current_air_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+#         self._data.last_contact_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+#         self._data.current_contact_time = torch.zeros((self.num_envs, self.num_bodies), device=self.device)
+        
+#     def create_contact_points(self)->None:
+#         """
+#         Create contact points in contact surface in root body frame (e.g. foot link frame). 
+#         """
+#         num_contact_point_side = int(math.sqrt(self.num_contact_points))
+#         assert num_contact_point_side**2 == self.num_contact_points, "num_contact_points must be a perfect square"
+#         contact_point_offset_x = torch.linspace(self.contact_edge_x[0], self.contact_edge_x[1], num_contact_point_side, device=self.device)
+#         contact_point_offset_y = torch.linspace(self.contact_edge_y[0], self.contact_edge_y[1], num_contact_point_side, device=self.device)
+#         contact_point_offset_y, contact_point_offset_x = torch.meshgrid(contact_point_offset_y, contact_point_offset_x, indexing='ij')
+#         contact_point_offset = torch.stack((
+#             contact_point_offset_x.flatten(), 
+#             contact_point_offset_y.flatten(), 
+#             -self.foot_depth * torch.ones_like(contact_point_offset_x).flatten()
+#             ), dim=-1)
+#         contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
+#         self.contact_point_offset[:, :, :, :] = contact_point_offset
+    
+    
+#     """
+#     properties.
+#     """
+    
+#     @property
+#     def data(self)-> SoftContactData:
+#         return self._data
+    
+#     @property
+#     def contact_wrench(self)->torch.Tensor:
+#         return torch.cat((self.contact_force, self.contact_torque), dim=-1) # (num_envs, num_bodies, 6)
+    
+#     @property
+#     def contact_wrench_b(self)->torch.Tensor:
+#         contact_force_b = (self.body_rot_mat.transpose(-1, -2) @ self.contact_force.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+#         contact_torque_b = (self.body_rot_mat.transpose(-1, -2) @ self.contact_torque.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+#         return torch.cat((contact_force_b, contact_torque_b), dim=-1) # (num_envs, num_bodies, 6)
+    
+#     @property
+#     def contact_point_wrench(self)->torch.Tensor:
+#         return torch.cat((self.contact_point_force, self.contact_point_torque), dim=-1) # (num_envs, num_bodies, num_contact_points, 6)
+        
+#     """
+#     operations.
+#     """
+    
+#     def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor):
+#         """
+#         Update soft contact model.
+        
+#         Args:
+#             body_pos: intruder position. (num_envs, num_bodies, 3)
+#             body_quat: intruder orientation in quaternion form. (num_envs, num_bodies, 4)
+#             body_lin_vel: intruder linear velocity wrt global frame. (num_envs, num_bodies, 3)
+#             body_ang_vel: intruder angular velocity wrt global frame. (num_envs, num_bodies, 3)
+#         """
+        
+#         # copy intruder kinematic states to buffers
+#         self.body_pos[:, :, :] = body_pos
+#         self.body_quat[:, :, :] = body_quat
+#         self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
+#         self.body_lin_vel[:, :, :] = body_lin_vel
+#         self.body_ang_vel[:, :, :] = body_ang_vel
+        
+#         roll, pitch, yaw = euler_xyz_from_quat(body_quat.view(-1, 4))
+#         self.body_rot_mat_roll_yaw[:, :, :, :] = \
+#             matrix_from_euler(
+#                 torch.stack(
+#                 (roll, torch.zeros_like(pitch), yaw), dim=-1),
+#                 # (torch.zeros_like(roll), torch.zeros_like(pitch), yaw), dim=-1),
+#                 convention="XYZ").view(self.num_envs, self.num_bodies, 3, 3)
+        
+#         # evaluate contact forces
+#         self._eval_contacts()
+        
+#         self._timestamp += self.dt
+#         self._update_data(torch.arange(self.num_envs, device=self.device))
+#         self._timestamp_last_update[:] = self._timestamp[:]
+        
+#         # print("contact force:", self.contact_force)
+#         # print("current air time:")
+#         # print(self.data.current_air_time)
+#         # print("current contact time:")
+#         # print(self.data.current_contact_time)
+        
+#     def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor):
+#         """
+#         Update ground stiffness (N/m) for each env.
+#         Implementation is similar to terrain curriculum used in terrain importer class.
+        
+#         Args:
+#             env_ids: tensor of env ids to update
+#             move_up: tensor of env ids to increase softness level (len(env_ids),)
+#             move_down: tensor of env ids to decrease softness level (len(env_ids),)
+#         """
+#         self.soft_level[env_ids] += 1 * move_up - 1 * move_down
+#         self.soft_level[env_ids] = torch.where(
+#             self.soft_level[env_ids] >= self.max_terrain_level,
+#             torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
+#             torch.clip(self.soft_level[env_ids], 0),
+#         )
+#         self.stiffness = self.max_terrain_level - self.soft_level
+
+
+    
+#     """
+#     helper functions.
+#     """
+    
+#     def _update_data(self, env_ids:torch.Tensor)->None:
+#         """
+#         Update soft contact data.
+#         Majority of implementations are from IsaacLab's contact sensor class.
+        
+#         Args:
+#             env_ids: tensor of env ids to update
+#         """
+#         self._data.net_forces_w[env_ids, :, :] = self.contact_force[env_ids, :, :] # type: ignore
+#         self._data.force_matrix_w[env_ids, :, :, :] = self.contact_point_force[env_ids, :, :, :] # type: ignore
+#         if self.history_length > 0:
+#             self._data.net_forces_w_history[env_ids] = self._data.net_forces_w_history[env_ids].roll(shifts=1, dims=1) # type: ignore
+#             self._data.net_forces_w_history[env_ids, 0] = self._data.net_forces_w[env_ids] # type: ignore
+            
+#             self._data.force_matrix_w_history[env_ids] = self._data.force_matrix_w_history[env_ids].roll(shifts=1, dims=1) # type: ignore
+#             self._data.force_matrix_w_history[env_ids, 0] = self._data.force_matrix_w[env_ids] # type: ignore
+            
+#         # track air time (see contact sensor class)
+#         elapsed_time = self._timestamp[env_ids] - self._timestamp_last_update[env_ids]
+#         is_contact = torch.norm(self._data.net_forces_w[env_ids, :, :], dim=-1) > 5.0 # type: ignore
+#         is_first_contact = (self._data.current_air_time[env_ids] > 0) * is_contact # type: ignore
+#         is_first_detached = (self._data.current_contact_time[env_ids] > 0) * ~is_contact # type: ignore
+#         # -- update the last contact time if body has just become in contact
+#         self._data.last_air_time[env_ids] = torch.where( # type: ignore
+#             is_first_contact,
+#             self._data.current_air_time[env_ids] + elapsed_time.unsqueeze(-1), # type: ignore
+#             self._data.last_air_time[env_ids], # type: ignore
+#         )
+#         # -- increment time for bodies that are not in contact
+#         self._data.current_air_time[env_ids] = torch.where( # type: ignore
+#             ~is_contact, self._data.current_air_time[env_ids] + elapsed_time.unsqueeze(-1), 0.0 # type: ignore
+#         )
+#         # -- update the last contact time if body has just detached
+#         self._data.last_contact_time[env_ids] = torch.where( # type: ignore
+#             is_first_detached,
+#             self._data.current_contact_time[env_ids] + elapsed_time.unsqueeze(-1), # type: ignore
+#             self._data.last_contact_time[env_ids], # type: ignore
+#         )
+#         # -- increment time for bodies that are in contact
+#         self._data.current_contact_time[env_ids] = torch.where( # type: ignore
+#             is_contact, self._data.current_contact_time[env_ids] + elapsed_time.unsqueeze(-1), 0.0 # type: ignore
+#         )
+        
+        
+#     def _eval_contacts(self)->None:
+#         """
+#         Update contact points' kinematic states and compute contact forces.
+#         """
+#         # compute contact points in global frame
+#         R = self.body_rot_mat.unsqueeze(2)
+#         p = self.contact_point_offset.unsqueeze(-1)
+#         self.contact_point_pos = self.body_pos.unsqueeze(2) + (R @ p).squeeze(-1)
+        
+#         # compute contact normal
+#         # normal facing downward as defined in 3D RFT paper.
+#         n = torch.tensor([0.0, 0.0, -1.0], device=self.device).view(1, 1, 1, 3).repeat(self.num_envs, self.num_bodies, self.num_contact_points, 1)
+#         self.n_dir = (R @ n.unsqueeze(-1)).squeeze(-1)
+        
+#         # compute contact point linear velocity in global frame
+#         self.contact_point_lin_vel = self.body_lin_vel.unsqueeze(2) + \
+#             torch.cross(self.body_ang_vel.unsqueeze(2), self.contact_point_pos - self.body_pos.unsqueeze(2), dim=-1)
+            
+#         # NOTE: new implementation
+#         # compute unit vectors (z, n, v, r, t)
+#         # see S7 eq.4 from https://www.pnas.org/doi/10.1073/pnas.2214017120
+#         n = self.n_dir.clone()
+#         z = torch.tensor([0.0, 0.0, 1.0], device=self.device).view(1, 1, 1, 3).repeat(self.num_envs, self.num_bodies, self.num_contact_points, 1)
+#         vr = self.contact_point_lin_vel - (self.contact_point_lin_vel * z).sum(dim=-1, keepdim=True) * z.squeeze(-1)
+#         vr_norm = torch.norm(vr, dim=-1, keepdim=True)
+#         nr = self.n_dir - (self.n_dir * z).sum(dim=-1, keepdim=True) * z.squeeze(-1)
+#         nr_norm = torch.norm(nr, dim=-1, keepdim=True)
+#         r = vr / (vr_norm+1e-6)
+#         r[vr_norm.squeeze(-1) < 1e-6] = nr[vr_norm.squeeze(-1) < 1e-6]/(nr_norm[vr_norm.squeeze(-1) < 1e-6]+1e-6)
+#         v = self.contact_point_lin_vel.clone()/(torch.norm(self.contact_point_lin_vel, dim=-1, keepdim=True) + 1e-8)
+        
+#         # compute contact point tilt angle (beta)
+#         # see S7 eq.5 from https://www.pnas.org/doi/10.1073/pnas.2214017120
+#         ndotr = (n * r).sum(dim=-1)
+#         ndotz = (n * z).sum(dim=-1)
+#         mask1 = (ndotr >= 0) * (ndotz >= 0)
+#         mask2 = (ndotr >= 0) * (ndotz < 0)
+#         mask3 = (ndotr < 0) * (ndotz >= 0)
+#         mask4 = (ndotr < 0) * (ndotz < 0)
+#         self.contact_point_tilt_angle[mask1] = -torch.acos(ndotz[mask1])
+#         self.contact_point_tilt_angle[mask2] = torch.pi - torch.acos(ndotz[mask2])
+#         self.contact_point_tilt_angle[mask3] = torch.acos(ndotz[mask3])
+#         self.contact_point_tilt_angle[mask4] = -torch.pi + torch.acos(ndotz[mask4])
+        
+#         # compute contact point velocity angle (gamma)
+#         # see S7 eq.6 from https://www.pnas.org/doi/10.1073/pnas.2214017120
+#         vdotr = (v * r).sum(dim=-1)
+#         vdotz = (v * z).sum(dim=-1)
+#         mask1 = vdotz < 0 
+#         mask2 = vdotz >= 0
+#         self.contact_point_intrusion_angle[mask1] = torch.acos(vdotr[mask1])
+#         self.contact_point_intrusion_angle[mask2] = -torch.acos(vdotr[mask2])
+        
+#         # # NOTE: old implementation
+#         # # compute tilt angle
+#         # _, pitch, _ = euler_xyz_from_quat(self.body_quat.view(-1, 4))
+#         # self.contact_point_tilt_angle = pitch.view(self.num_envs, self.num_bodies, 1).repeat(1, 1, self.num_contact_points)
+        
+#         # # pre-rotate roll and yaw
+#         # Rt = self.body_rot_mat_roll_yaw.transpose(-1, -2).unsqueeze(2)
+#         # v = self.contact_point_lin_vel.clone().unsqueeze(-1)
+#         # self.contact_point_lin_vel_b = (Rt @ v).squeeze(-1)
+        
+#         # # compute velocity angle
+#         # self.contact_point_intrusion_angle = torch.atan2(-self.contact_point_lin_vel_b[..., 2], self.contact_point_lin_vel_b[..., 0])
+#         # self.contact_point_intrusion_angle = torch.where(
+#         #     self.contact_point_intrusion_angle > torch.pi/2, 
+#         #     torch.pi - self.contact_point_intrusion_angle, 
+#         #     self.contact_point_intrusion_angle
+#         #     )
+#         # self.contact_point_intrusion_angle = torch.where(
+#         #     self.contact_point_intrusion_angle < -torch.pi/2,
+#         #     -torch.pi - self.contact_point_intrusion_angle,
+#         #     self.contact_point_intrusion_angle
+#         #     )
+#         # # END of old implementation
+        
+#         # compute contact forces
+#         # see eq.1 in https://www.pnas.org/doi/10.1073/pnas.2214017120
+#         f_normal, fn = self._get_normal_force(
+#             self.contact_point_pos.reshape(self.num_envs, -1, 3),
+#             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
+#             self.contact_point_lin_vel_prev.reshape(self.num_envs, -1, 3),
+#             self.contact_point_tilt_angle.reshape(self.num_envs, -1),
+#             self.contact_point_intrusion_angle.reshape(self.num_envs, -1), # gamma
+#         )
+        
+#         f_tangential = self._get_tangential_force(
+#             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
+#             fn, 
+#         )
+
+#         force = (f_normal+f_tangential).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
+#         torque = torch.cross((self.contact_point_pos - self.body_pos.unsqueeze(2)), force, dim=-1)
+#         self.contact_point_force[:, :, :, :] = force
+#         self.contact_point_torque[:, :, :, :] = torque
+        
+#         # lumped force and torque
+#         self.contact_force[:, :, :] = torch.sum(force, dim=2) # (num_envs, num_bodies, 3)
+#         self.contact_torque[:, :, :] = torch.sum(torque, dim=2) # (num_envs, num_bodies, 3)
+        
+#         # update velocity history
+#         self.contact_point_lin_vel_prev[:, :, :, :] = self.contact_point_lin_vel[:, :, :, :]
+    
+#     # def _get_normal_force(
+#     #     self, 
+#     #     foot_pos:torch.Tensor, 
+#     #     foot_velocity:torch.Tensor, 
+#     #     foot_velocity_prev:torch.Tensor, 
+#     #     beta:torch.Tensor, 
+#     #     gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+#     #     """
+#     #     Compute normal force wrt global frame using RFT z component.
+        
+#     #     Args: 
+#     #         foot_pos: contact point position in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#     #         foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#     #         foot_velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#     #         beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
+#     #         gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
+#     #     Returns:
+#     #         force_normal: normal force in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#     #     """
+#     #     dA = self.surface_area/self.num_contact_points
+#     #     depth = -foot_pos[:, :, -1]
+#     #     is_contact = depth > 0 # apply resistive force only when foot is penetrating
+        
+#     #     _, alpha_z = self._compute_elementary_force(beta, gamma) # get RFT force
+#     #     self.force_gm = self.stiffness[:, None] * alpha_z * depth * dA * is_contact * (1e6) #m^3 to cm^3 since alpha is N/cm^3
+#     #     self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
+        
+#     #     # Dynamic RFT
+#     #     lam = 1.0
+#     #     rho = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
+#     #     vn = (self.contact_point_lin_vel * (-self.n_dir)).sum(dim=-1) # (num_envs, num_bodies, num_contact_points)
+#     #     fn = self.force_ema.reshape(self.num_envs, self.num_bodies, self.num_contact_points) + lam * rho * vn**2
+        
+#     #     force_normal = (fn.unsqueeze(-1) * (-self.n_dir)).reshape(self.num_envs, -1, 3)
+#     #     fn = fn.reshape(self.num_envs, -1)
+
+#     #     return force_normal, fn
+    
+#     # def _get_tangential_force(self, v:torch.Tensor, fn:torch.Tensor)->torch.Tensor:
+#     #     """
+#     #     Get tangential force using Coulomb friction model. 
+#     #     Computed force is in simulation global frame.
+#     #     Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
+        
+#     #     Args:
+#     #         foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#     #         fz: normal force in z direction in global frame. (num_envs, num_bodies*num_contact_points)
+#     #     Returns:
+#     #         tangential_force: tangential force in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#     #     """
+#     #     vn = (v * (-self.n_dir).reshape(self.num_envs, -1, 3)).sum(dim=-1) # (num_envs, num_bodies*num_contact_points)
+#     #     vt = v - vn.unsqueeze(-1) * (-self.n_dir).reshape(self.num_envs, -1, 3) # (num_envs, num_bodies*num_contact_points, 3)
+#     #     vt_norm = torch.norm(vt, dim=-1) # (num_envs, num_bodies*num_contact_points)
+#     #     vt_dir = vt / (vt_norm.unsqueeze(-1) + 1e-6) # (num_envs, num_bodies*num_contact_points, 3)
+        
+#     #     # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
+#     #     kf = 1.0
+#     #     ft = torch.minimum(-self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
+#     #     tangential_force = ft.unsqueeze(-1) * vt_dir
+
+#     #     return tangential_force
+    
+    
+#     def _get_normal_force(
+#         self, 
+#         foot_pos:torch.Tensor, 
+#         foot_velocity:torch.Tensor, 
+#         foot_velocity_prev:torch.Tensor, 
+#         beta:torch.Tensor, 
+#         gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+#         """
+#         Compute normal force wrt global frame using RFT z component.
+        
+#         Args: 
+#             foot_pos: contact point position in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#             foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#             foot_velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#             beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
+#             gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
+#         Returns:
+#             force_normal: normal force in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#         """
+#         dA = self.surface_area/self.num_contact_points
+#         depth = -foot_pos[:, :, -1]
+#         is_contact = depth > 0 # apply resistive force only when foot is penetrating
+        
+#         alpha_x, alpha_z = self._compute_elementary_force(beta, gamma) # get RFT force
+#         self.force_gm = self.stiffness[:, None] * alpha_z * depth * dA * is_contact * (1e6) #m^3 to cm^3 since alpha is N/cm^3
+#         self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
+        
+#         force_normal = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
+#         force_normal[:, :, :, -1] = self.force_ema.reshape(self.num_envs, self.num_bodies, self.num_contact_points)
+        
+#         # rotate normal force back to simulation global frame
+#         R = self.body_rot_mat_roll_yaw.unsqueeze(2)
+#         p = force_normal.unsqueeze(-1)
+#         force_normal = (R @ p).squeeze(-1).reshape(self.num_envs, -1, 3)
+        
+#         # add dynamic inertial term from DRFT
+#         lam = 1.0
+#         rho = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
+#         vn = foot_velocity[:, :, 2]
+#         force_normal[:, :, 2] = force_normal[:, :, 2] + is_contact * lam * rho * vn**2
+
+#         return force_normal, force_normal[:, :, 2]
+    
+#     def _get_tangential_force(self, v:torch.Tensor, fn:torch.Tensor)->torch.Tensor:
+#         """
+#         Get tangential force using Coulomb friction model. 
+#         Computed force is in simulation global frame.
+#         Idea is from https://iscicra25.github.io/papers/2025-Lee-4_Soft_Contact_Model_for_Robus.pdf
+        
+#         Args:
+#             foot_velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#             fz: normal force in z direction in global frame. (num_envs, num_bodies*num_contact_points)
+#         Returns:
+#             tangential_force: tangential force in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#         """
+#         vt_norm = torch.sqrt(v[:, :, 0]**2 + v[:, :, 1]**2)
+#         vt_dir = v[:, :, :2]/(vt_norm.unsqueeze(2) + 1e-6)
+        
+#         # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
+#         kf = 10.0
+#         ft = torch.minimum(-self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
+#         friction_force_vec = ft.unsqueeze(-1) * vt_dir
+        
+#         tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+#         tangential_force[:, :, :2] = friction_force_vec
+        
+#         return tangential_force
+    
+#     def _compute_elementary_force(self, beta:torch.Tensor, gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+#         """
+#         Compute elementary force per foot using Fourier series expansion. 
+#         See the original paper. 
+        
+#         Args: 
+#             beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
+#             gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
+#         Returns:
+#             alpha_x: elementary force coefficient in x direction. (num_envs, num_bodies*num_contact_points)
+#             alpha_z: elementary force coefficient in z direction. (num_envs, num_bodies*num_contact_points)
+#         """
+#         alpha_z = torch.zeros_like(beta) # A00
+#         alpha_z += self.cfg.A00*torch.cos(2*torch.pi*(0*beta/torch.pi)) #A00
+#         alpha_z += self.cfg.A10*torch.cos(2*torch.pi*(1*beta/torch.pi)) # A10
+#         alpha_z += self.cfg.B01*torch.sin(2*torch.pi*(1*gamma/(2*torch.pi))) # B01
+#         alpha_z += self.cfg.B11*torch.sin(2*torch.pi*(1*beta/torch.pi + 1*gamma/(2*torch.pi))) # B11
+#         alpha_z += self.cfg.B_11*torch.sin(2*torch.pi*(-1*beta/torch.pi + 1*gamma/(2*torch.pi))) # B-11
+        
+#         # calculate alpha_x
+#         alpha_x = torch.zeros_like(beta)
+#         alpha_x += self.cfg.C01*torch.sin(2*torch.pi*(1*gamma/(2*torch.pi))) # C01
+#         alpha_x += self.cfg.C11*torch.sin(2*torch.pi*(1*beta/(torch.pi) + 1*gamma/(2*torch.pi))) # C11
+#         alpha_x += self.cfg.C_11*torch.sin(2*torch.pi*(-1*beta/(torch.pi) + 1*gamma/(2*torch.pi))) # C-11
+#         alpha_x += self.cfg.D10*torch.cos(2*torch.pi*(1*beta/(torch.pi))) # D10
+        
+#         return alpha_x, alpha_z
+    
+#     def _ema_filtering(self, velocity:torch.Tensor, velocity_prev:torch.Tensor, depth:torch.Tensor):
+#         """
+#         Exponential moving filtering
+#         See KAIST science robotics supplementary material S12.
+        
+#         Args:
+#             velocity: contact point velocity in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#             velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
+#             depth: contact point penetration depth. (num_envs, num_bodies*num_contact_points)
+#         """
+#         coef = 0.8
+#         increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
+#         tau_r_boundary = self.tau_r < 1
+#         depth_mask = depth > 0
+#         mask = increment_mask & tau_r_boundary
+#         self.tau_r[mask] += self.c_r
+#         self.tau_r[~depth_mask] = 0.0
+        
+#         self.force_ema[depth_mask] = (1-coef*self.tau_r[depth_mask])*self.force_gm[depth_mask] + coef*self.tau_r[depth_mask]*self.force_ema[depth_mask]
+#         self.force_ema[~depth_mask] = 0.0
+        
+#     """
+#     reset.
+#     """
+    
+#     def reset(self, env_ids:torch.Tensor):
+#         """
+#         Reset internal states for given env ids.
+#         Args:
+#             env_ids: tensor of env ids to reset
+#         """
+#         self.force_gm[env_ids] = 0.0
+#         self.force_ema[env_ids] = 0.0
+#         self.tau_r[env_ids] = 0.0
+#         self.contact_point_lin_vel_prev[env_ids] = 0.0
 
 """
 3D RFT material parameters.
@@ -721,6 +1177,7 @@ class RFT_3D:
                  device: torch.device,
                  dt:float, 
                  history_length: int = 3,
+                 max_terrain_level: int = 10,
                  material_cfg: Material3DRFTCfg=Material3DRFTCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
                  ):
@@ -744,6 +1201,7 @@ class RFT_3D:
         self.num_contact_points = intruder_cfg.num_contact_points
         self.device = device
         self.dt = dt
+        self.max_terrain_level = max_terrain_level
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
@@ -808,7 +1266,6 @@ class RFT_3D:
         
         self.stiffness = self.cfg.stiffness * torch.ones(self.num_envs, device=self.device)
         self.soft_level = torch.zeros(self.num_envs, device=self.device)
-        self.max_level = 10
         
         self._timestamp = torch.zeros(self.num_envs, device=self.device)
         self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
@@ -913,11 +1370,11 @@ class RFT_3D:
         """
         self.soft_level[env_ids] += 1 * move_up - 1 * move_down
         self.soft_level[env_ids] = torch.where(
-            self.soft_level[env_ids] >= self.max_level,
-            torch.randint_like(self.soft_level[env_ids], self.max_level),
+            self.soft_level[env_ids] >= self.max_terrain_level,
+            torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
             torch.clip(self.soft_level[env_ids], 0),
         )
-        self.stiffness = self.max_level - self.soft_level
+        self.stiffness = self.max_terrain_level - self.soft_level
         
 
     

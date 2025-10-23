@@ -82,7 +82,7 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         self.seed = 0
         self.scene.num_envs = 50
         self.scene.env_spacing = 5.0
-        self.episode_length_s = 20.0
+        self.episode_length_s = 2.0
         
         # make soft terrain
         self.scene.terrain = hector_mdp.FlatTerrain
@@ -102,8 +102,11 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
             "pose_range": 
                 {"x": (-2.5, 2.5), 
                  "y": (-2.5, 2.5), 
+                #  "yaw": (-math.pi, math.pi),
                 "yaw": (0, 0),
                 # "yaw": (math.pi/2, math.pi/2),
+                # "yaw": (-math.pi/2, -math.pi/2),
+                # "yaw": (-math.pi, -math.pi),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -118,7 +121,7 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (0.3, 0.3)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         # self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)

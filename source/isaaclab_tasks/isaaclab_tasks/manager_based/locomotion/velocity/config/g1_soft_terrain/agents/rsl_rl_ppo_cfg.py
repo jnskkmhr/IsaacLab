@@ -40,6 +40,7 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     logger="wandb"
     wandb_project="g1_rough"
     experiment_name="g1_rough"
+    run_name="g1_rough"
 
 
 @configclass
@@ -48,7 +49,8 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         super().__post_init__()
 
         self.max_iterations = 1500
-        self.wandb_project = "g1_flat"
-        self.experiment_name = "g1_flat"
+        self.wandb_project = "g1_flat_soft"
+        self.experiment_name = "g1_flat_soft"
+        self.run_name = "g1_flat_soft"
         self.policy.actor_hidden_dims = [256, 128, 128]
         self.policy.critic_hidden_dims = [256, 128, 128]

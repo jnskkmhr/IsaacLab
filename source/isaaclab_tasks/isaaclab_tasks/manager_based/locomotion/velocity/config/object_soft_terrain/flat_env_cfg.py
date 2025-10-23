@@ -48,12 +48,12 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 "yaw": (-math.pi, math.pi),
                  },
             "velocity_range": {
-                "x": (0.0, .0),
+                "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
                 "z": (0.0, 0.0), 
                 "roll": (0.0, 0.0),
                 "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
+                "yaw": (0.5, 0.5),
             },
         }
 
@@ -107,3 +107,12 @@ class ObjectFlatEnvCfg_PLAY(ObjectFlatEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        
+        # viewer 
+        self.viewer = ViewerCfg(
+            eye=(-0.0, -1.0, 0.2), 
+            lookat=(0.0, -0.5, 0.05),
+            resolution=(1920, 1080), 
+            origin_type="asset_root", 
+            asset_name="object"
+        )

@@ -54,27 +54,28 @@ class PhysicsCallbackAction(ActionTerm):
         self.contact_wrench = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
-        # get physics backend
-        material_cfg = PoppySeedCPCfg()
-        # material_cfg = PoppySeedLPCfg()
-        num_bodies = len(body_ids)
-        self.rft = RFT_2D(
-            material_cfg=material_cfg, 
-            num_envs=self.num_envs, 
-            num_bodies=num_bodies, 
-            device=self.device, 
-            dt=env.physics_dt,)
-        
         # # get physics backend
-        # material_cfg = Material3DRFTCfg()
+        # material_cfg = PoppySeedCPCfg()
+        # # material_cfg = PoppySeedLPCfg()
         # num_bodies = len(body_ids)
-        # self.rft = RFT_3D(
+        # self.rft = RFT_2D(
         #     material_cfg=material_cfg, 
         #     num_envs=self.num_envs, 
         #     num_bodies=num_bodies, 
         #     device=self.device, 
-        #     dt=env.physics_dt,
-        #     )
+        #     dt=env.physics_dt,)
+        
+        # get physics backend
+        material_cfg = Material3DRFTCfg()
+        num_bodies = len(body_ids)
+        self.rft = RFT_3D(
+            material_cfg=material_cfg, 
+            num_envs=self.num_envs, 
+            num_bodies=num_bodies, 
+            device=self.device, 
+            dt=env.physics_dt,
+            max_terrain_level=1,
+            )
         
     """
     properties.

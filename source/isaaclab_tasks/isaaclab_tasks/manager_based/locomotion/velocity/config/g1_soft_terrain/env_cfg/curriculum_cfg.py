@@ -29,6 +29,6 @@ class G1CurriculumCfg:
         params={
             "rl_horizon": 24,
             "max_iterations": 1500,
-            "minimum_ground_height": -0.1,
+            "minimum_ground_height": -0.2,
             },
         )
