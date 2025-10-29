@@ -72,6 +72,7 @@ tests/
 
 # no data
 *.pdf
+*.png
 
 # dev files
 source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/g1_soft_terrain/mdp/physics/debug.ipynb

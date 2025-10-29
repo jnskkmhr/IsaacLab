@@ -65,6 +65,7 @@ class G1SceneCfg(InteractiveSceneCfg):
         track_air_time=True, 
         track_friction_forces=False,
         )
+    
     # # detailed single foot contact reporting
     # contact_forces_LF = ContactSensorCfg(
     #     prim_path="{ENV_REGEX_NS}/Robot/left_ankle_roll_link", 
@@ -80,6 +81,7 @@ class G1SceneCfg(InteractiveSceneCfg):
     #     track_air_time=True, 
     #     track_friction_forces=True,
     #     )
+    
     # lights
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",
