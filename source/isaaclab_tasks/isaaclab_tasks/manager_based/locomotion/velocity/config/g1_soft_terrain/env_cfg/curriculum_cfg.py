@@ -24,11 +24,11 @@ class G1CurriculumCfg:
             "contact_solver_name": "physics_callback",
             },
         )
-    terrain_ground_level = CurrTerm(
-        func=g1_mdp.terrain_ground_level,
-        params={
-            "rl_horizon": 24,
-            "max_iterations": 1500,
-            "minimum_ground_height": -0.2,
-            },
-        )
+    # terrain_ground_level = CurrTerm(
+    #     func=g1_mdp.terrain_ground_level,
+    #     params={
+    #         "rl_horizon": 24,
+    #         "max_iterations": 5,
+    #         "minimum_ground_height": -0.2,
+    #         },
+    #     )

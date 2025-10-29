@@ -42,10 +42,11 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
             "asset_cfg": SceneEntityCfg("object"),
             "pose_range": 
                 {
-                "x": (-2.5, 2.5), 
-                "y": (-2.5, 2.5), 
+                "x": (-0., 0.), 
+                "y": (-0., 0.), 
                 "z": (0.5, 0.5), 
-                "yaw": (-math.pi, math.pi),
+                # "yaw": (-math.pi, math.pi),
+                "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -53,7 +54,7 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 "z": (0.0, 0.0), 
                 "roll": (0.0, 0.0),
                 "pitch": (0.0, 0.0),
-                "yaw": (0.5, 0.5),
+                "yaw": (0.0, 0.0),
             },
         }
 
@@ -77,13 +78,13 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         
         # light and view settings
         self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
-        self.viewer = ViewerCfg(
-            eye=(-0.0, -0.6, 0.3), 
-            lookat=(0.0, 0.0, 0.0),
-            resolution=(1920, 1080), 
-            origin_type="asset_root", 
-            asset_name="object",
-        )
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.0, -0.6, 0.3), 
+        #     lookat=(0.0, 0.0, 0.0),
+        #     resolution=(1920, 1080), 
+        #     origin_type="asset_root", 
+        #     asset_name="object",
+        # )
 
 
 class ObjectFlatEnvCfg_PLAY(ObjectFlatEnvCfg):
@@ -109,10 +110,19 @@ class ObjectFlatEnvCfg_PLAY(ObjectFlatEnvCfg):
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         
         # viewer 
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.0, -1.0, 0.2), 
+        #     lookat=(0.0, -0.5, 0.05),
+        #     resolution=(1920, 1080), 
+        #     origin_type="asset_root", 
+        #     asset_name="object"
+        # )
+        
+        # viewer 
         self.viewer = ViewerCfg(
-            eye=(-0.0, -1.0, 0.2), 
-            lookat=(0.0, -0.5, 0.05),
+            eye=(-0.0, -0.6, 0.5), 
+            lookat=(0.0, -0.3, 0.3),
             resolution=(1920, 1080), 
-            origin_type="asset_root", 
-            asset_name="object"
+            # origin_type="asset_root", 
+            # asset_name="object"
         )

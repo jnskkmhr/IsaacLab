@@ -29,7 +29,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.observations.policy.height_scan = None
         
         # no IsaacLab terrain curriculum
-        self.curriculum.terrain_levels = None
+        # self.curriculum.terrain_levels = None
         
         # Randomization 
         self.events.reset_base.params = {
@@ -70,15 +70,6 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         
         # light and view settings
         self.scene.sky_light.init_state.rot = (0.86603, 0, 0, 0.5)  # yaw=60deg
-        # self.viewer = ViewerCfg(
-        #     # eye=(-0.0, -2.5, 0.0), 
-        #     # lookat=(0.0, -0.8, 0.0),
-        #     eye=(-0.0, -4.5, 0.5), 
-        #     lookat=(0.0, -2.0, 0.0),
-        #     resolution=(1920, 1080), 
-        #     origin_type="asset_root", 
-        #     asset_name="robot"
-        # )
 
 
 class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
@@ -88,11 +79,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
 
         # make a smaller scene for play
         self.scene.num_envs = 50
-        self.scene.env_spacing = 5.0
-        self.episode_length_s = 50.0
+        self.scene.env_spacing = 2.5
+        self.episode_length_s = 20.0
         
         # make soft terrain
-        self.scene.terrain = g1_mdp.FlatTerrain
+        self.scene.terrain = g1_mdp.SandTerrain
         self.scene.terrain.disable_collider = True  # soft terrain
         
         # disable randomization for play
@@ -105,9 +96,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0., 0.)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False
@@ -115,10 +106,10 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # Randomization 
         self.events.reset_base.params = {
             "pose_range": 
-                {"x": (0, 0), 
-                 "y": (-0, 0), 
+                {"x": (-0.5, 0.5), 
+                 "y": (-0.5, 0.5),
                 "yaw": (-math.pi, math.pi),
-                # "yaw": (0, 0),
+                # "yaw": (-0.0, 0.0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),

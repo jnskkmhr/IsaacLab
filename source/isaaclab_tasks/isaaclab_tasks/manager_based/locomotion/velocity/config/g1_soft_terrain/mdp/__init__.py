@@ -3,7 +3,7 @@ from .physics.soft_contact_model import (
     Material3DRFTCfg, RFT_3D, # 3D RFT
 )
 from .actions.actions_cfg import PhysicsCallbackActionCfg
-from .terrain.terrain_cfg import FlatTerrain
+from .terrain.terrain_cfg import FlatTerrain, SandTerrain
 from .termination.termination import root_height_below_minimum_adaptive
 
 from .observations.observations import (

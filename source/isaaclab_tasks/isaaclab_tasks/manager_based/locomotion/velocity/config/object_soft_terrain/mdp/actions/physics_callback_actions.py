@@ -51,24 +51,13 @@ class PhysicsCallbackAction(ActionTerm):
         self._processed_actions = torch.zeros_like(self.raw_actions)
         
         # wrench buffer
+        self.contact_wrench = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
-        # # get physics backend
-        # material_cfg = PoppySeedCPCfg()
-        # num_bodies = len(body_ids)
-        # self.contact_solver = RFT_2D(
-        #     material_cfg=material_cfg, 
-        #     num_envs=self.num_envs, 
-        #     num_bodies=num_bodies, 
-        #     device=self.device, 
-        #     dt=env.physics_dt,
-        #     max_terrain_level=1,
-        #     )
-        
         # get physics backend
-        material_cfg = Material3DRFTCfg()
+        material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
-        self.contact_solver = RFT_3D(
+        self.contact_solver = RFT_2D(
             material_cfg=material_cfg, 
             num_envs=self.num_envs, 
             num_bodies=num_bodies, 
@@ -76,6 +65,18 @@ class PhysicsCallbackAction(ActionTerm):
             dt=env.physics_dt,
             max_terrain_level=1,
             )
+        
+        # # get physics backend
+        # material_cfg = Material3DRFTCfg()
+        # num_bodies = len(body_ids)
+        # self.contact_solver = RFT_3D(
+        #     material_cfg=material_cfg, 
+        #     num_envs=self.num_envs, 
+        #     num_bodies=num_bodies, 
+        #     device=self.device, 
+        #     dt=env.physics_dt,
+        #     max_terrain_level=1,
+        #     )
         
     """
     properties.

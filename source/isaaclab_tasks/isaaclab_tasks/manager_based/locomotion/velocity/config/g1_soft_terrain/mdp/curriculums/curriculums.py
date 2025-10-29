@@ -102,6 +102,7 @@ def terrain_ground_level(
     env_step_count = env._sim_step_counter // env.cfg.decimation
     iteration = env_step_count // rl_horizon
     progress = (iteration / max_iterations)**4
+    progress = min(progress, 1.0)
     ground_height = progress * minimum_ground_height
 
     # update ground height

@@ -40,9 +40,10 @@ def flat_terrain(
         A tuple containing the tri-mesh of the terrain and the origin of the terrain (in m).
     """
     # compute the position of the terrain
-    origin = (cfg.size[0] / 2.0, cfg.size[1] / 2.0, 0.0)
+    plane_z = cfg.ground_height_range[0] + difficulty * (cfg.ground_height_range[1] - cfg.ground_height_range[0])
+    origin = (cfg.size[0] / 2.0, cfg.size[1] / 2.0, plane_z)
     # compute the vertices of the terrain
-    plane_mesh = make_plane(cfg.size, 0.0, center_zero=False)
+    plane_mesh = make_plane(cfg.size, plane_z, center_zero=False)
     # return the tri-mesh and the position
     return [plane_mesh], np.array(origin)
 

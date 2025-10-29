@@ -62,7 +62,7 @@ def main():
     env.metadata["render_fps"] = int((1/env.unwrapped.step_dt) * args_cli.video_speed)  # type: ignore
     
     # get logging directory
-    log_dir = (Path(os.path.realpath('__file__')).parent / "logs" / "zero/hector_flat").as_posix()
+    log_dir = (Path(os.path.realpath('__file__')).parent / "logs" / f"zero/{args_cli.task}").as_posix()
     log_dir = os.path.join(log_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     print(f"[INFO] Log directory: {log_dir}")
     

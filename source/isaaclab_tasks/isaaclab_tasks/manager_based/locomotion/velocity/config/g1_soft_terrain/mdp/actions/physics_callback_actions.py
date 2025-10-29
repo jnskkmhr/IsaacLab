@@ -55,7 +55,7 @@ class PhysicsCallbackAction(ActionTerm):
         self.contact_wrench = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
-        # get physics backend
+        # get physics backend (2D RFT)
         # material_cfg = PoppySeedLPCfg()
         material_cfg = PoppySeedCPCfg()
         num_bodies = len(body_ids)
@@ -68,10 +68,10 @@ class PhysicsCallbackAction(ActionTerm):
             max_terrain_level=1,
             )
         
-        # # get physics backend
+        # # get physics backend (3D RFT)
         # material_cfg = Material3DRFTCfg()
         # num_bodies = len(body_ids)
-        # self.rft = RFT_3D(
+        # self.contact_solver = RFT_3D(
         #     material_cfg=material_cfg, 
         #     num_envs=self.num_envs, 
         #     num_bodies=num_bodies, 
@@ -90,14 +90,19 @@ class PhysicsCallbackAction(ActionTerm):
     @property
     def raw_actions(self) -> torch.Tensor:
         return self._raw_actions
-
+ 
     @property
     def processed_actions(self) -> torch.Tensor:
         return self._processed_actions
     
     @property
     def body_pos(self)->torch.Tensor:
-        return self._asset.data.body_link_pose_w[:, self._body_ids, :3] - self._env.scene.env_origins.unsqueeze(1)
+        """
+        get body position in local env frame except z pos is measured wrt world frame.
+        """
+        body_pos = self._asset.data.body_link_pose_w[:, self._body_ids, :3]
+        body_pos[:, :, :2] -= self._env.scene.env_origins.unsqueeze(1)[:, :, :2]
+        return body_pos
     
     @property
     def body_quat(self)->torch.Tensor:

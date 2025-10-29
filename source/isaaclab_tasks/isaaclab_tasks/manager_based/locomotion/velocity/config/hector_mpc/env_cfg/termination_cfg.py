@@ -19,10 +19,10 @@ class HECTORTerminationsCfg:
         func=mdp.illegal_contact, # type: ignore
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 1.0},
     )
-    # base_too_low = DoneTerm(
-    #     func=hector_mdp.root_height_below_minimum_adaptive,  # type: ignore
-    #     params={
-    #         "minimum_height": 0.4,
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*_toe"),
-    #     },
-    # )
+    base_too_low = DoneTerm(
+        func=hector_mdp.root_height_below_minimum_adaptive,  # type: ignore
+        params={
+            "minimum_height": 0.4,
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_toe"),
+        },
+    )

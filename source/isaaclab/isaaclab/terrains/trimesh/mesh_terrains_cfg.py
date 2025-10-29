@@ -23,6 +23,9 @@ class MeshPlaneTerrainCfg(SubTerrainBaseCfg):
     """Configuration for a plane mesh terrain."""
 
     function = mesh_terrains.flat_terrain
+    
+    ground_height_range: tuple[float, float] = MISSING
+    """The minimum and maximum height of the plane (in m)."""
 
 
 @configclass
