@@ -25,7 +25,7 @@ FlatTerrain = TerrainImporterCfg(
         slope_threshold=0.75,
         use_cache=False,
         sub_terrains={
-            "plane": terrain_gen.MeshPlaneTerrainCfg(proportion=1.0),
+            "plane": terrain_gen.MeshPlaneTerrainCfg(proportion=1.0, ground_height_range=(0.0, 0.0)),
         },
     ),
     collision_group=-1,
@@ -36,19 +36,11 @@ FlatTerrain = TerrainImporterCfg(
         dynamic_friction=0.5,
     ),
     # visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.1, 0.1, 0.1)),
-    # visual_material=sim_utils.MdlFileCfg(
-    #         mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-    #         project_uvw=True,
-    #         texture_scale=(0.25, 0.25),
-    #         albedo_brightness=0.1,
-    #     ),
     visual_material=sim_utils.MdlFileCfg(
-            # mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-            mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
+            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+            # mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
             project_uvw=True,
             texture_scale=(0.25, 0.25),
             albedo_brightness=0.2,
         ),
-    disable_collider=True,
-    # disable_visualization=True,
 )

@@ -80,7 +80,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
-        self.episode_length_s = 2.0
+        self.episode_length_s = 20.0
         
         # make soft terrain
         self.scene.terrain = g1_mdp.SandTerrain
@@ -99,10 +99,10 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.push_robot = None
         self.events.physics_material = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
-        # self.events.randomize_friction = None
+        self.events.randomize_friction = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.3, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0., 0.)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
@@ -115,7 +115,6 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
                 {"x": (-0.5, 0.5), 
                  "y": (-0.5, 0.5),
                 "yaw": (-math.pi, math.pi),
-                # "yaw": (-0.0, 0.0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -132,6 +131,6 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             eye=(-0.0, -2.5, 0.0), 
             lookat=(0.0, -0.8, 0.0),
             resolution=(1920, 1080), 
-            origin_type="asset_root", 
-            asset_name="robot"
+            # origin_type="asset_root", 
+            # asset_name="robot"
         )

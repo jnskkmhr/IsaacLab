@@ -55,28 +55,30 @@ class PhysicsCallbackAction(ActionTerm):
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
         # get physics backend
-        material_cfg = PoppySeedCPCfg()
-        num_bodies = len(body_ids)
-        self.contact_solver = RFT_2D(
-            material_cfg=material_cfg, 
-            num_envs=self.num_envs, 
-            num_bodies=num_bodies, 
-            device=self.device, 
-            dt=env.physics_dt,
-            max_terrain_level=1,
-            )
-        
-        # # get physics backend
-        # material_cfg = Material3DRFTCfg()
-        # num_bodies = len(body_ids)
-        # self.contact_solver = RFT_3D(
-        #     material_cfg=material_cfg, 
-        #     num_envs=self.num_envs, 
-        #     num_bodies=num_bodies, 
-        #     device=self.device, 
-        #     dt=env.physics_dt,
-        #     max_terrain_level=1,
-        #     )
+        if self.cfg.backend == "2D":
+            material_cfg = PoppySeedCPCfg()
+            num_bodies = len(body_ids)
+            self.contact_solver = RFT_2D(
+                material_cfg=material_cfg, 
+                num_envs=self.num_envs, 
+                num_bodies=num_bodies, 
+                device=self.device, 
+                dt=env.physics_dt,
+                max_terrain_level=self.cfg.max_terrain_level,
+                )
+        elif self.cfg.backend == "3D":
+            material_cfg = Material3DRFTCfg()
+            num_bodies = len(body_ids)
+            self.contact_solver = RFT_3D(
+                material_cfg=material_cfg, 
+                num_envs=self.num_envs, 
+                num_bodies=num_bodies, 
+                device=self.device, 
+                dt=env.physics_dt,
+                max_terrain_level=self.cfg.max_terrain_level,
+                )
+        else:
+            raise ValueError(f"Unsupported RFT backend: {self.cfg.backend}")
         
     """
     properties.

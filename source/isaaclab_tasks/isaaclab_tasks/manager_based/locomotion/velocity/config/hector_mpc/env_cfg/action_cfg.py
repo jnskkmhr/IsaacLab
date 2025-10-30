@@ -26,4 +26,6 @@ class HECTORActionsCfg:
     physics_callback = hector_mdp.PhysicsCallbackActionCfg(
         asset_name="robot",
         body_names=[".*_toe"],
+        max_terrain_level=5,
+        backend="3D",
     )

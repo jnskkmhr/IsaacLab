@@ -55,29 +55,31 @@ class PhysicsCallbackAction(ActionTerm):
         self.contact_wrench = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         self.contact_wrench_b = torch.zeros(self.num_envs, len(body_ids), 6, device=self.device)
         
-        # get physics backend (2D RFT)
-        # material_cfg = PoppySeedLPCfg()
-        material_cfg = PoppySeedCPCfg()
-        num_bodies = len(body_ids)
-        self.contact_solver = RFT_2D(
-            material_cfg=material_cfg, 
-            num_envs=self.num_envs, 
-            num_bodies=num_bodies, 
-            device=self.device, 
-            dt=env.physics_dt,
-            max_terrain_level=self.cfg.max_terrain_level,
-            )
-        
-        # # get physics backend (3D RFT)
-        # material_cfg = Material3DRFTCfg()
-        # num_bodies = len(body_ids)
-        # self.contact_solver = RFT_3D(
-        #     material_cfg=material_cfg, 
-        #     num_envs=self.num_envs, 
-        #     num_bodies=num_bodies, 
-        #     device=self.device, 
-        #     dt=env.physics_dt,
-        #     )
+        # get physics backend
+        if self.cfg.backend == "2D":
+            material_cfg = PoppySeedCPCfg()
+            num_bodies = len(body_ids)
+            self.contact_solver = RFT_2D(
+                material_cfg=material_cfg, 
+                num_envs=self.num_envs, 
+                num_bodies=num_bodies, 
+                device=self.device, 
+                dt=env.physics_dt,
+                max_terrain_level=self.cfg.max_terrain_level,
+                )
+        elif self.cfg.backend == "3D":
+            material_cfg = Material3DRFTCfg()
+            num_bodies = len(body_ids)
+            self.contact_solver = RFT_3D(
+                material_cfg=material_cfg, 
+                num_envs=self.num_envs, 
+                num_bodies=num_bodies, 
+                device=self.device, 
+                dt=env.physics_dt,
+                max_terrain_level=self.cfg.max_terrain_level,
+                )
+        else:
+            raise ValueError(f"Unsupported RFT backend: {self.cfg.backend}")
         
     """
     properties.

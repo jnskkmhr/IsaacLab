@@ -31,6 +31,11 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         super().__post_init__()
 
+        # make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 5.0
+        self.episode_length_s = 5.0
+
         # Randomization
         self.events.push_robot = None
         self.events.physics_material = None
@@ -44,12 +49,12 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 {
                 "x": (-0., 0.), 
                 "y": (-0., 0.), 
-                "z": (0.5, 0.5), 
+                "z": (0.05, 0.05), 
                 # "yaw": (-math.pi, math.pi),
-                "yaw": (0, 0),
+                "yaw": (0.0, 0.0),
                  },
             "velocity_range": {
-                "x": (0.0, 0.0),
+                "x": (0.5, 0.5),
                 "y": (0.0, 0.0),
                 "z": (0.0, 0.0), 
                 "roll": (0.0, 0.0),
@@ -57,66 +62,28 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
+        # disable randomization for play
+        self.observations.policy.enable_corruption = False
 
         # change terrain to flat
         self.scene.terrain = object_mdp.FlatTerrain
-        # self.scene.terrain.terrain_type = "plane"
-        # self.scene.terrain.terrain_generator = None
+        self.scene.terrain.disable_collider = True
+        self.actions.physics_callback.max_terrain_level = 1 # fully soft
         
         # no terrain curriculum
         self.curriculum.terrain_levels = None
-
-        # Rewards
-        self.rewards.track_ang_vel_z_exp.weight = 1.0
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.asset_name = "object"
-        self.commands.base_velocity.debug_vis = False
-        
-        # light and view settings
-        self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -0.6, 0.3), 
-        #     lookat=(0.0, 0.0, 0.0),
-        #     resolution=(1920, 1080), 
-        #     origin_type="asset_root", 
-        #     asset_name="object",
-        # )
-
-
-class ObjectFlatEnvCfg_PLAY(ObjectFlatEnvCfg):
-    def __post_init__(self) -> None:
-        # post init of parent
-        super().__post_init__()
-
-        # make a smaller scene for play
-        self.scene.num_envs = 50
-        self.scene.env_spacing = 5.0
-        self.episode_length_s = 5.0
-        # disable randomization for play
-        self.observations.policy.enable_corruption = False
-        # remove random pushing
-        # self.events.base_external_force_torque = None
-        # self.events.push_robot = None
-        
-        # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.debug_vis = False
         
-        # viewer 
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -1.0, 0.2), 
-        #     lookat=(0.0, -0.5, 0.05),
-        #     resolution=(1920, 1080), 
-        #     origin_type="asset_root", 
-        #     asset_name="object"
-        # )
+        # light and view settings
+        self.scene.sky_light.init_state.rot = (0, 0, 0, 1.0)  # roll=60deg
         
         # viewer 
         self.viewer = ViewerCfg(

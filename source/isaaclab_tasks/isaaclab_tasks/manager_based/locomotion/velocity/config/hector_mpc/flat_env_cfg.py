@@ -87,6 +87,7 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         # make soft terrain
         self.scene.terrain = hector_mdp.FlatTerrain
         self.scene.terrain.disable_collider = True  # soft terrain
+        self.actions.physics_callback.max_terrain_level = 1 # fully soft
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -120,5 +121,3 @@ class HECTORFlatEnvCfg_PLAY(HECTORFlatEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (0,0)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
-        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
-        # self.commands.base_velocity.debug_vis = False

@@ -24,7 +24,7 @@ class MeshPlaneTerrainCfg(SubTerrainBaseCfg):
 
     function = mesh_terrains.flat_terrain
     
-    ground_height_range: tuple[float, float] = MISSING
+    ground_height_range: tuple[float, float] = (0.0, 0.0)
     """The minimum and maximum height of the plane (in m)."""
 
 

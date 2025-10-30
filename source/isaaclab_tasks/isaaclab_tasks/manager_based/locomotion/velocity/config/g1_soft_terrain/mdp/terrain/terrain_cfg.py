@@ -79,6 +79,9 @@ SandTerrain = TerrainImporterCfg(
         static_friction=0.5,
         dynamic_friction=0.5,
     ),
+    # visual_material=sim_utils.PreviewSurfaceCfg(
+    #     diffuse_color=(0.1, 0.1, 0.1),
+    # ),
     visual_material=sim_utils.MdlFileCfg(
             mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
             # mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 

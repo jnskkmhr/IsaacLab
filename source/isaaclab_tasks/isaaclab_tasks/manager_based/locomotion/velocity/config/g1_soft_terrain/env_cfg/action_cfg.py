@@ -23,4 +23,5 @@ class G1ActionsCfg:
         asset_name="robot",
         body_names=[".*_ankle_roll_link"],
         max_terrain_level=5,
+        backend="3D",
     )
