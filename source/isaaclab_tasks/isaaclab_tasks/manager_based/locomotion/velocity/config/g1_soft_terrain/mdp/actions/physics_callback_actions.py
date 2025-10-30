@@ -65,7 +65,7 @@ class PhysicsCallbackAction(ActionTerm):
             num_bodies=num_bodies, 
             device=self.device, 
             dt=env.physics_dt,
-            max_terrain_level=1,
+            max_terrain_level=self.cfg.max_terrain_level,
             )
         
         # # get physics backend (3D RFT)

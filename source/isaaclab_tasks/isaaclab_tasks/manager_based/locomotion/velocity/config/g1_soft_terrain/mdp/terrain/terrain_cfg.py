@@ -43,15 +43,13 @@ FlatTerrain = TerrainImporterCfg(
     #     diffuse_color=(0.1, 0.1, 0.1),
     # ),
     visual_material=sim_utils.MdlFileCfg(
-            # mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-            mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
+            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+            # mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
             project_uvw=True,
             texture_scale=(0.25, 0.25),
             albedo_brightness=0.2,
         ),
     max_init_terrain_level=0,
-    # disable_collider=True, # soft terrain
-    # disable_visualization=True,
 )
 
 SandTerrain = TerrainImporterCfg(
@@ -82,13 +80,12 @@ SandTerrain = TerrainImporterCfg(
         dynamic_friction=0.5,
     ),
     visual_material=sim_utils.MdlFileCfg(
-            # mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-            mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
+            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+            # mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
             project_uvw=True,
             texture_scale=(0.25, 0.25),
             albedo_brightness=0.2,
         ),
-    # max_init_terrain_level=0,
     # disable_collider=True,
     # disable_visualization=True,
 )

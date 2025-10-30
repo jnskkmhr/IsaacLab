@@ -13,6 +13,7 @@ from .soft_contact_model_data import SoftContactData
 
 @configclass
 class MaterialCfg:
+    # quasistatic RFT fourier coefficients
     A00: float = MISSING # type: ignore
     A10: float = MISSING # type: ignore
     B11: float = MISSING # type: ignore
@@ -22,9 +23,23 @@ class MaterialCfg:
     C01: float = MISSING # type: ignore
     C_11: float = MISSING # type: ignore
     D10: float = MISSING # type: ignore
+
+    # dynamic RFT parameters
+    lam: float = MISSING # type: ignore
+    rho: float = MISSING # type: ignore
+
+    # material properties
     stiffness: float = MISSING # type: ignore # scaling factor applied to resulting force per area (alpha)
     static_friction_coef: float = MISSING # type: ignore
     dynamic_friction_coef: float = MISSING # type: ignore
+
+    # coulomb friction tangential force model parameters
+    kf: float = MISSING # type: ignore
+
+    # horizontal stroke resistive force model parameters
+    kh: float = MISSING # type: ignore
+    beta_d: float = MISSING # type: ignore
+    bh: float = MISSING # type: ignore
 
 @configclass
 class PoppySeedLPCfg(MaterialCfg):
@@ -37,9 +52,23 @@ class PoppySeedLPCfg(MaterialCfg):
     C01: float = 0.057
     C_11: float = 0.0
     D10: float = 0.025
+
+    # dynamic RFT parameters
+    lam: float = 1.0
+    rho: float = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
+
+    # material properties
     stiffness: float = 1.0
     static_friction_coef: float = 1.0
     dynamic_friction_coef: float = 0.5
+
+    # tangential force model parameters
+    kf: float = 10.0
+
+    # horizontal stroke resistive force model parameters
+    kh: float = 50.0
+    beta_d: float = 0.5
+    bh: float = 1.0
 
 @configclass
 class PoppySeedCPCfg(MaterialCfg):
@@ -52,9 +81,20 @@ class PoppySeedCPCfg(MaterialCfg):
     C01: float = 0.086
     C_11: float = 0.018
     D10: float = 0.046
+
+    lam: float = 1.0
+    rho: float = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
+
     stiffness: float = 1.0
     static_friction_coef: float = 1.0
     dynamic_friction_coef: float = 0.5
+
+    kf: float = 10.0
+
+    # horizontal stroke resistive force model parameters
+    kh: float = 50.0
+    beta_d: float = 0.5
+    bh: float = 1.0
 
 
 """
@@ -67,9 +107,8 @@ class IntruderGeometryCfg:
     Intruder surface is approximated as rectangle.
     contact_edge_*: tuple of lower and upper bounds of corner from intruder link origin.
     """
-    # contact_edge_x: Tuple[float, float] = (-0.07, 0.14) # length in x direction (m)
     # contact_edge_x: Tuple[float, float] = (-0.065, 0.141) # length in x direction (m)
-    contact_edge_x: Tuple[float, float] = (-1.3*0.065, 1.3*0.141) # length in x direction (m)
+    contact_edge_x: Tuple[float, float] = (-1.3*0.065, 1.3*0.141) # length in x direction (m) with 30% bigger margin
     contact_edge_y: Tuple[float, float] = (-0.0368, 0.0368) # length in y direction (m)
     contact_edge_z: Tuple[float, float] = (-0.039, 0.0) # length in z direction (m)
     num_contact_points:int = 20*20
@@ -110,20 +149,17 @@ class RFT_2D:
         self.device = device
         self.dt = dt
         self.max_terrain_level = max_terrain_level
+        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+        self.history_length = history_length
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
         self.contact_edge_z = intruder_cfg.contact_edge_z
         self.foot_depth = self.contact_edge_z[1] - self.contact_edge_z[0]
         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
-        
-        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
-        self.static_friction_coef = material_cfg.static_friction_coef
-        self.dynamic_friction_coef = material_cfg.dynamic_friction_coef
-        self.history_length = history_length
 
         self._data: SoftContactData = SoftContactData()
-        self.create_internal_tensors()
+        self.create_tensors()
         self.create_contact_points()
         self.initialize_data()
     
@@ -131,7 +167,7 @@ class RFT_2D:
     Initialization.
     """
         
-    def create_internal_tensors(self):
+    def create_tensors(self):
         """
         Create buffer tensors.
         """
@@ -154,6 +190,7 @@ class RFT_2D:
         # local coordinate
         self.n_dir = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         
+        # contact wrench
         self.contact_point_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         self.contact_point_torque = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         
@@ -167,9 +204,15 @@ class RFT_2D:
         self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
-        
+
+        # material parameters
         self.stiffness = self.cfg.stiffness * torch.ones(self.num_envs, device=self.device)
         self.soft_level = torch.zeros(self.num_envs, device=self.device)
+        self.static_friction_coef = self.cfg.static_friction_coef * torch.ones(self.num_envs, device=self.device)
+        self.dynamic_friction_coef = self.cfg.dynamic_friction_coef * torch.ones(self.num_envs, device=self.device)
+        self.lam = self.cfg.lam * torch.ones(self.num_envs, device=self.device)
+        self.rho = self.cfg.rho * torch.ones(self.num_envs, device=self.device)
+        self.kf = self.cfg.kf * torch.ones(self.num_envs, device=self.device)
         
         self._timestamp = torch.zeros(self.num_envs, device=self.device)
         self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
@@ -236,7 +279,7 @@ class RFT_2D:
     operations.
     """
     
-    def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor):
+    def update(self, body_pos:torch.Tensor, body_quat:torch.Tensor, body_lin_vel:torch.Tensor, body_ang_vel:torch.Tensor)->None:
         """
         Update soft contact model.
         
@@ -247,7 +290,7 @@ class RFT_2D:
             body_ang_vel: intruder angular velocity wrt global frame. (num_envs, num_bodies, 3)
         """
         
-        # copy intruder kinematic states to buffers
+        # copy intruder's kinematic states to tensor buffers
         self.body_pos[:, :, :] = body_pos
         self.body_quat[:, :, :] = body_quat
         self.body_rot_mat[:, :, :, :] = matrix_from_quat(body_quat.view(-1, 4)).view(self.num_envs, self.num_bodies, 3, 3)
@@ -257,6 +300,7 @@ class RFT_2D:
         # evaluate contact forces
         self._eval_contacts()
         
+        # update timestamps
         self._timestamp += self.dt
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
@@ -267,10 +311,11 @@ class RFT_2D:
         # print("current contact time:")
         # print(self.data.current_contact_time)
         
-    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor):
+    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor)->None:
         """
         Update ground stiffness (N/m) for each env.
         Implementation is similar to terrain curriculum used in terrain importer class.
+        This can be triggered by curriculum manager.
         
         Args:
             env_ids: tensor of env ids to update
@@ -284,6 +329,19 @@ class RFT_2D:
             torch.clip(self.soft_level[env_ids], 0),
         )
         self.stiffness = self.max_terrain_level - self.soft_level
+
+    def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
+        """
+        Update friction coefficients for each env.
+        This can be triggered by event manager.
+        
+        Args:
+            env_ids: tensor of env ids to update
+            static_friction_coef: tensor of static friction coefficients (len(env_ids),)
+            dynamic_friction_coef: tensor of dynamic friction coefficients (len(env_ids),)
+        """
+        self.static_friction_coef[env_ids] = static_friction_coef
+        self.dynamic_friction_coef[env_ids] = dynamic_friction_coef
         
 
     
@@ -389,7 +447,7 @@ class RFT_2D:
         self.contact_point_tilt_angle = -torch.acos(n_rtz[:, :, :, 2]) + torch.pi * (n_rtz[:, :, :, 2] < 0).float()
         self.contact_point_tilt_angle = torch.nan_to_num(self.contact_point_tilt_angle, nan=0.0, posinf=0.0, neginf=0.0)
         
-        # step4: compute resistive force
+        # step4: compute resistive force per contact points
         f_normal, fn = self._get_normal_force(
             self.contact_point_pos.reshape(self.num_envs, -1, 3),
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
@@ -403,6 +461,7 @@ class RFT_2D:
             fn, 
         )
 
+        # compute final contact wrench per contact point
         force = (f_normal+f_tangential).reshape(self.num_envs, self.num_bodies, self.num_contact_points, 3)
         torque = torch.cross((self.contact_point_pos - self.body_pos.unsqueeze(2)), force, dim=-1)
         self.contact_point_force[:, :, :, :] = force
@@ -447,10 +506,8 @@ class RFT_2D:
         force_normal[:, :, -1] = self.force_ema
         
         # add dynamic inertial term from DRFT
-        lam = 1.0
-        rho = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
         vn = foot_velocity[:, :, 2]
-        force_normal[:, :, 2] = force_normal[:, :, 2] + is_contact * lam * rho * vn**2
+        force_normal[:, :, 2] = force_normal[:, :, 2] + is_contact * self.lam.unsqueeze(1) * self.rho.unsqueeze(1) * vn**2
 
         return force_normal, force_normal[:, :, 2]
     
@@ -470,13 +527,22 @@ class RFT_2D:
         vt_dir = v[:, :, :2]/(vt_norm.unsqueeze(2) + 1e-6)
         
         # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
-        kf = 10.0
-        ft = torch.minimum(self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
+        # ft = torch.minimum(self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
+        ft = self.kf.unsqueeze(1) * vt_norm
+        cone_violation = self.kf.unsqueeze(1) * vt_norm >= self.static_friction_coef * fn
+        ft[cone_violation] = self.dynamic_friction_coef * fn[cone_violation]
         
         tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
         tangential_force[:, :, :2] = -ft.unsqueeze(-1) * vt_dir
         
         return tangential_force
+    
+    def _get_hsr_force(self):
+        """
+        Horizontal stroke force (HSR) model to model sand drag force.
+        """
+
+        pass
     
     def _compute_elementary_force(self, beta:torch.Tensor, gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -516,7 +582,7 @@ class RFT_2D:
             velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
             depth: contact point penetration depth. (num_envs, num_bodies*num_contact_points)
         """
-        coef = 0.8
+        coef = 0.8 # smoothing coefficient
         increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
         tau_r_boundary = self.tau_r < 1
         depth_mask = depth > 0
@@ -632,7 +698,7 @@ class RFT_3D:
                  max_terrain_level: int = 1,
                  material_cfg: Material3DRFTCfg=Material3DRFTCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
-                 ):
+                 )->None:
         """
         Soft contact model based on 3D RFT proposed in
         https://www.pnas.org/doi/10.1073/pnas.2214017120
@@ -654,20 +720,17 @@ class RFT_3D:
         self.device = device
         self.dt = dt
         self.max_terrain_level = max_terrain_level
+        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+        self.history_length = history_length
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
         self.contact_edge_z = intruder_cfg.contact_edge_z
         self.foot_depth = self.contact_edge_z[1] - self.contact_edge_z[0]
         self.surface_area = (self.contact_edge_x[1]-self.contact_edge_x[0])*(self.contact_edge_y[1]-self.contact_edge_y[0])
-        
-        self.c_r = 0.01 # 100/f (e.g. f=2000hz -> 0.05)
-        self.static_friction_coef = material_cfg.static_friction_coef
-        self.dynamic_friction_coef = material_cfg.dynamic_friction_coef
-        self.history_length = history_length
 
         self._data: SoftContactData = SoftContactData()
-        self.create_internal_tensors()
+        self.create_tensors()
         self.create_contact_points()
         self.initialize_data()
     
@@ -675,7 +738,7 @@ class RFT_3D:
     Initialization.
     """
         
-    def create_internal_tensors(self):
+    def create_tensors(self)->None:
         """
         Create buffer tensors.
         """
@@ -704,6 +767,7 @@ class RFT_3D:
         self.z_dir = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device) # z
         self.v_dir = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device) # v
         
+        # contact point force and torque
         self.contact_point_force = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         self.contact_point_torque = torch.zeros((self.num_envs, self.num_bodies, self.num_contact_points, 3), device=self.device)
         
@@ -711,17 +775,22 @@ class RFT_3D:
         self.contact_force = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         
+        # cache for EMA filtering
         self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         
+        # material parameters
         self.stiffness = self.cfg.stiffness * torch.ones(self.num_envs, device=self.device)
         self.soft_level = torch.zeros(self.num_envs, device=self.device)
+        self.static_friction_coef = self.cfg.static_friction_coef * torch.ones(self.num_envs, device=self.device)
+        self.dynamic_friction_coef = self.cfg.dynamic_friction_coef * torch.ones(self.num_envs, device=self.device)
         
+        # timestamps
         self._timestamp = torch.zeros(self.num_envs, device=self.device)
         self._timestamp_last_update = torch.zeros(self.num_envs, device=self.device)
         
-    def initialize_data(self):
+    def initialize_data(self)->None:
         """
         Initialize soft contact data.
         """
@@ -804,10 +873,11 @@ class RFT_3D:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
         
-    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor):
+    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor)->None:
         """
         Update ground stiffness (N/m) for each env.
         Implementation is similar to terrain curriculum used in terrain importer class.
+        This can be triggered by curriculum manager.
         
         Args:
             env_ids: tensor of env ids to update
@@ -821,7 +891,19 @@ class RFT_3D:
             torch.clip(self.soft_level[env_ids], 0),
         )
         self.stiffness = self.max_terrain_level - self.soft_level
+
+    def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
+        """
+        Update friction coefficients for each env.
+        This can be triggered by event manager.
         
+        Args:
+            env_ids: tensor of env ids to update
+            static_friction_coef: tensor of static friction coefficients (len(env_ids),)
+            dynamic_friction_coef: tensor of dynamic friction coefficients (len(env_ids),)
+        """
+        self.static_friction_coef[env_ids] = static_friction_coef
+        self.dynamic_friction_coef[env_ids] = dynamic_friction_coef
 
     
     """
@@ -1030,7 +1112,7 @@ class RFT_3D:
         mu_int = 0.4
         xi = rho_c * g * (894 * (mu_int **3) - 386 * (mu_int **2) + 89 * mu_int) # N/m^3
         
-        coulomb_friction_ratio = torch.minimum(self.static_friction_coef * (alpha_gen_n_mag.unsqueeze(-1)/alpha_gen_t_mag.unsqueeze(-1)), 
+        coulomb_friction_ratio = torch.minimum(self.static_friction_coef[:, None, None] * (alpha_gen_n_mag.unsqueeze(-1)/alpha_gen_t_mag.unsqueeze(-1)), 
                                                torch.ones_like(alpha_gen_t_mag.unsqueeze(-1)))
         alpha = xi * (alpha_gen_n + coulomb_friction_ratio * alpha_gen_t) # N/m^3
         force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] * intrusion_mask[:, :, None]
@@ -1045,15 +1127,6 @@ class RFT_3D:
         force = (force_vec[:, :, 0:1]+kdt*vr**2) * self.r_dir.reshape(self.num_envs, -1, 3) * (-1) + \
                 (force_vec[:, :, 1:2]+kdt*vt**2) * self.t_dir.reshape(self.num_envs, -1, 3) * sign_fy.unsqueeze(-1) + \
                 (force_vec[:, :, 2:3]+kdz*vz**2) * self.z_dir.reshape(self.num_envs, -1, 3)
-        
-        # # replace tangential force with coulomb friction model
-        # kf = 10
-        # fn = force[:, :, 2]
-        # vt_norm = torch.norm(foot_velocity[:, :, 0:2], dim=-1)
-        # vt_dir = foot_velocity[:, :, 0:2] / (vt_norm.unsqueeze(-1) + 1e-6)
-        # ft = torch.minimum(-self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
-        # friction_force_vec = ft.unsqueeze(-1) * vt_dir
-        # force[:, :, 0:2] = friction_force_vec
 
         return force
     
@@ -1065,8 +1138,10 @@ class RFT_3D:
         Args: 
             beta: intrusion angle (pitch) of contact point. (num_envs, num_bodies*num_contact_points)
             gamma: intrusion direction angle of contact point. (num_envs, num_bodies*num_contact_points)
+            psi: twist angle of contact point. (num_envs, num_bodies*num_contact_points)
         Returns:
-            alpha_x: elementary force coefficient in x direction. (num_envs, num_bodies*num_contact_points)
+            alpha_r: elementary force coefficient in r direction. (num_envs, num_bodies*num_contact_points)
+            alpha_t: elementary force coefficient in theta direction. (num_envs, num_bodies*num_contact_points)
             alpha_z: elementary force coefficient in z direction. (num_envs, num_bodies*num_contact_points)
         """
         p1 = torch.sin(gamma)
@@ -1102,7 +1177,7 @@ class RFT_3D:
             velocity_prev: contact point velocity at previous time step in global frame. (num_envs, num_bodies*num_contact_points, 3)
             depth: contact point penetration depth. (num_envs, num_bodies*num_contact_points)
         """
-        coef = 0.8
+        coef = 0.8 # smoothing coefficient
         increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
         tau_r_boundary = self.tau_r < 1
         depth_mask = depth > 0

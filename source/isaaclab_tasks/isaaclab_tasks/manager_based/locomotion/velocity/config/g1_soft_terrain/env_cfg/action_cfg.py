@@ -22,4 +22,5 @@ class G1ActionsCfg:
     physics_callback = g1_mdp.PhysicsCallbackActionCfg(
         asset_name="robot",
         body_names=[".*_ankle_roll_link"],
+        max_terrain_level=5,
     )

@@ -16,3 +16,4 @@ from .reward.reward import (
     feet_slide,
 )
 from .curriculums.curriculums import update_terrain_stiffness, terrain_ground_level
+from .events.events import randomize_terrain_friction
