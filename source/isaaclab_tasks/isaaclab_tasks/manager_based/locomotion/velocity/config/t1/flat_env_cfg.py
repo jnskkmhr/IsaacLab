@@ -2,34 +2,45 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
+
 import math
+
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 from isaaclab.envs.common import ViewerCfg
 
-from .rough_env_cfg import G1RoughEnvCfg
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as g1_mdp
+from .rough_env_cfg import T1RoughEnvCfg
+
+
+import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as t1_mdp
 
 
 @configclass
-class G1FlatEnvCfg(G1RoughEnvCfg):
+class T1FlatEnvCfg(T1RoughEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
 
-        # make soft terrain
-        self.scene.terrain = g1_mdp.FlatTerrain
+        # # make soft terrain
+        # self.scene.terrain = t1_mdp.FlatTerrain
         
-        # # change terrain to flat
-        # self.scene.terrain.terrain_type = "plane"
-        # self.scene.terrain.terrain_generator = None
+        # change terrain to flat
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
+
+        # no IsaacLab terrain curriculum
+        self.curriculum.terrain_levels = None
+        self.curriculum.terrain_stiffness = None
         
         # no height scan
         self.scene.height_scanner = None
         self.observations.policy.height_scan = None
-        
-        # no IsaacLab terrain curriculum
-        # self.curriculum.terrain_levels = None
+
+        # no contact observations
+        self.observations.contact = None
+
+        # no soft terrain 
+        self.actions.physics_callback = None
         
         # Randomization 
         self.events.reset_base.params = {
@@ -49,6 +60,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         }
         self.events.base_external_force_torque = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+        self.events.randomize_friction = None
 
         # Rewards
         self.rewards.track_ang_vel_z_exp.weight = 1.0
@@ -57,12 +69,15 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.rewards.dof_acc_l2.weight = -1.0e-7
         self.rewards.feet_air_time_hard_contact.weight = 0.75
         self.rewards.feet_air_time_hard_contact.params["threshold"] = 0.45
-        self.rewards.feet_air_time_soft_contact.weight = 0.75
-        self.rewards.feet_air_time_soft_contact.params["threshold"] = 0.45
+        # self.rewards.feet_air_time_soft_contact.weight = 0.75
+        # self.rewards.feet_air_time_soft_contact.params["threshold"] = 0.45
+        self.rewards.feet_air_time_soft_contact = None
+        self.rewards.feet_slide_soft_contact = None
         self.rewards.dof_torques_l2.weight = -2.0e-6
         self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
-            "robot", joint_names=[".*_hip_.*", ".*_knee_joint"]
+            "robot", joint_names=[".*_Hip_.*", ".*_Knee_Pitch"]
         )
+        
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
@@ -72,7 +87,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.scene.sky_light.init_state.rot = (0.86603, 0, 0, 0.5)  # yaw=60deg
 
 
-class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
+class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
@@ -82,10 +97,10 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.scene.env_spacing = 2.5
         self.episode_length_s = 20.0
         
-        # make soft terrain
-        self.scene.terrain = g1_mdp.SandTerrain
-        self.scene.terrain.disable_collider = True  # soft terrain
-        self.actions.physics_callback.max_terrain_level = 1 # fully soft
+        # # make soft terrain
+        # self.scene.terrain = t1_mdp.SandTerrain
+        # self.scene.terrain.disable_collider = True  # soft terrain
+        # self.actions.physics_callback.max_terrain_level = 1 # fully soft
 
         # disable curriculum 
         self.curriculum.terrain_levels = None

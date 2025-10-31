@@ -3,6 +3,16 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Configuration for Hector robot.
+
+The following configurations are available:
+
+* :obj:`HECTOR_CFG_CFG`: Hector bipedal robot
+* :obj:`HECTOR_MPC_CFG`: Hector bipedal robot with zero PD gains for direct torque control.
+
+Reference: https://booster.feishu.cn/wiki/UvowwBes1iNvvUkoeeVc3p5wnUg
+"""
+
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg, IdealPDActuatorCfg, DelayedPDActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
@@ -12,7 +22,7 @@ from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
 
 HECTOR_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robot/HECTOR/hector_flat_foot_small.usd",
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/hector/hector_flat_foot_small.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -121,7 +131,7 @@ HECTOR_CFG = ArticulationCfg(
 
 HECTOR_MPC_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robot/HECTOR/hector_flat_foot_small_bounding_cube.usd",
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/hector/hector_flat_foot_small_bounding_cube.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -228,3 +238,10 @@ HECTOR_MPC_CFG = ArticulationCfg(
         ),
     },
 )
+
+HECTOR_MINIMAL_CFG = HECTOR_CFG.copy()
+# HECTOR_MINIMAL_CFG.spawn.usd_path = f"{ISAACLAB_NUCLEUS_DIR}/Robots/Unitree/G1/g1_minimal.usd"
+"""Configuration for the Booster T1 Humanoid robot with fewer collision meshes.
+
+This configuration removes most collision meshes to speed up simulation.
+"""

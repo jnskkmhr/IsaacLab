@@ -28,3 +28,4 @@ from .spot import *
 from .unitree import *
 from .universal_robots import *
 from .hector import *
+from .booster import *
