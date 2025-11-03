@@ -137,6 +137,11 @@ class T1RewardsCfg:
         weight=-0.1,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names="Waist")},
     )
+    joint_deviation_head = RewTerm(
+        func=mdp.joint_deviation_l1, # type: ignore
+        weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["AAHead_yaw", "Head_pitch"])},
+    )
     
     # -- optional penalties
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0) # type: ignore

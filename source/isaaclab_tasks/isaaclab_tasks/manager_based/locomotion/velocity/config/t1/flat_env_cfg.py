@@ -68,7 +68,7 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         self.rewards.action_rate_l2.weight = -0.005
         self.rewards.dof_acc_l2.weight = -1.0e-7
         self.rewards.feet_air_time_hard_contact.weight = 0.75
-        self.rewards.feet_air_time_hard_contact.params["threshold"] = 0.45
+        self.rewards.feet_air_time_hard_contact.params["threshold"] = 0.35
         # self.rewards.feet_air_time_soft_contact.weight = 0.75
         # self.rewards.feet_air_time_soft_contact.params["threshold"] = 0.45
         self.rewards.feet_air_time_soft_contact = None

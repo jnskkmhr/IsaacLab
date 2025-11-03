@@ -31,14 +31,14 @@ class T1ObservationsCfg:
         )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"}) # type: ignore
         joint_pos = ObsTerm(
-            func=mdp.joint_pos,  # type: ignore
-            # func=mdp.joint_pos_rel,  # type: ignore
+            # func=mdp.joint_pos,  # type: ignore
+            func=mdp.joint_pos_rel,  # type: ignore
             # noise=Unoise(n_min=-0.01, n_max=0.01), 
             noise=Gnoise(mean=0.0, std=0.175),
             )
         joint_vel = ObsTerm(
-            func=mdp.joint_vel,  # type: ignore
-            # func=mdp.joint_vel_rel,  # type: ignore
+            # func=mdp.joint_vel,  # type: ignore
+            func=mdp.joint_vel_rel,  # type: ignore
             # noise=Unoise(n_min=-1.5, n_max=1.5), 
             noise=Gnoise(mean=0.0, std=0.175),
             )
