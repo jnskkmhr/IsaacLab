@@ -56,8 +56,8 @@ class ObjectSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Object",
         init_state=RigidObjectCfg.InitialStateCfg(pos=[0.0, 0.0, 0.0], rot=[1, 0, 0, 0]),
         spawn=CuboidCfg(
-            size=[0.065+0.141, 0.0368*2, 0.039*2], 
-            mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
+            size=[0.1, 0.1, 0.02], 
+            mass_props=sim_utils.MassPropertiesCfg(mass=2.0),
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 friction_combine_mode="multiply",
                 restitution_combine_mode="multiply",

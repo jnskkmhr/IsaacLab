@@ -12,7 +12,7 @@ from . import agents
 ##
 
 gym.register(
-    id="Isaac-Velocity-Soft-Rough-T1-v0",
+    id="Isaac-Velocity-Rough-T1-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -24,7 +24,7 @@ gym.register(
 
 
 gym.register(
-    id="Isaac-Velocity-Soft-Rough-T1-Play-v0",
+    id="Isaac-Velocity-Rough-T1-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -36,24 +36,50 @@ gym.register(
 
 
 gym.register(
-    id="Isaac-Velocity-Soft-Flat-T1-v0",
+    id="Isaac-Velocity-Flat-T1-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.flat_env_cfg:T1FlatEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:T1FlatPPORunnerCfg",
+        # "rsl_rl_with_symmetry_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:T1FlatPPORunnerWithSymmetryCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_flat_ppo_cfg.yaml",
     },
 )
 
 
 gym.register(
-    id="Isaac-Velocity-Soft-Flat-T1-Play-v0",
+    id="Isaac-Velocity-Flat-T1-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.flat_env_cfg:T1FlatEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:T1FlatPPORunnerCfg",
+        # "rsl_rl_with_symmetry_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:T1FlatPPORunnerWithSymmetryCfg",
+        "skrl_cfg_entry_point": f"{agents.__name__}:skrl_flat_ppo_cfg.yaml",
+    },
+)
+
+
+gym.register(
+    id="Isaac-Stand-Flat-T1-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.flat_env_cfg:T1StandFlatEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:T1StandFlatPPORunnerCfg",
+        "skrl_cfg_entry_point": f"{agents.__name__}:skrl_flat_ppo_cfg.yaml",
+    },
+)
+
+
+gym.register(
+    id="Isaac-Stand-Flat-T1-Play-v0",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.flat_env_cfg:T1StandFlatEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:T1StandFlatPPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_flat_ppo_cfg.yaml",
     },
 )

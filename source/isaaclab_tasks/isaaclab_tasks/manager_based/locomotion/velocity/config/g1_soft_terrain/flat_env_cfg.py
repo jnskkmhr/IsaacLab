@@ -85,6 +85,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # make soft terrain
         self.scene.terrain = g1_mdp.SandTerrain
         self.scene.terrain.disable_collider = True  # soft terrain
+        # self.actions.physics_callback.disable = True # disable soft contact
         self.actions.physics_callback.max_terrain_level = 1 # fully soft
 
         # disable curriculum 
@@ -102,9 +103,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.randomize_friction = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.3, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, -0.5)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False

@@ -7,6 +7,7 @@ from isaaclab.terrains import TerrainImporterCfg
 import isaaclab.terrains as terrain_gen
 import isaaclab.sim as sim_utils
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR # type: ignore
 
 """
 base flat terrain.
@@ -83,11 +84,12 @@ SandTerrain = TerrainImporterCfg(
     #     diffuse_color=(0.1, 0.1, 0.1),
     # ),
     visual_material=sim_utils.MdlFileCfg(
-            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-            # mdl_path="omniverse://localhost/NVIDIA/Assets/Isaac/5.0/NVIDIA/Materials/Base/Natural/Sand.mdl", 
+            # mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+            # mdl_path=f"{ISAACLAB_ASSETS_DATA_DIR}/texture/Ground_039/Ground039_4K.mdl", # black sand
+            mdl_path=f"{ISAACLAB_ASSETS_DATA_DIR}/texture/Ground_080/Ground080_4K.mdl", # beach
             project_uvw=True,
             texture_scale=(0.25, 0.25),
-            albedo_brightness=0.2,
+            albedo_brightness=0.5,
         ),
     # disable_collider=True,
     # disable_visualization=True,

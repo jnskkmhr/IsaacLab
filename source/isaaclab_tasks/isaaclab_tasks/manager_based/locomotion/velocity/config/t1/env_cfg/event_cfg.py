@@ -16,7 +16,7 @@ import isaaclab_tasks.manager_based.locomotion.velocity.config.t1.mdp as t1_mdp
 
 
 @configclass
-class T1EventCfg:
+class T1EventsCfg:
     """Configuration for events."""
 
     # startup
@@ -25,8 +25,8 @@ class T1EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-            "static_friction_range": (0.8, 0.8),
-            "dynamic_friction_range": (0.6, 0.6),
+            "static_friction_range": (0.6, 1.2),
+            "dynamic_friction_range": (0.5, 1.0),
             "restitution_range": (0.0, 0.0),
             "num_buckets": 64,
         },
@@ -39,6 +39,45 @@ class T1EventCfg:
             "asset_cfg": SceneEntityCfg("robot", body_names="Trunk"),
             "mass_distribution_params": (-5.0, 5.0),
             "operation": "add",
+        },
+    )
+
+    add_end_effector_mass = EventTerm(
+        func=mdp.randomize_rigid_body_mass, # type: ignore
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["left_hand_link", "right_hand_link"]),
+            "mass_distribution_params": (0.0, 2.0),
+            "operation": "add",
+        },
+    )
+
+    scale_actuator_gains = EventTerm(
+        func=mdp.randomize_actuator_gains, # type: ignore
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    "Waist",
+                    "Left_Hip_Pitch",
+                    "Left_Hip_Roll",
+                    "Left_Hip_Yaw",
+                    "Left_Knee_Pitch",
+                    "Left_Ankle_Pitch",
+                    "Left_Ankle_Roll",
+                    "Right_Hip_Pitch",
+                    "Right_Hip_Roll",
+                    "Right_Hip_Yaw",
+                    "Right_Knee_Pitch",
+                    "Right_Ankle_Pitch",
+                    "Right_Ankle_Roll",
+                ],
+            ),
+            "operation": "scale",
+            "distribution": "uniform",
+            "stiffness_distribution_params": (0.95, 1.05),
+            "damping_distribution_params": (0.95, 1.05),
         },
     )
 
@@ -68,31 +107,13 @@ class T1EventCfg:
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
             "velocity_range": {
-                "x": (-0.5, 0.5),
-                "y": (-0.5, 0.5),
-                "z": (-0.5, 0.5),
-                "roll": (-0.5, 0.5),
-                "pitch": (-0.5, 0.5),
-                "yaw": (-0.5, 0.5),
+                "x": (-0.0, 0.0),
+                "y": (-0.0, 0.0),
+                "z": (-0.0, 0.0),
+                "roll": (-0.0, 0.0),
+                "pitch": (-0.0, 0.0),
+                "yaw": (-0.0, 0.0),
             },
-        },
-    )
-
-    reset_robot_joints = EventTerm(
-        func=mdp.reset_joints_by_scale, # type: ignore
-        mode="reset",
-        params={
-            "position_range": (0.5, 1.5),
-            "velocity_range": (0.0, 0.0),
-        },
-    )
-
-    randomize_friction = EventTerm(
-        func=t1_mdp.randomize_terrain_friction, # type: ignore
-        mode="reset",
-        params={
-            "friction_range": (0.1, 0.6),
-            "contact_solver_name": "physics_callback",
         },
     )
 
@@ -100,6 +121,35 @@ class T1EventCfg:
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity, # type: ignore
         mode="interval",
-        interval_range_s=(10.0, 15.0),
+        interval_range_s=(5.0, 10.0),
         params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
+    )
+
+    reset_robot_upper_joints_from_limits = EventTerm(
+        func=t1_mdp.reset_robot_upper_joints_from_limits, # type: ignore
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[],
+                # joint_names=[
+                #     "AAHead_yaw",
+                #     "Head_pitch",
+                #     "Left_Shoulder_Pitch",
+                #     "Left_Shoulder_Roll",
+                #     "Left_Elbow_Pitch",
+                #     "Left_Elbow_Yaw",
+                #     "Left_Wrist_Pitch",
+                #     "Left_Wrist_Yaw",
+                #     "Left_Hand_Roll",
+                #     "Right_Shoulder_Pitch",
+                #     "Right_Shoulder_Roll",
+                #     "Right_Elbow_Pitch",
+                #     "Right_Elbow_Yaw",
+                #     "Right_Wrist_Pitch",
+                #     "Right_Wrist_Yaw",
+                #     "Right_Hand_Roll",
+                # ],
+            )
+        },
     )

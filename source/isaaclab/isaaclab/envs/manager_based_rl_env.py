@@ -96,7 +96,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
     @property
     def phase_dt(self) -> float:
         """Phase time interval in seconds."""
-        return 0.25*2
+        return self.cfg.phase_dt
 
     @property
     def max_episode_length_s(self) -> float:

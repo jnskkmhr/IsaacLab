@@ -22,6 +22,6 @@ class ObjectActionsCfg:
     physics_callback = object_mdp.PhysicsCallbackActionCfg(
         asset_name="object",
         body_names=["Object"],
-        max_terrain_level=5,
+        max_terrain_level=1,
         backend="3D"
     )

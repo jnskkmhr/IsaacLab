@@ -37,14 +37,49 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
 
-def randomize_terrain_friction(
+def reset_robot_upper_joints_from_limits(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor,
-    friction_range: tuple[float, float],
-    contact_solver_name:str="physics_callback",
-)->None:
-    contact_solver = env.action_manager.get_term(contact_solver_name).contact_solver
-    friction_samples = math_utils.sample_uniform(
-        friction_range[0], friction_range[1], (len(env_ids),), device=env.device
-    )
-    contact_solver.update_friction_params(env_ids, friction_samples, friction_samples)
+    # envCfg:ManagerBasedEnvCfg,
+    # joint_names: list[str],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    """
+    Reset the designated upper body joints to 90% of their joint limits.    
+    Args:
+        env: The environment instance.
+        env_ids: The environment indices to reset.
+        joint_names: List of joint names to reset.
+        asset_cfg: SceneEntityCfg for the robot asset.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    # Get joint indices for the specified joint names
+    # joint_indices = []
+    # for name in joint_names:
+    #     idx = asset.joint_names.index(name) if name in asset.joint_names else None
+    #     if idx is not None:
+    #         joint_indices.append(idx)
+    # if not joint_indices:
+    #     return  # nothing to do    # joint_indices = torch.tensor(joint_indices, device=asset.device, dtype=torch.long)
+    joint_indices = asset_cfg.joint_ids    # Get joint limits for the selected joints
+    joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids][:, joint_indices, :]
+    # Compute 90% of the way from lower to upper limit
+    lower = joint_pos_limits[..., 0]
+    upper = joint_pos_limits[..., 1]
+    # Randomly sample from lower + 0.1*(upper-lower) to lower + 0.9*(upper-lower) for each joint
+    min_pos = lower + 0.1 * (upper - lower)
+    max_pos = lower + 0.9 * (upper - lower)
+    target_pos = math_utils.sample_uniform(min_pos, max_pos, lower.shape, device=lower.device)    
+    # Set velocities to zero for these joints
+    target_vel = torch.zeros_like(target_pos, device=asset.device)
+
+    # Get current joint positions/velocities for all joints
+    joint_pos = asset.data.default_joint_pos[env_ids].clone()
+    joint_vel = asset.data.default_joint_vel[env_ids].clone()    
+    # Overwrite only the selected joints
+    joint_pos[:, joint_indices] = target_pos
+    joint_vel[:, joint_indices] = target_vel
+
+    # Set into the physics simulation
+    asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+    asset.set_joint_position_target(joint_pos, env_ids=env_ids)

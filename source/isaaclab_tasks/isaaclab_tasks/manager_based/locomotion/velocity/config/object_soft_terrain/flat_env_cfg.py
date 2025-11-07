@@ -49,12 +49,11 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                 {
                 "x": (-0., 0.), 
                 "y": (-0., 0.), 
-                "z": (0.05, 0.05), 
-                # "yaw": (-math.pi, math.pi),
+                "z": (0.01, 0.01), 
                 "yaw": (0.0, 0.0),
                  },
             "velocity_range": {
-                "x": (0.5, 0.5),
+                "x": (0., 0.),
                 "y": (0.0, 0.0),
                 "z": (0.0, 0.0), 
                 "roll": (0.0, 0.0),
@@ -87,8 +86,8 @@ class ObjectFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         
         # viewer 
         self.viewer = ViewerCfg(
-            eye=(-0.0, -0.6, 0.5), 
-            lookat=(0.0, -0.3, 0.3),
+            eye=(-0.0, -0.4, 0.05), 
+            lookat=(0.0, -0.0, 0.05),
             resolution=(1920, 1080), 
             # origin_type="asset_root", 
             # asset_name="object"

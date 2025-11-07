@@ -22,6 +22,11 @@ class ObjectObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
+        root_pos = ObsTerm(
+            func=mdp.root_pos_w, # type: ignore
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+            params={"asset_cfg": SceneEntityCfg("object")},
+        )
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel, # type: ignore
             noise=Unoise(n_min=-0.1, n_max=0.1), 
@@ -43,7 +48,7 @@ class ObjectObservationsCfg:
         ) 
 
         def __post_init__(self):
-            self.enable_corruption = True
+            self.enable_corruption = False
             self.concatenate_terms = True
             
     @configclass

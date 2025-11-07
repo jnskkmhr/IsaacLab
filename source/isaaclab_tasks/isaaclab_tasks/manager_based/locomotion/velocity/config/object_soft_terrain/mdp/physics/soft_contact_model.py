@@ -98,7 +98,7 @@ class PoppySeedCPCfg(MaterialCfg):
 
     stiffness: float = 1.0
     static_friction_coef: float = 1.0
-    dynamic_friction_coef: float = 0.5
+    dynamic_friction_coef: float = 0.15
 
     kf: float = 10.0
 
@@ -120,9 +120,9 @@ class IntruderGeometryCfg:
     """
     # contact_edge_x: Tuple[float, float] = (-0.07, 0.14) # length in x direction (m)
     # contact_edge_x: Tuple[float, float] = (-0.065, 0.141) # length in x direction (m)
-    contact_edge_x: Tuple[float, float] = (-0.065, 0.141) # length in x direction (m)
-    contact_edge_y: Tuple[float, float] = (-0.0368, 0.0368) # length in y direction (m)
-    contact_edge_z: Tuple[float, float] = (-0.039, 0.0) # length in z direction (m)
+    contact_edge_x: Tuple[float, float] = (-0.05, 0.05) # length in x direction (m)
+    contact_edge_y: Tuple[float, float] = (-0.05, 0.05) # length in y direction (m)
+    contact_edge_z: Tuple[float, float] = (-0.01, 0.0) # length in z direction (m)
     num_contact_points:int = 20*20
 
 """
@@ -704,11 +704,11 @@ class Material3DRFTCfg:
 
     stiffness: float = 1.0
     static_friction_coef: float = 1.0
-    dynamic_friction_coef: float = 0.5
+    dynamic_friction_coef: float = 0.15
 
     # 3D RFT media specific properties
     rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
-    mu_int: float = 0.5 # media internal friction coefficient
+    mu_int: float = 0.4 # media internal friction coefficient
         
 class RFT_3D:
     def __init__(self, 
@@ -742,7 +742,7 @@ class RFT_3D:
         self.device = device
         self.dt = dt
         self.max_terrain_level = max_terrain_level
-        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+        self.c_r = 0.01 # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
@@ -762,6 +762,9 @@ class RFT_3D:
         print(f"Number of bodies per env: {self.num_bodies}")
         print(f"Number of contact points per body: {self.num_contact_points}")
         print(f"Contact surface area per body: {self.surface_area} m^2")
+        print(f"mu int: {self.cfg.mu_int}")
+        print(f"rho c: {self.cfg.rho_c} kg/m^3")
+        print(f"mu_surf: {self.cfg.dynamic_friction_coef}")
         print("-"*40)
     
     """
@@ -806,6 +809,8 @@ class RFT_3D:
         self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         
         # cache for EMA filtering
+        self.alpha_unfiltered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+        self.alpha_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
         self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
@@ -1140,23 +1145,25 @@ class RFT_3D:
         alpha_tan = alpha - alpha_n # tangential component (num_envs, num_bodies*num_contact_points, 3)
         alpha_tan_norm = torch.norm(alpha_tan, dim=-1) # (num_envs, num_bodies*num_contact_points)
 
-        # NOTE: optional EMA filter
-        # self.force_gm = alpha_n_norm.clone()
-        # self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
-        # alpha_n_norm = self.force_ema.clone()
-
         # friction cone check
         cone_coef = torch.minimum(torch.ones_like(alpha_tan_norm), 
                                   (self.static_friction_coef[:, None] * alpha_n_norm) / (alpha_tan_norm + 1e-6)).unsqueeze(-1)
         alpha = alpha_n + cone_coef * alpha_tan
 
+        # # NOTE: optional EMA filter
+        # self.alpha_unfiltered = alpha.clone()
+        # self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
+        # alpha = self.alpha_filtered.clone()
+
         # compute force by mulitplying depth, area, stiffness
         force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] * intrusion_mask[:, :, None]
         
         # NOTE: orthogonal base is {x, y, z} here.
-        force = force_vec[:, :, 0:1]* self.r_dir.reshape(self.num_envs, -1, 3) + \
+        kd = 0.0
+        z_damp = kd * foot_velocity[:, :, 2:3] * is_contact[:, :, None]
+        force = force_vec[:, :, 0:1] * self.r_dir.reshape(self.num_envs, -1, 3) + \
                 force_vec[:, :, 1:2] * self.t_dir.reshape(self.num_envs, -1, 3) * sign_fy.unsqueeze(-1) + \
-                force_vec[:, :, 2:3] * self.z_dir.reshape(self.num_envs, -1, 3)
+                (force_vec[:, :, 2:3] - z_damp) * self.z_dir.reshape(self.num_envs, -1, 3)
 
         return force
     
@@ -1208,16 +1215,18 @@ class RFT_3D:
             depth: contact point penetration depth. (num_envs, num_bodies*num_contact_points)
         """
         coef = 0.8 # smoothing coefficient
-        increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
+        increment_mask = (velocity * velocity_prev).sum(dim=-1) < 0
+        # increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
         tau_r_boundary = self.tau_r < 1
         depth_mask = depth > 0
         mask = increment_mask & tau_r_boundary
         self.tau_r[mask] += self.c_r
         self.tau_r[~depth_mask] = 0.0
-        
-        self.force_ema[depth_mask] = (1-coef*self.tau_r[depth_mask])*self.force_gm[depth_mask] + coef*self.tau_r[depth_mask]*self.force_ema[depth_mask]
-        self.force_ema[~depth_mask] = 0.0
-        
+
+        self.alpha_filtered[depth_mask] = (1-coef*self.tau_r[depth_mask]).unsqueeze(-1) * self.alpha_unfiltered[depth_mask] + \
+              coef * self.tau_r[depth_mask].unsqueeze(-1) * self.alpha_filtered[depth_mask]
+        self.alpha_filtered[~depth_mask] = 0.0
+
     """
     reset.
     """
@@ -1228,8 +1237,8 @@ class RFT_3D:
         Args:
             env_ids: tensor of env ids to reset
         """
-        self.force_gm[env_ids] = 0.0
-        self.force_ema[env_ids] = 0.0
+        self.alpha_filtered[env_ids] = 0.0
+        self.alpha_unfiltered[env_ids] = 0.0
         self.tau_r[env_ids] = 0.0
         self.contact_point_lin_vel_prev[env_ids] = 0.0
 

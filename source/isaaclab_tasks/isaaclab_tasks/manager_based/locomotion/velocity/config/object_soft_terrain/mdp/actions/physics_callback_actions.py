@@ -98,7 +98,9 @@ class PhysicsCallbackAction(ActionTerm):
     
     @property
     def body_pos(self)->torch.Tensor:
-        return self._asset.data.body_com_pose_w[:, self._body_ids, :3] - self._env.scene.env_origins.unsqueeze(1)
+        body_pos = self._asset.data.body_link_pose_w[:, self._body_ids, :3]
+        body_pos[:, :, :2] -= self._env.scene.env_origins.unsqueeze(1)[:, :, :2]
+        return body_pos
     
     @property
     def body_quat(self)->torch.Tensor:

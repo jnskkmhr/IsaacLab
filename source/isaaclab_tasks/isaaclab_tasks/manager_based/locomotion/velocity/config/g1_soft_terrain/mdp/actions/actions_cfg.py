@@ -22,3 +22,5 @@ class PhysicsCallbackActionCfg(ActionTermCfg):
     """Maximum terrain stiffness level. This number is multiplied to terrain stiffness calculated by RFT."""
     backend: Literal["2D", "3D"] = "2D"
     """The RFT backend to use. Options are '2D' or '3D'."""
+    disable: bool = False
+    """Whether to disable this action term."""

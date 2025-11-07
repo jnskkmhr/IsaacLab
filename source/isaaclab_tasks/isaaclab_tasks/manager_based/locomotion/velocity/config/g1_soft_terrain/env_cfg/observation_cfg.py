@@ -64,6 +64,11 @@ class G1ObservationsCfg:
             func=g1_mdp.soft_contact_forces, # type: ignore
             params={"action_term_name": "physics_callback"},
         )
+
+        foot_pos = ObsTerm(
+            func=g1_mdp.foot_pos_w, # type: ignore
+            params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},
+        )
         
 
         def __post_init__(self):

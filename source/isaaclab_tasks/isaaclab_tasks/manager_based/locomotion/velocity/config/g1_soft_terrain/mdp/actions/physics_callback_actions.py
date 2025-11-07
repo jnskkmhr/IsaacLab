@@ -126,6 +126,8 @@ class PhysicsCallbackAction(ActionTerm):
         pass
     
     def apply_actions(self):
+        if self.cfg.disable:
+            return
         body_pos = self.body_pos.clone()
         body_quat = self.body_quat.clone()
         body_lin_vel = self.body_lin_vel.clone()

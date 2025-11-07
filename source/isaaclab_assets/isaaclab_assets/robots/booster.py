@@ -80,8 +80,8 @@ T1_CFG = ArticulationCfg(
             effort_limit_sim=7,
             velocity_limit_sim=12.56,
             joint_names_expr=["Head_pitch", "AAHead_yaw"],
-            stiffness=20.0,
-            damping=0.2,
+            stiffness=40.0,
+            damping=5.0,
             armature=0.01,
         ),
         "legs": ImplicitActuatorCfg(
@@ -194,8 +194,8 @@ T1_CFG = ArticulationCfg(
                 # ".*_Link2": 1.0,
                 # ".*_Link22": 1.0,
             },
-            stiffness=20.0,
-            damping=0.5,
+            stiffness=40.0,
+            damping=5.0,
             armature={
                 ".*_Shoulder_.*": 0.01,
                 ".*_Elbow_.*": 0.01,

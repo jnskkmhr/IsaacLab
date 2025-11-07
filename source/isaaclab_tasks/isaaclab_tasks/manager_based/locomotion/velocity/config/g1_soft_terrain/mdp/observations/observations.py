@@ -24,15 +24,53 @@ from isaaclab.sensors import Camera, Imu, RayCaster, RayCasterCamera, TiledCamer
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
 
-# from isaaclab.envs.utils.io_descriptors import (
-#     generic_io_descriptor,
-#     record_body_names,
-#     record_dtype,
-#     record_joint_names,
-#     record_joint_pos_offsets,
-#     record_joint_vel_offsets,
-#     record_shape,
-# )
+from isaaclab.envs.utils.io_descriptors import (
+    generic_io_descriptor,
+    record_body_names,
+    record_dtype,
+    record_joint_names,
+    record_joint_pos_offsets,
+    record_joint_vel_offsets,
+    record_shape,
+)
+
+"""
+body kinematics.
+"""
+
+@generic_io_descriptor(observation_type="BodyState", on_inspect=[record_shape, record_dtype, record_body_names])
+def foot_pos_w(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """The flattened body poses of the asset w.r.t the env.scene.origin.
+
+    Note: Only the bodies configured in :attr:`asset_cfg.body_ids` will have their poses returned.
+
+    Args:
+        env: The environment.
+        asset_cfg: The SceneEntity associated with this observation.
+
+    Returns:
+        The position of bodies in articulation [num_env, 3 * num_bodies].
+        Output is stacked horizontally per body.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    # access the body poses in world frame
+    pose = asset.data.body_pose_w[:, asset_cfg.body_ids, :7]
+    pose[..., :3] = pose[..., :3] - env.scene.env_origins.unsqueeze(1)
+
+    pos = pose[..., :3] # (num_envs, num_bodies, 3)
+    quat = pose[..., 3:7] # (num_envs, num_bodies, 4)
+    rot = math_utils.matrix_from_quat(quat) # (num_envs, num_bodies, 3, 3)
+
+    local_pos = torch.tensor([0.0, 0.0, -0.039], device=pos.device).reshape(1, 1, 3) # (1, 1, 3)
+    pos_foot = pos + (rot @ local_pos.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+
+    return pos_foot.reshape(env.num_envs, -1)
+
 
 """
 Contact.
