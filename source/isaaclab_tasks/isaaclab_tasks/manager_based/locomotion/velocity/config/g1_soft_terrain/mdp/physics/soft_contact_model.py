@@ -711,7 +711,7 @@ class Material3DRFTCfg:
 
     # 3D RFT media specific properties
     rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
-    mu_int: float = 0.4 # media internal friction coefficient
+    mu_int: float = 0.3 # media internal friction coefficient
         
 class RFT_3D:
     def __init__(self, 

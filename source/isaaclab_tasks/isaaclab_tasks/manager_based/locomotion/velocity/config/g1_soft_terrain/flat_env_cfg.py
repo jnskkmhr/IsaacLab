@@ -90,7 +90,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        self.curriculum.terrain_stiffness = None
+        # self.curriculum.terrain_stiffness = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -103,9 +103,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.randomize_friction = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, -0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0., -0.)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False
@@ -132,6 +132,6 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             eye=(-0.0, -2.5, 0.0), 
             lookat=(0.0, -0.8, 0.0),
             resolution=(1920, 1080), 
-            origin_type="asset_root", 
-            asset_name="robot"
+            # origin_type="asset_root", 
+            # asset_name="robot"
         )

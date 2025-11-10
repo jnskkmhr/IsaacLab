@@ -10,9 +10,7 @@ from isaaclab.utils import configclass
 from isaaclab.envs.common import ViewerCfg
 
 from .rough_env_cfg import T1RoughEnvCfg
-
-
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as t1_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp as t1_mdp
 
 
 @configclass
@@ -21,113 +19,63 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         # post init of parent
         super().__post_init__()
 
-        # update gait period
-        self.phase_dt = 0.3*2
+        # change timestep
+        self.sim.dt = 0.005 # 200Hz
+        self.decimation = 4 # 50Hz
+        self.sim.render_interval = self.decimation
 
-        # # make soft terrain
-        # self.scene.terrain = t1_mdp.FlatTerrain
-        
-        # change terrain to flat
-        self.scene.terrain.terrain_type = "plane"
-        self.scene.terrain.terrain_generator = None
+        # make curriculum soft terrain
+        self.scene.terrain = t1_mdp.CurriculumSoftTerrain
 
-        # no IsaacLab terrain curriculum
-        self.curriculum.terrain_levels = None
-        self.curriculum.terrain_stiffness = None
-        
         # no height scan
         self.scene.height_scanner = None
         self.observations.policy.height_scan = None
-        self.observations.critic.height_scan = None
 
-        # no contact observations
-        # self.observations.contact = None
-
-        # no soft terrain 
-        self.actions.physics_callback = None
-        
-        # Randomization 
-        self.events.reset_base.params = {
-            "pose_range": 
-                {"x": (-0.5, 0.5), 
-                 "y": (-0.5, 0.5), 
-                "yaw": (-math.pi, math.pi),
-                 },
-            "velocity_range": {
-                "x": (0.0, 0.0),
-                "y": (0.0, 0.0),
-                "z": (0.0, 0.0),
-                "roll": (0.0, 0.0),
-                "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
-            },
-        }
-        self.events.base_external_force_torque = None
-        self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
-        self.events.randomize_friction = None
-
-        # Rewards
-        self.rewards.track_ang_vel_z_exp.weight = 1.0
-        self.rewards.lin_vel_z_l2.weight = -0.2
-        self.rewards.action_rate_l2.weight = -0.005
-        self.rewards.dof_acc_l2.weight = -1.0e-7
-        # self.rewards.dof_torques_l2.weight = -2.0e-6
-        self.rewards.dof_torques_l2.weight = -1.5e-7
-        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
-            "robot", joint_names=[".*_Hip_.*", ".*_Knee_Pitch"]
-        )
-        # self.rewards.feet_air_time_soft_contact.weight = 0.75
-        # self.rewards.feet_air_time_soft_contact.params["threshold"] = 0.45
-        self.rewards.feet_air_time_soft_contact = None
-        self.rewards.feet_slide_soft_contact = None
-        
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
-        
-        # light and view settings
-        self.scene.sky_light.init_state.rot = (0.86603, 0, 0, 0.5)  # yaw=60deg
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
 
 
+@configclass
 class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
 
+        # make soft terrain 
+        self.scene.terrain = t1_mdp.SoftTerrain
+        self.scene.terrain.disable_collider = True  # soft terrain
+        # self.actions.physics_callback.disable = True # disable soft contact
+        self.actions.physics_callback.max_terrain_level = 10 # fully soft
+
         # make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
-        self.episode_length_s = 20.0
-        
-        # # make soft terrain
-        # self.scene.terrain = t1_mdp.SandTerrain
-        # self.scene.terrain.disable_collider = True  # soft terrain
-        # self.actions.physics_callback.max_terrain_level = 1 # fully soft
+
+        # disable randomization for play
+        self.observations.policy.enable_corruption = False
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        self.curriculum.terrain_stiffness = None
-        
-        # disable randomization for play
-        self.observations.policy.enable_corruption = False
-        
-        # remove random pushing
+        # self.curriculum.terrain_stiffness = None
+        self.curriculum.track_ang_vel = None
+        self.curriculum.track_lin_vel = None
+
+        # remove random events
         self.events.base_external_force_torque = None
         self.events.push_robot = None
-        self.events.physics_material = None
-        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
-        self.events.randomize_friction = None
-        
+        self.events.reset_robot_upper_joints_from_limits.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=[])
+
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-.0, -.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
         # self.commands.base_velocity.debug_vis = False
-        
-        # Randomization 
+
+        # pose initialization
         self.events.reset_base.params = {
             "pose_range": 
                 {"x": (-0.5, 0.5), 
@@ -146,7 +94,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             },
         }
         
-        # rendering 
+        # rendering settings
         self.viewer = ViewerCfg(
             eye=(-0.0, -3.5, 0.4), 
             lookat=(0.0, -0.8, 0.3),

@@ -8,7 +8,7 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp as t1_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_legacy.mdp as t1_mdp
 
 @configclass
 class T1TerminationsCfg:

@@ -9,62 +9,64 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.t1.mdp as t1_mdp
-from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import RewardsCfg
+import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp as t1_mdp
 
 @configclass
-class T1RewardsCfg(RewardsCfg):
+class T1RewardsCfg:
     """Reward terms for the MDP."""
 
-    alive = RewTerm(func=mdp.is_alive, weight=0.25) # type: ignore
-    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0) # type: ignore
-
+    # -- tracking rewards
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=1.0,
+        weight=10.0,
         params={"command_name": "base_velocity", "std": 0.5},
     )
 
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_world_exp,
-        weight=1.0,
+        weight=5.0,
         params={"command_name": "base_velocity", "std": 0.5}
     )
 
     base_height_l2 = RewTerm(
         func=mdp.base_height_l2, # type: ignore
-        weight=-0.5,
+        weight=-100.0,
         params={
             "target_height": 0.68,
         }
     )
 
-    # base_height_exp = RewTerm(
-    #     func=t1_mdp.base_height_exp, # type: ignore
-    #     weight=0.5,
-    #     params={
-    #         "target_height": 0.68,
-    #         "std": 0.5
-    #     }
-    # )
+    # -- general style penalties
+    alive = RewTerm(func=mdp.is_alive, weight=10) # type: ignore
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-0.0) # type: ignore
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.5) # type: ignore
 
+    # -- root penalties
     # flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0) # type: ignore
     flat_orientation_l2 = None
     flat_orientation_exp = RewTerm(
         func=t1_mdp.flat_orientation_exp, # type: ignore
-        weight=5.0,
+        weight=4.0,
         params={"std": 0.5,
                 "asset_cfg": SceneEntityCfg("robot")},
     )
+    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0) # type: ignore
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-1.0) # type: ignore
+    base_acc_l2 = RewTerm(
+        func=mdp.body_lin_acc_l2, # type: ignore
+        weight=-1e-4,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="Trunk")},
+    )
 
+    # -- joint penalties
     dof_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-1e-4) # type: ignore
-
-    dof_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-1.0e-5) # type: ignore
+    dof_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-1.25e-7) # type: ignore
+    dof_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-2.0e-4) # type: ignore
 
     # Penalize ankle joint limits
     dof_pos_limits = RewTerm(
         func=mdp.joint_pos_limits, # type: ignore
-        weight=-1.0,
+        weight=-3.0,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
 
@@ -90,14 +92,6 @@ class T1RewardsCfg(RewardsCfg):
                 "soft_ratio": 1.0},
     )
 
-    base_acc_l2 = RewTerm(
-        func=mdp.body_lin_acc_l2, # type: ignore
-        weight=-1e-4,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names="Trunk")},
-    )
-
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-1) # type: ignore
-
     # Penalize deviation from default of the joints that are not essential for locomotion
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1, # type: ignore
@@ -107,10 +101,65 @@ class T1RewardsCfg(RewardsCfg):
 
     joint_deviation_torso = RewTerm(
         func=mdp.joint_deviation_l1, # type: ignore
-        weight=-0.1,
+        # weight=-0.1,
+        weight=-0.0,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names="Waist")},
     )
 
+    # -- foot orientation penalities
+    feet_yaw_diff = RewTerm(
+        func=t1_mdp.reward_feet_yaw_diff, # type: ignore
+        weight=-1.0,
+        params={
+            "std": 0.1,
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_foot_link", "right_foot_link"],
+                preserve_order=True,
+            ),
+        }
+    )
+
+    feet_yaw_mean = RewTerm(
+        func=t1_mdp.reward_feet_yaw_mean, # type: ignore
+        weight=-1.0,
+        params={
+            "std": 0.1,
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_foot_link", "right_foot_link"],
+                preserve_order=True,
+            ),
+        }
+    )
+
+    feet_roll = RewTerm(
+        func=t1_mdp.reward_feet_roll, # type: ignore
+        weight=-5.0,
+        params={
+            "std": 0.1,
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_foot_link", "right_foot_link"],
+                preserve_order=True,
+            ),
+        },
+    )
+
+    feet_pitch = RewTerm(
+        func=t1_mdp.reward_feet_pitch, # type: ignore
+        weight=-5.0,
+        params={
+            "std": 0.1,
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=["left_foot_link", "right_foot_link"],
+                preserve_order=True,
+            ),
+        },
+    )
+
+    # -- swing foot penalties
     # Rewards the agent for having feet in the air (e.g., walking, running, not standing still).
     feet_air_time = RewTerm(
         func=mdp.feet_air_time_positive_biped,
@@ -125,7 +174,7 @@ class T1RewardsCfg(RewardsCfg):
     # Penalizes the agent for sliding feet while in contact (i.e., wants stepping, not dragging feet)
     feet_slide = RewTerm(
         func=mdp.feet_slide,
-        weight=-0.25,
+        weight=-1.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link"),
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot_link"),
@@ -134,7 +183,7 @@ class T1RewardsCfg(RewardsCfg):
 
     feet_swing = RewTerm(
         func=t1_mdp.reward_feet_swing,
-        weight=0.5,
+        weight=20.0,
         params={
             "swing_period": 0.2,
             "sensor_cfg": SceneEntityCfg(
@@ -143,74 +192,9 @@ class T1RewardsCfg(RewardsCfg):
         },
     )
 
-    feet_yaw_diff = RewTerm(
-        func=t1_mdp.reward_feet_yaw_diff, # type: ignore
-        weight=-1,
-        params={
-            "std": 0.1,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=["left_foot_link", "right_foot_link"],
-                preserve_order=True,
-            ),
-        }
-    )
-
-    feet_yaw_mean = RewTerm(
-        func=t1_mdp.reward_feet_yaw_mean, # type: ignore
-        weight=-1,
-        params={
-            "std": 0.1,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=["left_foot_link", "right_foot_link"],
-                preserve_order=True,
-            ),
-        }
-    )
-
-    feet_roll = RewTerm(
-        func=t1_mdp.reward_feet_roll, # type: ignore
-        weight=-1.0,
-        params={
-            "std": 0.1,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=["left_foot_link", "right_foot_link"],
-                preserve_order=True,
-            ),
-        },
-    )
-
-    # feet_pitch_diff = RewTerm(
-    #     func=t1_mdp.reward_feet_pitch_diff, # type: ignore
-    #     weight=-1.0,
-    #     params={
-    #         "std": 0.1,
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=["left_foot_link", "right_foot_link"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    feet_pitch = RewTerm(
-        func=t1_mdp.reward_feet_pitch, # type: ignore
-        weight=-1.0,
-        params={
-            "std": 0.1,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=["left_foot_link", "right_foot_link"],
-                preserve_order=True,
-            ),
-        },
-    )
-
     foot_distance = RewTerm(
         func = t1_mdp.reward_foot_distance,
-        weight=-0.5,
+        weight=-1.0,
         params={
             "ref_dist": 0.2,
             "asset_cfg": SceneEntityCfg(
@@ -220,6 +204,18 @@ class T1RewardsCfg(RewardsCfg):
             ),
         },
     )
+
+    foot_clearance = RewTerm(
+        func=t1_mdp.foot_clearance_reward,
+        weight=1.0,
+        params={
+            "target_height": 0.1,
+            "std": 0.5,
+            "tanh_mult": 2.0,
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot_link"),
+        },
+    )
+
 
     # foot_contact = RewTerm(
     #     func=t1_mdp.reward_feet_contact_number,
@@ -248,44 +244,6 @@ class T1RewardsCfg(RewardsCfg):
     #         "sensor_cfg": SceneEntityCfg(
     #             "contact_forces",
     #             body_names=["left_foot_link", "right_foot_link"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    foot_clearance = RewTerm(
-        func=t1_mdp.foot_clearance_reward,
-        weight=0.5,
-        params={
-            "target_height": 0.1,
-            "std": 0.5,
-            "tanh_mult": 2.0,
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot_link"),
-        },
-    )
-
-    # sine_reference = RewTerm(
-    #     func=t1_mdp.reward_sine_reference,
-    #     weight=0.5,
-    #     params={
-    #         "ref_angle": 0.5,
-    #         "double_stand_phase": 0.5,
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             joint_names=[
-    #                 "Left_Hip_Pitch",
-    #                 "Left_Hip_Roll",
-    #                 "Left_Hip_Yaw",
-    #                 "Left_Knee_Pitch",
-    #                 "Left_Ankle_Pitch",
-    #                 "Left_Ankle_Roll",
-    #                 "Right_Hip_Pitch",
-    #                 "Right_Hip_Roll",
-    #                 "Right_Hip_Yaw",
-    #                 "Right_Knee_Pitch",
-    #                 "Right_Ankle_Pitch",
-    #                 "Right_Ankle_Roll",
-    #             ],
     #             preserve_order=True,
     #         ),
     #     },

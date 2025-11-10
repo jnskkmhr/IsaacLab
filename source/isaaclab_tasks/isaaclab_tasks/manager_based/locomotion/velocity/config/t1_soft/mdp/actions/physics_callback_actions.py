@@ -15,7 +15,7 @@ import isaaclab.utils.string as string_utils
 from isaaclab.assets.articulation import Articulation
 from isaaclab.managers.action_manager import ActionTerm
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp import (
+from isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp import (
     PoppySeedCPCfg, PoppySeedLPCfg, RFT_2D, Material3DRFTCfg, RFT_3D
 )
 

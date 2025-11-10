@@ -1,8 +1,3 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
 """Common functions that can be used to create observation terms.
 
 The functions can be passed to the :class:`isaaclab.managers.ObservationTermCfg` object to enable
@@ -17,27 +12,22 @@ from typing import TYPE_CHECKING
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import RayCaster
+from isaaclab.sensors import ContactSensor
+
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
-from isaaclab.managers.manager_base import ManagerTermBase
-from isaaclab.managers.manager_term_cfg import ObservationTermCfg
-from isaaclab.sensors import Camera, Imu, RayCaster, RayCasterCamera, TiledCamera, ContactSensor
+from isaaclab.utils.noise import GaussianNoiseCfg as Gnoise
+from isaaclab.utils.noise import UniformNoiseCfg as Unoise
+from isaaclab.utils import configclass
+
+import isaaclab.envs.mdp as mdp
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
 
-# from isaaclab.envs.utils.io_descriptors import (
-#     generic_io_descriptor,
-#     record_body_names,
-#     record_dtype,
-#     record_joint_names,
-#     record_joint_pos_offsets,
-#     record_joint_vel_offsets,
-#     record_shape,
-# )
-
 """
-Gait
+gait
 """
 
 def clock(env: ManagerBasedRLEnv) -> torch.Tensor:
@@ -52,49 +42,55 @@ def clock(env: ManagerBasedRLEnv) -> torch.Tensor:
     ).to(env.device)
 
 """
-Foot
+root states
 """
 
-def foot_height(
-    env: ManagerBasedRLEnv, 
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("sensor"),
-    ) -> torch.Tensor:
-    asset = env.scene[asset_cfg.name]
-    return asset.data.body_pos_w[:, asset_cfg.body_ids, 2]  # (num_envs, num_bodies)
+def root_state_w(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Root state in world frame."""
+    robot = env.scene[asset_cfg.name]
+    robot: Articulation
+    return torch.cat([robot.data.root_pos_w, robot.data.root_quat_w], dim=-1).to(
+        env.device
+    )
 
+"""
+body kinematics.
+"""
 
-def foot_air_time(
-        env: ManagerBasedRLEnv, 
-        asset_cfg: SceneEntityCfg = SceneEntityCfg("sensor"),
-        ) -> torch.Tensor:
-    sensor: ContactSensor = env.scene[asset_cfg.name]
-    sensor_data = sensor.data
-    current_air_time = sensor_data.current_air_time[:, asset_cfg.body_ids]  # (num_envs, num_bodies)
-    assert current_air_time is not None
-    return current_air_time
+def foot_pos_w(
+    env: ManagerBasedEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """The flattened body poses of the asset w.r.t the env.scene.origin.
 
+    Note: Only the bodies configured in :attr:`asset_cfg.body_ids` will have their poses returned.
 
-def foot_contact(
-        env: ManagerBasedRLEnv, 
-        asset_cfg: SceneEntityCfg = SceneEntityCfg("sensor"),
-        ) -> torch.Tensor:
-    sensor: ContactSensor = env.scene[asset_cfg.name]
-    sensor_data = sensor.data
-    current_contact_time = sensor_data.current_contact_time[:, asset_cfg.body_ids]  # (num_envs, num_bodies)
-    assert current_contact_time is not None
-    return (current_contact_time > 0).float()
+    Args:
+        env: The environment.
+        asset_cfg: The SceneEntity associated with this observation.
 
+    Returns:
+        The position of bodies in articulation [num_env, 3 * num_bodies].
+        Output is stacked horizontally per body.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
 
-def foot_contact_forces(
-        env: ManagerBasedRLEnv, 
-        asset_cfg: SceneEntityCfg = SceneEntityCfg("sensor"),
-        ) -> torch.Tensor:
-    sensor: ContactSensor = env.scene[asset_cfg.name]
-    sensor_data = sensor.data
-    forces = sensor_data.net_forces_w[:, asset_cfg.body_ids, :]  # (num_envs, num_bodies, 3)
-    assert forces is not None
-    forces_flat = forces.flatten(start_dim=1)  # [B, N*3]
-    return torch.sign(forces_flat) * torch.log1p(torch.abs(forces_flat))
+    # access the body poses in world frame
+    pose = asset.data.body_pose_w[:, asset_cfg.body_ids, :7]
+    pose[..., :3] = pose[..., :3] - env.scene.env_origins.unsqueeze(1)
+
+    pos = pose[..., :3] # (num_envs, num_bodies, 3)
+    quat = pose[..., 3:7] # (num_envs, num_bodies, 4)
+    rot = math_utils.matrix_from_quat(quat) # (num_envs, num_bodies, 3, 3)
+
+    local_pos = torch.tensor([0.0, 0.0, -0.039], device=pos.device).reshape(1, 1, 3) # (1, 1, 3)
+    pos_foot = pos + (rot @ local_pos.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
+
+    return pos_foot.reshape(env.num_envs, -1)
+
 
 """
 Contact.
