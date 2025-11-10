@@ -73,6 +73,9 @@ tests/
 # no data
 *.pdf
 *.png
+*.jpg
 
-# no asset
-source/isaaclab_assets/data
+# track assets via git lfs
+!source/isaaclab_assets/data/*/*.usd
+!source/isaaclab_assets/data/texture/**/*.png
+!source/isaaclab_assets/data/texture/**/*.jpg
