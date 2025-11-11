@@ -47,7 +47,8 @@ T1_CFG = ArticulationCfg(
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.69), # 0.72
+        pos=(0.0, 0.0, 0.72), 
+        # pos=(0.0, 0.0, 0.69),
         joint_pos={
             "AAHead_yaw": 0.0,
             "Head_pitch": 0.0, 

@@ -213,7 +213,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
             # env stepping
             obs, _, dones, _ = env.step(actions)
             
-            policy_obs = obs["policy"]
+            # policy_obs = obs["policy"]
+            # policy_obs = obs["critic"]
+            policy_obs = obs["logging"] # only log necessary data
             contact_obs = obs["contact"]
             
             # get termination conditions

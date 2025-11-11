@@ -126,10 +126,9 @@ class CriticCfg(ObsGroup):
     )
     actions = ObsTerm(func=mdp.last_action) # type: ignore
 
+    # privileged observations
     root_state_w = ObsTerm(func=t1_mdp.root_state_w) # type: ignore
-
     root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w) # type: ignore
-
     root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w) # type: ignore
 
     def __post_init__(self):
@@ -296,9 +295,26 @@ class ContactCfg(ObsGroup):
         self.concatenate_terms = True
 
 @configclass
+class LoggingObsCfg(ObsGroup):
+    """Observations for policy group."""
+
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) # type: ignore
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) # type: ignore
+    velocity_commands = ObsTerm(
+        func=mdp.generated_commands, # type: ignore
+        params={"command_name": "base_velocity"},
+    )
+    
+
+    def __post_init__(self):
+        self.enable_corruption = True
+        self.concatenate_terms = True
+
+@configclass
 class T1ObservationsCfg:
     """Observation specifications for the MDP."""
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
     contact: ContactCfg = ContactCfg()
+    logging: LoggingObsCfg = LoggingObsCfg()

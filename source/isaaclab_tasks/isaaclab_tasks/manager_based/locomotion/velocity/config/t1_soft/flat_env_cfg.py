@@ -68,12 +68,16 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.events.reset_robot_upper_joints_from_limits.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=[])
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        # random ang vel
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # track specific yaw angle
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
+        # self.commands.base_velocity.heading_command = True
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False
 
         # pose initialization
@@ -95,20 +99,20 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             },
         }
         
-        # # rendering settings
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -3.5, 0.4), 
-        #     lookat=(0.0, -0.8, 0.3),
-        #     resolution=(1920, 1080), 
-        #     origin_type="asset_root", 
-        #     asset_name="robot"
-        # )
-
-        # rendering 
+        # rendering settings
         self.viewer = ViewerCfg(
-            eye=(-0.0, -2.5, 0.5), 
-            lookat=(0.0, -0.3, 0.5),
+            eye=(-0.0, -3.5, 0.4), 
+            lookat=(0.0, -0.8, 0.3),
             resolution=(1920, 1080), 
-            # origin_type="asset_root", 
-            # asset_name="robot"
+            origin_type="asset_root", 
+            asset_name="robot"
         )
+
+        # # rendering 
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.0, -2.5, 0.5), 
+        #     lookat=(0.0, -0.3, 0.5),
+        #     resolution=(1920, 1080), 
+        #     # origin_type="asset_root", 
+        #     # asset_name="robot"
+        # )

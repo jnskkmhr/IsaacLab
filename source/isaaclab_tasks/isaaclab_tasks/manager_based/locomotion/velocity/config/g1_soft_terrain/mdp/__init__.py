@@ -7,9 +7,6 @@ from .observations.observations import (
     foot_hard_contact_forces, 
     soft_contact_forces,
 )
-from .reward.reward import (
-    feet_air_time_positive_biped, 
-    feet_slide,
-)
+from .reward.reward import *
 from .curriculums.curriculums import update_terrain_stiffness, terrain_ground_level
 from .events.events import randomize_terrain_friction

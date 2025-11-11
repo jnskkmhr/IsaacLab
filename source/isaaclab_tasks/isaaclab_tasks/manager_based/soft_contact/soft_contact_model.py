@@ -193,11 +193,11 @@ class Material3DRFTCfg:
 
     stiffness: float = 1.0
     static_friction_coef: float = 1.0
-    dynamic_friction_coef: float = 0.2
+    dynamic_friction_coef: float = 0.4
 
     # 3D RFT media specific properties
     rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
-    mu_int: float = 0.2 # media internal friction coefficient
+    mu_int: float = 0.4 # media internal friction coefficient
 
 
 """

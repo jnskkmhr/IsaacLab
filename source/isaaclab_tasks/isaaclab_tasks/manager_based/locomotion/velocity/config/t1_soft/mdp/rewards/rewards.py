@@ -342,7 +342,8 @@ def foot_clearance_reward(
     com_z = asset.data.root_pos_w[:, 2]
     standing_position_com_z = asset.data.default_root_state[:, 2]
     standing_height = com_z - standing_position_com_z
-    standing_position_toe_roll_z = 0.0626  # recorded from the default position
+    # standing_position_toe_roll_z = 0.0626  # recorded from the default position
+    standing_position_toe_roll_z = 0.0305  # recorded from the default position
     offset = (standing_height + standing_position_toe_roll_z).unsqueeze(-1)
 
     foot_z_target_error = torch.square(
@@ -363,23 +364,23 @@ def foot_clearance_reward(
 def reward_feet_swing(    
     env: ManagerBasedRLEnv,
     swing_period: float,
-    sensor_cfg: SceneEntityCfg
+    sensor_cfg: SceneEntityCfg,
     ) -> torch.Tensor:
-        freq = 1 / env.phase_dt
-        phase = env.get_phase()
+    freq = 1 / env.phase_dt
+    phase = env.get_phase()
 
-        contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-        contacts = (
-            contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, :]  # type: ignore
-            .norm(dim=-1)
-            > 1.0
-        )
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    contacts = (
+        contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, :]  # type: ignore
+        .norm(dim=-1)
+        > 1.0
+    )
 
-        left_swing = (torch.abs(phase - 0.25) < 0.5 * swing_period) & (freq > 1.0e-8)
-        right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)
-        reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
+    left_swing = (torch.abs(phase - 0.25) < 0.5 * swing_period) & (freq > 1.0e-8)
+    right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)
+    reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
 
-        return reward
+    return reward
 
 #### not used ####
 @torch.jit.script

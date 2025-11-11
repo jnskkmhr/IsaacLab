@@ -74,7 +74,24 @@ class G1ObservationsCfg:
         def __post_init__(self):
             self.enable_corruption = True
             self.concatenate_terms = True
+        
+    @configclass
+    class LoggingObsCfg(ObsGroup):
+        """Observations for policy group."""
+
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel) # type: ignore
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel) # type: ignore
+        velocity_commands = ObsTerm(
+            func=mdp.generated_commands, # type: ignore
+            params={"command_name": "base_velocity"},
+        )
+        
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
 
     # observation groups
     policy: PolicyCfg = PolicyCfg()
     contact: ContactCfg = ContactCfg()
+    logging: LoggingObsCfg = LoggingObsCfg()
