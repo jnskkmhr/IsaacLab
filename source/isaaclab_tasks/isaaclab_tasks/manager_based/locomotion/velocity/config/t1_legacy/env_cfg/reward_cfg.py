@@ -17,16 +17,16 @@ class T1RewardsCfg:
 
     # -- task
     track_lin_vel_xy_exp = RewTerm(
-        func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.5)} # type: ignore
+        func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)} # type: ignore
     )
     track_ang_vel_z_exp = RewTerm(
-        func=mdp.track_ang_vel_z_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.5)} # type: ignore
+        func=mdp.track_ang_vel_z_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)} # type: ignore
     )
     base_height_l2 = RewTerm(
         func=mdp.base_height_l2, # type: ignore
-        weight=-5.0,
+        weight=-20.0,
         params={
-            "target_height": 0.67,
+            "target_height": 0.68,
         }
     )
     
@@ -85,25 +85,25 @@ class T1RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_Hip_Yaw", ".*_Hip_Roll"])},
     )
     
-    joint_deviation_arms = RewTerm(
-        func=mdp.joint_deviation_l1, # type: ignore
-        # weight=-0.35,
-        weight=-0.5,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_Shoulder_Pitch",
-                    ".*_Shoulder_Roll",
-                    ".*_Elbow_Pitch",
-                    ".*_Elbow_Yaw",
-                    ".*_Wrist_Pitch",
-                    ".*_Wrist_Yaw",
-                    ".*_Hand_Roll",
-                ],
-            )
-        },
-    )
+    # joint_deviation_arms = RewTerm(
+    #     func=mdp.joint_deviation_l1, # type: ignore
+    #     # weight=-0.35,
+    #     weight=-0.5,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_Shoulder_Pitch",
+    #                 ".*_Shoulder_Roll",
+    #                 ".*_Elbow_Pitch",
+    #                 ".*_Elbow_Yaw",
+    #                 ".*_Wrist_Pitch",
+    #                 ".*_Wrist_Yaw",
+    #                 ".*_Hand_Roll",
+    #             ],
+    #         )
+    #     },
+    # )
 
     ## -- regulate foot orientation 
     foot_roll = RewTerm(
@@ -186,19 +186,19 @@ class T1RewardsCfg:
         },
     )
 
-    # # Reward foot to track predefined curve
-    # track_foot_height = RewTerm(
-    #     func=t1_mdp.track_foot_height,
-    #     weight=2.0,
-    #     params={
-    #         "std": 0.5,
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*_foot_link"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
+    # Reward foot to track predefined curve
+    track_foot_height = RewTerm(
+        func=t1_mdp.track_foot_height,
+        weight=2.0,
+        params={
+            "std": 0.5,
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=[".*_foot_link"],
+                preserve_order=True,
+            ),
+        },
+    )
 
     # Guide the foot height during the swing phase.
     # Large penalty when foot is moving fast and far from target height.
@@ -230,7 +230,7 @@ class T1RewardsCfg:
         func = t1_mdp.reward_foot_distance,
         weight=-0.5,
         params={
-            "ref_dist": 0.3,
+            "ref_dist": 0.2,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 body_names=["left_foot_link", "right_foot_link"],

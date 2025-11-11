@@ -1,7 +1,7 @@
 from .terrain.terrain_cfg import *
 from .termination.termination import root_height_below_minimum_adaptive
 from .curriculums.curriculums import update_terrain_stiffness, terrain_ground_level
-from .events.events import randomize_terrain_friction
+from .events.events import *
 from .observations.observations import (
     clock, 
 

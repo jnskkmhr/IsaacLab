@@ -87,19 +87,30 @@ class G1EventCfg:
         },
     )
 
-    randomize_friction = EventTerm(
-        func=g1_mdp.randomize_terrain_friction, # type: ignore
-        mode="reset",
-        params={
-            "friction_range": (0.1, 0.6),
-            "contact_solver_name": "physics_callback",
-        },
-    )
-
     # interval
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity, # type: ignore
         mode="interval",
         interval_range_s=(10.0, 15.0),
         params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
+    )
+
+    # randomize terrain friction
+    randomize_friction = EventTerm(
+        func=g1_mdp.randomize_terrain_friction, # type: ignore
+        mode="reset",
+        params={
+            "friction_range": (0.2, 0.9),
+            "contact_solver_name": "physics_callback",
+        },
+    )
+
+    # randomize terrain stiffness
+    randomize_stiffness = EventTerm(
+        func=g1_mdp.randomize_terrain_stiffness, # type: ignore
+        mode="reset",
+        params={
+            "stiffness_range": (1.0, 4.5),
+            "contact_solver_name": "physics_callback",
+        },
     )

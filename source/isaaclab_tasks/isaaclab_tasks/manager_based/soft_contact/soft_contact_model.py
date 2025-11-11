@@ -193,11 +193,11 @@ class Material3DRFTCfg:
 
     stiffness: float = 1.0
     static_friction_coef: float = 1.0
-    dynamic_friction_coef: float = 0.4
+    dynamic_friction_coef: float = 0.2
 
     # 3D RFT media specific properties
     rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
-    mu_int: float = 0.4 # media internal friction coefficient
+    mu_int: float = 0.2 # media internal friction coefficient
 
 
 """
@@ -436,6 +436,18 @@ class RFT_2D:
         )
         self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
 
+    def randomize_ground_stiffness(self, env_ids:torch.Tensor, stiffness:torch.Tensor)->None:
+        """
+        Update ground stiffness (N/m) for each env.
+        Implementation is similar to terrain curriculum used in terrain importer class.
+        This can be triggered by curriculum manager.
+        
+        Args:
+            env_ids: tensor of env ids to update
+            stiffness: tensor of stiffness values (len(env_ids),)
+        """
+        self.stiffness[env_ids] = stiffness
+        
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """
         Update friction coefficients for each env.
@@ -942,6 +954,18 @@ class RFT_3D:
             torch.clip(self.soft_level[env_ids], 0),
         )
         self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
+    
+    def randomize_ground_stiffness(self, env_ids:torch.Tensor, stiffness:torch.Tensor)->None:
+        """
+        Update ground stiffness (N/m) for each env.
+        Implementation is similar to terrain curriculum used in terrain importer class.
+        This can be triggered by curriculum manager.
+        
+        Args:
+            env_ids: tensor of env ids to update
+            stiffness: tensor of stiffness values (len(env_ids),)
+        """
+        self.stiffness[env_ids] = stiffness
 
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """

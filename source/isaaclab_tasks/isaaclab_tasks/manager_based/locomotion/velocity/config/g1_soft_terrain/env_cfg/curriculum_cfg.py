@@ -17,10 +17,10 @@ class G1CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
-    terrain_stiffness = CurrTerm(
-        func=g1_mdp.update_terrain_stiffness, 
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            "contact_solver_name": "physics_callback",
-            },
-        )
+    # terrain_stiffness = CurrTerm(
+    #     func=g1_mdp.update_terrain_stiffness, 
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #         "contact_solver_name": "physics_callback",
+    #         },
+    #     )

@@ -91,7 +91,6 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        self.curriculum.terrain_stiffness = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -102,12 +101,13 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.physics_material = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.randomize_friction = None
+        self.events.randomize_stiffness = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False
@@ -117,7 +117,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             "pose_range": {
                 "x": (-0.5, 0.5), 
                 "y": (-0.5, 0.5),
-                "yaw": (-math.pi, math.pi),
+                # "yaw": (-math.pi, math.pi),
+                "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -129,20 +130,20 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             },
         }
 
-        # # rendering 
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -2.5, 0.0), 
-        #     lookat=(0.0, -0.8, 0.0),
-        #     resolution=(1920, 1080), 
-        #     origin_type="asset_root", 
-        #     asset_name="robot"
-        # )
-        
         # rendering 
         self.viewer = ViewerCfg(
-            eye=(-0.0, -2.5, 0.5), 
-            lookat=(0.0, -0.3, 0.5),
+            eye=(-0.0, -2.5, 0.0), 
+            lookat=(0.0, -0.8, 0.0),
             resolution=(1920, 1080), 
-            # origin_type="asset_root", 
-            # asset_name="robot"
+            origin_type="asset_root", 
+            asset_name="robot"
         )
+        
+        # # rendering 
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.0, -2.5, 0.5), 
+        #     lookat=(0.0, -0.3, 0.5),
+        #     resolution=(1920, 1080), 
+        #     # origin_type="asset_root", 
+        #     # asset_name="robot"
+        # )

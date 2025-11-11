@@ -74,7 +74,6 @@ class G1RewardsCfg:
         func=g1_mdp.reward_feet_roll, # type: ignore
         weight=-0.5,
         params={
-            "std": 0.1,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 body_names=".*_ankle_roll_link",
@@ -87,7 +86,6 @@ class G1RewardsCfg:
         func=g1_mdp.reward_feet_pitch, # type: ignore
         weight=-0.5,
         params={
-            "std": 0.1,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 body_names=".*_ankle_roll_link",

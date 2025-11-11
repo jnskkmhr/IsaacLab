@@ -9,4 +9,4 @@ from .observations.observations import (
 )
 from .reward.reward import *
 from .curriculums.curriculums import update_terrain_stiffness, terrain_ground_level
-from .events.events import randomize_terrain_friction
+from .events.events import *

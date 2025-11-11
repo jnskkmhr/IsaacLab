@@ -79,12 +79,22 @@ class T1EventCfg:
     )
 
     reset_robot_joints = EventTerm(
-        func=mdp.reset_joints_by_scale, # type: ignore
+        func=t1_mdp.reset_joints_by_scale, # type: ignore
+        # func=t1_mdp.reset_joints_by_offset, # type: ignore
         mode="reset",
         params={
-            "position_range": (0.5, 1.5),
+            # "position_range": (0.5, 1.5),
+            "position_range": (1.0, 1.0),
             "velocity_range": (0.0, 0.0),
         },
+    )
+
+    # interval
+    push_robot = EventTerm(
+        func=mdp.push_by_setting_velocity, # type: ignore
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
     )
 
     randomize_friction = EventTerm(
@@ -96,10 +106,12 @@ class T1EventCfg:
         },
     )
 
-    # interval
-    push_robot = EventTerm(
-        func=mdp.push_by_setting_velocity, # type: ignore
-        mode="interval",
-        interval_range_s=(10.0, 15.0),
-        params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
+    # randomize terrain stiffness
+    randomize_stiffness = EventTerm(
+        func=t1_mdp.randomize_terrain_stiffness, # type: ignore
+        mode="reset",
+        params={
+            "stiffness_range": (1.0, 4.5),
+            "contact_solver_name": "physics_callback",
+        },
     )

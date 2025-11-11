@@ -10,7 +10,6 @@ from isaaclab.utils import configclass
 from isaaclab.envs.common import ViewerCfg
 
 from .rough_env_cfg import T1RoughEnvCfg
-import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp as t1_mdp
 
 
 @configclass
@@ -18,22 +17,25 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
-
-        # change timestep
-        self.sim.dt = 0.005 # 200Hz
-        self.decimation = 4 # 50Hz
+        self.episode_length_s = 20
+        self.sim.dt = 1/200
+        self.decimation = 4
         self.sim.render_interval = self.decimation
 
-        # make curriculum soft terrain
-        self.scene.terrain = t1_mdp.CurriculumSoftTerrain
+        # change terrain to flat
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
 
         # no height scan
         self.scene.height_scanner = None
         self.observations.policy.height_scan = None
 
+        # no terrain curriculum
+        self.curriculum.terrain_levels = None
+
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-1.0, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
 
 
@@ -42,12 +44,10 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()
-
-        # make soft terrain 
-        self.scene.terrain = t1_mdp.SoftTerrain
-        self.scene.terrain.disable_collider = True  # soft terrain
-        # self.actions.physics_callback.disable = True # disable soft contact
-        # self.actions.physics_callback.max_terrain_level = 1 # fully soft
+        self.episode_length_s = 20
+        self.sim.dt = 0.005
+        self.decimation = 4
+        self.sim.render_interval = self.decimation
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -56,29 +56,20 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
 
-        # disable curriculum 
-        self.curriculum.terrain_levels = None
-        self.curriculum.terrain_stiffness = None
-        self.curriculum.track_ang_vel = None
-        self.curriculum.track_lin_vel = None
-
-        # remove random events
+        # remove random pushing
         self.events.base_external_force_torque = None
         self.events.push_robot = None
-        self.events.reset_robot_upper_joints_from_limits.params["asset_cfg"] = SceneEntityCfg("robot", joint_names=[])
+
+        # no curriculum
+        # self.curriculum.track_ang_vel = None
+        # self.curriculum.track_lin_vel = None
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # random ang vel
+        self.commands.base_velocity.ranges.ang_vel_z = (-.0, -.0)
         self.commands.base_velocity.heading_command = False
-        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
-        # track specific yaw angle
-        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
-        # self.commands.base_velocity.heading_command = True
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
         # self.commands.base_velocity.debug_vis = False
 
         # pose initialization
@@ -100,7 +91,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             },
         }
         
-        # rendering settings
+        # rendering 
         self.viewer = ViewerCfg(
             eye=(-0.0, -3.5, 0.4), 
             lookat=(0.0, -0.8, 0.3),
@@ -108,12 +99,4 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             origin_type="asset_root", 
             asset_name="robot"
         )
-
-        # # rendering 
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -2.5, 0.5), 
-        #     lookat=(0.0, -0.3, 0.5),
-        #     resolution=(1920, 1080), 
-        #     # origin_type="asset_root", 
-        #     # asset_name="robot"
-        # )
+    

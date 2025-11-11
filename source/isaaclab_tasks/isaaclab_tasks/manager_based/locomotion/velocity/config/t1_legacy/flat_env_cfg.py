@@ -96,7 +96,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        self.curriculum.terrain_stiffness = None
+        # self.curriculum.terrain_stiffness = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -107,6 +107,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.events.physics_material = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.randomize_friction = None
+        self.events.randomize_stiffness = None
         
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
