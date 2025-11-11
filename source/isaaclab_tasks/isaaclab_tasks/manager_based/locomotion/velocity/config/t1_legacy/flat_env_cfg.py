@@ -12,7 +12,7 @@ from isaaclab.envs.common import ViewerCfg
 from .rough_env_cfg import T1RoughEnvCfg
 
 
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as t1_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_legacy.mdp as t1_mdp
 
 
 @configclass
@@ -22,29 +22,23 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         super().__post_init__()
 
         # update gait period
-        self.phase_dt = 0.3*2
+        self.phase_dt = 0.25*2
 
-        # # make soft terrain
-        # self.scene.terrain = t1_mdp.FlatTerrain
+        # make curriculum soft terrain
+        self.scene.terrain = t1_mdp.CurriculumSoftTerrain
         
-        # change terrain to flat
-        self.scene.terrain.terrain_type = "plane"
-        self.scene.terrain.terrain_generator = None
+        # # change terrain to flat
+        # self.scene.terrain.terrain_type = "plane"
+        # self.scene.terrain.terrain_generator = None
 
-        # no IsaacLab terrain curriculum
-        self.curriculum.terrain_levels = None
+        # # no IsaacLab terrain curriculum
+        # self.curriculum.terrain_levels = None
         # self.curriculum.terrain_stiffness = None
         
         # no height scan
         self.scene.height_scanner = None
         self.observations.policy.height_scan = None
         self.observations.critic.height_scan = None
-
-        # no contact observations
-        # self.observations.contact = None
-
-        # # no soft terrain 
-        # self.actions.physics_callback = None
         
         # Randomization 
         self.events.reset_base.params = {
@@ -71,20 +65,15 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         self.rewards.lin_vel_z_l2.weight = -0.2
         self.rewards.action_rate_l2.weight = -0.005
         self.rewards.dof_acc_l2.weight = -1.0e-7
-        # self.rewards.dof_torques_l2.weight = -2.0e-6
         self.rewards.dof_torques_l2.weight = -1.5e-7
         self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
             "robot", joint_names=[".*_Hip_.*", ".*_Knee_Pitch"]
         )
-        # self.rewards.feet_air_time_soft_contact.weight = 0.75
-        # self.rewards.feet_air_time_soft_contact.params["threshold"] = 0.45
-        self.rewards.feet_air_time_soft_contact = None
-        self.rewards.feet_slide_soft_contact = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (-0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
         # light and view settings
         # self.scene.sky_light.init_state.rot = (0.86603, 0, 0, 0.5)  # yaw=60deg
@@ -101,13 +90,13 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.episode_length_s = 20.0
         
         # make soft terrain
-        self.scene.terrain = t1_mdp.SandTerrain
+        self.scene.terrain = t1_mdp.SoftTerrain
         self.scene.terrain.disable_collider = True  # soft terrain
         self.actions.physics_callback.max_terrain_level = 1 # fully soft
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        # self.curriculum.terrain_stiffness = None
+        self.curriculum.terrain_stiffness = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False

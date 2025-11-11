@@ -9,6 +9,7 @@ from typing import Literal
 # from isaaclab.controllers import DifferentialIKControllerCfg, OperationalSpaceControllerCfg
 from isaaclab.managers.action_manager import ActionTerm, ActionTermCfg
 from isaaclab.utils import configclass
+from .soft_contact_model import IntruderGeometryCfg
 from . import physics_callback_actions
 
 
@@ -20,5 +21,10 @@ class PhysicsCallbackActionCfg(ActionTermCfg):
     """List of joint names or regex expressions that the action will be mapped to."""
     max_terrain_level: int = MISSING # type: ignore
     """Maximum terrain stiffness level. This number is multiplied to terrain stiffness calculated by RFT."""
-    backend: Literal["2D", "3D"] = "2D"
+    backend: Literal["2D", "3D"] = "3D"
     """The RFT backend to use. Options are '2D' or '3D'."""
+    disable: bool = False
+    """Whether to disable this action term."""
+    enable_ema_filter: bool = True
+    """Whether to enable an exponential moving average filter on the input actions."""
+    intruder_geometry_cfg: IntruderGeometryCfg = IntruderGeometryCfg()

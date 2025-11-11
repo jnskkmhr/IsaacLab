@@ -22,6 +22,13 @@ class T1RewardsCfg:
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.5)} # type: ignore
     )
+    base_height_l2 = RewTerm(
+        func=mdp.base_height_l2, # type: ignore
+        weight=-5.0,
+        params={
+            "target_height": 0.67,
+        }
+    )
     
     
     # -- penalties
@@ -63,9 +70,6 @@ class T1RewardsCfg:
     joint_deviation_torso = RewTerm(
         func=mdp.joint_deviation_l1, # type: ignore
         weight=-0.0,
-        # weight=-0.1,
-        # weight=-0.25,
-        # weight=-0.5,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names="Waist")},
     )
     joint_deviation_head = RewTerm(
@@ -129,15 +133,15 @@ class T1RewardsCfg:
         },
     )
     # soft contact version
-    # foot_contact_soft = RewTerm(
-    #     func=t1_mdp.reward_feet_contact_number_soft,
-    #     weight=0.5,
-    #     params={
-    #         "action_term_name": "physics_callback",
-    #         "pos_rw": 1.0,
-    #         "neg_rw": -0.3,
-    #     },
-    # )
+    foot_contact_soft = RewTerm(
+        func=t1_mdp.reward_feet_contact_number_soft,
+        weight=2.0,
+        params={
+            "action_term_name": "physics_callback",
+            "pos_rw": 1.0,
+            "neg_rw": -0.3,
+        },
+    )
     
     ## -- reward proper swing foot motion (for hard contact terrain.)
     # Lift your feet off the ground and keep them up for a reasonable amount of time.
@@ -154,11 +158,11 @@ class T1RewardsCfg:
     ## soft contact version
     feet_air_time_soft_contact = RewTerm(
         func=t1_mdp.feet_air_time_positive_biped_soft,
-        weight=0.25,
+        weight=1.5,
         params={
             "command_name": "base_velocity",
             "action_term_name": "physics_callback",
-            "threshold": 0.4,
+            "threshold": 0.35,
         },
     )
 
@@ -175,26 +179,26 @@ class T1RewardsCfg:
     # soft contact version
     feet_slide_soft_contact = RewTerm(
         func=t1_mdp.feet_slide_soft,
-        weight=-0.1,
+        weight=-0.25,
         params={
             "action_term_name": "physics_callback",
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot_link"),
         },
     )
 
-    # Reward foot to track predefined curve
-    track_foot_height = RewTerm(
-        func=t1_mdp.track_foot_height,
-        weight=2.0,
-        params={
-            "std": 0.5,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*_foot_link"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # # Reward foot to track predefined curve
+    # track_foot_height = RewTerm(
+    #     func=t1_mdp.track_foot_height,
+    #     weight=2.0,
+    #     params={
+    #         "std": 0.5,
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*_foot_link"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
     # Guide the foot height during the swing phase.
     # Large penalty when foot is moving fast and far from target height.
@@ -210,37 +214,27 @@ class T1RewardsCfg:
         },
     )
 
-    # Encourage soft landings.
-    soft_landing = RewTerm(
-        func=t1_mdp.soft_landing,
-        weight=-1e-5,
-        params={
-        "sensor_name": "contact_forces",
-        "command_name": "base_velocity",
-        "command_threshold": 0.05,
-        },
-    )
+    # # Encourage soft landings.
+    # soft_landing = RewTerm(
+    #     func=t1_mdp.soft_landing,
+    #     weight=-1e-5,
+    #     params={
+    #     "sensor_name": "contact_forces",
+    #     "command_name": "base_velocity",
+    #     "command_threshold": 0.05,
+    #     },
+    # )
+
     # ensure two feet are separated by a certain distance
     foot_distance = RewTerm(
         func = t1_mdp.reward_foot_distance,
         weight=-0.5,
         params={
-            "ref_dist": 0.35,
+            "ref_dist": 0.3,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 body_names=["left_foot_link", "right_foot_link"],
                 preserve_order=True,
             ),
-        },
-    )
-    
-    ## -- reward proper swing foot motion (for soft contact terrain.)
-    feet_air_time_soft_contact = RewTerm(
-        func=t1_mdp.feet_air_time_positive_biped_soft,
-        weight=0.25,
-        params={
-            "command_name": "base_velocity",
-            "action_term_name": "physics_callback",
-            "threshold": 0.4,
         },
     )

@@ -77,6 +77,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # post init of parent
         super().__post_init__()
 
+        # change timestep
+        self.sim.dt = 1/400 # 500Hz
+        self.decimation = 8 # 50Hz
+        self.sim.render_interval = self.decimation
+
         # make a smaller scene for play
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
@@ -86,11 +91,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.scene.terrain = g1_mdp.SandTerrain
         self.scene.terrain.disable_collider = True  # soft terrain
         # self.actions.physics_callback.disable = True # disable soft contact
-        self.actions.physics_callback.max_terrain_level = 1 # fully soft
+        # self.actions.physics_callback.max_terrain_level = 1 # fully soft
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        # self.curriculum.terrain_stiffness = None
+        self.curriculum.terrain_stiffness = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -105,16 +110,17 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0., -0.)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False
         
         # Randomization 
         self.events.reset_base.params = {
-            "pose_range": 
-                {"x": (-0.5, 0.5), 
-                 "y": (-0.5, 0.5),
+            "pose_range": {
+                "x": (-0.5, 0.5), 
+                "y": (-0.5, 0.5),
                 "yaw": (-math.pi, math.pi),
                  },
             "velocity_range": {
@@ -126,11 +132,20 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
+
+        # # rendering 
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.0, -2.5, 0.0), 
+        #     lookat=(0.0, -0.8, 0.0),
+        #     resolution=(1920, 1080), 
+        #     origin_type="asset_root", 
+        #     asset_name="robot"
+        # )
         
         # rendering 
         self.viewer = ViewerCfg(
-            eye=(-0.0, -2.5, 0.0), 
-            lookat=(0.0, -0.8, 0.0),
+            eye=(-0.0, -2.5, 0.5), 
+            lookat=(0.0, -0.3, 0.5),
             resolution=(1920, 1080), 
             # origin_type="asset_root", 
             # asset_name="robot"

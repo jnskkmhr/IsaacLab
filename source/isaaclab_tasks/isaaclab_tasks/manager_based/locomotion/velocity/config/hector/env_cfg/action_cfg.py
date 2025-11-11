@@ -13,7 +13,3 @@ class HECTORActionsCfg:
     """Action specifications for the MDP."""
     
     joint_pos = mdp.JointPositionActionCfg(asset_name="robot", joint_names=[".*"], scale=0.5, use_default_offset=True) # type: ignore
-    physics_callback = hector_mdp.PhysicsCallbackActionCfg(
-        asset_name="robot",
-        body_names=[".*_toe"],
-    )

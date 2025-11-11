@@ -1,6 +1,3 @@
-from .physics.soft_contact_model import PoppySeedCPCfg, PoppySeedLPCfg, RFT_EMF
-from .actions.actions_cfg import PhysicsCallbackActionCfg
-
 from .observations.observations import (
     hard_contact_forces, 
     foot_hard_contact_forces, 

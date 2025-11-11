@@ -27,34 +27,34 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
-class reward_symmetry(ManagerTermBase):
-    """Penalize deviation from target swing height, evaluated at landing."""
+# class reward_symmetry(ManagerTermBase):
+#     """Penalize deviation from target swing height, evaluated at landing."""
 
-    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
-        super().__init__(cfg, env)
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         super().__init__(cfg, env)
 
-        self.cycle_torque_diff = torch.zeros((self.num_envs, 6), dtype=torch.float32, device=self.device)
+#         self.cycle_torque_diff = torch.zeros((self.num_envs, 6), dtype=torch.float32, device=self.device)
 
-    def __call__(
-        self,
-        env: ManagerBasedRLEnv,
-        asset_cfg: SceneEntityCfg,
-        std: float,
-    ) -> torch.Tensor:
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         asset_cfg: SceneEntityCfg,
+#         std: float,
+#     ) -> torch.Tensor:
         
-        asset: Articulation = env.scene[asset_cfg.name]
-        phase = env.get_phase()
-        T_not_done = torch.abs(phase - torch.round(phase)) > 0.04  # True if phase is not done
-        T_is_done = torch.abs(phase - torch.round(phase)) <= 0.04  # True if phase is done
+#         asset: Articulation = env.scene[asset_cfg.name]
+#         phase = env.get_phase()
+#         T_not_done = torch.abs(phase - torch.round(phase)) > 0.04  # True if phase is not done
+#         T_is_done = torch.abs(phase - torch.round(phase)) <= 0.04  # True if phase is done
 
-        error = torch.norm(self.cycle_torque_diff, dim=-1)
-        reward = torch.exp(-error / std**2) * T_is_done
-        self.cycle_torque_diff = (
-            self.cycle_torque_diff + 
-            torch.abs(asset.data.applied_torque[:, asset_cfg.joint_ids[:6]]) -
-            torch.abs(asset.data.applied_torque[:, asset_cfg.joint_ids[6:]]) * T_not_done.unsqueeze(1)
-        )
-        return reward
+#         error = torch.norm(self.cycle_torque_diff, dim=-1)
+#         reward = torch.exp(-error / std**2) * T_is_done
+#         self.cycle_torque_diff = (
+#             self.cycle_torque_diff + 
+#             torch.abs(asset.data.applied_torque[:, asset_cfg.joint_ids[:6]]) -
+#             torch.abs(asset.data.applied_torque[:, asset_cfg.joint_ids[6:]]) * T_not_done.unsqueeze(1)
+#         )
+#         return reward
     
 def _feet_rpy(
     env: ManagerBasedRLEnv,
@@ -147,60 +147,60 @@ def feet_clearance(
             cost = cost * active
     return cost
 
-class feet_swing_height(ManagerTermBase):
-    """Penalize deviation from target swing height, evaluated at landing."""
+# class feet_swing_height(ManagerTermBase):
+#     """Penalize deviation from target swing height, evaluated at landing."""
 
-    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
-        super().__init__(cfg, env)
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         super().__init__(cfg, env)
 
-        self.sensor_name = cfg.params["sensor_name"]
-        self.body_names = cfg.params["asset_cfg"].body_names
-        self.peak_heights = torch.zeros(
-        (env.num_envs, len(self.body_names)), device=env.device, dtype=torch.float32
-        )
-        self.step_dt = env.step_dt
+#         self.sensor_name = cfg.params["sensor_name"]
+#         self.body_names = cfg.params["asset_cfg"].body_names
+#         self.peak_heights = torch.zeros(
+#         (env.num_envs, len(self.body_names)), device=env.device, dtype=torch.float32
+#         )
+#         self.step_dt = env.step_dt
 
-    def __call__(
-        self,
-        env: ManagerBasedRLEnv,
-        sensor_name: str,
-        target_height: float,
-        command_name: str,
-        command_threshold: float,
-        asset_cfg: SceneEntityCfg,
-    ) -> torch.Tensor:
-        asset = env.scene[asset_cfg.name]
-        contact_sensor: ContactSensor = env.scene[sensor_name]
-        command = env.command_manager.get_command(command_name)
-        assert command is not None
-        foot_heights = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
-        air_time = contact_sensor.data.current_air_time[:, asset_cfg.body_ids]
-        in_air = air_time > 0
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         sensor_name: str,
+#         target_height: float,
+#         command_name: str,
+#         command_threshold: float,
+#         asset_cfg: SceneEntityCfg,
+#     ) -> torch.Tensor:
+#         asset = env.scene[asset_cfg.name]
+#         contact_sensor: ContactSensor = env.scene[sensor_name]
+#         command = env.command_manager.get_command(command_name)
+#         assert command is not None
+#         foot_heights = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
+#         air_time = contact_sensor.data.current_air_time[:, asset_cfg.body_ids]
+#         in_air = air_time > 0
 
-        self.peak_heights = torch.where(
-            in_air,
-            torch.maximum(self.peak_heights, foot_heights),
-            self.peak_heights,
-        )
-        first_contact = contact_sensor.compute_first_contact(dt=self.step_dt)[:, asset_cfg.body_ids]
-        linear_norm = torch.norm(command[:, :2], dim=1)
-        angular_norm = torch.abs(command[:, 2])
-        total_command = linear_norm + angular_norm
-        active = (total_command > command_threshold).float()
-        error = self.peak_heights / target_height - 1.0
-        cost = torch.sum(torch.square(error) * first_contact.float(), dim=1) * active
-        num_landings = torch.sum(first_contact.float())
-        peak_heights_at_landing = self.peak_heights * first_contact.float()
-        mean_peak_height = torch.sum(peak_heights_at_landing) / torch.clamp(
-        num_landings, min=1
-        )
-        env.extras["log"]["Metrics/peak_height_mean"] = mean_peak_height
-        self.peak_heights = torch.where(
-            first_contact,
-            torch.zeros_like(self.peak_heights),
-            self.peak_heights,
-        )
-        return cost
+#         self.peak_heights = torch.where(
+#             in_air,
+#             torch.maximum(self.peak_heights, foot_heights),
+#             self.peak_heights,
+#         )
+#         first_contact = contact_sensor.compute_first_contact(dt=self.step_dt)[:, asset_cfg.body_ids]
+#         linear_norm = torch.norm(command[:, :2], dim=1)
+#         angular_norm = torch.abs(command[:, 2])
+#         total_command = linear_norm + angular_norm
+#         active = (total_command > command_threshold).float()
+#         error = self.peak_heights / target_height - 1.0
+#         cost = torch.sum(torch.square(error) * first_contact.float(), dim=1) * active
+#         num_landings = torch.sum(first_contact.float())
+#         peak_heights_at_landing = self.peak_heights * first_contact.float()
+#         mean_peak_height = torch.sum(peak_heights_at_landing) / torch.clamp(
+#         num_landings, min=1
+#         )
+#         env.extras["log"]["Metrics/peak_height_mean"] = mean_peak_height
+#         self.peak_heights = torch.where(
+#             first_contact,
+#             torch.zeros_like(self.peak_heights),
+#             self.peak_heights,
+#         )
+#         return cost
 
 def soft_landing(
     env: ManagerBasedRLEnv,
@@ -251,7 +251,10 @@ def create_stance_mask(phase: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]
 
 
 def reward_feet_contact_number(
-    env, sensor_cfg: SceneEntityCfg, pos_rw: float, neg_rw: float
+    env, 
+    sensor_cfg: SceneEntityCfg, 
+    pos_rw: float, 
+    neg_rw: float
 ) -> torch.Tensor:
     """
     Calculates a reward based on the number of feet contacts aligning with the gait phase.
@@ -264,6 +267,25 @@ def reward_feet_contact_number(
         .max(dim=1)[0]
         > 1.0
     )
+    # print("contact", contacts.shape, contacts)
+    phase = env.get_phase()
+    stance_mask, mask_2 = create_stance_mask(phase)
+
+    reward = torch.where(contacts == stance_mask, pos_rw, neg_rw)
+    return torch.mean(reward, dim=1)
+
+def reward_feet_contact_number_soft(
+    env, 
+    action_term_name: str,
+    pos_rw: float, 
+    neg_rw: float
+) -> torch.Tensor:
+    """
+    Calculates a reward based on the number of feet contacts aligning with the gait phase.
+    Rewards or penalizes depending on whether the foot contact matches the expected gait phase.
+    """
+    contact_solver = env.action_manager.get_term(action_term_name).contact_solver
+    contacts = contact_solver.data.net_forces_w_history[:, :, :, :].norm(dim=-1).max(dim=1)[0] > 5.0
     # print("contact", contacts.shape, contacts)
     phase = env.get_phase()
     stance_mask, mask_2 = create_stance_mask(phase)

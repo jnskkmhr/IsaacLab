@@ -109,6 +109,98 @@ class PoppySeedCPCfg(MaterialCfg):
 
 
 """
+3D RFT material parameters.
+"""
+        
+@configclass
+class Material3DRFTCfg:
+    """
+    Material parameters for 3D RFT soft contact model.
+    See https://www.pnas.org/doi/10.1073/pnas.2214017120 supplementary material S3. 
+
+    c1^k, c2^k, c3^k are the Fourier coefficients for the resistive force per unit depth.
+    stiffness: ground stiffness (N/m)
+    static_friction_coef: static friction coefficient
+    dynamic_friction_coef: dynamic friction coefficient
+    rho_c: critical media density (effective media density = packing fraction * grain density)
+    mu_int: media internal friction coefficient
+    """
+    # c1^k
+    c1_1: float = 0.00212
+    c1_2: float = -0.02320
+    c1_3: float = -0.20890
+    c1_4: float = -0.43083
+    c1_5: float = -0.00259
+    c1_6: float = 0.48872
+    c1_7: float = -0.00415
+    c1_8: float = 0.07204
+    c1_9: float = -0.02750
+    c1_10: float = -0.08772
+    c1_11: float = 0.01992
+    c1_12: float = -0.45961
+    c1_13: float = 0.40799
+    c1_14: float = -0.10107
+    c1_15: float = -0.06576
+    c1_16: float = 0.05664
+    c1_17: float = -0.09269
+    c1_18: float = 0.01892
+    c1_19: float = 0.01033
+    c1_20: float = 0.15120
+
+    # c2^k
+    c2_1: float = -0.06796
+    c2_2: float = -0.10941
+    c2_3: float = 0.04725
+    c2_4: float = -0.06914
+    c2_5: float = -0.05835
+    c2_6: float = -0.65880
+    c2_7: float = -0.11985
+    c2_8: float = -0.25739
+    c2_9: float = -0.26834
+    c2_10: float = 0.02692
+    c2_11: float = -0.00736
+    c2_12: float = 0.63758
+    c2_13: float = 0.08997
+    c2_14: float = 0.21069
+    c2_15: float = 0.04748
+    c2_16: float = 0.20406
+    c2_17: float = 0.18519
+    c2_18: float = 0.04934
+    c2_19: float = 0.13527
+    c2_20: float = -0.33207
+
+    # c3^k
+    c3_1: float = -0.02634
+    c3_2: float = -0.03436
+    c3_3: float = 0.45256
+    c3_4: float = 0.00835
+    c3_5: float = 0.02553
+    c3_6: float = -1.31290
+    c3_7: float = -0.05532
+    c3_8: float = 0.06790
+    c3_9: float = -0.16404
+    c3_10: float = 0.02287
+    c3_11: float = 0.02927
+    c3_12: float = 0.95406
+    c3_13: float = -0.00131
+    c3_14: float = -0.11028
+    c3_15: float = 0.01487
+    c3_16: float = -0.20770
+    c3_17: float = 0.10911
+    c3_18: float = -0.04097
+    c3_19: float = 0.07881
+    c3_20: float = -0.27519
+
+    stiffness: float = 1.0
+    static_friction_coef: float = 1.0
+    dynamic_friction_coef: float = 0.2
+
+    # 3D RFT media specific properties
+    rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
+    mu_int: float = 0.2 # media internal friction coefficient
+
+
+"""
 Intruder geometry configuration.
 """
 
@@ -118,10 +210,10 @@ class IntruderGeometryCfg:
     Intruder surface is approximated as rectangle.
     contact_edge_*: tuple of lower and upper bounds of corner from intruder link origin.
     """
-    contact_edge_x: Tuple[float, float] = (-0.1021, 0.1228) # length in x direction (m)
-    contact_edge_y: Tuple[float, float] = (-0.04793, 0.04793) # length in y direction (m)
-    contact_edge_z: Tuple[float, float] = (-0.0305, 0.0) # length in z direction (m)
-    num_contact_points:int = 20*20
+    contact_edge_x: Tuple[float, float] = MISSING # type: ignore # length in x direction (m)
+    contact_edge_y: Tuple[float, float] = MISSING # type: ignore # length in y direction (m)
+    contact_edge_z: Tuple[float, float] = MISSING # type: ignore # length in z direction (m)
+    num_contact_points:int = 10*10
 
 """
 2D RFT with dynamic inertial modification (DRFT) + exponential moving average filtering.
@@ -135,6 +227,7 @@ class RFT_2D:
                  dt:float, 
                  history_length: int = 3,
                  max_terrain_level: int = 10,
+                 enable_ema_filter: bool = True,
                  material_cfg: MaterialCfg=PoppySeedCPCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
                  ):
@@ -161,6 +254,7 @@ class RFT_2D:
         self.max_terrain_level = max_terrain_level
         self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
+        self.enable_ema_filter = enable_ema_filter
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
@@ -340,7 +434,7 @@ class RFT_2D:
             torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
             torch.clip(self.soft_level[env_ids], 0),
         )
-        self.stiffness = self.max_terrain_level - self.soft_level
+        self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
 
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """
@@ -506,17 +600,21 @@ class RFT_2D:
         Returns:
             force_normal: normal force in global frame. (num_envs, num_bodies*num_contact_points, 3)
         """
+        force_normal = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+
         dA = self.surface_area/self.num_contact_points
         depth = -foot_pos[:, :, -1]
         is_contact = depth > 0 # apply resistive force only when foot is penetrating
         
         alpha_x, alpha_z = self._compute_elementary_force(beta, gamma) # get RFT force
         self.force_gm = self.stiffness[:, None] * alpha_z * depth * dA * is_contact * (1e6) #m^3 to cm^3 since alpha is N/cm^3
-        self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
-        
-        force_normal = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
-        force_normal[:, :, -1] = self.force_ema
-        
+
+        if self.enable_ema_filter:
+            self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
+            force_normal[:, :, -1] = self.force_ema
+        else:
+            force_normal[:, :, -1] = self.force_gm
+
         # add dynamic inertial term from DRFT
         vn = foot_velocity[:, :, 2]
         force_normal[:, :, 2] = force_normal[:, :, 2] + is_contact * self.lam.unsqueeze(1) * self.rho.unsqueeze(1) * vn**2
@@ -620,97 +718,9 @@ class RFT_2D:
         self.tau_r[env_ids] = 0.0
         self.contact_point_lin_vel_prev[env_ids] = 0.0
 
-
 """
-3D RFT material parameters.
+3D RFT soft contact model.
 """
-        
-@configclass
-class Material3DRFTCfg:
-    """
-    Material parameters for 3D RFT soft contact model.
-    See https://www.pnas.org/doi/10.1073/pnas.2214017120 supplementary material S3. 
-
-    c1^k, c2^k, c3^k are the Fourier coefficients for the resistive force per unit depth.
-    stiffness: ground stiffness (N/m)
-    static_friction_coef: static friction coefficient
-    dynamic_friction_coef: dynamic friction coefficient
-    rho_c: critical media density (effective media density = packing fraction * grain density)
-    mu_int: media internal friction coefficient
-    """
-    # c1^k
-    c1_1: float = 0.00212
-    c1_2: float = -0.02320
-    c1_3: float = -0.20890
-    c1_4: float = -0.43083
-    c1_5: float = -0.00259
-    c1_6: float = 0.48872
-    c1_7: float = -0.00415
-    c1_8: float = 0.07204
-    c1_9: float = -0.02750
-    c1_10: float = -0.08772
-    c1_11: float = 0.01992
-    c1_12: float = -0.45961
-    c1_13: float = 0.40799
-    c1_14: float = -0.10107
-    c1_15: float = -0.06576
-    c1_16: float = 0.05664
-    c1_17: float = -0.09269
-    c1_18: float = 0.01892
-    c1_19: float = 0.01033
-    c1_20: float = 0.15120
-
-    # c2^k
-    c2_1: float = -0.06796
-    c2_2: float = -0.10941
-    c2_3: float = 0.04725
-    c2_4: float = -0.06914
-    c2_5: float = -0.05835
-    c2_6: float = -0.65880
-    c2_7: float = -0.11985
-    c2_8: float = -0.25739
-    c2_9: float = -0.26834
-    c2_10: float = 0.02692
-    c2_11: float = -0.00736
-    c2_12: float = 0.63758
-    c2_13: float = 0.08997
-    c2_14: float = 0.21069
-    c2_15: float = 0.04748
-    c2_16: float = 0.20406
-    c2_17: float = 0.18519
-    c2_18: float = 0.04934
-    c2_19: float = 0.13527
-    c2_20: float = -0.33207
-
-    # c3^k
-    c3_1: float = -0.02634
-    c3_2: float = -0.03436
-    c3_3: float = 0.45256
-    c3_4: float = 0.00835
-    c3_5: float = 0.02553
-    c3_6: float = -1.31290
-    c3_7: float = -0.05532
-    c3_8: float = 0.06790
-    c3_9: float = -0.16404
-    c3_10: float = 0.02287
-    c3_11: float = 0.02927
-    c3_12: float = 0.95406
-    c3_13: float = -0.00131
-    c3_14: float = -0.11028
-    c3_15: float = 0.01487
-    c3_16: float = -0.20770
-    c3_17: float = 0.10911
-    c3_18: float = -0.04097
-    c3_19: float = 0.07881
-    c3_20: float = -0.27519
-
-    stiffness: float = 1.0
-    static_friction_coef: float = 1.0
-    dynamic_friction_coef: float = 0.5
-
-    # 3D RFT media specific properties
-    rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
-    mu_int: float = 0.3 # media internal friction coefficient
         
 class RFT_3D:
     def __init__(self, 
@@ -720,6 +730,7 @@ class RFT_3D:
                  dt:float, 
                  history_length: int = 3,
                  max_terrain_level: int = 1,
+                 enable_ema_filter: bool = True,
                  material_cfg: Material3DRFTCfg=Material3DRFTCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
                  )->None:
@@ -744,8 +755,9 @@ class RFT_3D:
         self.device = device
         self.dt = dt
         self.max_terrain_level = max_terrain_level
-        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+        self.c_r = 100/(1/self.dt) # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
+        self.enable_ema_filter = enable_ema_filter
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
@@ -764,6 +776,9 @@ class RFT_3D:
         print(f"Number of bodies per env: {self.num_bodies}")
         print(f"Number of contact points per body: {self.num_contact_points}")
         print(f"Contact surface area per body: {self.surface_area} m^2")
+        print(f"mu int: {self.cfg.mu_int}")
+        print(f"rho c: {self.cfg.rho_c} kg/m^3")
+        print(f"mu_surf: {self.cfg.dynamic_friction_coef}")
         print("-"*40)
     
     """
@@ -808,6 +823,8 @@ class RFT_3D:
         self.contact_torque = torch.zeros((self.num_envs, self.num_bodies, 3), device=self.device)
         
         # cache for EMA filtering
+        self.alpha_unfiltered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
+        self.alpha_filtered = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
         self.force_gm = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.force_ema = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
@@ -924,7 +941,7 @@ class RFT_3D:
             torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
             torch.clip(self.soft_level[env_ids], 0),
         )
-        self.stiffness = self.max_terrain_level - self.soft_level
+        self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
 
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """
@@ -941,7 +958,7 @@ class RFT_3D:
 
     
     """
-    contact data process.
+    helper functions.
     """
     
     def _update_data(self, env_ids:torch.Tensor)->None:
@@ -986,69 +1003,7 @@ class RFT_3D:
         self._data.current_contact_time[env_ids] = torch.where( # type: ignore
             is_contact, self._data.current_contact_time[env_ids] + elapsed_time.unsqueeze(-1), 0.0 # type: ignore
         )
-
-    def compute_first_contact(self, dt: float, abs_tol: float = 1.0e-8) -> torch.Tensor:
-        """Checks if bodies that have established contact within the last :attr:`dt` seconds.
-
-        This function checks if the bodies have established contact within the last :attr:`dt` seconds
-        by comparing the current contact time with the given time period. If the contact time is less
-        than the given time period, then the bodies are considered to be in contact.
-
-        Note:
-            The function assumes that :attr:`dt` is a factor of the sensor update time-step. In other
-            words :math:`dt / dt_sensor = n`, where :math:`n` is a natural number. This is always true
-            if the sensor is updated by the physics or the environment stepping time-step and the sensor
-            is read by the environment stepping time-step.
-
-        Args:
-            dt: The time period since the contact was established.
-            abs_tol: The absolute tolerance for the comparison.
-
-        Returns:
-            A boolean tensor indicating the bodies that have established contact within the last
-            :attr:`dt` seconds. Shape is (N, B), where N is the number of sensors and B is the
-            number of bodies in each sensor.
-
-        Raises:
-            RuntimeError: If the sensor is not configured to track contact time.
-        """
-        # check if the bodies are in contact
-        currently_in_contact = self._data.current_contact_time > 0.0 # type: ignore
-        less_than_dt_in_contact = self._data.current_contact_time < (dt + abs_tol) # type: ignore
-        return currently_in_contact * less_than_dt_in_contact
-
-    def compute_first_air(self, dt: float, abs_tol: float = 1.0e-8) -> torch.Tensor:
-        """Checks if bodies that have broken contact within the last :attr:`dt` seconds.
-
-        This function checks if the bodies have broken contact within the last :attr:`dt` seconds
-        by comparing the current air time with the given time period. If the air time is less
-        than the given time period, then the bodies are considered to not be in contact.
-
-        Note:
-            It assumes that :attr:`dt` is a factor of the sensor update time-step. In other words,
-            :math:`dt / dt_sensor = n`, where :math:`n` is a natural number. This is always true if
-            the sensor is updated by the physics or the environment stepping time-step and the sensor
-            is read by the environment stepping time-step.
-
-        Args:
-            dt: The time period since the contract is broken.
-            abs_tol: The absolute tolerance for the comparison.
-
-        Returns:
-            A boolean tensor indicating the bodies that have broken contact within the last :attr:`dt` seconds.
-            Shape is (N, B), where N is the number of sensors and B is the number of bodies in each sensor.
-
-        Raises:
-            RuntimeError: If the sensor is not configured to track contact time.
-        """
-        # check if the sensor is configured to track contact time
-        currently_detached = self._data.current_air_time > 0.0 # type: ignore
-        less_than_dt_detached = self._data.current_air_time < (dt + abs_tol) # type: ignore
-        return currently_detached * less_than_dt_detached
-    
-    """
-    helper functions.
-    """
+        
         
     def _eval_contacts(self)->None:
         """
@@ -1204,23 +1159,27 @@ class RFT_3D:
         alpha_tan = alpha - alpha_n # tangential component (num_envs, num_bodies*num_contact_points, 3)
         alpha_tan_norm = torch.norm(alpha_tan, dim=-1) # (num_envs, num_bodies*num_contact_points)
 
-        # NOTE: optional EMA filter
-        # self.force_gm = alpha_n_norm.clone()
-        # self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
-        # alpha_n_norm = self.force_ema.clone()
-
         # friction cone check
         cone_coef = torch.minimum(torch.ones_like(alpha_tan_norm), 
-                                  (self.dynamic_friction_coef[:, None] * alpha_n_norm) / (alpha_tan_norm + 1e-6)).unsqueeze(-1)
+                                  (self.static_friction_coef[:, None] * alpha_n_norm) / (alpha_tan_norm + 1e-6)).unsqueeze(-1)
         alpha = alpha_n + cone_coef * alpha_tan
 
+        # NOTE: optional EMA filter
+        if self.enable_ema_filter:
+            self.alpha_unfiltered = alpha.clone()
+            self._ema_filtering(foot_velocity, foot_velocity_prev, depth)
+            alpha = self.alpha_filtered.clone()
+
         # compute force by mulitplying depth, area, stiffness
-        force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] * intrusion_mask[:, :, None]
+        # force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] * intrusion_mask[:, :, None]
+        force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] # more consistent to original paper
         
         # NOTE: orthogonal base is {x, y, z} here.
-        force = force_vec[:, :, 0:1]* self.r_dir.reshape(self.num_envs, -1, 3) + \
+        kd = 0.0
+        z_damp = kd * foot_velocity[:, :, 2:3] * is_contact[:, :, None]
+        force = force_vec[:, :, 0:1] * self.r_dir.reshape(self.num_envs, -1, 3) + \
                 force_vec[:, :, 1:2] * self.t_dir.reshape(self.num_envs, -1, 3) * sign_fy.unsqueeze(-1) + \
-                force_vec[:, :, 2:3] * self.z_dir.reshape(self.num_envs, -1, 3)
+                (force_vec[:, :, 2:3] - z_damp) * self.z_dir.reshape(self.num_envs, -1, 3)
 
         return force
     
@@ -1272,16 +1231,18 @@ class RFT_3D:
             depth: contact point penetration depth. (num_envs, num_bodies*num_contact_points)
         """
         coef = 0.8 # smoothing coefficient
-        increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
+        increment_mask = (velocity * velocity_prev).sum(dim=-1) < 0
+        # increment_mask = velocity[:,:, -1]*velocity_prev[:, :, -1] < 0
         tau_r_boundary = self.tau_r < 1
         depth_mask = depth > 0
         mask = increment_mask & tau_r_boundary
         self.tau_r[mask] += self.c_r
         self.tau_r[~depth_mask] = 0.0
-        
-        self.force_ema[depth_mask] = (1-coef*self.tau_r[depth_mask])*self.force_gm[depth_mask] + coef*self.tau_r[depth_mask]*self.force_ema[depth_mask]
-        self.force_ema[~depth_mask] = 0.0
-        
+
+        self.alpha_filtered[depth_mask] = (1-coef*self.tau_r[depth_mask]).unsqueeze(-1) * self.alpha_unfiltered[depth_mask] + \
+              coef * self.tau_r[depth_mask].unsqueeze(-1) * self.alpha_filtered[depth_mask]
+        self.alpha_filtered[~depth_mask] = 0.0
+
     """
     reset.
     """
@@ -1292,8 +1253,8 @@ class RFT_3D:
         Args:
             env_ids: tensor of env ids to reset
         """
-        self.force_gm[env_ids] = 0.0
-        self.force_ema[env_ids] = 0.0
+        self.alpha_filtered[env_ids] = 0.0
+        self.alpha_unfiltered[env_ids] = 0.0
         self.tau_r[env_ids] = 0.0
         self.contact_point_lin_vel_prev[env_ids] = 0.0
 

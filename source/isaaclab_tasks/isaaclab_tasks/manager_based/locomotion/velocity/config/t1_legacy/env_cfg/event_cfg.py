@@ -91,7 +91,7 @@ class T1EventCfg:
         func=t1_mdp.randomize_terrain_friction, # type: ignore
         mode="reset",
         params={
-            "friction_range": (0.1, 0.6),
+            "friction_range": (0.2, 0.9),
             "contact_solver_name": "physics_callback",
         },
     )

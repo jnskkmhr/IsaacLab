@@ -11,8 +11,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
 import isaaclab.envs.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_legacy.mdp as T1_mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_legacy.mdp as t1_mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
 ##

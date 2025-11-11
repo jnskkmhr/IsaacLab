@@ -55,9 +55,9 @@ class T1FlatPPORunnerCfg(T1RoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.max_iterations = 4000
+        self.max_iterations = 5000
         self.policy.actor_hidden_dims = [256, 128, 128]
         self.policy.critic_hidden_dims = [256, 128, 128]
-        self.wandb_project = "t1_flat"
-        self.experiment_name = "t1_flat"
-        self.run_name = "t1_flat"
+        self.wandb_project = "t1_flat_soft"
+        self.experiment_name = "t1_flat_soft"
+        self.run_name = "t1_flat_soft"

@@ -15,7 +15,7 @@ import isaaclab.utils.string as string_utils
 from isaaclab.assets.articulation import Articulation
 from isaaclab.managers.action_manager import ActionTerm
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp import (
+from isaaclab_tasks.manager_based.soft_contact.soft_contact_model import (
     PoppySeedCPCfg, PoppySeedLPCfg, RFT_2D, Material3DRFTCfg, RFT_3D
 )
 
@@ -66,6 +66,8 @@ class PhysicsCallbackAction(ActionTerm):
                 device=self.device, 
                 dt=env.physics_dt,
                 max_terrain_level=self.cfg.max_terrain_level,
+                enable_ema_filter=self.cfg.enable_ema_filter,
+                intruder_cfg=self.cfg.intruder_geometry_cfg,
                 )
         elif self.cfg.backend == "3D":
             material_cfg = Material3DRFTCfg()
@@ -77,6 +79,8 @@ class PhysicsCallbackAction(ActionTerm):
                 device=self.device, 
                 dt=env.physics_dt,
                 max_terrain_level=self.cfg.max_terrain_level,
+                enable_ema_filter=self.cfg.enable_ema_filter,
+                intruder_cfg=self.cfg.intruder_geometry_cfg,
                 )
         else:
             raise ValueError(f"Unsupported RFT backend: {self.cfg.backend}")
