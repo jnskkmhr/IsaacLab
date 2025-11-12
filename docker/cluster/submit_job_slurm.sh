@@ -11,7 +11,7 @@ cat <<EOT > job.sh
 #SBATCH -N1
 #SBATCH -qinferno
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=zgu78@gatech.edu
+#SBATCH --mail-user=jkamohara3@gatech.edu
 #SBATCH --job-name="training-$(date +"%Y-%m-%dT%H:%M")"
 
 # Pass the container profile first to run_singularity.sh, then all arguments intended for the executed script
