@@ -33,7 +33,6 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
 
         # # no IsaacLab terrain curriculum
         # self.curriculum.terrain_levels = None
-        # self.curriculum.terrain_stiffness = None
         
         # no height scan
         self.scene.height_scanner = None

@@ -86,7 +86,7 @@ def foot_pos_w(
     quat = pose[..., 3:7] # (num_envs, num_bodies, 4)
     rot = math_utils.matrix_from_quat(quat) # (num_envs, num_bodies, 3, 3)
 
-    local_pos = torch.tensor([0.0, 0.0, -0.039], device=pos.device).reshape(1, 1, 3) # (1, 1, 3)
+    local_pos = torch.tensor([0.0, 0.0, -0.0305], device=pos.device).reshape(1, 1, 3) # (1, 1, 3)
     pos_foot = pos + (rot @ local_pos.unsqueeze(-1)).squeeze(-1) # (num_envs, num_bodies, 3)
 
     return pos_foot.reshape(env.num_envs, -1)

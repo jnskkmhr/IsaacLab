@@ -79,11 +79,11 @@ class T1EventCfg:
     )
 
     reset_robot_joints = EventTerm(
-        func=t1_mdp.reset_joints_by_scale, # type: ignore
+        # func=t1_mdp.reset_joints_by_scale, # type: ignore
+        func=mdp.reset_joints_by_scale, # type: ignore
         # func=t1_mdp.reset_joints_by_offset, # type: ignore
         mode="reset",
         params={
-            # "position_range": (0.5, 1.5),
             "position_range": (1.0, 1.0),
             "velocity_range": (0.0, 0.0),
         },

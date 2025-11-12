@@ -154,11 +154,22 @@ class T1EventsCfg:
         },
     )
 
+    # randomize terrain friction
     randomize_friction = EventTerm(
         func=t1_mdp.randomize_terrain_friction, # type: ignore
         mode="reset",
         params={
             "friction_range": (0.1, 0.6),
+            "contact_solver_name": "physics_callback",
+        },
+    )
+
+    # randomize terrain stiffness
+    randomize_stiffness = EventTerm(
+        func=g1_mdp.randomize_terrain_stiffness, # type: ignore
+        mode="reset",
+        params={
+            "stiffness_range": (1.0, 4.5),
             "contact_solver_name": "physics_callback",
         },
     )

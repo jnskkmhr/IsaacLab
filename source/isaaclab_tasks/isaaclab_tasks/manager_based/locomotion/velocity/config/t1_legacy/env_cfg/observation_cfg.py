@@ -84,20 +84,21 @@ class T1ObservationsCfg:
                 "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot_link")
             },
         )
-        foot_air_time = ObsTerm(
-            func=t1_mdp.foot_air_time,
-            params={
-                "asset_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link")
-            },
-        )
-        foot_contact = ObsTerm(
-            func=t1_mdp.foot_contact,
-            params={"asset_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link")},
-        )
-        foot_contact_forces = ObsTerm(
-            func=t1_mdp.foot_contact_forces,
-            params={"asset_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link")},
-        )
+        
+        # foot_air_time = ObsTerm(
+        #     func=t1_mdp.foot_air_time,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link")
+        #     },
+        # )
+        # foot_contact = ObsTerm(
+        #     func=t1_mdp.foot_contact,
+        #     params={"asset_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link")},
+        # )
+        # foot_contact_forces = ObsTerm(
+        #     func=t1_mdp.foot_contact_forces,
+        #     params={"asset_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot_link")},
+        # )
 
         root_quat_w = ObsTerm(func=mdp.root_quat_w) # type: ignore
 

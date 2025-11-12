@@ -85,25 +85,25 @@ class T1RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_Hip_Yaw", ".*_Hip_Roll"])},
     )
     
-    # joint_deviation_arms = RewTerm(
-    #     func=mdp.joint_deviation_l1, # type: ignore
-    #     # weight=-0.35,
-    #     weight=-0.5,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             joint_names=[
-    #                 ".*_Shoulder_Pitch",
-    #                 ".*_Shoulder_Roll",
-    #                 ".*_Elbow_Pitch",
-    #                 ".*_Elbow_Yaw",
-    #                 ".*_Wrist_Pitch",
-    #                 ".*_Wrist_Yaw",
-    #                 ".*_Hand_Roll",
-    #             ],
-    #         )
-    #     },
-    # )
+    joint_deviation_arms = RewTerm(
+        func=mdp.joint_deviation_l1, # type: ignore
+        # weight=-0.35,
+        weight=-0.5,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    ".*_Shoulder_Pitch",
+                    ".*_Shoulder_Roll",
+                    ".*_Elbow_Pitch",
+                    ".*_Elbow_Yaw",
+                    ".*_Wrist_Pitch",
+                    ".*_Wrist_Yaw",
+                    ".*_Hand_Roll",
+                ],
+            )
+        },
+    )
 
     ## -- regulate foot orientation 
     foot_roll = RewTerm(
