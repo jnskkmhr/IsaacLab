@@ -92,6 +92,11 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
     """
     Properties.
     """
+    
+    @property
+    def phase_dt(self) -> float:
+        """Phase time interval in seconds."""
+        return self.cfg.phase_dt
 
     @property
     def max_episode_length_s(self) -> float:
@@ -150,6 +155,20 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
     """
     Operations - MDP
     """
+    def get_phase(self) -> torch.Tensor:
+        """Get the phase of the environment."""
+
+        if not hasattr(self, "episode_length_buf") or self.episode_length_buf is None:
+            return torch.zeros(self.num_envs, device=self.device, dtype=torch.float)
+
+        phase = (
+            torch.fmod(
+                self.episode_length_buf.type(dtype=torch.float) * self.step_dt,
+                self.phase_dt,
+            )
+            / self.phase_dt
+        )
+        return phase
 
     def step(self, action: torch.Tensor) -> VecEnvStepReturn:
         """Execute one time-step of the environment's dynamics and reset terminated environments.
