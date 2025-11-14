@@ -269,7 +269,7 @@ class ContactCfg(ObsGroup):
     
 
     def __post_init__(self):
-        self.enable_corruption = True
+        self.enable_corruption = False
         self.concatenate_terms = True
 
 @configclass
@@ -285,7 +285,7 @@ class LoggingObsCfg(ObsGroup):
     
 
     def __post_init__(self):
-        self.enable_corruption = True
+        self.enable_corruption = False
         self.concatenate_terms = True
 
 @configclass
