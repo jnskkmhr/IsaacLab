@@ -137,9 +137,9 @@ class Material3DRFTCfg:
     ]
 
     # 3D RFT media specific properties
-    static_friction_coef: float = 1.0
-    dynamic_friction_coef: float = 0.2
-    mu_int: float = 0.2 # media internal friction coefficient
+    static_friction_coef: float = 1.0 # TODO remove
+    dynamic_friction_coef: float = 0.4
+    mu_int: float = 0.4 # media internal friction coefficient
     rho_c: float = 3000.0 # critical media density (effective media density = packing fraction * grain density)
 
 
@@ -594,7 +594,8 @@ class RFT_2D:
         # Coulomb friction (see https://github.com/newton-physics/newton/blob/main/newton/_src/solvers/semi_implicit/kernels_contact.py L537-L543)
         # ft = torch.minimum(self.dynamic_friction_coef * fn, kf * vt_norm) # (num_envs, num_bodies*num_contact_points)
         ft = self.kf.unsqueeze(1) * vt_norm
-        cone_violation = self.kf.unsqueeze(1) * vt_norm >= self.static_friction_coef * fn
+        # cone_violation = self.kf.unsqueeze(1) * vt_norm >= self.static_friction_coef * fn
+        cone_violation = self.kf.unsqueeze(1) * vt_norm >= self.dynamic_friction_coef * fn
         ft[cone_violation] = self.dynamic_friction_coef * fn[cone_violation]
         
         tangential_force = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points, 3), device=self.device)
@@ -879,26 +880,26 @@ class RFT_3D:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
         
-    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor)->None:
-        """
-        Update ground stiffness (N/m) for each env.
-        Implementation is similar to terrain curriculum used in terrain importer class.
-        This can be triggered by curriculum manager.
+    # def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor)->None:
+    #     """
+    #     Update ground stiffness (N/m) for each env.
+    #     Implementation is similar to terrain curriculum used in terrain importer class.
+    #     This can be triggered by curriculum manager.
         
-        Args:
-            env_ids: tensor of env ids to update
-            move_up: tensor of env ids to increase softness level (len(env_ids),)
-            move_down: tensor of env ids to decrease softness level (len(env_ids),)
-        """
-        self.soft_level[env_ids] += 1 * move_up - 1 * move_down
-        self.soft_level[env_ids] = torch.where(
-            self.soft_level[env_ids] >= self.max_terrain_level,
-            torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
-            torch.clip(self.soft_level[env_ids], 0),
-        )
-        self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
+    #     Args:
+    #         env_ids: tensor of env ids to update
+    #         move_up: tensor of env ids to increase softness level (len(env_ids),)
+    #         move_down: tensor of env ids to decrease softness level (len(env_ids),)
+    #     """
+    #     self.soft_level[env_ids] += 1 * move_up - 1 * move_down
+    #     self.soft_level[env_ids] = torch.where(
+    #         self.soft_level[env_ids] >= self.max_terrain_level,
+    #         torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
+    #         torch.clip(self.soft_level[env_ids], 0),
+    #     )
+    #     self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
     
-    def randomize_ground_stiffness(self, env_ids:torch.Tensor, stiffness:torch.Tensor)->None:
+    def randomize_ground_stiffness(self, env_ids:torch.Tensor, mu_int:torch.Tensor)->None:
         """
         Update ground stiffness (N/m) for each env.
         Implementation is similar to terrain curriculum used in terrain importer class.
@@ -906,9 +907,9 @@ class RFT_3D:
         
         Args:
             env_ids: tensor of env ids to update
-            stiffness: tensor of stiffness values (len(env_ids),)
+            mu_int: tensor of mu_int values (len(env_ids),)
         """
-        self.stiffness[env_ids] = stiffness
+        self.mu_int[env_ids] = mu_int
 
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """
@@ -1128,7 +1129,7 @@ class RFT_3D:
 
         # friction cone check
         cone_coef = torch.minimum(torch.ones_like(alpha_tan_norm), 
-                                  (self.static_friction_coef[:, None] * alpha_n_norm) / (alpha_tan_norm + 1e-6)).unsqueeze(-1)
+                                  (self.dynamic_friction_coef[:, None] * alpha_n_norm) / (alpha_tan_norm + 1e-6)).unsqueeze(-1)
         alpha = alpha_n + cone_coef * alpha_tan
 
         # NOTE: optional EMA filter
