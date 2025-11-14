@@ -27,7 +27,11 @@ CurriculumSoftTerrain = TerrainImporterCfg(
         use_cache=False,
         curriculum=True,
         sub_terrains={
-            "plane": terrain_gen.MeshPlaneTerrainCfg(
+            "hard_ground": terrain_gen.MeshPlaneTerrainCfg(
+                proportion=1.0, 
+                ground_height_range=(0.0, 0.0),
+                ),
+            "soft_ground": terrain_gen.MeshPlaneTerrainCfg(
                 proportion=1.0, 
                 ground_height_range=(0.0, -0.12),
                 ),

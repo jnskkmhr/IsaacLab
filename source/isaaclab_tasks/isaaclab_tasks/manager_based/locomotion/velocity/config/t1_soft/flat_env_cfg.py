@@ -45,9 +45,14 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         # post init of parent
         super().__post_init__()
 
+        # physics dt
+        self.sim.dt = 0.005 # 200Hz
+        self.decimation = 4 # 50Hz
+        self.sim.render_interval = self.decimation
+
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
-        self.scene.terrain.disable_collider = True  # soft terrain
+        # self.scene.terrain.disable_collider = True  # soft terrain
         # self.actions.physics_callback.disable = True # disable soft contact
 
         # make a smaller scene for play
@@ -90,8 +95,8 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
                 {"x": (-0.5, 0.5), 
                  "y": (-0.5, 0.5),
                 # "yaw": (-math.pi, math.pi),
-                # "yaw": (0, 0),
-                "yaw": (math.pi/2, math.pi/2),
+                "yaw": (0, 0),
+                # "yaw": (math.pi/2, math.pi/2),
                 # "yaw": (-math.pi/4, -math.pi/4),
                  },
             "velocity_range": {
