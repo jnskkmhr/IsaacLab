@@ -101,9 +101,8 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
         },
     )
     # apply collider properties
-    if not kwargs.get("disable_colllider", False):
-        collider_cfg = sim_utils.CollisionPropertiesCfg(collision_enabled=True)
-        sim_utils.define_collision_properties(prim.GetPrimPath(), collider_cfg)
+    collider_cfg = sim_utils.CollisionPropertiesCfg(collision_enabled=True)
+    sim_utils.define_collision_properties(prim.GetPrimPath(), collider_cfg)
     # add rgba color to the mesh primvars
     if mesh.visual.vertex_colors is not None:
         # obtain color from the mesh
