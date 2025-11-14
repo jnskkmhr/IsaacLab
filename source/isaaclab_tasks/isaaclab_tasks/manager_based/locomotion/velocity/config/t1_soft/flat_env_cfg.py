@@ -53,7 +53,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
         # self.scene.terrain.disable_collider = True  # soft terrain
-        # self.actions.physics_callback.disable = True # disable soft contact
+        self.actions.physics_callback.disable = True # disable soft contact
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -68,19 +68,24 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.curriculum.track_lin_vel = None
 
         # remove random events
+        self.events.add_base_mass = None
+        self.add_end_effector_mass = None
+        self.scale_actuator_gains = None
+        self.base_com = None
         self.events.base_external_force_torque = None
         self.events.push_robot = None
         self.events.randomize_friction = None
         self.events.randomize_stiffness = None
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         
         # random ang vel
         self.commands.base_velocity.heading_command = False
-        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
 
         # track specific yaw angle
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
@@ -94,8 +99,8 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             "pose_range": 
                 {"x": (-0.5, 0.5), 
                  "y": (-0.5, 0.5),
-                # "yaw": (-math.pi, math.pi),
-                "yaw": (0, 0),
+                "yaw": (-math.pi, math.pi),
+                # "yaw": (0, 0),
                 # "yaw": (math.pi/2, math.pi/2),
                 # "yaw": (-math.pi/4, -math.pi/4),
                  },

@@ -53,6 +53,10 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.observations.policy.enable_corruption = False
 
         # remove random pushing
+        self.events.add_base_mass = None
+        self.add_end_effector_mass = None
+        self.scale_actuator_gains = None
+        self.base_com = None
         self.events.base_external_force_torque = None
         self.events.push_robot = None
 
@@ -61,10 +65,11 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.curriculum.track_lin_vel = None
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         self.commands.base_velocity.heading_command = False
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         # self.commands.base_velocity.debug_vis = False
 
         # pose initialization
@@ -72,8 +77,8 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             "pose_range": 
                 {"x": (-0.5, 0.5), 
                  "y": (-0.5, 0.5),
-                # "yaw": (-math.pi, math.pi),
-                "yaw": (0, 0),
+                "yaw": (-math.pi, math.pi),
+                # "yaw": (0, 0),
                 # "yaw": (-math.pi/2, -math.pi/2),
                  },
             "velocity_range": {
