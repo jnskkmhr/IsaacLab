@@ -11,22 +11,18 @@ import isaaclab.envs.mdp as mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
 
 @configclass
-class T1TerminationsCfg:
+class G1TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     base_contact = DoneTerm(
         func=mdp.illegal_contact, 
-        params={"sensor_cfg": SceneEntityCfg(
-            "contact_forces",
-            body_names=[".*Trunk", ".*Hip.*", ".*Shank.*"]
-            ), 
-            "threshold": 1.0},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
     )
     base_too_low = DoneTerm(
-        func=vel_mdp.root_height_below_minimum_adaptive,
+        func=vel_mdp.root_height_below_minimum_adaptive, 
         params={
             "minimum_height": 0.5,
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
         },
     )

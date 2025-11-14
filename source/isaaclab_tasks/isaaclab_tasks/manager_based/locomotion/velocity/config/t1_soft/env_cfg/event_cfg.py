@@ -13,6 +13,7 @@ from isaaclab.utils import configclass
 
 import isaaclab.envs.mdp as mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp as t1_mdp
 
 
 @configclass
@@ -21,7 +22,7 @@ class T1EventsCfg:
 
     # startup
     physics_material = EventTerm(
-        func=mdp.randomize_rigid_body_material, 
+        func=mdp.randomize_rigid_body_material, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
@@ -33,7 +34,7 @@ class T1EventsCfg:
     )
 
     add_base_mass = EventTerm(
-        func=mdp.randomize_rigid_body_mass, 
+        func=mdp.randomize_rigid_body_mass, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="Trunk"),
@@ -43,7 +44,7 @@ class T1EventsCfg:
     )
 
     add_end_effector_mass = EventTerm(
-        func=mdp.randomize_rigid_body_mass, 
+        func=mdp.randomize_rigid_body_mass, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["left_hand_link", "right_hand_link"]),
@@ -53,7 +54,7 @@ class T1EventsCfg:
     )
 
     scale_actuator_gains = EventTerm(
-        func=mdp.randomize_actuator_gains, 
+        func=mdp.randomize_actuator_gains, # type: ignore
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg(
@@ -162,4 +163,24 @@ class T1EventsCfg:
         mode="interval",
         interval_range_s=(5.0, 10.0),
         params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
+    )
+
+    # randomize terrain friction
+    randomize_friction = EventTerm(
+        func=t1_mdp.randomize_terrain_friction, # type: ignore
+        mode="reset",
+        params={
+            "friction_range": (0.1, 1.0),
+            "contact_solver_name": "physics_callback",
+        },
+    )
+
+    # randomize terrain stiffness
+    randomize_stiffness = EventTerm(
+        func=t1_mdp.randomize_terrain_stiffness, # type: ignore
+        mode="reset",
+        params={
+            "stiffness_range": (0.2, 0.9),
+            "contact_solver_name": "physics_callback",
+        },
     )

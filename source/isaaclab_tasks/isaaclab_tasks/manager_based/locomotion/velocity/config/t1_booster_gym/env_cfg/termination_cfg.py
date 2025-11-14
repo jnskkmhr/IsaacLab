@@ -8,16 +8,15 @@ from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils import configclass
 
 import isaaclab.envs.mdp as mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_booster_gym.mdp as t1_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
 
 @configclass
 class T1TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    # TODO: somehow contact termination is triggered even if base is not in contact???
     base_contact = DoneTerm(
-        func=mdp.illegal_contact, # type: ignore
+        func=mdp.illegal_contact, 
         params={"sensor_cfg": SceneEntityCfg(
             "contact_forces",
             body_names=[".*Trunk", ".*Hip.*", ".*Shank.*"]
@@ -25,7 +24,7 @@ class T1TerminationsCfg:
             "threshold": 1.0},
     )
     base_too_low = DoneTerm(
-        func=t1_mdp.root_height_below_minimum_adaptive,  # type: ignore
+        func=vel_mdp.root_height_below_minimum_adaptive,
         params={
             "minimum_height": 0.5,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot_link"),
