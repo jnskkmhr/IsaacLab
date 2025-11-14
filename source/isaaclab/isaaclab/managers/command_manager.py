@@ -394,42 +394,6 @@ class CommandManager(ManagerBase):
         return self._terms[name]
 
     """
-    Operations - Term settings.
-    """
-
-    def get_term_cfg(self, term_name: str) -> CommandTermCfg:
-        """Gets the configuration for the specified term.
-
-        Args:
-            term_name: The name of the termination term.
-
-        Returns:
-            The configuration of the termination term.
-
-        Raises:
-            ValueError: If the term name is not found.
-        """
-        if term_name not in self._terms.keys():
-            raise ValueError(f"Termination term '{term_name}' not found.")
-        # return the configuration
-        return self._terms[term_name].cfg # type: ignore
-    
-    def set_term_cfg(self, term_name: str, cfg: CommandTermCfg):
-        """Sets the configuration of the specified term into the manager.
-
-        Args:
-            term_name: The name of the termination term.
-            cfg: The configuration for the termination term.
-
-        Raises:
-            ValueError: If the term name is not found.
-        """
-        if term_name not in self._terms.keys():
-            raise ValueError(f"Termination term '{term_name}' not found.")
-        # set the configuration
-        self._terms[term_name].cfg = cfg # type: ignore
-
-    """
     Helper functions.
     """
 

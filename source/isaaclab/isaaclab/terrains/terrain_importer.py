@@ -247,15 +247,8 @@ class TerrainImporter:
         self.terrain_prim_paths.append(prim_path)
 
         # import the mesh
-        # create_prim_from_mesh(
-        #     prim_path, mesh, visual_material=self.cfg.visual_material, physics_material=self.cfg.physics_material
-        # )
         create_prim_from_mesh(
-            prim_path, 
-            mesh, 
-            visual_material=self.cfg.visual_material, 
-            physics_material=self.cfg.physics_material, 
-            disable_colllider=self.cfg.disable_collider,
+            prim_path, mesh, visual_material=self.cfg.visual_material, physics_material=self.cfg.physics_material
         )
 
     def import_usd(self, name: str, usd_path: str):
