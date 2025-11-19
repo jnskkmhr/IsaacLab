@@ -14,7 +14,9 @@ from __future__ import annotations
 import torch
 from typing import TYPE_CHECKING
 
+import isaaclab.utils.math as math_utils
 from isaaclab.envs import mdp
+from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 from isaaclab.utils.math import quat_apply_inverse, yaw_quat
@@ -114,3 +116,10 @@ def stand_still_joint_deviation_l1(
     command = env.command_manager.get_command(command_name)
     # Penalize motion when command is nearly zero.
     return mdp.joint_deviation_l1(env, asset_cfg) * (torch.norm(command[:, :2], dim=1) < command_threshold)
+
+def body_orientation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_orientation = math_utils.quat_apply_inverse(
+        asset.data.body_quat_w[:, asset_cfg.body_ids[0], :], asset.data.GRAVITY_VEC_W
+    )
+    return torch.sum(torch.square(body_orientation[:, :2]), dim=1)

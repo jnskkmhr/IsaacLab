@@ -17,13 +17,14 @@ class T1CurriculumsCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=vel_mdp.terrain_levels_vel)
+    # terrain_levels_max = CurrTerm(func=vel_mdp.terrain_levels_vel_max)
 
     track_lin_vel = CurrTerm(
         func=t1_mdp.modify_reward_std,  # type: ignore
-        params={"term_name": "track_lin_vel_xy_exp", "std": 0.25, "num_steps": 10000 * 24}
+        params={"term_name": "track_lin_vel_xy_exp", "std": 0.25, "num_steps": 7000 * 24}
     )
 
     track_ang_vel = CurrTerm(
         func=t1_mdp.modify_reward_std,  # type: ignore
-        params={"term_name": "track_ang_vel_z_exp", "std": 0.25, "num_steps": 10000 * 24}
+        params={"term_name": "track_ang_vel_z_exp", "std": 0.25, "num_steps": 7000 * 24}
     )

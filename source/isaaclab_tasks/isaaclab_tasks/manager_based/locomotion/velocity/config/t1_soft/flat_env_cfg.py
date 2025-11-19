@@ -22,9 +22,9 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         super().__post_init__()
 
         # physics dt
-        # self.sim.dt = 0.005 # 200Hz
-        # self.decimation = 4 # 50Hz
-        # self.sim.render_interval = self.decimation
+        self.sim.dt = 0.005 # 200Hz
+        self.decimation = 4 # 50Hz
+        self.sim.render_interval = self.decimation
 
         # make curriculum soft terrain
         self.scene.terrain = vel_mdp.CurriculumSoftTerrain
@@ -52,8 +52,8 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
 
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
-        # self.scene.terrain.disable_collider = True  # soft terrain
-        self.actions.physics_callback.disable = True # disable soft contact
+        self.scene.terrain.disable_collider = True  # soft terrain
+        # self.actions.physics_callback.disable = True # disable soft contact
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -78,14 +78,15 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.events.randomize_stiffness = None
 
         # Commands
-        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
-        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        # self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
+        # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        # self.commands.base_velocity.heading_command = False
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
-        # random ang vel
-        self.commands.base_velocity.heading_command = False
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.heading_command = False
 
         # track specific yaw angle
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
@@ -101,7 +102,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
                  "y": (-0.5, 0.5),
                 "yaw": (-math.pi, math.pi),
                 # "yaw": (0, 0),
-                # "yaw": (math.pi/2, math.pi/2),
+                # "yaw": (-math.pi/2, -math.pi/2),
                 # "yaw": (-math.pi/4, -math.pi/4),
                  },
             "velocity_range": {

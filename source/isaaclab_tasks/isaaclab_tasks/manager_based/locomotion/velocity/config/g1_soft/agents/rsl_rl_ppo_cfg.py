@@ -21,6 +21,7 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",
+        # noise_std_type="log"
     )
     algorithm = RslRlPpoAlgorithmCfg(
         value_loss_coef=1.0,
@@ -48,7 +49,7 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        self.max_iterations = 5000
+        self.max_iterations = 10000
         self.wandb_project = "g1_flat_soft"
         self.experiment_name = "g1_flat_soft"
         self.run_name = "g1_flat_soft"

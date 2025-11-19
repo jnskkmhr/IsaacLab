@@ -25,6 +25,7 @@ from .env_cfg import (
     T1TerminationsCfg,
     T1CurriculumsCfg, 
     T1EventsCfg,
+    T1CommandsCfg, 
 )
 
 ##
@@ -42,6 +43,7 @@ class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     events: T1EventsCfg = T1EventsCfg()
     actions: T1ActionsCfg = T1ActionsCfg()
     curriculum: T1CurriculumsCfg = T1CurriculumsCfg()
+    commands: T1CommandsCfg = T1CommandsCfg()
 
     def __post_init__(self):
         # post init of parent
@@ -86,61 +88,10 @@ class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         }
         self.events.base_com = None
 
-        # Rewards
-        self.rewards.dof_torques_l2.params["asset_cfg"] = SceneEntityCfg(
-            "robot",
-            joint_names=[
-                ".*Hip.*",
-                ".*Knee.*",
-            ],
-        )
-        self.rewards.dof_acc_l2.params["asset_cfg"] = SceneEntityCfg(
-            "robot",
-            joint_names=[
-                ".*Hip.*",
-                ".*Knee.*",
-            ],
-        )
-#------------------------------------------------------------#
-        self.rewards.alive.weight = 10
-        self.rewards.termination_penalty.weight = 0.0
-        self.rewards.track_lin_vel_xy_exp.weight = 10
-        self.rewards.track_ang_vel_z_exp.weight = 5
-        self.rewards.base_height_l2.weight = -100
-        self.rewards.flat_orientation_exp.weight = 4.0
-#------------------------------------------------------------#
-        self.rewards.dof_torques_l2.weight = -2e-4
-        self.rewards.lin_vel_z_l2.weight = -2.0
-        self.rewards.ang_vel_xy_l2.weight = -1
-        self.rewards.dof_vel_l2.weight = -1e-4
-        self.rewards.dof_acc_l2.weight = -1.25e-7
-        self.rewards.base_acc_l2.weight = -1e-4
-        self.rewards.action_rate_l2.weight = -0.5
-        self.rewards.dof_pos_limits.weight = -3
-        self.rewards.dof_torque_limits.weight = -1.0
-#------------------------------------------------------------#
-        self.rewards.feet_swing.weight = 20
-        self.rewards.feet_roll.weight = -5.0
-        self.rewards.feet_pitch.weight = -5.0
-        self.rewards.feet_yaw_diff.weight = -1.0
-        self.rewards.feet_yaw_mean.weight = -1.0
-        self.rewards.foot_distance.weight = -1.0
-        self.rewards.feet_slide.weight = -1
-        self.rewards.feet_air_time.weight = 1.5
-        self.rewards.foot_clearance.weight = 1.0
-        self.rewards.joint_deviation_hip.weight = -1.0
-        self.rewards.joint_deviation_torso.weight = 0.0
-#------------------------------------------------------------#
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (-0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
-
-        # Curriculum
-        self.curriculum.track_lin_vel.params['std'] = 0.25
-        self.curriculum.track_ang_vel.params['std'] = 0.25
-        self.curriculum.track_lin_vel.params["num_steps"] = 7000 * 24
-        self.curriculum.track_ang_vel.params["num_steps"] = 7000 * 24
 
 
 
