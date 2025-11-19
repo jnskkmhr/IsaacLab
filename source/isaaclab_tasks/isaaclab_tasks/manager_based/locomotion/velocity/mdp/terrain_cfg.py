@@ -28,11 +28,11 @@ CurriculumSoftTerrain = TerrainImporterCfg(
         curriculum=True,
         sub_terrains={
             "hard_ground": terrain_gen.MeshPlaneTerrainCfg(
-                proportion=1.0, 
+                proportion=0.2, 
                 ground_height_range=(0.0, 0.0),
                 ),
             "soft_ground": terrain_gen.MeshPlaneTerrainCfg(
-                proportion=1.0, 
+                proportion=0.8, 
                 ground_height_range=(0.0, -0.12),
                 ),
         },
@@ -45,9 +45,6 @@ CurriculumSoftTerrain = TerrainImporterCfg(
         static_friction=0.5,
         dynamic_friction=0.5,
     ),
-    # visual_material=sim_utils.PreviewSurfaceCfg(
-    #     diffuse_color=(0.1, 0.1, 0.1),
-    # ),
     visual_material=sim_utils.MdlFileCfg(
             mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
             project_uvw=True,

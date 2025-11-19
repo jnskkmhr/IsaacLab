@@ -18,6 +18,11 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         # post init of parent
         super().__post_init__()
 
+        # physics dt
+        # self.sim.dt = 0.005 # 200Hz
+        # self.decimation = 4 # 50Hz
+        # self.sim.render_interval = self.decimation
+
         # make curriculum soft terrain
         self.scene.terrain = vel_mdp.CurriculumSoftTerrain
         

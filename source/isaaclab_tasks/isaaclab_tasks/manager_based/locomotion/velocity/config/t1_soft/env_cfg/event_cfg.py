@@ -128,7 +128,7 @@ class T1EventsCfg:
         },
     )
     reset_unactuated_joints = EventTerm(
-        func=vel_mdp.reset_joints_target_by_offset, # reset unactuated joints to default plus offset
+        func=vel_mdp.reset_joints_target_by_offset, # reset target position of unactuated joints to default plus offset
         mode="reset",
         params={
             "position_range": (0.0, 0.0),

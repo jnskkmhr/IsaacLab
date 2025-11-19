@@ -7,13 +7,14 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+import isaaclab.envs.mdp as mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import G1_MINIMAL_CFG  # isort: skip
+from isaaclab_assets import G1_MINIMAL_CFG  # type: ignore # isort: skip
 
 
 @configclass
@@ -22,15 +23,15 @@ class G1Rewards(RewardsCfg):
 
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
     track_lin_vel_xy_exp = RewTerm(
-        func=mdp.track_lin_vel_xy_yaw_frame_exp,
+        func=vel_mdp.track_lin_vel_xy_yaw_frame_exp,
         weight=1.0,
         params={"command_name": "base_velocity", "std": 0.5},
     )
     track_ang_vel_z_exp = RewTerm(
-        func=mdp.track_ang_vel_z_world_exp, weight=2.0, params={"command_name": "base_velocity", "std": 0.5}
+        func=vel_mdp.track_ang_vel_z_world_exp, weight=2.0, params={"command_name": "base_velocity", "std": 0.5}
     )
     feet_air_time = RewTerm(
-        func=mdp.feet_air_time_positive_biped,
+        func=vel_mdp.feet_air_time_positive_biped,
         weight=0.25,
         params={
             "command_name": "base_velocity",
@@ -39,7 +40,7 @@ class G1Rewards(RewardsCfg):
         },
     )
     feet_slide = RewTerm(
-        func=mdp.feet_slide,
+        func=vel_mdp.feet_slide,
         weight=-0.1,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),

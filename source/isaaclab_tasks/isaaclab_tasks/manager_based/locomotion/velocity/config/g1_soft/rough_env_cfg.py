@@ -40,6 +40,11 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         super().__post_init__()
 
+        # # physics dt
+        # self.sim.dt = 0.002 # 500 Hz
+        # self.decimation = 10 # 50 Hz
+        # self.sim.render_interval = self.decimation
+
         # Randomization
         self.events.push_robot = None
         self.events.add_base_mass = None

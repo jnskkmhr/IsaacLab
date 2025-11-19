@@ -58,3 +58,8 @@ class T1FlatPPORunnerCfg(T1RoughPPORunnerCfg):
         self.wandb_project = "t1_flat_soft"
         self.experiment_name = "t1_flat_soft"
         self.run_name = "t1_flat_soft"
+
+        # # rigid ground policy 
+        # self.wandb_project = "t1_flat_zh"
+        # self.experiment_name = "t1_flat_zh"
+        # self.run_name = "t1_flat_zh"

@@ -10,7 +10,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 from isaaclab.utils.noise import GaussianNoiseCfg as Gnoise
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+import isaaclab.envs.mdp as mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.config.t1_soft.mdp as t1_mdp
 
 @configclass
@@ -19,24 +19,24 @@ class PolicyCfg(ObsGroup):
 
     # observation terms (order preserved)
     clock = ObsTerm(
-        func=t1_mdp.clock, # type: ignore
+        func=t1_mdp.clock,
     )
     base_ang_vel = ObsTerm(
-        func=mdp.base_ang_vel, # type: ignore
+        func=mdp.base_ang_vel, 
         scale=1,
         noise=Gnoise(mean=0.0, std=0.15),
     )
     projected_gravity = ObsTerm(
-        func=mdp.projected_gravity, # type: ignore
+        func=mdp.projected_gravity, 
         noise=Gnoise(mean=0.0, std=0.075),
     )
     velocity_commands = ObsTerm(
-        func=mdp.generated_commands, # type: ignore
+        func=mdp.generated_commands, 
         scale=1,
         params={"command_name": "base_velocity"},
     )
     joint_pos = ObsTerm(
-        func=mdp.joint_pos, # type: ignore
+        func=mdp.joint_pos,
         scale=1,
         noise=Gnoise(mean=0.0, std=0.175),
         params={
@@ -80,7 +80,7 @@ class PolicyCfg(ObsGroup):
         },
     )
     joint_vel = ObsTerm(
-        func=mdp.joint_vel, # type: ignore
+        func=mdp.joint_vel, 
         scale=1,
         noise=Gnoise(mean=0.0, std=0.175),
         params={
@@ -123,7 +123,7 @@ class PolicyCfg(ObsGroup):
             )
         },
     )
-    actions = ObsTerm(func=mdp.last_action) # type: ignore
+    actions = ObsTerm(func=mdp.last_action) 
 
     def __post_init__(self):
         self.enable_corruption = True
@@ -135,16 +135,16 @@ class CriticCfg(ObsGroup):
     """Observations for critic group."""
 
     # observation terms (order preserved)
-    clock = ObsTerm(func=t1_mdp.clock) # type: ignore
-    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) # type: ignore
-    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) # type: ignore
-    projected_gravity = ObsTerm(func=mdp.projected_gravity) # type: ignore
+    clock = ObsTerm(func=t1_mdp.clock) 
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) 
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) 
+    projected_gravity = ObsTerm(func=mdp.projected_gravity) 
     velocity_commands = ObsTerm(
-        func=mdp.generated_commands, # type: ignore
+        func=mdp.generated_commands, 
         params={"command_name": "base_velocity"},
     )
     joint_pos = ObsTerm(
-        func=mdp.joint_pos, # type: ignore
+        func=mdp.joint_pos,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -187,7 +187,7 @@ class CriticCfg(ObsGroup):
         )
 
     joint_vel = ObsTerm(
-        func=mdp.joint_vel, # type: ignore
+        func=mdp.joint_vel,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -228,12 +228,12 @@ class CriticCfg(ObsGroup):
             )
         },
     )
-    actions = ObsTerm(func=mdp.last_action) # type: ignore
+    actions = ObsTerm(func=mdp.last_action) 
 
     # privileged observations
-    root_state_w = ObsTerm(func=t1_mdp.root_state_w) # type: ignore
-    root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w) # type: ignore
-    root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w) # type: ignore
+    root_state_w = ObsTerm(func=t1_mdp.root_state_w) 
+    root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w)
+    root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w) 
 
     def __post_init__(self):
         self.enable_corruption = True
@@ -248,22 +248,22 @@ class ContactCfg(ObsGroup):
     # observation terms (order preserved)
     
     # hard_contact_forces_lf = ObsTerm(
-    #     func=t1_mdp.foot_hard_contact_forces, # type: ignore
+    #     func=t1_mdp.foot_hard_contact_forces,
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces_LF", 
     #                                          )},
     # )
     # hard_contact_forces_rf = ObsTerm(
-    #     func=t1_mdp.foot_hard_contact_forces, # type: ignore
+    #     func=t1_mdp.foot_hard_contact_forces, 
     #     params={"sensor_cfg": SceneEntityCfg("contact_forces_RF", 
     #                                          )},
     # )
     
     soft_contact_forces = ObsTerm(
-        func=t1_mdp.soft_contact_forces, # type: ignore
+        func=t1_mdp.soft_contact_forces, 
         params={"action_term_name": "physics_callback"},
     )
     foot_pos = ObsTerm(
-            func=t1_mdp.foot_pos_w, # type: ignore
+            func=t1_mdp.foot_pos_w, 
             params={"asset_cfg": SceneEntityCfg("robot", body_names=".*foot_link")},
         )
     
@@ -276,10 +276,10 @@ class ContactCfg(ObsGroup):
 class LoggingObsCfg(ObsGroup):
     """Observations for policy group."""
 
-    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) # type: ignore
-    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) # type: ignore
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) 
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) 
     velocity_commands = ObsTerm(
-        func=mdp.generated_commands, # type: ignore
+        func=mdp.generated_commands,
         params={"command_name": "base_velocity"},
     )
     
