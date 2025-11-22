@@ -234,7 +234,7 @@ class G1RewardsCfg:
     joint_deviation_torso = RewTerm(
         func=mdp.joint_deviation_l1, 
         # weight=-0.2,
-        weight=-0.15,
+        weight=-0.1,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
     )
     joint_deviation_hip = RewTerm(
@@ -321,12 +321,6 @@ class G1RewardsCfg:
             "max_reward": 400,
         },
     )
-    # exclude from original code
-    # feet_stumble = RewTerm(
-    #     func=mdp.feet_stumble,
-    #     weight=-2.0,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=[".*ankle_roll.*"])},
-    # )
     
     # -- swing foot rewards
     # optional: encourage specific foot clearance value 

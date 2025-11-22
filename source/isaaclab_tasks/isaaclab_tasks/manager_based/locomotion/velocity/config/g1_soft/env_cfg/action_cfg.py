@@ -5,8 +5,7 @@
 
 from isaaclab.utils import configclass
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-# import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft_terrain.mdp as g1_mdp
+import isaaclab.envs.mdp as mdp
 from isaaclab_tasks.manager_based.soft_contact import IntruderGeometryCfg, PhysicsCallbackActionCfg
 
 @configclass    
@@ -22,10 +21,11 @@ class G1FootGeometryCfg(IntruderGeometryCfg):
 class G1ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg( # type: ignore
+    joint_pos = mdp.JointPositionActionCfg(
         asset_name="robot", 
         joint_names=[".*"], 
-        scale=0.5, 
+        scale=0.25, # leggedlab 
+        # scale=0.5, # mjlab
         use_default_offset=True, 
         ) 
     

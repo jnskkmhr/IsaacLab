@@ -26,6 +26,16 @@ if TYPE_CHECKING:
 
 
 """
+dof regularization penalties.
+"""
+
+def energy(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    reward = torch.norm(torch.abs(asset.data.applied_torque * asset.data.joint_vel), dim=-1)
+    return reward
+
+
+"""
 feet orientation penalties.
 """
 
@@ -117,41 +127,8 @@ def reward_feet_pitch(
     return torch.sum(torch.square(feet_pitch), dim=-1)
 
 """
-swing foot penalties
+gait
 """
-
-def foot_clearance_reward(
-    env: ManagerBasedRLEnv,
-    target_height: float,
-    std: float,
-    tanh_mult: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-    """
-    Reward the swinging feet for clearing a specified height off the ground
-    """
-    asset: RigidObject = env.scene[asset_cfg.name]
-    com_z = asset.data.root_pos_w[:, 2]
-    standing_position_com_z = asset.data.default_root_state[:, 2]
-    standing_height = com_z - standing_position_com_z
-    standing_position_toe_roll_z = 0.039  # recorded from the default position
-    offset = (standing_height + standing_position_toe_roll_z).unsqueeze(-1)
-
-    foot_z_target_error = torch.square(
-        (
-            asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
-            - (target_height + offset).repeat(1, 2)
-        ).clip(max=0.0)
-    )
-
-    # weighted by the velocity of the feet in the xy plane
-    foot_velocity_tanh = torch.tanh(
-        tanh_mult
-        * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2)
-    )
-    reward = foot_velocity_tanh * foot_z_target_error
-    return torch.exp(-torch.sum(reward, dim=1) / std)
-
 def reward_feet_swing(    
     env: ManagerBasedRLEnv,
     swing_period: float,
@@ -172,6 +149,128 @@ def reward_feet_swing(
     reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
 
     return reward
+
+def feet_gait(
+    env: ManagerBasedRLEnv,
+    period: float,
+    offset: list[float],
+    sensor_cfg: SceneEntityCfg,
+    threshold: float = 0.5,
+    cmd_threshold: float = 0.05,
+    command_name=None,
+) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    is_contact = contact_sensor.data.current_contact_time[:, sensor_cfg.body_ids] > 0
+
+    global_phase = ((env.episode_length_buf * env.step_dt) % period / period).unsqueeze(1)
+    phases = []
+    for offset_ in offset:
+        phase = (global_phase + offset_) % 1.0
+        phases.append(phase)
+    leg_phase = torch.cat(phases, dim=-1)
+
+    reward = torch.zeros(env.num_envs, dtype=torch.float, device=env.device)
+    for i in range(len(sensor_cfg.body_ids)):
+        is_stance = leg_phase[:, i] < threshold
+        reward += ~(is_stance ^ is_contact[:, i])
+
+    if command_name is not None:
+        cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
+        reward *= cmd_norm > cmd_threshold
+    return reward
+
+def fly(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
+    return torch.sum(is_contact, dim=-1) < 0.5
+
+"""
+contact foot penalties
+"""
+
+def reward_foot_distance(
+    env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, ref_dist: float
+) -> torch.Tensor:
+    """
+    Calculates the reward based on the distance between the feet. Penalize feet get close to each other or too far away.
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+    foot_pos = asset.data.body_pos_w[:, asset_cfg.body_ids, :3]
+    foot_dist = torch.norm(foot_pos[:, 0, :] - foot_pos[:, 1, :], dim=1)
+
+    reward = torch.clip(ref_dist - foot_dist, min=0.0, max=0.1)
+    
+    return reward
+
+def feet_stumble(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    return torch.any(
+        torch.norm(contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, :2], dim=2)
+        > 5 * torch.abs(contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, 2]),
+        dim=1,
+    )
+
+def body_force(
+    env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float = 500, max_reward: float = 400
+) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    reward = contact_sensor.data.net_forces_w[:, sensor_cfg.body_ids, 2].norm(dim=-1)
+    reward[reward < threshold] = 0
+    reward[reward > threshold] -= threshold
+    reward = reward.clamp(min=0, max=max_reward)
+    return reward
+
+"""
+swing foot penalties
+"""
+
+# def foot_clearance_reward(
+#     env: ManagerBasedRLEnv,
+#     target_height: float,
+#     std: float,
+#     tanh_mult: float,
+#     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+# ) -> torch.Tensor:
+#     """
+#     Reward the swinging feet for clearing a specified height off the ground
+#     """
+#     asset: RigidObject = env.scene[asset_cfg.name]
+#     com_z = asset.data.root_pos_w[:, 2]
+#     standing_position_com_z = asset.data.default_root_state[:, 2]
+#     standing_height = com_z - standing_position_com_z
+#     standing_position_toe_roll_z = 0.039  # recorded from the default position
+#     offset = (standing_height + standing_position_toe_roll_z).unsqueeze(-1)
+
+#     foot_z_target_error = torch.square(
+#         (
+#             asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
+#             - (target_height + offset).repeat(1, 2)
+#         ).clip(max=0.0)
+#     )
+
+#     # weighted by the velocity of the feet in the xy plane
+#     foot_velocity_tanh = torch.tanh(
+#         tanh_mult
+#         * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2)
+#     )
+#     reward = foot_velocity_tanh * foot_z_target_error
+#     return torch.exp(-torch.sum(reward, dim=1) / std)
+
+def foot_clearance_reward(
+    env: ManagerBasedRLEnv, 
+    asset_cfg: SceneEntityCfg, 
+    target_height: float, 
+    std: float, 
+    tanh_mult: float, 
+    standing_position_foot_z: float = 0.039,
+) -> torch.Tensor:
+    """Reward the swinging feet for clearing a specified height off the ground"""
+    asset: RigidObject = env.scene[asset_cfg.name]
+    foot_z_target_error = torch.square(asset.data.body_pos_w[:, asset_cfg.body_ids, 2] - (target_height + standing_position_foot_z))
+    foot_velocity_tanh = torch.tanh(tanh_mult * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2))
+    reward = foot_z_target_error * foot_velocity_tanh
+    return torch.exp(-torch.sum(reward, dim=1) / std)
 
 
 """
@@ -223,6 +322,29 @@ def feet_slide(
 
     body_vel = asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2]
     reward = torch.sum(body_vel.norm(dim=-1) * contacts, dim=1)
+    return reward
+
+def fly_soft(
+    env: ManagerBasedRLEnv, 
+    threshold: float, 
+    action_term_name: str = "physics_callback",
+    ) -> torch.Tensor:
+    contact_solver = env.action_manager.get_term(action_term_name).contact_solver
+    net_contact_forces = contact_solver.data.net_forces_w_history
+    is_contact = torch.max(torch.norm(net_contact_forces[:, :, :, :], dim=-1), dim=1)[0] > threshold
+    return torch.sum(is_contact, dim=-1) < 0.5
+
+def body_force_soft(
+    env: ManagerBasedRLEnv, 
+    action_term_name: str = "physics_callback",
+    threshold: float = 500, 
+    max_reward: float = 400
+) -> torch.Tensor:
+    contact_solver = env.action_manager.get_term(action_term_name).contact_solver
+    reward = contact_solver.data.net_forces_w[:, :, 2].norm(dim=-1)
+    reward[reward < threshold] = 0
+    reward[reward > threshold] -= threshold
+    reward = reward.clamp(min=0, max=max_reward)
     return reward
 
 def reward_feet_swing_soft(    

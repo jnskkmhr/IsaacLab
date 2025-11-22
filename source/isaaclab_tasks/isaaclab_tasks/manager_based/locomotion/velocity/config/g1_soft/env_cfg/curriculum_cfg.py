@@ -10,10 +10,11 @@ from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.managers import SceneEntityCfg
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
-import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft.mdp as g1_mdp
 
 @configclass
 class G1CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     terrain_levels = CurrTerm(func=vel_mdp.terrain_levels_vel)
+    terrain_levels_max = CurrTerm(func=vel_mdp.terrain_levels_vel_max)
+    lin_vel_cmd_levels = CurrTerm(vel_mdp.lin_vel_cmd_levels)

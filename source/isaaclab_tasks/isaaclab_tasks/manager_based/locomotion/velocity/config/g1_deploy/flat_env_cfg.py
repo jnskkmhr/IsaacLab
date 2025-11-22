@@ -27,9 +27,6 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.scene.terrain.terrain_generator = None
         # no terrain curriculum on flat terrain
         self.curriculum.terrain_levels = None
-
-        # # make curriculum soft terrain
-        # self.scene.terrain = vel_mdp.CurriculumSoftTerrain
         
         # no height scan
         self.scene.height_scanner = None
@@ -74,11 +71,10 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.decimation = 4 # 50Hz
         self.sim.render_interval = self.decimation
         self.episode_length_s = 20.0
-        
-        # # make soft terrain 
-        # self.scene.terrain = vel_mdp.SoftTerrain
-        # self.scene.terrain.disable_collider = True  # soft terrain
-        # # self.actions.physics_callback.disable = True # disable soft contact
+
+        # make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
@@ -93,11 +89,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.base_external_force_torque = None
         self.events.push_robot = None
         self.events.physics_material = None
-        # self.events.randomize_friction = None
-        # self.events.randomize_stiffness = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
@@ -107,7 +101,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
         # self.commands.base_velocity.debug_vis = False
         
         # Randomization 
@@ -133,20 +127,20 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # rendering 
         # self.sim.render.enable_dlssg = True
         # self.sim.render.dlss_mode = "performance"
-        self.viewer = ViewerCfg(
-            eye=(-0.0, -3.5, 0.0), 
-            lookat=(0.0, -0.0, 0.0),
-            resolution=(1920, 1080), 
-            # resolution=(1080, 720),
-            origin_type="asset_root", 
-            asset_name="robot"
-        )
-        
-        # # rendering 
         # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -3.5, 0.5), 
-        #     lookat=(0.0, -0.0, 0.5),
+        #     eye=(-0.0, -3.5, 0.0), 
+        #     lookat=(0.0, -0.0, 0.0),
         #     resolution=(1920, 1080), 
-        #     # origin_type="asset_root", 
-        #     # asset_name="robot"
+        #     # resolution=(1080, 720),
+        #     origin_type="asset_root", 
+        #     asset_name="robot"
         # )
+        
+        # rendering 
+        self.viewer = ViewerCfg(
+            eye=(-0.0, -15.0, 1.0), 
+            lookat=(0.0, -0.0, 1.0),
+            resolution=(1920, 1080), 
+            # origin_type="asset_root", 
+            # asset_name="robot"
+        )

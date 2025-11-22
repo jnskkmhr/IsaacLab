@@ -135,7 +135,7 @@ class CriticCfg(ObsGroup):
     """Observations for critic group."""
 
     # observation terms (order preserved)
-    clock = ObsTerm(func=t1_mdp.clock) 
+    clock = ObsTerm(func=t1_mdp.clock)
     base_lin_vel = ObsTerm(func=mdp.base_lin_vel) 
     base_ang_vel = ObsTerm(func=mdp.base_ang_vel) 
     projected_gravity = ObsTerm(func=mdp.projected_gravity) 

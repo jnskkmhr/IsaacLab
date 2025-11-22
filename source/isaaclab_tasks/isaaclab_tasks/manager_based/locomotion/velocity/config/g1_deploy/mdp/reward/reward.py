@@ -265,7 +265,7 @@ def foot_clearance_reward(
     tanh_mult: float, 
     standing_position_foot_z: float = 0.039,
 ) -> torch.Tensor:
-    """Reward the swinging feet for clearing a specified height off the ground"""
+    """Reward the swinging feet for clearing a specified height off the ground, weighted by foot velocity."""
     asset: RigidObject = env.scene[asset_cfg.name]
     foot_z_target_error = torch.square(asset.data.body_pos_w[:, asset_cfg.body_ids, 2] - (target_height + standing_position_foot_z))
     foot_velocity_tanh = torch.tanh(tanh_mult * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2))
