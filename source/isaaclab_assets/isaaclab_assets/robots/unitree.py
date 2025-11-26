@@ -619,6 +619,9 @@ G1 config above does not match hardware configurations.
 Code adapted from 
 """
 
+"""
+from legged_lab g1 config
+"""
 G1_DEPLOY_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1/g1.usd",
@@ -765,7 +768,7 @@ G1_DEPLOY_CFG = ArticulationCfg(
 )
 
 """
-from unitree_rl_lab
+from unitree_rl_lab g1 23 dof config
 """
 
 UNITREE_G1_23DOF_CFG = ArticulationCfg(
@@ -800,22 +803,6 @@ UNITREE_G1_23DOF_CFG = ArticulationCfg(
         },
         joint_vel={".*": 0.0},
     ),
-    # init_state=ArticulationCfg.InitialStateCfg(
-    #     pos=(0.0, 0.0, 0.76),
-    #     joint_pos={
-    #         ".*_hip_pitch_joint": -0.2,
-    #         ".*_knee_joint": 0.42,
-    #         ".*_ankle_pitch_joint": -0.23,
-
-    #         ".*_shoulder_pitch_joint": 0.3,
-    #         "left_shoulder_roll_joint": 0.25,
-    #         "right_shoulder_roll_joint": -0.25,
-    #         ".*_elbow_joint": 0.97,
-    #         "left_wrist_roll_joint": 0.15,
-    #         "right_wrist_roll_joint": -0.15,
-    #     },
-    #     joint_vel={".*": 0.0},
-    # ),
     actuators={
         "N7520-14.3": ImplicitActuatorCfg(
             joint_names_expr=[".*_hip_pitch_.*", ".*_hip_yaw_.*", "waist_yaw_joint"],  # 5
@@ -862,39 +849,11 @@ UNITREE_G1_23DOF_CFG = ArticulationCfg(
             armature=0.01,
         ),
     },
-    # joint_sdk_names=[
-        # "left_hip_pitch_joint",
-        # "left_hip_roll_joint",
-        # "left_hip_yaw_joint",
-        # "left_knee_joint",
-        # "left_ankle_pitch_joint",
-        # "left_ankle_roll_joint",
-        # "right_hip_pitch_joint",
-        # "right_hip_roll_joint",
-        # "right_hip_yaw_joint",
-        # "right_knee_joint",
-        # "right_ankle_pitch_joint",
-        # "right_ankle_roll_joint",
-        # "waist_yaw_joint",
-        # "", # no waist roll joint
-        # "", # no waist pitch joint
-        # "left_shoulder_pitch_joint",
-        # "left_shoulder_roll_joint",
-        # "left_shoulder_yaw_joint",
-        # "left_elbow_joint",
-        # "left_wrist_roll_joint",
-        # "", # no left_wrist_pitch_joint
-        # "", # no left_wrist_yaw_joint
-        # "right_shoulder_pitch_joint",
-        # "right_shoulder_roll_joint",
-        # "right_shoulder_yaw_joint",
-        # "right_elbow_joint",
-        # "right_wrist_roll_joint",
-        # "", # no right_wrist_pitch_joint
-        # "", # no right_wrist_yaw_joint
-    # ],
 )
 
+"""
+unitree rl lab g1 29 dof config
+"""
 
 UNITREE_G1_29DOF_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
@@ -989,35 +948,4 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
             armature=0.01,
         ),
     },
-    # joint_sdk_names=[
-    #     "left_hip_pitch_joint",
-    #     "left_hip_roll_joint",
-    #     "left_hip_yaw_joint",
-    #     "left_knee_joint",
-    #     "left_ankle_pitch_joint",
-    #     "left_ankle_roll_joint",
-    #     "right_hip_pitch_joint",
-    #     "right_hip_roll_joint",
-    #     "right_hip_yaw_joint",
-    #     "right_knee_joint",
-    #     "right_ankle_pitch_joint",
-    #     "right_ankle_roll_joint",
-    #     "waist_yaw_joint",
-    #     "waist_roll_joint",
-    #     "waist_pitch_joint",
-    #     "left_shoulder_pitch_joint",
-    #     "left_shoulder_roll_joint",
-    #     "left_shoulder_yaw_joint",
-    #     "left_elbow_joint",
-    #     "left_wrist_roll_joint",
-    #     "left_wrist_pitch_joint",
-    #     "left_wrist_yaw_joint",
-    #     "right_shoulder_pitch_joint",
-    #     "right_shoulder_roll_joint",
-    #     "right_shoulder_yaw_joint",
-    #     "right_elbow_joint",
-    #     "right_wrist_roll_joint",
-    #     "right_wrist_pitch_joint",
-    #     "right_wrist_yaw_joint",
-    # ],
 )

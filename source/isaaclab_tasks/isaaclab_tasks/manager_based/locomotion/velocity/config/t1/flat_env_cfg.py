@@ -33,6 +33,9 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         # no terrain curriculum
         self.curriculum.terrain_levels = None
 
+        # no end effector mass randomization
+        self.events.add_end_effector_mass = None
+
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-1.0, 1.0)
@@ -54,9 +57,9 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
 
         # remove random pushing
         self.events.add_base_mass = None
-        self.add_end_effector_mass = None
-        self.scale_actuator_gains = None
-        self.base_com = None
+        self.events.add_end_effector_mass = None
+        self.events.scale_actuator_gains = None
+        self.events.base_com = None
         self.events.base_external_force_torque = None
         self.events.push_robot = None
 

@@ -66,6 +66,10 @@ def feet_air_time_positive_biped(env, command_name: str, threshold: float, senso
     reward = torch.clamp(reward, max=threshold)
     # no reward for zero command
     reward *= torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1) > 0.1
+
+    if "log" in env.extras.keys():
+        env.extras["log"]["Metrics/feet_air_time"] = air_time.mean()
+
     return reward
 
 

@@ -362,7 +362,8 @@ class G1RewardsCfg:
         params={
             "target_height": 0.1,
             "std": 0.05,
-            "tanh_mult": 2.0,
+            # "tanh_mult": 2.0,
+            "tanh_mult": 10.0,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
             "standing_position_foot_z": 0.039,
         },

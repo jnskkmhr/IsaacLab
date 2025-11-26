@@ -225,38 +225,6 @@ def body_force(
 swing foot penalties
 """
 
-# def foot_clearance_reward(
-#     env: ManagerBasedRLEnv,
-#     target_height: float,
-#     std: float,
-#     tanh_mult: float,
-#     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-# ) -> torch.Tensor:
-#     """
-#     Reward the swinging feet for clearing a specified height off the ground
-#     """
-#     asset: RigidObject = env.scene[asset_cfg.name]
-#     com_z = asset.data.root_pos_w[:, 2]
-#     standing_position_com_z = asset.data.default_root_state[:, 2]
-#     standing_height = com_z - standing_position_com_z
-#     standing_position_toe_roll_z = 0.039  # recorded from the default position
-#     offset = (standing_height + standing_position_toe_roll_z).unsqueeze(-1)
-
-#     foot_z_target_error = torch.square(
-#         (
-#             asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
-#             - (target_height + offset).repeat(1, 2)
-#         ).clip(max=0.0)
-#     )
-
-#     # weighted by the velocity of the feet in the xy plane
-#     foot_velocity_tanh = torch.tanh(
-#         tanh_mult
-#         * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2)
-#     )
-#     reward = foot_velocity_tanh * foot_z_target_error
-#     return torch.exp(-torch.sum(reward, dim=1) / std)
-
 def foot_clearance_reward(
     env: ManagerBasedRLEnv, 
     asset_cfg: SceneEntityCfg, 

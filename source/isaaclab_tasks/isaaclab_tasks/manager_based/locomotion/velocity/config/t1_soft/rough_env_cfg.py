@@ -28,11 +28,6 @@ from .env_cfg import (
     T1CommandsCfg, 
 )
 
-##
-# Pre-defined configs
-##
-from isaaclab_assets.robots.booster import T1_CFG  # isort: skip
-
 
 @configclass
 class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
@@ -63,7 +58,6 @@ class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.sim.physx.gpu_total_aggregatge_pairs_capacity = 2**22
 
         # Scene
-        self.scene.robot = T1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/Trunk"
 
         # Randomization

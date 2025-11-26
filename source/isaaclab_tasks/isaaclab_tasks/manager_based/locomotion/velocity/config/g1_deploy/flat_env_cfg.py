@@ -53,9 +53,9 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.base_com = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
-        # Commands (no vel curriculum)
-        self.curriculum.lin_vel_cmd_levels = None
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.6, 1.0)
+        # Commands
+        self.curriculum.command_vel = None
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
@@ -78,7 +78,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        self.curriculum.lin_vel_cmd_levels = None
+        self.curriculum.command_vel = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -91,17 +91,17 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.physics_material = None
         
         # Commands
+        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        
         self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        
-        # self.commands.base_velocity.ranges.lin_vel_x = (0.6, 0.6)
-        # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (-0.5, -0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, -0.0)
         
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/5, self.episode_length_s/5)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/10, self.episode_length_s/10)
         # self.commands.base_velocity.debug_vis = False
         
         # Randomization 
@@ -110,7 +110,6 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
                 "x": (-0.5, 0.5), 
                 "y": (-0.5, 0.5),
                 "yaw": (-math.pi, math.pi),
-                
                 # "yaw": (-math.pi/2, -math.pi/2),
                 # "yaw": (0, 0),
                  },
@@ -125,22 +124,22 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         }
 
         # rendering 
-        # self.sim.render.enable_dlssg = True
-        # self.sim.render.dlss_mode = "performance"
-        # self.viewer = ViewerCfg(
-        #     eye=(-0.0, -3.5, 0.0), 
-        #     lookat=(0.0, -0.0, 0.0),
-        #     resolution=(1920, 1080), 
-        #     # resolution=(1080, 720),
-        #     origin_type="asset_root", 
-        #     asset_name="robot"
-        # )
-        
-        # rendering 
+        self.sim.render.enable_dlssg = True
+        self.sim.render.dlss_mode = "performance"
         self.viewer = ViewerCfg(
-            eye=(-0.0, -15.0, 1.0), 
-            lookat=(0.0, -0.0, 1.0),
-            resolution=(1920, 1080), 
-            # origin_type="asset_root", 
-            # asset_name="robot"
+            eye=(-0.0, -3.5, 0.0), 
+            lookat=(0.0, -0.0, 0.0),
+            # resolution=(1920, 1080), 
+            resolution=(1080, 720),
+            origin_type="asset_root", 
+            asset_name="robot"
         )
+        
+        # # rendering 
+        # self.viewer = ViewerCfg(
+        #     eye=(-0.0, -15.0, 1.0), 
+        #     lookat=(0.0, -0.0, 1.0),
+        #     resolution=(1920, 1080), 
+        #     # origin_type="asset_root", 
+        #     # asset_name="robot"
+        # )

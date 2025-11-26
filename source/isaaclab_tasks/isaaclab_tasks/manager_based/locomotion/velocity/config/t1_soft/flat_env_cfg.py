@@ -29,6 +29,9 @@ class T1FlatEnvCfg(T1RoughEnvCfg):
         # make curriculum soft terrain
         self.scene.terrain = vel_mdp.CurriculumSoftTerrain
 
+        # no end effector mass randomization
+        self.events.add_end_effector_mass = None
+
         # no height scan
         self.scene.height_scanner = None
         self.observations.policy.height_scan = None
@@ -49,11 +52,12 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.sim.dt = 0.005 # 200Hz
         self.decimation = 4 # 50Hz
         self.sim.render_interval = self.decimation
+        self.episode_length_s = 10.0
 
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
-        self.scene.terrain.disable_collider = True  # soft terrain
-        # self.actions.physics_callback.disable = True # disable soft contact
+        # self.scene.terrain.disable_collider = True  # soft terrain
+        self.actions.physics_callback.disable = True # disable soft contact
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -68,10 +72,10 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.curriculum.track_lin_vel = None
 
         # remove random events
+        self.events.add_end_effector_mass = None
         self.events.add_base_mass = None
-        self.add_end_effector_mass = None
-        self.scale_actuator_gains = None
-        self.base_com = None
+        self.events.scale_actuator_gains = None
+        self.events.base_com = None
         self.events.base_external_force_torque = None
         self.events.push_robot = None
         self.events.randomize_friction = None
@@ -85,25 +89,25 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         
         self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.3, -0.3)
         self.commands.base_velocity.heading_command = False
 
         # track specific yaw angle
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         # self.commands.base_velocity.heading_command = True
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
-        # self.commands.base_velocity.debug_vis = False
+        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/10, self.episode_length_s/10)
+        self.commands.base_velocity.debug_vis = False
 
         # pose initialization
         self.events.reset_base.params = {
             "pose_range": 
                 {"x": (-0.5, 0.5), 
                  "y": (-0.5, 0.5),
-                "yaw": (-math.pi, math.pi),
+                # "yaw": (-math.pi, math.pi),
                 # "yaw": (0, 0),
                 # "yaw": (-math.pi/2, -math.pi/2),
-                # "yaw": (-math.pi/4, -math.pi/4),
+                "yaw": (-math.pi/4, -math.pi/4),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -117,8 +121,8 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         
         # rendering settings
         self.viewer = ViewerCfg(
-            eye=(-0.0, -3.5, 0.4), 
-            lookat=(0.0, -0.8, 0.3),
+            eye=(-0.0, -3.5, 0.25), 
+            lookat=(0.0, -1.5, 0.15),
             resolution=(1920, 1080), 
             origin_type="asset_root", 
             asset_name="robot"
