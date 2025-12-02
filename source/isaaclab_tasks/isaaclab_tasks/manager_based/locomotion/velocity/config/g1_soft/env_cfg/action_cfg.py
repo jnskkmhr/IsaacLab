@@ -32,7 +32,7 @@ class G1ActionsCfg:
     physics_callback = PhysicsCallbackActionCfg(
         asset_name="robot",
         body_names=[".*_ankle_roll_link"],
-        max_terrain_level=10,
+        # backend="2D",
         backend="3D",
         intruder_geometry_cfg=G1FootGeometryCfg(),
         enable_ema_filter=True,

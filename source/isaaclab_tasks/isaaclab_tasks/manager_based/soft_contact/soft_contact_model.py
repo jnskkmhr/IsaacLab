@@ -1,4 +1,5 @@
 from dataclasses import MISSING
+from time import time
 import math
 import torch
 from isaaclab.utils import configclass
@@ -169,7 +170,6 @@ class RFT_2D:
                  device: torch.device,
                  dt:float, 
                  history_length: int = 3,
-                 max_terrain_level: int = 10,
                  enable_ema_filter: bool = True,
                  material_cfg: MaterialCfg=PoppySeedCPCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
@@ -194,8 +194,7 @@ class RFT_2D:
         self.num_contact_points = intruder_cfg.num_contact_points
         self.device = device
         self.dt = dt
-        self.max_terrain_level = max_terrain_level
-        self.c_r = 0.05 # 100/f (e.g. f=2000hz -> 0.05)
+        self.c_r = 100/(1/self.dt) # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
         self.enable_ema_filter = enable_ema_filter
         
@@ -261,7 +260,6 @@ class RFT_2D:
 
         # material parameters
         self.stiffness = torch.ones(self.num_envs, device=self.device)
-        self.soft_level = torch.zeros(self.num_envs, device=self.device)
         self.static_friction_coef = self.cfg.static_friction_coef * torch.ones(self.num_envs, device=self.device)
         self.dynamic_friction_coef = self.cfg.dynamic_friction_coef * torch.ones(self.num_envs, device=self.device)
         self.lam = self.cfg.lam * torch.ones(self.num_envs, device=self.device)
@@ -359,26 +357,6 @@ class RFT_2D:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
 
-        
-    def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor)->None:
-        """
-        Update ground stiffness (N/m) for each env.
-        Implementation is similar to terrain curriculum used in terrain importer class.
-        This can be triggered by curriculum manager.
-        
-        Args:
-            env_ids: tensor of env ids to update
-            move_up: tensor of env ids to increase softness level (len(env_ids),)
-            move_down: tensor of env ids to decrease softness level (len(env_ids),)
-        """
-        self.soft_level[env_ids] += 1 * move_up - 1 * move_down
-        self.soft_level[env_ids] = torch.where(
-            self.soft_level[env_ids] >= self.max_terrain_level,
-            torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
-            torch.clip(self.soft_level[env_ids], 0),
-        )
-        self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
-
     def randomize_ground_stiffness(self, env_ids:torch.Tensor, stiffness:torch.Tensor)->None:
         """
         Update ground stiffness (N/m) for each env.
@@ -389,7 +367,7 @@ class RFT_2D:
             env_ids: tensor of env ids to update
             stiffness: tensor of stiffness values (len(env_ids),)
         """
-        self.stiffness[env_ids] = stiffness
+        self.stiffness[env_ids] = stiffness # can be 0.25 - 10.0 ?
         
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """
@@ -509,7 +487,7 @@ class RFT_2D:
         self.contact_point_tilt_angle = torch.nan_to_num(self.contact_point_tilt_angle, nan=0.0, posinf=0.0, neginf=0.0)
         
         # step4: compute resistive force per contact points
-        f_normal, fn = self._get_normal_force(
+        f_normal = self._get_normal_force(
             self.contact_point_pos.reshape(self.num_envs, -1, 3),
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
             self.contact_point_lin_vel_prev.reshape(self.num_envs, -1, 3),
@@ -519,7 +497,7 @@ class RFT_2D:
         
         f_tangential = self._get_tangential_force(
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
-            fn, 
+            f_normal[:, :, 2],
         )
 
         # compute final contact wrench per contact point
@@ -574,7 +552,7 @@ class RFT_2D:
         vn = foot_velocity[:, :, 2]
         force_normal[:, :, 2] = force_normal[:, :, 2] + is_contact * self.lam.unsqueeze(1) * self.rho.unsqueeze(1) * vn**2
 
-        return force_normal, force_normal[:, :, 2]
+        return force_normal
     
     def _get_tangential_force(self, v:torch.Tensor, fn:torch.Tensor)->torch.Tensor:
         """
@@ -685,7 +663,6 @@ class RFT_3D:
                  device: torch.device,
                  dt:float, 
                  history_length: int = 3,
-                 max_terrain_level: int = 1,
                  enable_ema_filter: bool = True,
                  material_cfg: Material3DRFTCfg=Material3DRFTCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
@@ -710,7 +687,6 @@ class RFT_3D:
         self.num_contact_points = intruder_cfg.num_contact_points
         self.device = device
         self.dt = dt
-        self.max_terrain_level = max_terrain_level
         self.c_r = 100/(1/self.dt) # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
         self.enable_ema_filter = enable_ema_filter
@@ -786,8 +762,6 @@ class RFT_3D:
         self.tau_r = torch.zeros((self.num_envs, self.num_bodies*self.num_contact_points), device=self.device)
         
         # material parameters
-        self.stiffness = torch.ones(self.num_envs, device=self.device)
-        self.soft_level = torch.zeros(self.num_envs, device=self.device)
         self.static_friction_coef = self.cfg.static_friction_coef * torch.ones(self.num_envs, device=self.device)
         self.dynamic_friction_coef = self.cfg.dynamic_friction_coef * torch.ones(self.num_envs, device=self.device)
         self.rho_c = self.cfg.rho_c * torch.ones(self.num_envs, device=self.device)
@@ -826,6 +800,7 @@ class RFT_3D:
             -self.foot_depth * torch.ones_like(contact_point_offset_x).flatten()
             ), dim=-1)
         contact_point_offset = contact_point_offset.unsqueeze(0).unsqueeze(1).repeat(self.num_envs, self.num_bodies, 1, 1) # (num_envs, num_bodies, num_contact_points, 3)
+        
         self.contact_point_local[:, :, :, :] = contact_point_offset
         self.n_dir_local = torch.tensor([0.0, 0.0, -1.0], device=self.device).view(1, 1, 1, 3).repeat(self.num_envs, self.num_bodies, self.num_contact_points, 1)
         
@@ -876,28 +851,10 @@ class RFT_3D:
         # evaluate contact forces
         self._eval_contacts()
         
+        # update timestamp and data
         self._timestamp += self.dt
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
-        
-    # def update_ground_stiffness(self, env_ids:torch.Tensor, move_up: torch.Tensor, move_down:torch.Tensor)->None:
-    #     """
-    #     Update ground stiffness (N/m) for each env.
-    #     Implementation is similar to terrain curriculum used in terrain importer class.
-    #     This can be triggered by curriculum manager.
-        
-    #     Args:
-    #         env_ids: tensor of env ids to update
-    #         move_up: tensor of env ids to increase softness level (len(env_ids),)
-    #         move_down: tensor of env ids to decrease softness level (len(env_ids),)
-    #     """
-    #     self.soft_level[env_ids] += 1 * move_up - 1 * move_down
-    #     self.soft_level[env_ids] = torch.where(
-    #         self.soft_level[env_ids] >= self.max_terrain_level,
-    #         torch.randint_like(self.soft_level[env_ids], self.max_terrain_level),
-    #         torch.clip(self.soft_level[env_ids], 0),
-    #     )
-    #     self.stiffness = 1.0 + (self.max_terrain_level - self.soft_level) * 0.35 # 1 ~ 4.5 (mu_int: 0.2 ~ 0.9)
     
     def randomize_ground_stiffness(self, env_ids:torch.Tensor, mu_int:torch.Tensor)->None:
         """
@@ -909,7 +866,7 @@ class RFT_3D:
             env_ids: tensor of env ids to update
             mu_int: tensor of mu_int values (len(env_ids),)
         """
-        self.mu_int[env_ids] = mu_int
+        self.mu_int[env_ids] = mu_int # can be 0.2 - 1.0
 
     def update_friction_params(self, env_ids:torch.Tensor, static_friction_coef:torch.Tensor, dynamic_friction_coef:torch.Tensor)->None:
         """
@@ -1034,11 +991,8 @@ class RFT_3D:
         self.contact_point_tilt_angle = torch.nan_to_num(self.contact_point_tilt_angle, nan=0.0, posinf=0.0, neginf=0.0)
         
         # compute twist angle (psi)
-        n_rt_matrix = torch.cat([
-            n_rtz[:, :, :, 0].unsqueeze(-1),
-            n_rtz[:, :, :, 1].unsqueeze(-1),
-            n_rtz[:, :, :, 2].unsqueeze(-1)
-        ], dim=-1) # (num_envs, num_bodies, num_contact_points, 3)
+        # see S7 eq.7 from https://www.pnas.org/doi/10.1073/pnas.2214017120
+        n_rt_matrix = n_rtz.clone() # (num_envs, num_bodies, num_contact_points, 3)
         n_rt_matrix_norm = torch.norm(n_rt_matrix, dim=-1)
         n_rt_matrix = n_rt_matrix / (n_rt_matrix_norm.unsqueeze(-1)+1e-6)
         n_rt_matrix[n_rt_matrix_norm < thresh, :] = r[n_rt_matrix_norm < thresh, :]
@@ -1139,8 +1093,8 @@ class RFT_3D:
             alpha = self.alpha_filtered.clone()
 
         # compute force by mulitplying depth, area, stiffness
-        # force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] * intrusion_mask[:, :, None]
-        force_vec = self.stiffness[:, None, None] * alpha * depth[:, :, None] * dA * is_contact[:, :, None] # more consistent with original paper
+        # force_vec = alpha * depth[:, :, None] * dA * is_contact[:, :, None] * intrusion_mask[:, :, None]
+        force_vec = alpha * depth[:, :, None] * dA * is_contact[:, :, None] # more consistent with original paper
         
         # NOTE: orthogonal base is {x, y, z} here.
         kd = 0.0
