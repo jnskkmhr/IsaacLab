@@ -54,7 +54,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # Commands
-        self.curriculum.command_vel = None
+        # self.curriculum.command_vel = None
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
@@ -95,13 +95,13 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (3.0, 3.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, -0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/10, self.episode_length_s/10)
+        self.commands.base_velocity.rel_standing_envs = 0.2
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
         # self.commands.base_velocity.debug_vis = False
         
         # Randomization 

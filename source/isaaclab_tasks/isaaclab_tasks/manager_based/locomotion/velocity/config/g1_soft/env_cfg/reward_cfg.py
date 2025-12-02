@@ -217,66 +217,206 @@ class G1RewardsCfg:
         weight=-2.0,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
+    
     # leg regularization 
-    joint_deviation_legs = RewTerm(
-        func=mdp.joint_deviation_l1, 
+    # joint_deviation_legs = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     weight=-0.02,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_pitch.*", ".*_knee.*", ".*_ankle.*"])},
+    # )
+    # # penalize deviation from default of the joints that are not essential for locomotion
+    # joint_deviation_torso = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     # weight=-0.2,
+    #     weight=-0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
+    # )
+    # joint_deviation_hip = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     weight=-0.15,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
+    # )
+    # joint_deviation_arms_1 = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     # weight=-0.15,
+    #     weight=-0.075,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_shoulder_pitch.*", 
+    #                 ".*_elbow.*", 
+    #             ],
+    #         )
+    #     },
+    # )
+    # joint_deviation_arms_2 = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     # weight=-0.2,
+    #     weight=-0.1,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_shoulder_roll.*", 
+    #                 ".*_shoulder_yaw.*", 
+    #                 ".*_wrist.*", 
+    #             ],
+    #         )
+    #     },
+    # )
+
+    joint_posture = RewTerm(
+        func=g1_mdp.variable_posture, 
+        weight=-1.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "command_name": "base_velocity",
+            "weight_standing": {
+                # ".*": 0.5,
+                ".*": 0.25,
+                }, 
+            "weight_walking": {
+                # leg
+                ".*hip_pitch.*": 0.02, 
+                ".*hip_roll.*": 0.15,
+                ".*hip_yaw.*": 0.15,
+                ".*knee.*": 0.02,
+                ".*ankle_pitch.*": 0.02,
+                ".*ankle_roll.*": 0.02,
+                # waist
+                ".*waist_yaw.*": 0.1,
+                ".*waist_roll.*": 0.1,
+                ".*waist_pitch.*": 0.1, 
+                # arms
+                ".*shoulder_pitch.*": 0.075,
+                ".*shoulder_roll.*": 0.1,
+                ".*shoulder_yaw.*": 0.1,
+                ".*elbow.*": 0.075,
+                ".*wrist.*": 0.1,
+            }, 
+            "weight_running": {
+                # leg
+                ".*hip_pitch.*": 0.02, 
+                ".*hip_roll.*": 0.15,
+                ".*hip_yaw.*": 0.15,
+                ".*knee.*": 0.02,
+                ".*ankle_pitch.*": 0.02,
+                ".*ankle_roll.*": 0.02,
+                # waist
+                ".*waist_yaw.*": 0.1,
+                ".*waist_roll.*": 0.1,
+                ".*waist_pitch.*": 0.1, 
+                # arms
+                ".*shoulder_pitch.*": 0.075,
+                ".*shoulder_roll.*": 0.1,
+                ".*shoulder_yaw.*": 0.1,
+                ".*elbow.*": 0.075,
+                ".*wrist.*": 0.1,
+                
+                # # leg
+                # ".*hip_pitch.*": 0.02, 
+                # ".*hip_roll.*": 0.1,
+                # ".*hip_yaw.*": 0.1,
+                # ".*knee.*": 0.02,
+                # ".*ankle_pitch.*": 0.02,
+                # ".*ankle_roll.*": 0.02,
+                # # waist
+                # ".*waist_yaw.*": 0.05,
+                # ".*waist_roll.*": 0.05,
+                # ".*waist_pitch.*": 0.05, 
+                # # arms
+                # ".*shoulder_pitch.*": 0.025,
+                # ".*shoulder_roll.*": 0.05,
+                # ".*shoulder_yaw.*": 0.05,
+                # ".*elbow.*": 0.025,
+                # ".*wrist.*": 0.1,
+            }, 
+            "walking_threshold": 0.05,
+            "running_threshold": 1.5,
+        }
+    )
+
+    # -- centroidal momentum regularization to encourage natural arm swing 
+    angular_momentum = RewTerm(
+        func=g1_mdp.angular_momentum_l2,
         weight=-0.02,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_pitch.*", ".*_knee.*", ".*_ankle.*"])},
-    )
-    # penalize deviation from default of the joints that are not essential for locomotion
-    joint_deviation_torso = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        # weight=-0.2,
-        weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
-    )
-    joint_deviation_hip = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        weight=-0.15,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
-    )
-    joint_deviation_arms_1 = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        # weight=-0.15,
-        weight=-0.075,
         params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_shoulder_pitch.*", 
-                    ".*_elbow.*", 
-                ],
-            )
-        },
-    )
-    joint_deviation_arms_2 = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        # weight=-0.2,
-        weight=-0.1,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_shoulder_roll.*", 
-                    ".*_shoulder_yaw.*", 
-                    ".*_wrist.*", 
-                ],
-            )
-        },
+            "asset_cfg": SceneEntityCfg("robot"),
+            "physx_joint_names": [
+                "left_hip_pitch_joint",
+                "right_hip_pitch_joint", 
+                "waist_yaw_joint", 
+                "left_hip_roll_joint", 
+                "right_hip_roll_joint",
+                "waist_roll_joint", 
+                "left_hip_yaw_joint",
+                "right_hip_yaw_joint", 
+                "waist_pitch_joint", 
+                "left_knee_joint", 
+                "right_knee_joint", 
+                "left_shoulder_pitch_joint", 
+                "right_shoulder_pitch_joint", 
+                "left_ankle_pitch_joint", 
+                "right_ankle_pitch_joint", 
+                "left_shoulder_roll_joint", 
+                "right_shoulder_roll_joint", 
+                "left_ankle_roll_joint", 
+                "right_ankle_roll_joint", 
+                "left_shoulder_yaw_joint",
+                "right_shoulder_yaw_joint", 
+                "left_elbow_joint", 
+                "right_elbow_joint", 
+                "left_wrist_roll_joint", 
+                "right_wrist_roll_joint", 
+                "left_wrist_pitch_joint", 
+                "right_wrist_pitch_joint", 
+                "left_wrist_yaw_joint", 
+                "right_wrist_yaw_joint", 
+            ], 
+            "mjw_joint_names": [
+                "left_hip_pitch_joint", 
+                "left_hip_roll_joint", 
+                "left_hip_yaw_joint", 
+                "left_knee_joint", 
+                "left_ankle_pitch_joint", 
+                "left_ankle_roll_joint", 
+
+                "right_hip_pitch_joint", 
+                "right_hip_roll_joint", 
+                "right_hip_yaw_joint", 
+                "right_knee_joint", 
+                "right_ankle_pitch_joint", 
+                "right_ankle_roll_joint", 
+
+                # waist
+                "waist_yaw_joint", 
+                "waist_roll_joint", 
+                "waist_pitch_joint", 
+
+                # arms
+                "left_shoulder_pitch_joint", 
+                "left_shoulder_roll_joint", 
+                "left_shoulder_yaw_joint", 
+                "left_elbow_joint", 
+
+                "left_wrist_roll_joint", 
+                "left_wrist_pitch_joint", 
+                "left_wrist_yaw_joint", 
+
+                "right_shoulder_pitch_joint", 
+                "right_shoulder_roll_joint", 
+                "right_shoulder_yaw_joint", 
+                "right_elbow_joint", 
+
+                "right_wrist_roll_joint", 
+                "right_wrist_pitch_joint", 
+                "right_wrist_yaw_joint", 
+            ],
+        }
     )
 
     # -- gait
-    fly = RewTerm(
-        func=g1_mdp.fly,
-        weight=-1.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"), "threshold": 1.0},
-    )
-    fly_soft = RewTerm(
-        func=g1_mdp.fly_soft,
-        weight=-1.0,
-        params={"action_term_name": "physics_callback", "threshold": 5.0},
-    )
-
     feet_air_time = RewTerm(
         func=vel_mdp.feet_air_time_positive_biped,
         weight=0.15,
@@ -294,6 +434,41 @@ class G1RewardsCfg:
             "action_term_name": "physics_callback",
             "threshold": 0.4,
         },
+    )
+
+    feet_swing = RewTerm(
+        func=g1_mdp.reward_feet_swing,
+        weight=2.0,
+        params={
+            "swing_period": 0.3, # swing period in phase (0.5 is maximum for walking gait)
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces", body_names=".*ankle_roll.*"
+            ),
+            "cmd_threshold": 0.05, # or 0.1
+            "command_name": "base_velocity",
+        },
+    )
+
+    feet_swing_soft = RewTerm(
+        func=g1_mdp.reward_feet_swing_soft,
+        weight=2.0,
+        params={
+            "swing_period": 0.3, # swing period in phase (0.5 is maximum for walking gait)
+            "action_term_name": "physics_callback",
+            "cmd_threshold": 0.05, # or 0.1
+            "command_name": "base_velocity",
+        },
+    )
+
+    fly = RewTerm(
+        func=g1_mdp.fly,
+        weight=-1.0,
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"), "threshold": 1.0},
+    )
+    fly_soft = RewTerm(
+        func=g1_mdp.fly_soft,
+        weight=-1.0,
+        params={"action_term_name": "physics_callback", "threshold": 5.0},
     )
 
     # -- stance foot
@@ -319,7 +494,7 @@ class G1RewardsCfg:
         func = g1_mdp.reward_foot_distance,
         weight=-2.0,
         params={
-            "ref_dist": 0.2,
+            "ref_dist": 0.25,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 body_names=".*_ankle_roll_link",
@@ -355,15 +530,14 @@ class G1RewardsCfg:
     )
     
     # -- swing foot rewards
-    # optional: encourage specific foot clearance value 
+    # encourage specific foot clearance value 
     foot_clearance = RewTerm(
         func=g1_mdp.foot_clearance_reward,
         weight=2.0,
         params={
             "target_height": 0.1,
             "std": 0.05,
-            # "tanh_mult": 2.0,
-            "tanh_mult": 10.0,
+            "tanh_mult": 2.0,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
             "standing_position_foot_z": 0.039,
         },

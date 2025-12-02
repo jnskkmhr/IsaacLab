@@ -22,12 +22,6 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.decimation = 4 # 50Hz
         self.sim.render_interval = self.decimation
 
-        # # change terrain to flat
-        # self.scene.terrain.terrain_type = "plane"
-        # self.scene.terrain.terrain_generator = None
-        # # no terrain curriculum on flat terrain
-        # self.curriculum.terrain_levels = None
-
         # make curriculum soft terrain
         self.scene.terrain = vel_mdp.CurriculumSoftTerrain
         
@@ -57,7 +51,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # Commands (no vel curriculum)
-        self.curriculum.lin_vel_cmd_levels = None
+        # self.curriculum.command_vel = None
         self.commands.base_velocity.ranges.lin_vel_x = (-0.6, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
@@ -86,7 +80,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
-        self.curriculum.lin_vel_cmd_levels = None
+        self.curriculum.command_vel = None
         
         # disable randomization for play
         self.observations.policy.enable_corruption = False
@@ -101,7 +95,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.randomize_stiffness = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
@@ -142,8 +136,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             lookat=(0.0, -0.0, 0.0),
             resolution=(1920, 1080), 
             # resolution=(1080, 720),
-            # origin_type="asset_root", 
-            # asset_name="robot"
+            origin_type="asset_root", 
+            asset_name="robot"
         )
         
         # # rendering 

@@ -10,19 +10,94 @@ specify the reward function and its parameters.
 """
 
 from __future__ import annotations
+import os
 
 import torch
 from typing import TYPE_CHECKING
 
 from isaaclab.envs import mdp
 import isaaclab.utils.math as math_utils
+from isaaclab.utils.string import resolve_matching_names_values
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
-from isaaclab.utils.math import quat_apply_inverse, yaw_quat
+# from isaaclab.utils.math import quat_apply_inverse, yaw_quat
+from isaaclab.managers.manager_base import ManagerTermBase
+from isaaclab.managers.manager_term_cfg import RewardTermCfg
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
+
+
+def find_physx_mjwarp_mapping(mjwarp_joint_names, physx_joint_names):
+    """
+    Finds the mapping between PhysX and MJWarp joint names.
+    Returns a tuple of two lists: (mjc_to_physx, physx_to_mjc).
+    """
+    mjc_to_physx = []
+    physx_to_mjc = []
+    for j in mjwarp_joint_names:
+        if j in physx_joint_names:
+            mjc_to_physx.append(physx_joint_names.index(j))
+
+    for j in physx_joint_names:
+        if j in mjwarp_joint_names:
+            physx_to_mjc.append(mjwarp_joint_names.index(j))
+
+    return mjc_to_physx, physx_to_mjc
+    
+"""
+whole-body centroidal momentum penalties.
+"""
+
+class angular_momentum_l2(ManagerTermBase):
+    """
+    compute the L2 norm of the whole-body centroidal (pelvis) angular momentum.
+    """
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        import sys 
+        # TODO: figure out non sys path way to import cusadi
+        sys.path.append("/home/jkamohara3/isaac/debug")
+        import casadi
+        from cusadi import CASADI_FUNCTION_DIR, CusadiFunction
+
+        super().__init__(cfg, env)
+        self.centroidal_ang_momentum = torch.zeros((env.num_envs, 3), dtype=torch.float32, device=self.device)
+        self.cusadi_func = CusadiFunction(
+            casadi.Function.load(os.path.join(CASADI_FUNCTION_DIR, "g1_29dof_ang_momentum_func.casadi")),  # type: ignore
+            num_instances=env.num_envs, 
+            )
+        
+        # get joint mapping index 
+        assert len(cfg.params["physx_joint_names"]) == len(cfg.params["mjw_joint_names"]), "PhysX and MJWarp joint name lists must have the same length."
+        self.mjc_to_physx, self.physx_to_mjc = find_physx_mjwarp_mapping(cfg.params["mjw_joint_names"], cfg.params["physx_joint_names"])
+        
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        asset_cfg: SceneEntityCfg,
+        physx_joint_names: list[str],
+        mjw_joint_names: list[str],
+    ) -> torch.Tensor:
+        
+        asset: Articulation = env.scene[asset_cfg.name]
+        base_pos = asset.data.root_pos_w - env.scene.env_origins # (num_envs, 3)
+        base_quat = asset.data.root_quat_w # (num_envs, 4)
+        # align physx joint order to mjw order
+        joint_pos = asset.data.joint_pos.clone()[:, self.mjc_to_physx] # (num_envs, num_dofs)
+
+        base_lin_vel = asset.data.root_lin_vel_w # (num_envs, 3)
+        base_ang_vel = asset.data.root_ang_vel_w # (num_envs, 3)
+        # align physx joint order to mjw order
+        joint_vel = asset.data.joint_vel.clone()[:, self.mjc_to_physx] # (num_envs, num_dofs)
+
+        q_pos = torch.cat([base_pos, base_quat, joint_pos], dim=-1)
+        q_vel = torch.cat([base_lin_vel, base_ang_vel, joint_vel], dim=-1)
+        self.cusadi_func.evaluate([q_pos.double(), q_vel.double()])
+
+        # whole body centroidal angular momentum wrt global frame
+        self.centroidal_ang_momentum = self.cusadi_func.getDenseOutput(0).squeeze(-1).float()
+        return torch.sqrt(torch.square(self.centroidal_ang_momentum).sum(dim=-1))
 
 
 """
@@ -34,97 +109,146 @@ def energy(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("r
     reward = torch.norm(torch.abs(asset.data.applied_torque * asset.data.joint_vel), dim=-1)
     return reward
 
-
-"""
-feet orientation penalties.
-"""
-
-def _feet_rpy(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    # feet_index: list[int] = [0, 1]
-    ):
-    """Compute the yaw angles of feet.
-
-    Args:
-    env: The environment.
-    asset_cfg: Configuration for the asset.
-    feet_index: Optional list of indices specifying which feet to consider. 
-            If None, all bodies specified in asset_cfg.body_ids are used.
-
-    Returns:
-    torch.Tensor: Yaw angles of feet in radians.
+# L1 penalty
+class variable_posture(ManagerTermBase):
     """
-    # Get the entity
-    entity = env.scene[asset_cfg.name]
-    
-    # Get the body IDs to use
-    feet_quat = entity.data.body_quat_w[:, asset_cfg.body_ids, :]
-    # feet_quat = entity.data.body_quat_w[:, feet_index, :]
-    original_shape = feet_quat.shape
-    roll, pitch, yaw = math_utils.euler_xyz_from_quat(feet_quat.reshape(-1, 4))
-
-    roll = (roll + torch.pi) % (2*torch.pi) - torch.pi
-    pitch = (pitch + torch.pi) % (2*torch.pi) - torch.pi
-    # yaw = (yaw + torch.pi) % (2*torch.pi) - torch.pi
-
-    return roll.reshape(original_shape[0], -1), \
-                pitch.reshape(original_shape[0], -1), \
-                    yaw.reshape(original_shape[0], -1)
-
-def _base_rpy(
-    env,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    base_index: list[int] = [0]):
-    """Compute the yaw angles of feet.
-
-    Args:
-    env: The environment.
-    asset_cfg: Configuration for the asset.
-    feet_index: Optional list of indices specifying which feet to consider. 
-            If None, all bodies specified in asset_cfg.body_ids are used.
-
-    Returns:
-    torch.Tensor: Yaw angles of feet in radians.
+    compute gaussian kernel reward to regularize robot's whole body posture for each gait.
     """
-    # Get the entity
-    entity = env.scene[asset_cfg.name]
-    
-    # Get the body IDs to use
-    body_quat = entity.data.body_quat_w[:, base_index, :]
-    original_shape = body_quat.shape
-    roll, pitch, yaw = math_utils.euler_xyz_from_quat(body_quat.reshape(-1, 4))
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
 
-    return roll.reshape(original_shape[0]), \
-                pitch.reshape(original_shape[0]), \
-                    yaw.reshape(original_shape[0])
+        asset = env.scene[cfg.params["asset_cfg"].name]
+        self.default_joint_pos = asset.data.default_joint_pos 
 
-def reward_feet_roll(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    # feet_index: list[int] = [22, 23]
-) -> torch.Tensor:
+        _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
 
-    # Calculate roll angles from quaternions for the feet
-    feet_roll, _, _ = _feet_rpy(
-        env, 
-        asset_cfg=asset_cfg, 
-    )
-    
-    return torch.sum(torch.square(feet_roll), dim=-1)
+        _, _, weight_standing = resolve_matching_names_values(
+        data=cfg.params["weight_standing"],
+        list_of_strings=joint_names,
+        )
+        self.weight_standing = torch.tensor(
+        weight_standing, device=env.device, dtype=torch.float32
+        )
 
-def reward_feet_pitch(
-    env: ManagerBasedRLEnv,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    # feet_index: list[int] = [22, 23]
-) -> torch.Tensor:
+        _, _, weight_walking = resolve_matching_names_values(
+        data=cfg.params["weight_walking"],
+        list_of_strings=joint_names,
+        )
+        self.weight_walking = torch.tensor(weight_walking, device=env.device, dtype=torch.float32)
 
-    # Calculate roll angles from quaternions for the feet
-    _, feet_pitch, _ = _feet_rpy(
-        env, 
-        asset_cfg=asset_cfg, 
-    )
-    return torch.sum(torch.square(feet_pitch), dim=-1)
+        _, _, weight_running = resolve_matching_names_values(
+        data=cfg.params["weight_running"],
+        list_of_strings=joint_names,
+        )
+        self.weight_running = torch.tensor(weight_running, device=env.device, dtype=torch.float32)
+
+        
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        asset_cfg: SceneEntityCfg,
+        command_name: str,
+        weight_standing: dict, 
+        weight_walking: dict,
+        weight_running: dict,
+        walking_threshold: float = 0.5,
+        running_threshold: float = 1.5,
+    ) -> torch.Tensor:
+        
+        asset = env.scene[asset_cfg.name]
+        command = env.command_manager.get_command(command_name)
+
+        linear_speed = torch.norm(command[:, :2], dim=-1)
+        angular_speed = torch.abs(command[:, 2])
+        total_speed = linear_speed + angular_speed
+
+        standing_mask = (total_speed < walking_threshold).float()
+        walking_mask = (
+        (total_speed >= walking_threshold) & (total_speed < running_threshold)
+        ).float()
+        running_mask = (total_speed >= running_threshold).float()
+
+        weight = (
+        self.weight_standing * standing_mask.unsqueeze(1) + 
+        self.weight_walking * walking_mask.unsqueeze(1) + 
+        self.weight_running * running_mask.unsqueeze(1)
+        )
+
+        current_joint_pos = asset.data.joint_pos[:, asset_cfg.joint_ids]
+        desired_joint_pos = self.default_joint_pos[:, asset_cfg.joint_ids]
+        error = torch.abs(current_joint_pos - desired_joint_pos)
+        return (weight * error).sum(dim=1)
+
+# # gaussian reward
+# class variable_posture(ManagerTermBase):
+#     """
+#     compute gaussian kernel reward to regularize robot's whole body posture for each gait.
+#     """
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         super().__init__(cfg, env)
+
+#         asset = env.scene[cfg.params["asset_cfg"].name]
+#         self.default_joint_pos = asset.data.default_joint_pos 
+
+#         _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
+
+#         _, _, std_standing = resolve_matching_names_values(
+#         data=cfg.params["std_standing"],
+#         list_of_strings=joint_names,
+#         )
+#         self.std_standing = torch.tensor(
+#         std_standing, device=env.device, dtype=torch.float32
+#         )
+
+#         _, _, std_walking = resolve_matching_names_values(
+#         data=cfg.params["std_walking"],
+#         list_of_strings=joint_names,
+#         )
+#         self.std_walking = torch.tensor(std_walking, device=env.device, dtype=torch.float32)
+
+#         _, _, std_running = resolve_matching_names_values(
+#         data=cfg.params["std_running"],
+#         list_of_strings=joint_names,
+#         )
+#         self.std_running = torch.tensor(std_running, device=env.device, dtype=torch.float32)
+
+        
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         asset_cfg: SceneEntityCfg,
+#         command_name: str,
+#         std_standing: dict, 
+#         std_walking: dict,
+#         std_running: dict,
+#         walking_threshold: float = 0.5,
+#         running_threshold: float = 1.5,
+#     ) -> torch.Tensor:
+        
+#         asset = env.scene[asset_cfg.name]
+#         command = env.command_manager.get_command(command_name)
+
+#         linear_speed = torch.norm(command[:, :2], dim=-1)
+#         angular_speed = torch.abs(command[:, 2])
+#         total_speed = linear_speed + angular_speed
+
+#         standing_mask = (total_speed < walking_threshold).float()
+#         walking_mask = (
+#         (total_speed >= walking_threshold) & (total_speed < running_threshold)
+#         ).float()
+#         running_mask = (total_speed >= running_threshold).float()
+
+#         std = (
+#         self.std_standing * standing_mask.unsqueeze(1)
+#         + self.std_walking * walking_mask.unsqueeze(1)
+#         + self.std_running * running_mask.unsqueeze(1)
+#         )
+
+#         current_joint_pos = asset.data.joint_pos[:, asset_cfg.joint_ids]
+#         desired_joint_pos = self.default_joint_pos[:, asset_cfg.joint_ids]
+#         error_squared = torch.square(current_joint_pos - desired_joint_pos)
+
+#         return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
 
 """
 gait
@@ -133,6 +257,8 @@ def reward_feet_swing(
     env: ManagerBasedRLEnv,
     swing_period: float,
     sensor_cfg: SceneEntityCfg,
+    cmd_threshold: float = 0.05,
+    command_name=None,
     ) -> torch.Tensor:
     freq = 1 / env.phase_dt
     phase = env.get_phase()
@@ -143,10 +269,24 @@ def reward_feet_swing(
         .norm(dim=-1)
         > 1.0
     )
-
+    # NOTE: wrong swing state ??
+    # swing_period=0.2 -> |0.0-0.15 ds| |0.15-0.35 ss| |0.35-0.65 ds| |0.65-0.85 ss| |0.85-1.0 ds|
+    # swing_period=0.3 -> |0.0-0.1  ds| |0.1-0.4   ss| |0.4-0.6   ds| |0.6-0.9   ss| |0.9-1.0  ds|
+    # swing period=0.4 -> |0.0-0.05 ds| |0.05-0.45 ss| |0.45-0.55 ds| |0.55-0.95 ss| |0.95-1.0 ds|
+    # swing period=0.6 -> |-0.05-0.55 ss| |0.45-1.05 ss| -> hopping gait ??
     left_swing = (torch.abs(phase - 0.25) < 0.5 * swing_period) & (freq > 1.0e-8)
     right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)
     reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
+    
+    # swing_duty_cycle = 0.5
+    # left_swing = (phase < swing_duty_cycle) & (freq > 1.0e-8)
+    # right_swing = (phase >= 0.5) & (phase < 0.5 + swing_duty_cycle) & (freq > 1.0e-8)
+    # reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
+
+    # weight by command magnitude
+    if command_name is not None:
+        cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
+        reward *= cmd_norm > cmd_threshold
 
     return reward
 
@@ -169,14 +309,21 @@ def feet_gait(
         phases.append(phase)
     leg_phase = torch.cat(phases, dim=-1)
 
+    # leg_phase = env.get_phase()
+
     reward = torch.zeros(env.num_envs, dtype=torch.float, device=env.device)
     for i in range(len(sensor_cfg.body_ids)):
         is_stance = leg_phase[:, i] < threshold
-        reward += ~(is_stance ^ is_contact[:, i])
+        reward += ~(is_stance ^ is_contact[:, i]) # reward contact match (swing-swing or contact-contact)
 
     if command_name is not None:
         cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
         reward *= cmd_norm > cmd_threshold
+    
+    air_time = contact_sensor.data.current_air_time[:, sensor_cfg.body_ids]
+    if "log" in env.extras.keys():
+        env.extras["log"]["Metrics/feet_air_time"] = air_time.mean()
+
     return reward
 
 def fly(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -233,7 +380,7 @@ def foot_clearance_reward(
     tanh_mult: float, 
     standing_position_foot_z: float = 0.039,
 ) -> torch.Tensor:
-    """Reward the swinging feet for clearing a specified height off the ground"""
+    """Reward the swinging feet for clearing a specified height off the ground, weighted by foot velocity."""
     asset: RigidObject = env.scene[asset_cfg.name]
     foot_z_target_error = torch.square(asset.data.body_pos_w[:, asset_cfg.body_ids, 2] - (target_height + standing_position_foot_z))
     foot_velocity_tanh = torch.tanh(tanh_mult * torch.norm(asset.data.body_lin_vel_w[:, asset_cfg.body_ids, :2], dim=2))
@@ -319,6 +466,8 @@ def reward_feet_swing_soft(
     env: ManagerBasedRLEnv,
     swing_period: float,
     action_term_name: str = "physics_callback",
+    cmd_threshold: float = 0.05,
+    command_name=None,
     ) -> torch.Tensor:
     freq = 1 / env.phase_dt
     phase = env.get_phase()
@@ -329,5 +478,10 @@ def reward_feet_swing_soft(
     left_swing = (torch.abs(phase - 0.25) < 0.5 * swing_period) & (freq > 1.0e-8)
     right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)
     reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
+
+    # weight by command magnitude
+    if command_name is not None:
+        cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
+        reward *= cmd_norm > cmd_threshold
 
     return reward

@@ -108,6 +108,7 @@ def energy(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("r
     reward = torch.norm(torch.abs(asset.data.applied_torque * asset.data.joint_vel), dim=-1)
     return reward
 
+# L1 penalty
 class variable_posture(ManagerTermBase):
     """
     compute gaussian kernel reward to regularize robot's whole body posture for each gait.
@@ -120,25 +121,25 @@ class variable_posture(ManagerTermBase):
 
         _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
 
-        _, _, std_standing = resolve_matching_names_values(
-        data=cfg.params["std_standing"],
+        _, _, weight_standing = resolve_matching_names_values(
+        data=cfg.params["weight_standing"],
         list_of_strings=joint_names,
         )
-        self.std_standing = torch.tensor(
-        std_standing, device=env.device, dtype=torch.float32
+        self.weight_standing = torch.tensor(
+        weight_standing, device=env.device, dtype=torch.float32
         )
 
-        _, _, std_walking = resolve_matching_names_values(
-        data=cfg.params["std_walking"],
+        _, _, weight_walking = resolve_matching_names_values(
+        data=cfg.params["weight_walking"],
         list_of_strings=joint_names,
         )
-        self.std_walking = torch.tensor(std_walking, device=env.device, dtype=torch.float32)
+        self.weight_walking = torch.tensor(weight_walking, device=env.device, dtype=torch.float32)
 
-        _, _, std_running = resolve_matching_names_values(
-        data=cfg.params["std_running"],
+        _, _, weight_running = resolve_matching_names_values(
+        data=cfg.params["weight_running"],
         list_of_strings=joint_names,
         )
-        self.std_running = torch.tensor(std_running, device=env.device, dtype=torch.float32)
+        self.weight_running = torch.tensor(weight_running, device=env.device, dtype=torch.float32)
 
         
     def __call__(
@@ -146,9 +147,9 @@ class variable_posture(ManagerTermBase):
         env: ManagerBasedRLEnv,
         asset_cfg: SceneEntityCfg,
         command_name: str,
-        std_standing: dict, 
-        std_walking: dict,
-        std_running: dict,
+        weight_standing: dict, 
+        weight_walking: dict,
+        weight_running: dict,
         walking_threshold: float = 0.5,
         running_threshold: float = 1.5,
     ) -> torch.Tensor:
@@ -166,17 +167,87 @@ class variable_posture(ManagerTermBase):
         ).float()
         running_mask = (total_speed >= running_threshold).float()
 
-        std = (
-        self.std_standing * standing_mask.unsqueeze(1)
-        + self.std_walking * walking_mask.unsqueeze(1)
-        + self.std_running * running_mask.unsqueeze(1)
+        weight = (
+        self.weight_standing * standing_mask.unsqueeze(1) + 
+        self.weight_walking * walking_mask.unsqueeze(1) + 
+        self.weight_running * running_mask.unsqueeze(1)
         )
 
         current_joint_pos = asset.data.joint_pos[:, asset_cfg.joint_ids]
         desired_joint_pos = self.default_joint_pos[:, asset_cfg.joint_ids]
-        error_squared = torch.square(current_joint_pos - desired_joint_pos)
+        error = torch.abs(current_joint_pos - desired_joint_pos)
+        return (weight * error).sum(dim=1)
 
-        return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
+# # gaussian reward
+# class variable_posture(ManagerTermBase):
+#     """
+#     compute gaussian kernel reward to regularize robot's whole body posture for each gait.
+#     """
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         super().__init__(cfg, env)
+
+#         asset = env.scene[cfg.params["asset_cfg"].name]
+#         self.default_joint_pos = asset.data.default_joint_pos 
+
+#         _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
+
+#         _, _, std_standing = resolve_matching_names_values(
+#         data=cfg.params["std_standing"],
+#         list_of_strings=joint_names,
+#         )
+#         self.std_standing = torch.tensor(
+#         std_standing, device=env.device, dtype=torch.float32
+#         )
+
+#         _, _, std_walking = resolve_matching_names_values(
+#         data=cfg.params["std_walking"],
+#         list_of_strings=joint_names,
+#         )
+#         self.std_walking = torch.tensor(std_walking, device=env.device, dtype=torch.float32)
+
+#         _, _, std_running = resolve_matching_names_values(
+#         data=cfg.params["std_running"],
+#         list_of_strings=joint_names,
+#         )
+#         self.std_running = torch.tensor(std_running, device=env.device, dtype=torch.float32)
+
+        
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         asset_cfg: SceneEntityCfg,
+#         command_name: str,
+#         std_standing: dict, 
+#         std_walking: dict,
+#         std_running: dict,
+#         walking_threshold: float = 0.5,
+#         running_threshold: float = 1.5,
+#     ) -> torch.Tensor:
+        
+#         asset = env.scene[asset_cfg.name]
+#         command = env.command_manager.get_command(command_name)
+
+#         linear_speed = torch.norm(command[:, :2], dim=-1)
+#         angular_speed = torch.abs(command[:, 2])
+#         total_speed = linear_speed + angular_speed
+
+#         standing_mask = (total_speed < walking_threshold).float()
+#         walking_mask = (
+#         (total_speed >= walking_threshold) & (total_speed < running_threshold)
+#         ).float()
+#         running_mask = (total_speed >= running_threshold).float()
+
+#         std = (
+#         self.std_standing * standing_mask.unsqueeze(1)
+#         + self.std_walking * walking_mask.unsqueeze(1)
+#         + self.std_running * running_mask.unsqueeze(1)
+#         )
+
+#         current_joint_pos = asset.data.joint_pos[:, asset_cfg.joint_ids]
+#         desired_joint_pos = self.default_joint_pos[:, asset_cfg.joint_ids]
+#         error_squared = torch.square(current_joint_pos - desired_joint_pos)
+
+#         return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
 
 """
 gait
@@ -197,15 +268,24 @@ def reward_feet_swing(
         .norm(dim=-1)
         > 1.0
     )
-
+    # NOTE: wrong swing state ??
+    # swing_period=0.2 -> |0.0-0.15 ds| |0.15-0.35 ss| |0.35-0.65 ds| |0.65-0.85 ss| |0.85-1.0 ds|
+    # swing_period=0.3 -> |0.0-0.1  ds| |0.1-0.4   ss| |0.4-0.6   ds| |0.6-0.9   ss| |0.9-1.0  ds|
+    # swing period=0.4 -> |0.0-0.05 ds| |0.05-0.45 ss| |0.45-0.55 ds| |0.55-0.95 ss| |0.95-1.0 ds|
+    # swing period=0.6 -> |-0.05-0.55 ss| |0.45-1.05 ss| -> hopping gait ??
     left_swing = (torch.abs(phase - 0.25) < 0.5 * swing_period) & (freq > 1.0e-8)
     right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)
     reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
+    
+    # swing_duty_cycle = 0.5
+    # left_swing = (phase < swing_duty_cycle) & (freq > 1.0e-8)
+    # right_swing = (phase >= 0.5) & (phase < 0.5 + swing_duty_cycle) & (freq > 1.0e-8)
+    # reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
 
-    # # weight by command magnitude
-    # if command_name is not None:
-    #     cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
-    #     reward *= cmd_norm > cmd_threshold
+    # weight by command magnitude
+    if command_name is not None:
+        cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
+        reward *= cmd_norm > cmd_threshold
 
     return reward
 

@@ -13,7 +13,7 @@ class G1FootGeometryCfg(IntruderGeometryCfg):
     """Configuration for the intruder geometry used in soft contact modeling."""
     contact_edge_x: tuple[float, float] = (-0.065, 0.141)  # length in x direction (m)
     contact_edge_y: tuple[float, float] = (-0.0368, 0.0368)  # length in y direction (m)
-    contact_edge_z: tuple[float, float] = (-0.039, 0.0)  # length in z direction (m)
+    contact_edge_z: tuple[float, float] = (-0.03539, 0.0)  # length in z direction (m)
     num_contact_points: int = 5 * 5
     # num_contact_points: int = 20 * 20 # inference
 

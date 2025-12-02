@@ -23,6 +23,7 @@ from .env_cfg import (
     T1TerminationsCfg,
     T1CurriculumsCfg, 
     T1EventsCfg,
+    T1CommandsCfg, 
 )
 
 
@@ -35,6 +36,7 @@ class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     events: T1EventsCfg = T1EventsCfg()
     actions: T1ActionsCfg = T1ActionsCfg()
     curriculum: T1CurriculumsCfg = T1CurriculumsCfg()
+    commands: T1CommandsCfg = T1CommandsCfg()
 
     def __post_init__(self):
         # post init of parent
