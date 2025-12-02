@@ -219,123 +219,123 @@ class G1RewardsCfg:
     )
     
     # leg regularization 
-    # joint_deviation_legs = RewTerm(
-    #     func=mdp.joint_deviation_l1, 
-    #     weight=-0.02,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_pitch.*", ".*_knee.*", ".*_ankle.*"])},
-    # )
-    # # penalize deviation from default of the joints that are not essential for locomotion
-    # joint_deviation_torso = RewTerm(
-    #     func=mdp.joint_deviation_l1, 
-    #     # weight=-0.2,
-    #     weight=-0.1,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
-    # )
-    # joint_deviation_hip = RewTerm(
-    #     func=mdp.joint_deviation_l1, 
-    #     weight=-0.15,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
-    # )
-    # joint_deviation_arms_1 = RewTerm(
-    #     func=mdp.joint_deviation_l1, 
-    #     # weight=-0.15,
-    #     weight=-0.075,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             joint_names=[
-    #                 ".*_shoulder_pitch.*", 
-    #                 ".*_elbow.*", 
-    #             ],
-    #         )
-    #     },
-    # )
-    # joint_deviation_arms_2 = RewTerm(
-    #     func=mdp.joint_deviation_l1, 
-    #     # weight=-0.2,
-    #     weight=-0.1,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             joint_names=[
-    #                 ".*_shoulder_roll.*", 
-    #                 ".*_shoulder_yaw.*", 
-    #                 ".*_wrist.*", 
-    #             ],
-    #         )
-    #     },
-    # )
-
-    joint_posture = RewTerm(
-        func=g1_mdp.variable_posture, 
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-            "command_name": "base_velocity",
-            "weight_standing": {
-                # ".*": 0.5,
-                ".*": 0.25,
-                }, 
-            "weight_walking": {
-                # leg
-                ".*hip_pitch.*": 0.02, 
-                ".*hip_roll.*": 0.15,
-                ".*hip_yaw.*": 0.15,
-                ".*knee.*": 0.02,
-                ".*ankle_pitch.*": 0.02,
-                ".*ankle_roll.*": 0.02,
-                # waist
-                ".*waist_yaw.*": 0.1,
-                ".*waist_roll.*": 0.1,
-                ".*waist_pitch.*": 0.1, 
-                # arms
-                ".*shoulder_pitch.*": 0.075,
-                ".*shoulder_roll.*": 0.1,
-                ".*shoulder_yaw.*": 0.1,
-                ".*elbow.*": 0.075,
-                ".*wrist.*": 0.1,
-            }, 
-            "weight_running": {
-                # leg
-                ".*hip_pitch.*": 0.02, 
-                ".*hip_roll.*": 0.15,
-                ".*hip_yaw.*": 0.15,
-                ".*knee.*": 0.02,
-                ".*ankle_pitch.*": 0.02,
-                ".*ankle_roll.*": 0.02,
-                # waist
-                ".*waist_yaw.*": 0.1,
-                ".*waist_roll.*": 0.1,
-                ".*waist_pitch.*": 0.1, 
-                # arms
-                ".*shoulder_pitch.*": 0.075,
-                ".*shoulder_roll.*": 0.1,
-                ".*shoulder_yaw.*": 0.1,
-                ".*elbow.*": 0.075,
-                ".*wrist.*": 0.1,
-                
-                # # leg
-                # ".*hip_pitch.*": 0.02, 
-                # ".*hip_roll.*": 0.1,
-                # ".*hip_yaw.*": 0.1,
-                # ".*knee.*": 0.02,
-                # ".*ankle_pitch.*": 0.02,
-                # ".*ankle_roll.*": 0.02,
-                # # waist
-                # ".*waist_yaw.*": 0.05,
-                # ".*waist_roll.*": 0.05,
-                # ".*waist_pitch.*": 0.05, 
-                # # arms
-                # ".*shoulder_pitch.*": 0.025,
-                # ".*shoulder_roll.*": 0.05,
-                # ".*shoulder_yaw.*": 0.05,
-                # ".*elbow.*": 0.025,
-                # ".*wrist.*": 0.1,
-            }, 
-            "walking_threshold": 0.05,
-            "running_threshold": 1.5,
-        }
+    joint_deviation_legs = RewTerm(
+        func=mdp.joint_deviation_l1, 
+        weight=-0.02,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_pitch.*", ".*_knee.*", ".*_ankle.*"])},
     )
+    # penalize deviation from default of the joints that are not essential for locomotion
+    joint_deviation_torso = RewTerm(
+        func=mdp.joint_deviation_l1, 
+        # weight=-0.2,
+        weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
+    )
+    joint_deviation_hip = RewTerm(
+        func=mdp.joint_deviation_l1, 
+        weight=-0.15,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
+    )
+    joint_deviation_arms_1 = RewTerm(
+        func=mdp.joint_deviation_l1, 
+        # weight=-0.15,
+        weight=-0.075,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    ".*_shoulder_pitch.*", 
+                    ".*_elbow.*", 
+                ],
+            )
+        },
+    )
+    joint_deviation_arms_2 = RewTerm(
+        func=mdp.joint_deviation_l1, 
+        # weight=-0.2,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    ".*_shoulder_roll.*", 
+                    ".*_shoulder_yaw.*", 
+                    ".*_wrist.*", 
+                ],
+            )
+        },
+    )
+
+    # joint_posture = RewTerm(
+    #     func=g1_mdp.variable_posture, 
+    #     weight=-1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+    #         "command_name": "base_velocity",
+    #         "weight_standing": {
+    #             # ".*": 0.5,
+    #             ".*": 0.25,
+    #             }, 
+    #         "weight_walking": {
+    #             # leg
+    #             ".*hip_pitch.*": 0.02, 
+    #             ".*hip_roll.*": 0.15,
+    #             ".*hip_yaw.*": 0.15,
+    #             ".*knee.*": 0.02,
+    #             ".*ankle_pitch.*": 0.02,
+    #             ".*ankle_roll.*": 0.02,
+    #             # waist
+    #             ".*waist_yaw.*": 0.1,
+    #             ".*waist_roll.*": 0.1,
+    #             ".*waist_pitch.*": 0.1, 
+    #             # arms
+    #             ".*shoulder_pitch.*": 0.075,
+    #             ".*shoulder_roll.*": 0.1,
+    #             ".*shoulder_yaw.*": 0.1,
+    #             ".*elbow.*": 0.075,
+    #             ".*wrist.*": 0.1,
+    #         }, 
+    #         "weight_running": {
+    #             # leg
+    #             ".*hip_pitch.*": 0.02, 
+    #             ".*hip_roll.*": 0.15,
+    #             ".*hip_yaw.*": 0.15,
+    #             ".*knee.*": 0.02,
+    #             ".*ankle_pitch.*": 0.02,
+    #             ".*ankle_roll.*": 0.02,
+    #             # waist
+    #             ".*waist_yaw.*": 0.1,
+    #             ".*waist_roll.*": 0.1,
+    #             ".*waist_pitch.*": 0.1, 
+    #             # arms
+    #             ".*shoulder_pitch.*": 0.075,
+    #             ".*shoulder_roll.*": 0.1,
+    #             ".*shoulder_yaw.*": 0.1,
+    #             ".*elbow.*": 0.075,
+    #             ".*wrist.*": 0.1,
+                
+    #             # # leg
+    #             # ".*hip_pitch.*": 0.02, 
+    #             # ".*hip_roll.*": 0.1,
+    #             # ".*hip_yaw.*": 0.1,
+    #             # ".*knee.*": 0.02,
+    #             # ".*ankle_pitch.*": 0.02,
+    #             # ".*ankle_roll.*": 0.02,
+    #             # # waist
+    #             # ".*waist_yaw.*": 0.05,
+    #             # ".*waist_roll.*": 0.05,
+    #             # ".*waist_pitch.*": 0.05, 
+    #             # # arms
+    #             # ".*shoulder_pitch.*": 0.025,
+    #             # ".*shoulder_roll.*": 0.05,
+    #             # ".*shoulder_yaw.*": 0.05,
+    #             # ".*elbow.*": 0.025,
+    #             # ".*wrist.*": 0.1,
+    #         }, 
+    #         "walking_threshold": 0.05,
+    #         "running_threshold": 1.5,
+    #     }
+    # )
 
     # -- centroidal momentum regularization to encourage natural arm swing 
     angular_momentum = RewTerm(

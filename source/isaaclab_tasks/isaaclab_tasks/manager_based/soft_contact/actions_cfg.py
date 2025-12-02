@@ -19,8 +19,6 @@ class PhysicsCallbackActionCfg(ActionTermCfg):
     class_type: type[ActionTerm] = physics_callback_actions.PhysicsCallbackAction
     body_names: list[str] = MISSING # type: ignore
     """List of joint names or regex expressions that the action will be mapped to."""
-    max_terrain_level: int = MISSING # type: ignore
-    """Maximum terrain stiffness level. This number is multiplied to terrain stiffness calculated by RFT."""
     backend: Literal["2D", "3D"] = "3D"
     """The RFT backend to use. Options are '2D' or '3D'."""
     disable: bool = False

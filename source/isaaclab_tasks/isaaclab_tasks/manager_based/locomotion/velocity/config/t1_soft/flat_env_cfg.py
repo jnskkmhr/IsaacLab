@@ -56,8 +56,8 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
 
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
-        # self.scene.terrain.disable_collider = True  # soft terrain
-        self.actions.physics_callback.disable = True # disable soft contact
+        self.scene.terrain.disable_collider = True  # soft terrain
+        # self.actions.physics_callback.disable = True # disable soft contact
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -87,9 +87,10 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         # self.commands.base_velocity.heading_command = False
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.2, 0.2)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.3, -0.3)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-0.3, -0.3)
+        self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
         self.commands.base_velocity.heading_command = False
 
         # track specific yaw angle
@@ -97,7 +98,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         # self.commands.base_velocity.heading_command = True
         # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/10, self.episode_length_s/10)
-        self.commands.base_velocity.debug_vis = False
+        # self.commands.base_velocity.debug_vis = False
 
         # pose initialization
         self.events.reset_base.params = {

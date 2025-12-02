@@ -51,8 +51,8 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # Commands (no vel curriculum)
-        # self.curriculum.command_vel = None
-        self.commands.base_velocity.ranges.lin_vel_x = (-0.6, 1.0)
+        self.curriculum.command_vel = None
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
