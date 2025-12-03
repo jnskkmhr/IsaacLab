@@ -497,7 +497,7 @@ class RFT_2D:
         
         f_tangential = self._get_tangential_force(
             self.contact_point_lin_vel.reshape(self.num_envs, -1, 3),
-            f_normal[:, :, 2],
+            f_normal[:, :, 2], 
         )
 
         # compute final contact wrench per contact point
@@ -520,7 +520,7 @@ class RFT_2D:
         foot_velocity:torch.Tensor, 
         foot_velocity_prev:torch.Tensor, 
         beta:torch.Tensor, 
-        gamma:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+        gamma:torch.Tensor)->torch.Tensor:
         """
         Compute normal force wrt global frame using RFT z component.
         

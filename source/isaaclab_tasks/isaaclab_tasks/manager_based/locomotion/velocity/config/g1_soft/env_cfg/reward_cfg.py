@@ -224,47 +224,47 @@ class G1RewardsCfg:
         weight=-0.02,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_pitch.*", ".*_knee.*", ".*_ankle.*"])},
     )
-    # penalize deviation from default of the joints that are not essential for locomotion
-    joint_deviation_torso = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        # weight=-0.2,
-        weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
-    )
+    # # penalize deviation from default of the joints that are not essential for locomotion
+    # joint_deviation_torso = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     # weight=-0.2,
+    #     weight=-0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*waist.*")},
+    # )
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1, 
         weight=-0.15,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_yaw_joint", ".*_hip_roll_joint"])},
     )
-    joint_deviation_arms_1 = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        # weight=-0.15,
-        weight=-0.075,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_shoulder_pitch.*", 
-                    ".*_elbow.*", 
-                ],
-            )
-        },
-    )
-    joint_deviation_arms_2 = RewTerm(
-        func=mdp.joint_deviation_l1, 
-        # weight=-0.2,
-        weight=-0.1,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    ".*_shoulder_roll.*", 
-                    ".*_shoulder_yaw.*", 
-                    ".*_wrist.*", 
-                ],
-            )
-        },
-    )
+    # joint_deviation_arms_1 = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     # weight=-0.15,
+    #     weight=-0.075,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_shoulder_pitch.*", 
+    #                 ".*_elbow.*", 
+    #             ],
+    #         )
+    #     },
+    # )
+    # joint_deviation_arms_2 = RewTerm(
+    #     func=mdp.joint_deviation_l1, 
+    #     # weight=-0.2,
+    #     weight=-0.1,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 ".*_shoulder_roll.*", 
+    #                 ".*_shoulder_yaw.*", 
+    #                 ".*_wrist.*", 
+    #             ],
+    #         )
+    #     },
+    # )
 
     # joint_posture = RewTerm(
     #     func=g1_mdp.variable_posture, 
@@ -337,84 +337,84 @@ class G1RewardsCfg:
     #     }
     # )
 
-    # -- centroidal momentum regularization to encourage natural arm swing 
-    angular_momentum = RewTerm(
-        func=g1_mdp.angular_momentum_l2,
-        weight=-0.02,
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            "physx_joint_names": [
-                "left_hip_pitch_joint",
-                "right_hip_pitch_joint", 
-                "waist_yaw_joint", 
-                "left_hip_roll_joint", 
-                "right_hip_roll_joint",
-                "waist_roll_joint", 
-                "left_hip_yaw_joint",
-                "right_hip_yaw_joint", 
-                "waist_pitch_joint", 
-                "left_knee_joint", 
-                "right_knee_joint", 
-                "left_shoulder_pitch_joint", 
-                "right_shoulder_pitch_joint", 
-                "left_ankle_pitch_joint", 
-                "right_ankle_pitch_joint", 
-                "left_shoulder_roll_joint", 
-                "right_shoulder_roll_joint", 
-                "left_ankle_roll_joint", 
-                "right_ankle_roll_joint", 
-                "left_shoulder_yaw_joint",
-                "right_shoulder_yaw_joint", 
-                "left_elbow_joint", 
-                "right_elbow_joint", 
-                "left_wrist_roll_joint", 
-                "right_wrist_roll_joint", 
-                "left_wrist_pitch_joint", 
-                "right_wrist_pitch_joint", 
-                "left_wrist_yaw_joint", 
-                "right_wrist_yaw_joint", 
-            ], 
-            "mjw_joint_names": [
-                "left_hip_pitch_joint", 
-                "left_hip_roll_joint", 
-                "left_hip_yaw_joint", 
-                "left_knee_joint", 
-                "left_ankle_pitch_joint", 
-                "left_ankle_roll_joint", 
+    # # -- centroidal momentum regularization to encourage natural arm swing 
+    # angular_momentum = RewTerm(
+    #     func=g1_mdp.angular_momentum_l2,
+    #     weight=-0.02,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #         "physx_joint_names": [
+    #             "left_hip_pitch_joint",
+    #             "right_hip_pitch_joint", 
+    #             "waist_yaw_joint", 
+    #             "left_hip_roll_joint", 
+    #             "right_hip_roll_joint",
+    #             "waist_roll_joint", 
+    #             "left_hip_yaw_joint",
+    #             "right_hip_yaw_joint", 
+    #             "waist_pitch_joint", 
+    #             "left_knee_joint", 
+    #             "right_knee_joint", 
+    #             "left_shoulder_pitch_joint", 
+    #             "right_shoulder_pitch_joint", 
+    #             "left_ankle_pitch_joint", 
+    #             "right_ankle_pitch_joint", 
+    #             "left_shoulder_roll_joint", 
+    #             "right_shoulder_roll_joint", 
+    #             "left_ankle_roll_joint", 
+    #             "right_ankle_roll_joint", 
+    #             "left_shoulder_yaw_joint",
+    #             "right_shoulder_yaw_joint", 
+    #             "left_elbow_joint", 
+    #             "right_elbow_joint", 
+    #             "left_wrist_roll_joint", 
+    #             "right_wrist_roll_joint", 
+    #             "left_wrist_pitch_joint", 
+    #             "right_wrist_pitch_joint", 
+    #             "left_wrist_yaw_joint", 
+    #             "right_wrist_yaw_joint", 
+    #         ], 
+    #         "mjw_joint_names": [
+    #             "left_hip_pitch_joint", 
+    #             "left_hip_roll_joint", 
+    #             "left_hip_yaw_joint", 
+    #             "left_knee_joint", 
+    #             "left_ankle_pitch_joint", 
+    #             "left_ankle_roll_joint", 
 
-                "right_hip_pitch_joint", 
-                "right_hip_roll_joint", 
-                "right_hip_yaw_joint", 
-                "right_knee_joint", 
-                "right_ankle_pitch_joint", 
-                "right_ankle_roll_joint", 
+    #             "right_hip_pitch_joint", 
+    #             "right_hip_roll_joint", 
+    #             "right_hip_yaw_joint", 
+    #             "right_knee_joint", 
+    #             "right_ankle_pitch_joint", 
+    #             "right_ankle_roll_joint", 
 
-                # waist
-                "waist_yaw_joint", 
-                "waist_roll_joint", 
-                "waist_pitch_joint", 
+    #             # waist
+    #             "waist_yaw_joint", 
+    #             "waist_roll_joint", 
+    #             "waist_pitch_joint", 
 
-                # arms
-                "left_shoulder_pitch_joint", 
-                "left_shoulder_roll_joint", 
-                "left_shoulder_yaw_joint", 
-                "left_elbow_joint", 
+    #             # arms
+    #             "left_shoulder_pitch_joint", 
+    #             "left_shoulder_roll_joint", 
+    #             "left_shoulder_yaw_joint", 
+    #             "left_elbow_joint", 
 
-                "left_wrist_roll_joint", 
-                "left_wrist_pitch_joint", 
-                "left_wrist_yaw_joint", 
+    #             "left_wrist_roll_joint", 
+    #             "left_wrist_pitch_joint", 
+    #             "left_wrist_yaw_joint", 
 
-                "right_shoulder_pitch_joint", 
-                "right_shoulder_roll_joint", 
-                "right_shoulder_yaw_joint", 
-                "right_elbow_joint", 
+    #             "right_shoulder_pitch_joint", 
+    #             "right_shoulder_roll_joint", 
+    #             "right_shoulder_yaw_joint", 
+    #             "right_elbow_joint", 
 
-                "right_wrist_roll_joint", 
-                "right_wrist_pitch_joint", 
-                "right_wrist_yaw_joint", 
-            ],
-        }
-    )
+    #             "right_wrist_roll_joint", 
+    #             "right_wrist_pitch_joint", 
+    #             "right_wrist_yaw_joint", 
+    #         ],
+    #     }
+    # )
 
     # -- gait
     feet_air_time = RewTerm(

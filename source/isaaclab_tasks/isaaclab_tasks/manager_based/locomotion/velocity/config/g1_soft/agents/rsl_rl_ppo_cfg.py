@@ -49,9 +49,14 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         super().__post_init__()
 
         self.max_iterations = 30_000
-        self.wandb_project = "g1_flat_soft"
-        self.experiment_name = "g1_flat_soft"
-        self.run_name = "g1_flat_soft"
+
+        # self.wandb_project = "g1_flat_soft"
+        # self.experiment_name = "g1_flat_soft"
+        # self.run_name = "g1_flat_soft"
+
+        self.wandb_project = "g1_flat_soft_upper_fix"
+        self.experiment_name = "g1_flat_soft_upper_fix"
+        self.run_name = "g1_flat_soft_upper_fix"
 
         # # flat terrain policy
         # self.wandb_project = "g1_flat_deploy"

@@ -54,12 +54,12 @@ class T1FlatPPORunnerCfg(T1RoughPPORunnerCfg):
         self.policy.actor_hidden_dims = [256, 128, 128]
         self.policy.critic_hidden_dims = [256, 128, 128]
 
-        # self.logger = "wandb"
-        # self.wandb_project = "t1_23dof_flat_soft"
-        # self.experiment_name = "t1_23dof_flat_soft"
-        # self.run_name = "t1_23dof_flat_soft"
+        self.logger = "wandb"
+        self.wandb_project = "t1_23dof_flat_soft"
+        self.experiment_name = "t1_23dof_flat_soft"
+        self.run_name = "t1_23dof_flat_soft"
 
-        # rigid ground policy 
-        self.wandb_project = "t1_23dof_flat"
-        self.experiment_name = "t1_23dof_flat"
-        self.run_name = "t1_23dof_flat"
+        # # rigid ground policy 
+        # self.wandb_project = "t1_23dof_flat"
+        # self.experiment_name = "t1_23dof_flat"
+        # self.run_name = "t1_23dof_flat"

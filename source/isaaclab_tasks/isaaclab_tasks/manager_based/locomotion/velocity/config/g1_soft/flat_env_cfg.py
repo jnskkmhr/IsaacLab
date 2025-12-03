@@ -31,6 +31,12 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.observations.critic.height_scan = None
         
         # Randomization 
+        self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
+        self.events.scale_actuator_gains.params["stiffness_distribution_params"] = (0.95, 1.05)
+        self.events.scale_actuator_gains.params["damping_distribution_params"] = (0.95, 1.05)
+        self.events.base_external_force_torque = None
+        self.events.base_com = None
+        self.events.push_robot = None
         self.events.reset_base.params = {
             "pose_range": 
                 {"x": (-0.5, 0.5), 
@@ -46,8 +52,6 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
-        self.events.base_external_force_torque = None
-        self.events.base_com = None
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # Commands (no vel curriculum)
@@ -75,8 +79,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
-        self.scene.terrain.disable_collider = True  # soft terrain
-        # self.actions.physics_callback.disable = True # disable soft contact
+        # self.scene.terrain.disable_collider = True  # soft terrain
+        self.actions.physics_callback.disable = True # disable soft contact
 
         # disable curriculum 
         self.curriculum.terrain_levels = None

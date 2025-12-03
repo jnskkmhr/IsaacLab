@@ -58,6 +58,7 @@ class angular_momentum_l2(ManagerTermBase):
         import sys 
         # TODO: figure out non sys path way to import cusadi
         sys.path.append("/home/jkamohara3/isaac/debug")
+        # sys.path.append("/home/jkamohara3/isaac")
         import casadi
         from cusadi import CASADI_FUNCTION_DIR, CusadiFunction
 

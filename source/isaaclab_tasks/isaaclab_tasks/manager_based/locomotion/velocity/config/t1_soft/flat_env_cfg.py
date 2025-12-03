@@ -52,7 +52,7 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.sim.dt = 0.005 # 200Hz
         self.decimation = 4 # 50Hz
         self.sim.render_interval = self.decimation
-        self.episode_length_s = 10.0
+        self.episode_length_s = 20.0
 
         # make soft terrain 
         self.scene.terrain = vel_mdp.SoftTerrain
@@ -82,22 +82,22 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
         self.events.randomize_stiffness = None
 
         # Commands
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.heading_command = False
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        
         # self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # self.commands.base_velocity.heading_command = False
-        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        
-        self.commands.base_velocity.ranges.lin_vel_x = (0.2, 0.2)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (-0.3, -0.3)
-        self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
-        self.commands.base_velocity.heading_command = False
+        # self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
+        # self.commands.base_velocity.heading_command = False
 
         # track specific yaw angle
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         # self.commands.base_velocity.heading_command = True
-        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/10, self.episode_length_s/10)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         # self.commands.base_velocity.debug_vis = False
 
         # pose initialization
@@ -105,10 +105,10 @@ class T1FlatEnvCfg_PLAY(T1FlatEnvCfg):
             "pose_range": 
                 {"x": (-0.5, 0.5), 
                  "y": (-0.5, 0.5),
-                # "yaw": (-math.pi, math.pi),
+                "yaw": (-math.pi, math.pi),
                 # "yaw": (0, 0),
                 # "yaw": (-math.pi/2, -math.pi/2),
-                "yaw": (-math.pi/4, -math.pi/4),
+                # "yaw": (-math.pi/4, -math.pi/4),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),

@@ -12,7 +12,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
 import isaaclab.envs.mdp as mdp
-# import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.mdp as vel_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.config.g1_soft.mdp as g1_mdp
 
 
@@ -52,6 +52,21 @@ class G1EventCfg:
         },
     )
 
+    scale_actuator_gains = EventTerm(
+        func=mdp.randomize_actuator_gains, # type: ignore
+        mode="startup",
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=".*"
+            ),
+            "operation": "scale",
+            "distribution": "uniform",
+            "stiffness_distribution_params": (0.95, 1.05),
+            "damping_distribution_params": (0.95, 1.05),
+        },
+    )
+
     # reset
     base_external_force_torque = EventTerm(
         func=mdp.apply_external_force_torque,
@@ -88,12 +103,41 @@ class G1EventCfg:
         },
     )
 
-    # interval
-    push_robot = EventTerm(
-        func=mdp.push_by_setting_velocity,
-        mode="interval",
-        interval_range_s=(10.0, 15.0),
-        params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
+    reset_unactuated_joints = EventTerm(
+        func=vel_mdp.reset_joints_target_by_offset, # reset target position of unactuated joints to default plus offset
+        mode="reset",
+        params={
+            "position_range": (0.0, 0.0),
+            "velocity_range": (0.0, 0.0),
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=[
+                    # waist
+                    "waist_yaw_joint", 
+                    "waist_roll_joint", 
+                    "waist_pitch_joint", 
+
+                    # arms
+                    "left_shoulder_pitch_joint", 
+                    "left_shoulder_roll_joint", 
+                    "left_shoulder_yaw_joint", 
+                    "left_elbow_joint", 
+
+                    "left_wrist_roll_joint", 
+                    "left_wrist_pitch_joint", 
+                    "left_wrist_yaw_joint", 
+
+                    "right_shoulder_pitch_joint", 
+                    "right_shoulder_roll_joint", 
+                    "right_shoulder_yaw_joint", 
+                    "right_elbow_joint", 
+
+                    "right_wrist_roll_joint", 
+                    "right_wrist_pitch_joint", 
+                    "right_wrist_yaw_joint", 
+                ],
+            ),
+        },
     )
 
     # randomize terrain friction
@@ -114,4 +158,12 @@ class G1EventCfg:
             "stiffness_range": (0.2, 0.9),
             "contact_solver_name": "physics_callback",
         },
+    )
+
+    # interval
+    push_robot = EventTerm(
+        func=mdp.push_by_setting_velocity,
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
     )
