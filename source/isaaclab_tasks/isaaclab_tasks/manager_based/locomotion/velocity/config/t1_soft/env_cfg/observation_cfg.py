@@ -42,32 +42,56 @@ class PolicyCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
+            # no wrist
+            # [
+            # 0, 4, 
+            # 1, 5, 9, 13, 
+            # 2, 6, 10, 14, 
+            # 3, 
+            # 7, 11, 15, 19, 23, 27, 
+            # 8, 12, 16, 20, 24, 28]
+
+            # w/ wrist
+            # [
+            # 0, 4, 
+            # 1, 5, 9, 13, 
+            # 17, 21, 25, # left wrist
+            # 2, 6, 10, 14, 
+            # 18, 22, 26, # right wrist
+            # 3, 
+            # 7, 11, 15, 19, 23, 27, 
+            # 8, 12, 16, 20, 24, 28]
             joint_names=[
                 "AAHead_yaw",
                 "Head_pitch",
+
                 "Left_Shoulder_Pitch",
                 "Left_Shoulder_Roll",
                 "Left_Elbow_Pitch",
                 "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
 
                 "Right_Shoulder_Pitch",
                 "Right_Shoulder_Roll",
                 "Right_Elbow_Pitch",
                 "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
 
                 "Waist",
+
                 "Left_Hip_Pitch",
                 "Left_Hip_Roll",
                 "Left_Hip_Yaw",
                 "Left_Knee_Pitch",
                 "Left_Ankle_Pitch",
                 "Left_Ankle_Roll",
+
                 "Right_Hip_Pitch",
                 "Right_Hip_Roll",
                 "Right_Hip_Yaw",
@@ -89,29 +113,34 @@ class PolicyCfg(ObsGroup):
             joint_names=[
                 "AAHead_yaw",
                 "Head_pitch",
+
                 "Left_Shoulder_Pitch",
                 "Left_Shoulder_Roll",
                 "Left_Elbow_Pitch",
                 "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
 
                 "Right_Shoulder_Pitch",
                 "Right_Shoulder_Roll",
                 "Right_Elbow_Pitch",
                 "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
 
                 "Waist",
+
                 "Left_Hip_Pitch",
                 "Left_Hip_Roll",
                 "Left_Hip_Yaw",
                 "Left_Knee_Pitch",
                 "Left_Ankle_Pitch",
                 "Left_Ankle_Roll",
+
                 "Right_Hip_Pitch",
                 "Right_Hip_Roll",
                 "Right_Hip_Yaw",
@@ -135,7 +164,7 @@ class CriticCfg(ObsGroup):
     """Observations for critic group."""
 
     # observation terms (order preserved)
-    clock = ObsTerm(func=t1_mdp.clock) 
+    clock = ObsTerm(func=t1_mdp.clock)
     base_lin_vel = ObsTerm(func=mdp.base_lin_vel) 
     base_ang_vel = ObsTerm(func=mdp.base_ang_vel) 
     projected_gravity = ObsTerm(func=mdp.projected_gravity) 
@@ -151,29 +180,34 @@ class CriticCfg(ObsGroup):
             joint_names=[
                 "AAHead_yaw",
                 "Head_pitch",
+
                 "Left_Shoulder_Pitch",
                 "Left_Shoulder_Roll",
                 "Left_Elbow_Pitch",
                 "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
 
                 "Right_Shoulder_Pitch",
                 "Right_Shoulder_Roll",
                 "Right_Elbow_Pitch",
                 "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
 
                 "Waist",
+
                 "Left_Hip_Pitch",
                 "Left_Hip_Roll",
                 "Left_Hip_Yaw",
                 "Left_Knee_Pitch",
                 "Left_Ankle_Pitch",
                 "Left_Ankle_Roll",
+
                 "Right_Hip_Pitch",
                 "Right_Hip_Roll",
                 "Right_Hip_Yaw",
@@ -194,29 +228,34 @@ class CriticCfg(ObsGroup):
             joint_names=[
                 "AAHead_yaw",
                 "Head_pitch",
+
                 "Left_Shoulder_Pitch",
                 "Left_Shoulder_Roll",
                 "Left_Elbow_Pitch",
                 "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
 
                 "Right_Shoulder_Pitch",
                 "Right_Shoulder_Roll",
                 "Right_Elbow_Pitch",
                 "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
                 
                 "Waist",
+
                 "Left_Hip_Pitch",
                 "Left_Hip_Roll",
                 "Left_Hip_Yaw",
                 "Left_Knee_Pitch",
                 "Left_Ankle_Pitch",
                 "Left_Ankle_Roll",
+
                 "Right_Hip_Pitch",
                 "Right_Hip_Roll",
                 "Right_Hip_Yaw",

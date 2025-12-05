@@ -15,130 +15,6 @@ import isaaclab_tasks.manager_based.locomotion.velocity.config.t1.mdp as t1_mdp
 
 
 @configclass
-class CriticCfg(ObsGroup):
-    """Observations for critic group."""
-
-    # observation terms (order preserved)
-    clock = ObsTerm(func=t1_mdp.clock) # type: ignore
-    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) # type: ignore
-    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) # type: ignore
-    projected_gravity = ObsTerm(func=mdp.projected_gravity) # type: ignore
-    velocity_commands = ObsTerm(
-        func=mdp.generated_commands, # type: ignore
-        params={"command_name": "base_velocity"},
-    )
-    joint_pos = ObsTerm(
-        func=mdp.joint_pos, # type: ignore
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-            joint_names=[
-                "AAHead_yaw",
-                "Head_pitch",
-                "Left_Shoulder_Pitch",
-                "Left_Shoulder_Roll",
-                "Left_Elbow_Pitch",
-                "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
-                # "left_Link1",
-                # "left_Link11",
-                # "left_Link2",
-                # "left_Link22",
-                "Right_Shoulder_Pitch",
-                "Right_Shoulder_Roll",
-                "Right_Elbow_Pitch",
-                "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
-                # "right_Link1",
-                # "right_Link11",
-                # "right_Link2",
-                # "right_Link22",
-                "Waist",
-                "Left_Hip_Pitch",
-                "Left_Hip_Roll",
-                "Left_Hip_Yaw",
-                "Left_Knee_Pitch",
-                "Left_Ankle_Pitch",
-                "Left_Ankle_Roll",
-                "Right_Hip_Pitch",
-                "Right_Hip_Roll",
-                "Right_Hip_Yaw",
-                "Right_Knee_Pitch",
-                "Right_Ankle_Pitch",
-                "Right_Ankle_Roll",
-            ],
-                preserve_order=True,
-            )
-        },
-        )
-
-    joint_vel = ObsTerm(
-        func=mdp.joint_vel, # type: ignore
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-            joint_names=[
-                "AAHead_yaw",
-                "Head_pitch",
-                "Left_Shoulder_Pitch",
-                "Left_Shoulder_Roll",
-                "Left_Elbow_Pitch",
-                "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
-                # "left_Link1",
-                # "left_Link11",
-                # "left_Link2",
-                # "left_Link22",
-                "Right_Shoulder_Pitch",
-                "Right_Shoulder_Roll",
-                "Right_Elbow_Pitch",
-                "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
-                # "right_Link1",
-                # "right_Link11",
-                # "right_Link2",
-                # "right_Link22",
-                "Waist",
-                "Left_Hip_Pitch",
-                "Left_Hip_Roll",
-                "Left_Hip_Yaw",
-                "Left_Knee_Pitch",
-                "Left_Ankle_Pitch",
-                "Left_Ankle_Roll",
-                "Right_Hip_Pitch",
-                "Right_Hip_Roll",
-                "Right_Hip_Yaw",
-                "Right_Knee_Pitch",
-                "Right_Ankle_Pitch",
-                "Right_Ankle_Roll",
-            ],
-                preserve_order=True,
-            )
-        },
-    )
-    actions = ObsTerm(func=mdp.last_action) # type: ignore
-
-    root_state_w = ObsTerm(func=t1_mdp.root_state_w) # type: ignore
-
-    root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w) # type: ignore
-
-    root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w) # type: ignore
-
-    def __post_init__(self):
-        self.enable_corruption = True
-        self.concatenate_terms = True
-        self.history_length = 5
-
-
-@configclass
 class PolicyCfg(ObsGroup):
     """Observations for policy group."""
 
@@ -170,35 +46,34 @@ class PolicyCfg(ObsGroup):
             joint_names=[
                 "AAHead_yaw",
                 "Head_pitch",
+
                 "Left_Shoulder_Pitch",
                 "Left_Shoulder_Roll",
                 "Left_Elbow_Pitch",
                 "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
-                # "left_Link1",
-                # "left_Link11",
-                # "left_Link2",
-                # "left_Link22",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
+
                 "Right_Shoulder_Pitch",
                 "Right_Shoulder_Roll",
                 "Right_Elbow_Pitch",
                 "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
-                # "right_Link1",
-                # "right_Link11",
-                # "right_Link2",
-                # "right_Link22",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
+
                 "Waist",
+
                 "Left_Hip_Pitch",
                 "Left_Hip_Roll",
                 "Left_Hip_Yaw",
                 "Left_Knee_Pitch",
                 "Left_Ankle_Pitch",
                 "Left_Ankle_Roll",
+
                 "Right_Hip_Pitch",
                 "Right_Hip_Roll",
                 "Right_Hip_Yaw",
@@ -220,35 +95,34 @@ class PolicyCfg(ObsGroup):
             joint_names=[
                 "AAHead_yaw",
                 "Head_pitch",
+
                 "Left_Shoulder_Pitch",
                 "Left_Shoulder_Roll",
                 "Left_Elbow_Pitch",
                 "Left_Elbow_Yaw",
-                "Left_Wrist_Pitch",
-                "Left_Wrist_Yaw",
-                "Left_Hand_Roll",
-                # "left_Link1",
-                # "left_Link11",
-                # "left_Link2",
-                # "left_Link22",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
+
                 "Right_Shoulder_Pitch",
                 "Right_Shoulder_Roll",
                 "Right_Elbow_Pitch",
                 "Right_Elbow_Yaw",
-                "Right_Wrist_Pitch",
-                "Right_Wrist_Yaw",
-                "Right_Hand_Roll",
-                # "right_Link1",
-                # "right_Link11",
-                # "right_Link2",
-                # "right_Link22",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
+
                 "Waist",
+
                 "Left_Hip_Pitch",
                 "Left_Hip_Roll",
                 "Left_Hip_Yaw",
                 "Left_Knee_Pitch",
                 "Left_Ankle_Pitch",
                 "Left_Ankle_Roll",
+
                 "Right_Hip_Pitch",
                 "Right_Hip_Roll",
                 "Right_Hip_Yaw",
@@ -261,6 +135,127 @@ class PolicyCfg(ObsGroup):
         },
     )
     actions = ObsTerm(func=mdp.last_action) # type: ignore
+
+    def __post_init__(self):
+        self.enable_corruption = True
+        self.concatenate_terms = True
+        self.history_length = 5
+
+@configclass
+class CriticCfg(ObsGroup):
+    """Observations for critic group."""
+
+    # observation terms (order preserved)
+    clock = ObsTerm(func=t1_mdp.clock) # type: ignore
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel) # type: ignore
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel) # type: ignore
+    projected_gravity = ObsTerm(func=mdp.projected_gravity) # type: ignore
+    velocity_commands = ObsTerm(
+        func=mdp.generated_commands, # type: ignore
+        params={"command_name": "base_velocity"},
+    )
+    joint_pos = ObsTerm(
+        func=mdp.joint_pos, # type: ignore
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+            joint_names=[
+                "AAHead_yaw",
+                "Head_pitch",
+
+                "Left_Shoulder_Pitch",
+                "Left_Shoulder_Roll",
+                "Left_Elbow_Pitch",
+                "Left_Elbow_Yaw",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
+
+                "Right_Shoulder_Pitch",
+                "Right_Shoulder_Roll",
+                "Right_Elbow_Pitch",
+                "Right_Elbow_Yaw",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
+
+                "Waist",
+
+                "Left_Hip_Pitch",
+                "Left_Hip_Roll",
+                "Left_Hip_Yaw",
+                "Left_Knee_Pitch",
+                "Left_Ankle_Pitch",
+                "Left_Ankle_Roll",
+
+                "Right_Hip_Pitch",
+                "Right_Hip_Roll",
+                "Right_Hip_Yaw",
+                "Right_Knee_Pitch",
+                "Right_Ankle_Pitch",
+                "Right_Ankle_Roll",
+            ],
+                preserve_order=True,
+            )
+        },
+        )
+
+    joint_vel = ObsTerm(
+        func=mdp.joint_vel, # type: ignore
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+            joint_names=[
+                "AAHead_yaw",
+                "Head_pitch",
+
+                "Left_Shoulder_Pitch",
+                "Left_Shoulder_Roll",
+                "Left_Elbow_Pitch",
+                "Left_Elbow_Yaw",
+
+                # "Left_Wrist_Pitch",
+                # "Left_Wrist_Yaw",
+                # "Left_Hand_Roll",
+
+                "Right_Shoulder_Pitch",
+                "Right_Shoulder_Roll",
+                "Right_Elbow_Pitch",
+                "Right_Elbow_Yaw",
+
+                # "Right_Wrist_Pitch",
+                # "Right_Wrist_Yaw",
+                # "Right_Hand_Roll",
+
+                "Waist",
+
+                "Left_Hip_Pitch",
+                "Left_Hip_Roll",
+                "Left_Hip_Yaw",
+                "Left_Knee_Pitch",
+                "Left_Ankle_Pitch",
+                "Left_Ankle_Roll",
+
+                "Right_Hip_Pitch",
+                "Right_Hip_Roll",
+                "Right_Hip_Yaw",
+                "Right_Knee_Pitch",
+                "Right_Ankle_Pitch",
+                "Right_Ankle_Roll",
+            ],
+                preserve_order=True,
+            )
+        },
+    )
+    actions = ObsTerm(func=mdp.last_action) # type: ignore
+
+    root_state_w = ObsTerm(func=t1_mdp.root_state_w) # type: ignore
+
+    root_lin_vel = ObsTerm(func=mdp.root_lin_vel_w) # type: ignore
+
+    root_ang_vel = ObsTerm(func=mdp.root_ang_vel_w) # type: ignore
 
     def __post_init__(self):
         self.enable_corruption = True

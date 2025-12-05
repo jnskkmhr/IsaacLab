@@ -49,6 +49,8 @@ def randomize_terrain_friction(
         friction_range[0], friction_range[1], (len(env_ids),), device=env.device
     )
     contact_solver.update_friction_params(env_ids, friction_samples, friction_samples)
+    if "log" in env.extras.keys():
+        env.extras["log"]["Events/terrain_friction"] = friction_samples.mean()
 
 def randomize_terrain_stiffness(
     env: ManagerBasedEnv, 
@@ -62,3 +64,5 @@ def randomize_terrain_stiffness(
         stiffness_range[0], stiffness_range[1], (len(env_ids),), device=env.device
     )
     contact_solver.randomize_ground_stiffness(env_ids, stiffness_samples)
+    if "log" in env.extras.keys():
+        env.extras["log"]["Events/terrain_stiffness"] = stiffness_samples.mean()

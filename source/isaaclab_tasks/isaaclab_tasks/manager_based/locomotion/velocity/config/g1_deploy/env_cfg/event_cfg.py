@@ -95,23 +95,3 @@ class G1EventCfg:
         interval_range_s=(10.0, 15.0),
         params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
     )
-
-    # # randomize terrain friction
-    # randomize_friction = EventTerm(
-    #     func=g1_mdp.randomize_terrain_friction, 
-    #     mode="reset",
-    #     params={
-    #         "friction_range": (0.1, 1.0),
-    #         "contact_solver_name": "physics_callback",
-    #     },
-    # )
-
-    # # randomize terrain stiffness
-    # randomize_stiffness = EventTerm(
-    #     func=g1_mdp.randomize_terrain_stiffness,
-    #     mode="reset",
-    #     params={
-    #         "stiffness_range": (0.2, 0.9),
-    #         "contact_solver_name": "physics_callback",
-    #     },
-    # )

@@ -5,3 +5,4 @@ from .scene_cfg import T1SceneCfg
 from .termination_cfg import T1TerminationsCfg
 from .curriculum_cfg import T1CurriculumsCfg
 from .event_cfg import T1EventsCfg
+from .command_cfg import T1CommandsCfg

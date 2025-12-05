@@ -95,7 +95,7 @@ class T1RewardsCfg:
     # Penalize deviation from default of the joints that are not essential for locomotion
     joint_deviation_hip = RewTerm(
         func=mdp.joint_deviation_l1, # type: ignore
-        weight=-0.1,
+        weight=-1.0,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_.*"])},
     )
     # joint_deviation_torso = RewTerm(
@@ -180,7 +180,7 @@ class T1RewardsCfg:
     )
 
     feet_swing = RewTerm(
-        func=t1_mdp.reward_feet_swing,
+        func=t1_mdp.reward_feet_swing, # NOTE: enforce single suport gait?
         weight=20.0,
         params={
             "swing_period": 0.2,
@@ -204,11 +204,11 @@ class T1RewardsCfg:
     )
 
     foot_clearance = RewTerm(
-        func=t1_mdp.foot_clearance_reward,
+        func=t1_mdp.foot_clearance_reward, # NOTE: track velocity dependent swing foot clearance
         weight=1.0,
         params={
             "target_height": 0.1,
-            "std": 0.5,
+            "std": 0.05,
             "tanh_mult": 2.0,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot_link"),
         },
