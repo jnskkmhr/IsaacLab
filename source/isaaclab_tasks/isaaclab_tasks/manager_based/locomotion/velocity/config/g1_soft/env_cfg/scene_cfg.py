@@ -46,6 +46,8 @@ class G1SceneCfg(InteractiveSceneCfg):
         ),
         debug_vis=False,
     )
+    # Optional rigid floor at the center
+    rigid_floor = None
     # robots
     robot: ArticulationCfg = G1_DEPLOY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # leggedlab 
     # robot: ArticulationCfg = UNITREE_G1_23DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # unitree_rl_lab

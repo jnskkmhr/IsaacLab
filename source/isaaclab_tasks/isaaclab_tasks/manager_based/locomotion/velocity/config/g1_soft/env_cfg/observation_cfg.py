@@ -198,6 +198,42 @@ class LoggingObsCfg(ObsGroup):
         func=mdp.generated_commands,
         params={"command_name": "base_velocity"},
     )
+
+    joint_pos = ObsTerm(
+        func=mdp.joint_pos_rel,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+            joint_names=[
+                # waist
+                "waist_yaw_joint", 
+                "waist_roll_joint", 
+                "waist_pitch_joint", 
+
+                # left arm
+                "left_shoulder_pitch_joint", 
+                "left_shoulder_roll_joint", 
+                "left_shoulder_yaw_joint", 
+                "left_elbow_joint", 
+
+                "left_wrist_roll_joint", 
+                "left_wrist_pitch_joint", 
+                "left_wrist_yaw_joint", 
+
+                # right arm
+                "right_shoulder_pitch_joint", 
+                "right_shoulder_roll_joint", 
+                "right_shoulder_yaw_joint", 
+                "right_elbow_joint", 
+
+                "right_wrist_roll_joint", 
+                "right_wrist_pitch_joint", 
+                "right_wrist_yaw_joint", 
+            ],
+                preserve_order=True,
+            )
+        },
+        )
     
 
     def __post_init__(self):
