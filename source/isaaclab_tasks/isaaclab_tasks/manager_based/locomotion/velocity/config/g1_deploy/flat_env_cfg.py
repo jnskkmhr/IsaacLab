@@ -97,12 +97,13 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         
         self.commands.base_velocity.ranges.lin_vel_x = (3.0, 3.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.2
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
-        # self.commands.base_velocity.debug_vis = False
+        # self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
+        self.commands.base_velocity.debug_vis = False
         
         # Randomization 
         self.events.reset_base.params = {
@@ -124,13 +125,13 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         }
 
         # rendering 
-        self.sim.render.enable_dlssg = True
-        self.sim.render.dlss_mode = "performance"
+        # self.sim.render.enable_dlssg = True
+        # self.sim.render.dlss_mode = "performance"
         self.viewer = ViewerCfg(
             eye=(-0.0, -3.5, 0.0), 
             lookat=(0.0, -0.0, 0.0),
-            # resolution=(1920, 1080), 
-            resolution=(1080, 720),
+            resolution=(1920, 1080), 
+            # resolution=(1080, 720),
             origin_type="asset_root", 
             asset_name="robot"
         )

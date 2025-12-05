@@ -40,7 +40,7 @@ class MaterialCfg:
     rho: float = MISSING # type: ignore
 
     # material properties
-    static_friction_coef: float = MISSING # type: ignore
+    static_friction_coef: float = MISSING # type: ignore # TODO remove
     dynamic_friction_coef: float = MISSING # type: ignore
 
     # coulomb friction tangential force model parameters
@@ -68,7 +68,7 @@ class PoppySeedLPCfg(MaterialCfg):
     rho: float = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
 
     # material properties
-    static_friction_coef: float = 1.0
+    static_friction_coef: float = 1.0 # TODO remove
     dynamic_friction_coef: float = 0.5
 
     # tangential force model parameters
@@ -94,7 +94,7 @@ class PoppySeedCPCfg(MaterialCfg):
     lam: float = 1.0
     rho: float = 638.0 * (1e-6) # kg/mm^3 to kg/cm^3
 
-    static_friction_coef: float = 1.0
+    static_friction_coef: float = 1.0 # TODO remove
     dynamic_friction_coef: float = 0.5
 
     kf: float = 10.0

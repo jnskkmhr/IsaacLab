@@ -103,42 +103,45 @@ class G1EventCfg:
         },
     )
 
-    reset_unactuated_joints = EventTerm(
-        func=vel_mdp.reset_joints_target_by_offset, # reset target position of unactuated joints to default plus offset
-        mode="reset",
-        params={
-            "position_range": (0.0, 0.0),
-            "velocity_range": (0.0, 0.0),
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    # waist
-                    "waist_yaw_joint", 
-                    "waist_roll_joint", 
-                    "waist_pitch_joint", 
+    """
+    when fixing upper body
+    """
+    # reset_unactuated_joints = EventTerm(
+    #     func=vel_mdp.reset_joints_target_by_offset, # reset target position of unactuated joints to default plus offset
+    #     mode="reset",
+    #     params={
+    #         "position_range": (0.0, 0.0),
+    #         "velocity_range": (0.0, 0.0),
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             joint_names=[
+    #                 # waist
+    #                 "waist_yaw_joint", 
+    #                 "waist_roll_joint", 
+    #                 "waist_pitch_joint", 
 
-                    # arms
-                    "left_shoulder_pitch_joint", 
-                    "left_shoulder_roll_joint", 
-                    "left_shoulder_yaw_joint", 
-                    "left_elbow_joint", 
+    #                 # arms
+    #                 "left_shoulder_pitch_joint", 
+    #                 "left_shoulder_roll_joint", 
+    #                 "left_shoulder_yaw_joint", 
+    #                 "left_elbow_joint", 
 
-                    "left_wrist_roll_joint", 
-                    "left_wrist_pitch_joint", 
-                    "left_wrist_yaw_joint", 
+    #                 "left_wrist_roll_joint", 
+    #                 "left_wrist_pitch_joint", 
+    #                 "left_wrist_yaw_joint", 
 
-                    "right_shoulder_pitch_joint", 
-                    "right_shoulder_roll_joint", 
-                    "right_shoulder_yaw_joint", 
-                    "right_elbow_joint", 
+    #                 "right_shoulder_pitch_joint", 
+    #                 "right_shoulder_roll_joint", 
+    #                 "right_shoulder_yaw_joint", 
+    #                 "right_elbow_joint", 
 
-                    "right_wrist_roll_joint", 
-                    "right_wrist_pitch_joint", 
-                    "right_wrist_yaw_joint", 
-                ],
-            ),
-        },
-    )
+    #                 "right_wrist_roll_joint", 
+    #                 "right_wrist_pitch_joint", 
+    #                 "right_wrist_yaw_joint", 
+    #             ],
+    #         ),
+    #     },
+    # )
 
     # randomize terrain friction
     randomize_friction = EventTerm(

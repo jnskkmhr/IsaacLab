@@ -17,7 +17,7 @@ class G1CurriculumCfg:
 
     terrain_levels = CurrTerm(func=vel_mdp.terrain_levels_vel)
     terrain_levels_max = CurrTerm(func=vel_mdp.terrain_levels_vel_max)
-    # lin_vel_cmd_levels = CurrTerm(vel_mdp.lin_vel_cmd_levels)
+
     command_vel = CurrTerm(
         func=vel_mdp.commands_vel, 
         params={
@@ -29,3 +29,13 @@ class G1CurriculumCfg:
             ],
             },
         )
+    
+    track_lin_vel = CurrTerm(
+        func=vel_mdp.modify_reward_std, 
+        params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 15000 * 24}
+    )
+
+    track_ang_vel = CurrTerm(
+        func=vel_mdp.modify_reward_std, 
+        params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 15000 * 24}
+    )

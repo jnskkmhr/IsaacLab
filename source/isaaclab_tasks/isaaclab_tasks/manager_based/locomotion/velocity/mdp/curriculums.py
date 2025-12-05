@@ -22,6 +22,9 @@ from isaaclab.terrains import TerrainImporter
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
+"""
+terrain curriculums
+"""
 
 def terrain_levels_vel(
     env: ManagerBasedRLEnv, env_ids: Sequence[int], asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
@@ -74,6 +77,10 @@ def terrain_levels_vel_max(
     terrain: TerrainImporter = env.scene.terrain
     # return the mean terrain level
     return torch.max(terrain.terrain_levels.float())
+
+"""
+command curriculums
+"""
 
 
 def lin_vel_cmd_levels(
@@ -173,3 +180,42 @@ def commands_vel(
         "ang_vel_z_min": torch.tensor(cfg.ranges.ang_vel_z[0]),
         "ang_vel_z_max": torch.tensor(cfg.ranges.ang_vel_z[1]),
     }
+
+
+"""
+reward curriculum
+"""
+
+def modify_reward_std(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name: str, std: float, num_steps: int):
+    """Curriculum that modifies a exponential reward std a given number of steps.
+
+    Args:
+        env: The learning environment.
+        env_ids: Not used since all environments are affected.
+        term_name: The name of the reward term.
+        std: The std of the exponential reward term.
+        num_steps: The number of steps after which the change should be applied.
+    """
+    if env.common_step_counter > num_steps:
+        # obtain term settings
+        term_cfg = env.reward_manager.get_term_cfg(term_name)
+        # update term settings
+        term_cfg.params["std"] = std
+        env.reward_manager.set_term_cfg(term_name, term_cfg)
+
+def modify_command_range(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name: str, ranges: float, num_steps: int):
+    """Curriculum that modifies a reward weight a given number of steps.
+
+    Args:
+        env: The learning environment.
+        env_ids: Not used since all environments are affected.
+        term_name: The name of the reward term.
+        weight: The weight of the reward term.
+        num_steps: The number of steps after which the change should be applied.
+    """
+    if env.common_step_counter > num_steps:
+        # obtain term settings
+        term_cfg = env.command_manager.get_term_cfg(term_name)
+        # update term settings
+        term_cfg.ranges = ranges
+        env.command_manager.set_term_cfg(term_name, term_cfg)
