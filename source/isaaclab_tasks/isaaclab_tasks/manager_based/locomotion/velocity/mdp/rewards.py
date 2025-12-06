@@ -29,10 +29,6 @@ if TYPE_CHECKING:
 Foot orientation
 """
 
-"""
-feet penalties.
-"""
-
 def _feet_rpy(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
@@ -329,3 +325,14 @@ def body_orientation_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = Scen
         asset.data.body_quat_w[:, asset_cfg.body_ids[0], :], asset.data.GRAVITY_VEC_W
     )
     return torch.sum(torch.square(body_orientation[:, :2]), dim=1)
+
+
+"""
+action rate
+"""
+
+def action_rate_l2(env: ManagerBasedRLEnv, joint_idx:list[int]) -> torch.Tensor:
+    """Penalize the rate of change of the actions using L2 squared kernel."""
+    return torch.sum(
+        torch.square(env.action_manager.action[:, joint_idx] - env.action_manager.prev_action[:, joint_idx]), 
+        dim=1)

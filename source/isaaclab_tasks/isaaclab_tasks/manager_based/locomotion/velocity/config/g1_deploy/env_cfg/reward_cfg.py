@@ -596,7 +596,10 @@ class G1RewardsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"), "threshold": 1.0},
     )
 
-    # -- stance foot
+    """
+    Stance foot
+    """
+
     feet_slide = RewTerm(
         func=vel_mdp.feet_slide,
         weight=-0.25,
@@ -629,7 +632,10 @@ class G1RewardsCfg:
         },
     )
     
-    # -- swing foot rewards
+    """
+    Swing foot
+    """
+    
     # optional: encourage specific foot clearance value 
     foot_clearance = RewTerm(
         func=g1_mdp.foot_clearance_reward,
