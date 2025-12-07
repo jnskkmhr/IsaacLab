@@ -23,9 +23,12 @@ class G1CurriculumCfg:
         params={
             "command_name": "base_velocity",
             "velocity_stages": [
-                {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-                {"step": 10000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
-                {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0), "ang_vel_z": (-1.0, 1.0)},
+                # {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
+                {"step": 0, "lin_vel_x": (0.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
+                # {"step": 10000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
+                {"step": 10000 * 24, "lin_vel_x": (0.0, 2.0), "ang_vel_z": (-0.7, 0.7)},
+                # {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0), "ang_vel_z": (-1.0, 1.0)},
+                {"step": 20000 * 24, "lin_vel_x": (0.0, 3.0), "ang_vel_z": (-1.0, 1.0)},
             ],
             },
         )

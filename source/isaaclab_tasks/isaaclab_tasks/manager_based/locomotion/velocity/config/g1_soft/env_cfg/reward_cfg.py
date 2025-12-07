@@ -248,11 +248,17 @@ class G1RewardsCfg:
 
     # -- base penalties
     base_height = RewTerm(func=mdp.base_height_l2, weight=-10, params={"target_height": 0.78})
-    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0) 
+    # TODO: pick one of these
+    flat_orientation_l2 = RewTerm(
+        func=mdp.flat_orientation_l2, 
+        # weight=-1.0, 
+        weight=-2.0, 
+        ) 
     body_orientation_l2 = RewTerm(
         func=vel_mdp.body_orientation_l2, 
         params={"asset_cfg": SceneEntityCfg("robot", body_names=".*torso.*")}, 
-        weight=-2.0
+        # weight=-2.0, 
+        weight=-4.0
     )
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0) 
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -368,12 +374,17 @@ class G1RewardsCfg:
                 ".*waist_roll.*": 0.1,
                 ".*waist_pitch.*": 0.1, 
                 # arms
-                ".*shoulder_pitch.*": 0.15, # 0.125
-                ".*elbow.*": 0.1, # 0.125
+                # ".*shoulder_pitch.*": 0.15, # 0.125
+                # ".*elbow.*": 0.1, # 0.125
+                ".*shoulder_pitch.*": 0.2, 
+                ".*elbow.*": 0.2, 
                 
-                ".*shoulder_roll.*": 0.15, # 0.125
-                ".*shoulder_yaw.*": 0.15, # 0.125
-                ".*wrist.*": 0.15, # 0.125
+                # ".*shoulder_roll.*": 0.15, # 0.125
+                # ".*shoulder_yaw.*": 0.15, # 0.125
+                # ".*wrist.*": 0.15, # 0.125
+                ".*shoulder_roll.*": 0.25,
+                ".*shoulder_yaw.*": 0.25,
+                ".*wrist.*": 0.25,
             }, 
             "weight_running": {
                 # leg
@@ -388,12 +399,17 @@ class G1RewardsCfg:
                 ".*waist_roll.*": 0.1,
                 ".*waist_pitch.*": 0.1, 
                 # arms
-                ".*shoulder_pitch.*": 0.15, # 0.125
-                ".*elbow.*": 0.1, # 0.125
+                # ".*shoulder_pitch.*": 0.15, # 0.125
+                # ".*elbow.*": 0.1, # 0.125
+                ".*shoulder_pitch.*": 0.2, 
+                ".*elbow.*": 0.2, 
 
-                ".*shoulder_roll.*": 0.15, # 0.125
-                ".*shoulder_yaw.*": 0.15, # 0.125
-                ".*wrist.*": 0.15, # 0.125
+                # ".*shoulder_roll.*": 0.15, # 0.125
+                # ".*shoulder_yaw.*": 0.15, # 0.125
+                # ".*wrist.*": 0.15, # 0.125
+                ".*shoulder_roll.*": 0.25,
+                ".*shoulder_yaw.*": 0.25,
+                ".*wrist.*": 0.25,
             }, 
             "walking_threshold": 0.05,
             "running_threshold": 1.5,
