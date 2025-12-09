@@ -38,7 +38,7 @@ class G1CurriculumCfg:
         params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 15000 * 24}
     )
 
-    track_ang_vel = CurrTerm(
-        func=vel_mdp.modify_reward_std, 
-        params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 15000 * 24}
-    )
+    # track_ang_vel = CurrTerm(
+    #     func=vel_mdp.modify_reward_std, 
+    #     params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 15000 * 24}
+    # )

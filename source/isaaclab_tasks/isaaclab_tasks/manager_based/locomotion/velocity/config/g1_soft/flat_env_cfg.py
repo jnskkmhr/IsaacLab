@@ -55,7 +55,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # Commands
-        self.curriculum.command_vel = None
+        # self.curriculum.command_vel = None
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
@@ -71,8 +71,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.sim.dt = 1/200 # 200Hz
         self.decimation = 4 # 50Hz
         self.sim.render_interval = self.decimation
-        # self.episode_length_s = 20.0
-        self.episode_length_s = 15.0
+        self.episode_length_s = 20.0
+        # self.episode_length_s = 15.0
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -85,8 +85,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.scene.rigid_floor = vel_mdp.RigidPatch
         
         # change terrain parameters
-        self.events.randomize_stiffness.params["stiffness_range"] = (0.5, 0.5)
-        self.events.randomize_friction.params["friction_range"] = (0.5, 0.5)
+        self.events.randomize_stiffness.params["stiffness_range"] = (0.3, 0.3)
+        self.events.randomize_friction.params["friction_range"] = (0.3, 0.3)
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
@@ -105,14 +105,15 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # self.events.randomize_stiffness = None
         
         # Commands
-        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         
-        self.commands.base_velocity.ranges.lin_vel_x = (2.0, 2.0)
+        # self.commands.base_velocity.ranges.lin_vel_x = (2., 2.5)
+        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
@@ -124,10 +125,10 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             "pose_range": {
                 "x": (-0.5, 0.5), 
                 "y": (-0.5, 0.5),
-                # "yaw": (-math.pi, math.pi),
+                "yaw": (-math.pi, math.pi),
                 # "yaw": (-math.pi/2, -math.pi/2),
                 # "yaw": (-math.pi/4, -math.pi/4),
-                "yaw": (0, 0),
+                # "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -140,8 +141,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         }
 
         # rendering 
-        self.sim.render.enable_dlssg = True
-        self.sim.render.dlss_mode = "performance"
+        # self.sim.render.enable_dlssg = True
+        # self.sim.render.dlss_mode = "performance"
         self.viewer = ViewerCfg(
             eye=(-0.0, -3.5, 0.0), 
             lookat=(0.0, -0.0, 0.0),

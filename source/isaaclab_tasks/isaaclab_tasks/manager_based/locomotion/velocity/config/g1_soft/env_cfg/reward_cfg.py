@@ -189,14 +189,15 @@ class G1RewardsCfg:
     track_lin_vel_xy = RewTerm(
         func=vel_mdp.track_lin_vel_xy_yaw_frame_exp, 
         # weight=1.0, 
-        weight=2.0, 
-        params={"command_name": "base_velocity", "std": math.sqrt(0.5)} 
+        # weight=2.0, 
+        weight=4.0, 
+        params={"command_name": "base_velocity", "std": math.sqrt(0.5)}, 
     )
     track_ang_vel_z = RewTerm(
         func=vel_mdp.track_ang_vel_z_world_exp, 
-        # weight=1.0, 
-        weight=2.0, 
-        params={"command_name": "base_velocity", "std": math.sqrt(0.5)} 
+        weight=1.0, 
+        # weight=2.0, 
+        params={"command_name": "base_velocity", "std": math.sqrt(0.5)}, 
     )
     
     """
@@ -377,7 +378,7 @@ class G1RewardsCfg:
                 # ".*shoulder_pitch.*": 0.15, # 0.125
                 # ".*elbow.*": 0.1, # 0.125
                 ".*shoulder_pitch.*": 0.2, 
-                ".*elbow.*": 0.2, 
+                ".*elbow.*": 0.1, 
                 
                 # ".*shoulder_roll.*": 0.15, # 0.125
                 # ".*shoulder_yaw.*": 0.15, # 0.125
@@ -402,7 +403,7 @@ class G1RewardsCfg:
                 # ".*shoulder_pitch.*": 0.15, # 0.125
                 # ".*elbow.*": 0.1, # 0.125
                 ".*shoulder_pitch.*": 0.2, 
-                ".*elbow.*": 0.2, 
+                ".*elbow.*": 0.1, 
 
                 # ".*shoulder_roll.*": 0.15, # 0.125
                 # ".*shoulder_yaw.*": 0.15, # 0.125
@@ -525,29 +526,29 @@ class G1RewardsCfg:
         }
     )
 
-    feet_roll = RewTerm(
-        func=vel_mdp.reward_feet_roll,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_roll = RewTerm(
+    #     func=vel_mdp.reward_feet_roll,
+    #     weight=-1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
-    feet_roll_diff = RewTerm(
-        func=vel_mdp.reward_feet_roll_diff,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_roll_diff = RewTerm(
+    #     func=vel_mdp.reward_feet_roll_diff,
+    #     weight=-1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
     feet_pitch = RewTerm(
         func=vel_mdp.reward_feet_pitch,
@@ -663,8 +664,8 @@ class G1RewardsCfg:
         func = g1_mdp.reward_foot_distance,
         weight=-2.0,
         params={
-            # "ref_dist": 0.2,
-            "ref_dist": 0.25,
+            "ref_dist": 0.2,
+            # "ref_dist": 0.25,
             "asset_cfg": SceneEntityCfg(
                 "robot",
                 body_names=".*_ankle_roll_link",
@@ -698,7 +699,10 @@ class G1RewardsCfg:
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-1.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="(?!.*ankle.*).*"), "threshold": 1.0},
+        params={
+            # "sensor_cfg": SceneEntityCfg("contact_forces", body_names="(?!.*ankle.*).*"), 
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*"), 
+            "threshold": 1.0},
     )
     
     """
@@ -707,7 +711,8 @@ class G1RewardsCfg:
     # encourage specific foot clearance value 
     foot_clearance = RewTerm(
         func=g1_mdp.foot_clearance_reward,
-        weight=2.0,
+        # weight=2.0,
+        weight=5.0,
         params={
             # "target_height": 0.1,
             "target_height": 0.12,
