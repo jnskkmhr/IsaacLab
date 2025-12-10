@@ -195,8 +195,8 @@ class G1RewardsCfg:
     )
     track_ang_vel_z = RewTerm(
         func=vel_mdp.track_ang_vel_z_world_exp, 
-        weight=1.0, 
-        # weight=2.0, 
+        # weight=1.0, 
+        weight=2.0, 
         params={"command_name": "base_velocity", "std": math.sqrt(0.5)}, 
     )
     
@@ -360,12 +360,14 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 0.2,
+                # ".*": 0.2,
+                ".*": 0.3,
                 }, 
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02, 
-                ".*hip_roll.*": 0.15,
+                # ".*hip_roll.*": 0.15,
+                ".*hip_roll.*": 0.25,
                 ".*hip_yaw.*": 0.15,
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,
@@ -390,7 +392,8 @@ class G1RewardsCfg:
             "weight_running": {
                 # leg
                 ".*hip_pitch.*": 0.02, 
-                ".*hip_roll.*": 0.15,
+                # ".*hip_roll.*": 0.15,
+                ".*hip_roll.*": 0.25,
                 ".*hip_yaw.*": 0.15,
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,

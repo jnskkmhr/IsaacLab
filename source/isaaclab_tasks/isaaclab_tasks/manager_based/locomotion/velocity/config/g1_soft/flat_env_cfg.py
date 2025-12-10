@@ -86,7 +86,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         
         # change terrain parameters
         self.events.randomize_stiffness.params["stiffness_range"] = (0.3, 0.3)
-        self.events.randomize_friction.params["friction_range"] = (0.3, 0.3)
+        self.events.randomize_friction.params["friction_range"] = (0.5, 0.5)
 
         # disable curriculum 
         self.curriculum.terrain_levels = None
@@ -105,15 +105,15 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # self.events.randomize_stiffness = None
         
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         
-        # self.commands.base_velocity.ranges.lin_vel_x = (2., 2.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (2., 3.)
         # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
@@ -144,8 +144,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # self.sim.render.enable_dlssg = True
         # self.sim.render.dlss_mode = "performance"
         self.viewer = ViewerCfg(
-            eye=(-0.0, -3.5, 0.0), 
-            lookat=(0.0, -0.0, 0.0),
+            eye=(-0.0, -3.5, 0.5), 
+            lookat=(0.0, -0.0, 0.2),
             resolution=(1920, 1080), 
             # resolution=(1080, 720),
             origin_type="asset_root", 
