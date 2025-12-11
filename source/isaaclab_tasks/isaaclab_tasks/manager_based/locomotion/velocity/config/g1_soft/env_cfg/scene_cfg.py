@@ -49,9 +49,9 @@ class G1SceneCfg(InteractiveSceneCfg):
     # Optional rigid floor at the center
     rigid_floor = None
     # robots
-    robot: ArticulationCfg = G1_DEPLOY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # leggedlab 
-    # robot: ArticulationCfg = UNITREE_G1_23DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # unitree_rl_lab
-    # robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # unitree_rl_lab
+    # robot: ArticulationCfg = G1_DEPLOY_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # leggedlab 
+    # robot: ArticulationCfg = UNITREE_G1_23DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")# 23dof g1 with actuator dynamics
+    robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot") # 29dof g1 with actuator dynamics
     # sensors
     height_scanner = RayCasterCfg(
         prim_path="{ENV_REGEX_NS}/Robot/torso_link",

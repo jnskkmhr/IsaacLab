@@ -259,7 +259,7 @@ def reward_feet_swing(
     swing_period: float,
     sensor_cfg: SceneEntityCfg,
     cmd_threshold: float = 0.05,
-    command_name=None,
+    command_name:str = "base_velocity",
     ) -> torch.Tensor:
     freq = 1 / env.phase_dt
     phase = env.get_phase()
@@ -279,11 +279,6 @@ def reward_feet_swing(
     right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)
     reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
     
-    # swing_duty_cycle = 0.5
-    # left_swing = (phase < swing_duty_cycle) & (freq > 1.0e-8)
-    # right_swing = (phase >= 0.5) & (phase < 0.5 + swing_duty_cycle) & (freq > 1.0e-8)
-    # reward = (left_swing & ~contacts[:, 0]).float() + (right_swing & ~contacts[:, 1]).float()
-
     # weight by command magnitude
     if command_name is not None:
         cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
@@ -467,14 +462,15 @@ def reward_feet_swing_soft(
     env: ManagerBasedRLEnv,
     swing_period: float,
     action_term_name: str = "physics_callback",
+    contact_threshold: float = 5.0,
     cmd_threshold: float = 0.05,
-    command_name=None,
+    command_name:str = "base_velocity",
     ) -> torch.Tensor:
     freq = 1 / env.phase_dt
     phase = env.get_phase()
 
     contact_solver = env.action_manager.get_term(action_term_name).contact_solver
-    contacts = contact_solver.data.net_forces_w_history[:, :, :, :].norm(dim=-1).max(dim=1)[0] > 5.0
+    contacts = contact_solver.data.net_forces_w_history[:, :, :, :].norm(dim=-1).max(dim=1)[0] > contact_threshold
 
     left_swing = (torch.abs(phase - 0.25) < 0.5 * swing_period) & (freq > 1.0e-8)
     right_swing = (torch.abs(phase - 0.75) < 0.5 * swing_period) & (freq > 1.0e-8)

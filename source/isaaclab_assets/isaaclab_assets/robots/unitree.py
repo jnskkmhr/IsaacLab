@@ -26,6 +26,14 @@ from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
 
+from .unitree_actuators import (
+    UnitreeActuatorCfg_N7520_14p3, 
+    UnitreeActuatorCfg_N7520_22p5, 
+    UnitreeActuatorCfg_N5010_16, 
+    UnitreeActuatorCfg_N5020_16, 
+    UnitreeActuatorCfg_W4010_25, 
+)
+
 ##
 # Configuration - Actuators.
 ##
@@ -805,7 +813,7 @@ UNITREE_G1_23DOF_CFG = ArticulationCfg(
         joint_vel={".*": 0.0},
     ),
     actuators={
-        "N7520-14.3": ImplicitActuatorCfg(
+        "N7520-14.3": UnitreeActuatorCfg_N7520_14p3(
             joint_names_expr=[".*_hip_pitch_.*", ".*_hip_yaw_.*", "waist_yaw_joint"],  # 5
             effort_limit_sim=88,
             velocity_limit_sim=32.0,
@@ -819,7 +827,7 @@ UNITREE_G1_23DOF_CFG = ArticulationCfg(
             },
             armature=0.01,
         ),
-        "N7520-22.5": ImplicitActuatorCfg(
+        "N7520-22.5": UnitreeActuatorCfg_N7520_22p5(
             joint_names_expr=[".*_hip_roll_.*", ".*_knee_.*"],  # 4
             effort_limit_sim=139,
             velocity_limit_sim=20.0,
@@ -833,7 +841,7 @@ UNITREE_G1_23DOF_CFG = ArticulationCfg(
             },
             armature=0.01,
         ),
-        "N5020-16": ImplicitActuatorCfg(
+        "N5020-16": UnitreeActuatorCfg_N5020_16(
             joint_names_expr=[".*_shoulder_.*", ".*_elbow_.*", ".*_wrist_roll_.*"],  # 10
             effort_limit_sim=25,
             velocity_limit_sim=37,
@@ -841,7 +849,7 @@ UNITREE_G1_23DOF_CFG = ArticulationCfg(
             damping=1.0,
             armature=0.01,
         ),
-        "N5020-16-parallel": ImplicitActuatorCfg(
+        "N5020-16-parallel": UnitreeActuatorCfg_N5020_16(
             joint_names_expr=[".*ankle.*"],  # 4
             effort_limit_sim=35,
             velocity_limit_sim=30,
@@ -873,25 +881,39 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
             enabled_self_collisions=True, solver_position_iteration_count=8, solver_velocity_iteration_count=4
         ),
     ),
+    # init_state=ArticulationCfg.InitialStateCfg(
+    #     pos=(0.0, 0.0, 0.8),
+    #     joint_pos={
+    #         "left_hip_pitch_joint": -0.1,
+    #         "right_hip_pitch_joint": -0.1,
+    #         ".*_knee_joint": 0.3,
+    #         ".*_ankle_pitch_joint": -0.2,
+    #         ".*_shoulder_pitch_joint": 0.3,
+    #         "left_shoulder_roll_joint": 0.25,
+    #         "right_shoulder_roll_joint": -0.25,
+    #         ".*_elbow_joint": 0.97,
+    #         "left_wrist_roll_joint": 0.15,
+    #         "right_wrist_roll_joint": -0.15,
+    #     },
+    #     joint_vel={".*": 0.0},
+    # ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.8),
+        pos=(0.0, 0.0, 0.78),
         joint_pos={
-            "left_hip_pitch_joint": -0.1,
-            "right_hip_pitch_joint": -0.1,
-            ".*_knee_joint": 0.3,
-            ".*_ankle_pitch_joint": -0.2,
-            ".*_shoulder_pitch_joint": 0.3,
-            "left_shoulder_roll_joint": 0.25,
-            "right_shoulder_roll_joint": -0.25,
-            ".*_elbow_joint": 0.97,
-            "left_wrist_roll_joint": 0.15,
-            "right_wrist_roll_joint": -0.15,
+            ".*_hip_pitch_joint": -0.20,
+            ".*_knee_joint": 0.42,
+            ".*_ankle_pitch_joint": -0.23,
+            ".*_elbow_joint": 0.87,
+            "left_shoulder_roll_joint": 0.18,
+            "left_shoulder_pitch_joint": 0.35,
+            "right_shoulder_roll_joint": -0.18,
+            "right_shoulder_pitch_joint": 0.35,
         },
         joint_vel={".*": 0.0},
     ),
     soft_joint_pos_limit_factor=0.9,
     actuators={
-        "N7520-14.3": ImplicitActuatorCfg(
+        "N7520-14.3": UnitreeActuatorCfg_N7520_14p3(
             joint_names_expr=[".*_hip_pitch_.*", ".*_hip_yaw_.*", "waist_yaw_joint"],
             effort_limit_sim=88,
             velocity_limit_sim=32.0,
@@ -905,7 +927,7 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
             },
             armature=0.01,
         ),
-        "N7520-22.5": ImplicitActuatorCfg(
+        "N7520-22.5": UnitreeActuatorCfg_N7520_22p5(
             joint_names_expr=[".*_hip_roll_.*", ".*_knee_.*"],
             effort_limit_sim=139,
             velocity_limit_sim=20.0,
@@ -919,7 +941,7 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
             },
             armature=0.01,
         ),
-        "N5020-16": ImplicitActuatorCfg(
+        "N5020-16": UnitreeActuatorCfg_N5020_16(
             joint_names_expr=[
                 ".*_shoulder_.*",
                 ".*_elbow_.*",
@@ -940,7 +962,7 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
             },
             armature=0.01,
         ),
-        "W4010-25": ImplicitActuatorCfg(
+        "W4010-25": UnitreeActuatorCfg_W4010_25(
             joint_names_expr=[".*_wrist_pitch.*", ".*_wrist_yaw.*"],
             effort_limit_sim=5,
             velocity_limit_sim=22,

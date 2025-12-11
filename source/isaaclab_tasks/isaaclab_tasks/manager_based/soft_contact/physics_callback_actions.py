@@ -72,6 +72,7 @@ class PhysicsCallbackAction(ActionTerm):
                 num_bodies=num_bodies, 
                 device=self.device, 
                 dt=env.physics_dt,
+                contact_threshold=self.cfg.contact_threshold,
                 enable_ema_filter=self.cfg.enable_ema_filter,
                 intruder_cfg=self.cfg.intruder_geometry_cfg,
                 )
@@ -84,6 +85,7 @@ class PhysicsCallbackAction(ActionTerm):
                 num_bodies=num_bodies, 
                 device=self.device, 
                 dt=env.physics_dt,
+                contact_threshold=self.cfg.contact_threshold,
                 enable_ema_filter=self.cfg.enable_ema_filter,
                 intruder_cfg=self.cfg.intruder_geometry_cfg,
                 )

@@ -25,4 +25,6 @@ class PhysicsCallbackActionCfg(ActionTermCfg):
     """Whether to disable this action term."""
     enable_ema_filter: bool = True
     """Whether to enable an exponential moving average filter on the input actions."""
+    contact_threshold: float = 10.0
+    """Threshold for contact detection (N)."""
     intruder_geometry_cfg: IntruderGeometryCfg = IntruderGeometryCfg()

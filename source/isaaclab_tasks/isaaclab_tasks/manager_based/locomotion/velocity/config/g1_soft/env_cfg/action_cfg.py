@@ -63,6 +63,7 @@ class G1ActionsCfg:
         scale=0.25, # leggedlab 
         # scale=0.5, # mjlab
         use_default_offset=True, 
+        preserve_order=True,
         ) 
     
     """
@@ -111,4 +112,5 @@ class G1ActionsCfg:
         backend="3D",
         intruder_geometry_cfg=G1FootGeometryCfg(),
         enable_ema_filter=True,
+        contact_threshold=5.0,
     )

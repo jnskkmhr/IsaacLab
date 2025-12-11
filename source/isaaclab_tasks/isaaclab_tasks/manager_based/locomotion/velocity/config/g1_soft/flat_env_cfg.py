@@ -32,8 +32,6 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         
         # Randomization 
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
-        self.events.scale_actuator_gains.params["stiffness_distribution_params"] = (0.95, 1.05)
-        self.events.scale_actuator_gains.params["damping_distribution_params"] = (0.95, 1.05)
         self.events.base_external_force_torque = None
         self.events.base_com = None
         self.events.push_robot = None
@@ -101,23 +99,21 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.base_external_force_torque = None
         self.events.push_robot = None
         self.events.physics_material = None
-        # self.events.randomize_friction = None
-        # self.events.randomize_stiffness = None
         
         # Commands
         # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         
-        self.commands.base_velocity.ranges.lin_vel_x = (2., 3.)
+        self.commands.base_velocity.ranges.lin_vel_x = (2., 2.)
         # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s/4, self.episode_length_s/4)
         # self.commands.base_velocity.debug_vis = False
         
         # Randomization 
@@ -125,10 +121,10 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             "pose_range": {
                 "x": (-0.5, 0.5), 
                 "y": (-0.5, 0.5),
-                "yaw": (-math.pi, math.pi),
+                # "yaw": (-math.pi, math.pi),
                 # "yaw": (-math.pi/2, -math.pi/2),
                 # "yaw": (-math.pi/4, -math.pi/4),
-                # "yaw": (0, 0),
+                "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),

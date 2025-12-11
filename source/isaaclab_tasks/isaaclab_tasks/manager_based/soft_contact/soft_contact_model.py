@@ -170,6 +170,7 @@ class RFT_2D:
                  device: torch.device,
                  dt:float, 
                  history_length: int = 3,
+                 contact_threshold: float = 10,
                  enable_ema_filter: bool = True,
                  material_cfg: MaterialCfg=PoppySeedCPCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
@@ -197,6 +198,7 @@ class RFT_2D:
         self.c_r = 100/(1/self.dt) # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
         self.enable_ema_filter = enable_ema_filter
+        self.contact_threshold = contact_threshold
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
@@ -407,7 +409,7 @@ class RFT_2D:
             
         # track air time (see contact sensor class)
         elapsed_time = self._timestamp[env_ids] - self._timestamp_last_update[env_ids]
-        is_contact = torch.norm(self._data.net_forces_w[env_ids, :, :], dim=-1) > 5.0 # type: ignore
+        is_contact = torch.norm(self._data.net_forces_w[env_ids, :, :], dim=-1) > self.contact_threshold # type: ignore
         is_first_contact = (self._data.current_air_time[env_ids] > 0) * is_contact # type: ignore
         is_first_detached = (self._data.current_contact_time[env_ids] > 0) * ~is_contact # type: ignore
         # -- update the last contact time if body has just become in contact
@@ -663,6 +665,7 @@ class RFT_3D:
                  device: torch.device,
                  dt:float, 
                  history_length: int = 3,
+                 contact_threshold: float = 10, 
                  enable_ema_filter: bool = True,
                  material_cfg: Material3DRFTCfg=Material3DRFTCfg(), 
                  intruder_cfg: IntruderGeometryCfg=IntruderGeometryCfg(),
@@ -690,6 +693,7 @@ class RFT_3D:
         self.c_r = 100/(1/self.dt) # 100/f (e.g. f=2000hz -> 0.05)
         self.history_length = history_length
         self.enable_ema_filter = enable_ema_filter
+        self.contact_threshold = contact_threshold
         
         self.contact_edge_x = intruder_cfg.contact_edge_x
         self.contact_edge_y = intruder_cfg.contact_edge_y
@@ -905,7 +909,7 @@ class RFT_3D:
             
         # track air time (see contact sensor class)
         elapsed_time = self._timestamp[env_ids] - self._timestamp_last_update[env_ids]
-        is_contact = torch.norm(self._data.net_forces_w[env_ids, :, :], dim=-1) > 5.0 # type: ignore
+        is_contact = torch.norm(self._data.net_forces_w[env_ids, :, :], dim=-1) > self.contact_threshold # type: ignore
         is_first_contact = (self._data.current_air_time[env_ids] > 0) * is_contact # type: ignore
         is_first_detached = (self._data.current_contact_time[env_ids] > 0) * ~is_contact # type: ignore
         # -- update the last contact time if body has just become in contact

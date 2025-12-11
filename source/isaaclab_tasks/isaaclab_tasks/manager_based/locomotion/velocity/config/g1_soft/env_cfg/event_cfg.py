@@ -62,8 +62,10 @@ class G1EventCfg:
             ),
             "operation": "scale",
             "distribution": "uniform",
-            "stiffness_distribution_params": (0.95, 1.05),
-            "damping_distribution_params": (0.95, 1.05),
+            # "stiffness_distribution_params": (0.95, 1.05),
+            # "damping_distribution_params": (0.95, 1.05),
+            "stiffness_distribution_params": (0.75, 1.25),
+            "damping_distribution_params": (0.75, 1.25),
         },
     )
 
