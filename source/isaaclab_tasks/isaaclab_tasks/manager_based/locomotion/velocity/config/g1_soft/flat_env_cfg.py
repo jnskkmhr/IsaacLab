@@ -103,11 +103,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # Commands
         # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         # self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        # self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
         
-        self.commands.base_velocity.ranges.lin_vel_x = (2., 2.)
-        # self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        # self.commands.base_velocity.ranges.lin_vel_x = (3., 3.)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         # self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         
@@ -122,9 +122,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
                 "x": (-0.5, 0.5), 
                 "y": (-0.5, 0.5),
                 # "yaw": (-math.pi, math.pi),
-                # "yaw": (-math.pi/2, -math.pi/2),
+                "yaw": (-math.pi/2, -math.pi/2),
                 # "yaw": (-math.pi/4, -math.pi/4),
-                "yaw": (0, 0),
+                # "yaw": (0, 0),
                  },
             "velocity_range": {
                 "x": (0.0, 0.0),

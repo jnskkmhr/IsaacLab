@@ -254,60 +254,52 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 0.2,
-                # ".*": 0.3,
+                # ".*": 0.2,
+                ".*": 0.3,
                 }, 
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02, 
                 # ".*hip_roll.*": 0.15,
-                ".*hip_roll.*": 0.25,
+                ".*hip_roll.*": 0.35,
                 ".*hip_yaw.*": 0.15,
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,
                 ".*ankle_roll.*": 0.02,
+
                 # waist
-                ".*waist_yaw.*": 0.15,
-                ".*waist_roll.*": 0.1,
-                ".*waist_pitch.*": 0.1, 
+                ".*waist_yaw.*": 0.2,
+                ".*waist_roll.*": 0.2,
+                ".*waist_pitch.*": 0.2, 
+
                 # arms
-                # ".*shoulder_pitch.*": 0.15, # 0.125
-                # ".*elbow.*": 0.1, # 0.125
-                ".*shoulder_pitch.*": 0.2, 
-                ".*elbow.*": 0.1, 
-                
-                # ".*shoulder_roll.*": 0.15, # 0.125
-                # ".*shoulder_yaw.*": 0.15, # 0.125
-                # ".*wrist.*": 0.15, # 0.125
-                ".*shoulder_roll.*": 0.25,
-                ".*shoulder_yaw.*": 0.25,
-                ".*wrist.*": 0.25,
+                ".*shoulder_pitch.*": 0.3, 
+                ".*elbow.*": 0.3, 
+                ".*shoulder_roll.*": 0.35,
+                ".*shoulder_yaw.*": 0.35,
+                ".*wrist.*": 0.35,
             }, 
             "weight_running": {
                 # leg
                 ".*hip_pitch.*": 0.02, 
                 # ".*hip_roll.*": 0.15,
-                ".*hip_roll.*": 0.25,
+                ".*hip_roll.*": 0.35,
                 ".*hip_yaw.*": 0.15,
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,
                 ".*ankle_roll.*": 0.02,
-                # waist
-                ".*waist_yaw.*": 0.15,
-                ".*waist_roll.*": 0.1,
-                ".*waist_pitch.*": 0.1, 
-                # arms
-                # ".*shoulder_pitch.*": 0.15, # 0.125
-                # ".*elbow.*": 0.1, # 0.125
-                ".*shoulder_pitch.*": 0.2, 
-                ".*elbow.*": 0.1, 
 
-                # ".*shoulder_roll.*": 0.15, # 0.125
-                # ".*shoulder_yaw.*": 0.15, # 0.125
-                # ".*wrist.*": 0.15, # 0.125
-                ".*shoulder_roll.*": 0.25,
-                ".*shoulder_yaw.*": 0.25,
-                ".*wrist.*": 0.25,
+                # waist
+                ".*waist_yaw.*": 0.2,
+                ".*waist_roll.*": 0.2,
+                ".*waist_pitch.*": 0.2, 
+
+                # arms
+                ".*shoulder_pitch.*": 0.3, 
+                ".*elbow.*": 0.3, 
+                ".*shoulder_roll.*": 0.35,
+                ".*shoulder_yaw.*": 0.35,
+                ".*wrist.*": 0.35,
             }, 
             "walking_threshold": 0.05,
             "running_threshold": 1.5,
@@ -614,7 +606,7 @@ class G1RewardsCfg:
         weight=5.0,
         params={
             # "target_height": 0.1,
-            "target_height": 0.12,
+            "target_height": 0.15,
             "std": 0.05,
             "tanh_mult": 2.0,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
