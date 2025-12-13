@@ -137,20 +137,24 @@ class T1EventsCfg:
                 joint_names=[
                     "AAHead_yaw",
                     "Head_pitch",
+
                     "Left_Shoulder_Pitch",
                     "Left_Shoulder_Roll",
                     "Left_Elbow_Pitch",
                     "Left_Elbow_Yaw",
-                    "Left_Wrist_Pitch",
-                    "Left_Wrist_Yaw",
-                    "Left_Hand_Roll",
+
+                    # "Left_Wrist_Pitch",
+                    # "Left_Wrist_Yaw",
+                    # "Left_Hand_Roll",
+
                     "Right_Shoulder_Pitch",
                     "Right_Shoulder_Roll",
                     "Right_Elbow_Pitch",
                     "Right_Elbow_Yaw",
-                    "Right_Wrist_Pitch",
-                    "Right_Wrist_Yaw",
-                    "Right_Hand_Roll",
+
+                    # "Right_Wrist_Pitch",
+                    # "Right_Wrist_Yaw",
+                    # "Right_Hand_Roll",
                 ],
             ),
         },

@@ -43,8 +43,9 @@ class T1RewardsCfg:
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.5) 
 
     # -- root penalties
-    # flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0) # type: ignore
-    flat_orientation_l2 = None
+    flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0) # type: ignore
+    # flat_orientation_l2 = None
+    # TODO: might increase weight 
     flat_orientation_exp = RewTerm(
         func=t1_mdp.flat_orientation_exp, 
         weight=4.0,

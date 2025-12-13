@@ -17,7 +17,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import T1_CFG, T1_MINIMAL_CFG  # type: ignore # isort: skip
+from isaaclab_assets import T1_29DOF_MINIMAL_CFG  # type: ignore # isort: skip
 from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 
 
@@ -47,7 +47,7 @@ class T1SceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
     # robots
-    robot: ArticulationCfg = T1_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = T1_29DOF_MINIMAL_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     # robot: ArticulationCfg = T1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     # sensors
     height_scanner = RayCasterCfg(

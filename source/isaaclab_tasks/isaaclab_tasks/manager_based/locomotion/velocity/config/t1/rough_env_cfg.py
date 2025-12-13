@@ -23,12 +23,8 @@ from .env_cfg import (
     T1TerminationsCfg,
     T1CurriculumsCfg, 
     T1EventsCfg,
+    T1CommandsCfg, 
 )
-
-##
-# Pre-defined configs
-##
-from isaaclab_assets.robots.booster import T1_CFG  # isort: skip
 
 
 @configclass
@@ -40,6 +36,7 @@ class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     events: T1EventsCfg = T1EventsCfg()
     actions: T1ActionsCfg = T1ActionsCfg()
     curriculum: T1CurriculumsCfg = T1CurriculumsCfg()
+    commands: T1CommandsCfg = T1CommandsCfg()
 
     def __post_init__(self):
         # post init of parent
@@ -60,7 +57,6 @@ class T1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.sim.physx.gpu_total_aggregatge_pairs_capacity = 2**22
 
         # Scene
-        self.scene.robot = T1_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/Trunk"
 
         # Randomization

@@ -43,7 +43,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         super().__post_init__()
 
         # gait duration in sec
-        self.phase_dt = 0.2 * 2
+        self.phase_dt = 0.3 * 2
 
         # # physics dt
         # self.sim.dt = 0.002 # 500 Hz

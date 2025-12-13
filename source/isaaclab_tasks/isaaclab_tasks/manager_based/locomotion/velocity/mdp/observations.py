@@ -24,6 +24,30 @@ from isaaclab.sensors import Camera, Imu, RayCaster, RayCasterCamera, TiledCamer
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
 
+"""
+gait
+"""
+
+def clock(
+    env: ManagerBasedRLEnv, 
+    cmd_threshold: float = 0.05,
+    command_name:str = "base_velocity",
+    ) -> torch.Tensor:
+    """Clock time using sin and cos from the phase of the simulation."""
+    cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
+    phase = env.get_phase()
+    phase *= (cmd_norm > cmd_threshold).float()
+    return torch.cat(
+        [
+            torch.sin(2 * torch.pi * phase).unsqueeze(1),
+            torch.cos(2 * torch.pi * phase).unsqueeze(1),
+        ],
+        dim=1,
+    ).to(env.device)
+
+"""
+foot state
+"""
 
 def foot_height(
     env: ManagerBasedEnv,

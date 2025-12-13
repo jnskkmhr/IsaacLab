@@ -62,8 +62,8 @@ class T1ActionsCfg:
     physics_callback = PhysicsCallbackActionCfg(
         asset_name="robot",
         body_names=[".*_foot_link"],
-        max_terrain_level=10, # maximum stiffness scaling
         backend="3D",
+        # backend="2D",
         intruder_geometry_cfg=T1FootGeometryCfg(),
         # enable_ema_filter=False,
     )
