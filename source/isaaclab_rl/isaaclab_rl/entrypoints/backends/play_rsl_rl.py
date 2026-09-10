@@ -28,6 +28,7 @@ from isaaclab_rl.entrypoints.common import (
     add_frontend_args,
     apply_video_recording,
     create_isaaclab_env,
+    download_wandb_checkpoint,
     pre_launch_video_config,
     request_determinism,
     resolve_checkpoint_selector,
@@ -90,11 +91,35 @@ parser.add_argument(
     help="Play with the training environment configuration as-is, skipping play-mode overrides.",
 )
 parser.add_argument("--external_callback", default=None, help="Fully qualified path to an externally defined callback.")
+parser.add_argument(
+    "--wandb_run",
+    type=str,
+    default=None,
+    help=(
+        "Weights & Biases run id to download the checkpoint from, instead of resolving one from the local logs."
+        " Cannot be combined with --checkpoint."
+    ),
+)
+parser.add_argument(
+    "--wandb_entity",
+    type=str,
+    default=None,
+    help="Weights & Biases entity owning --wandb_run. Defaults to the entity of the local W&B login.",
+)
+parser.add_argument(
+    "--wandb_project",
+    type=str,
+    default=None,
+    help="Weights & Biases project holding --wandb_run. Defaults to the agent configuration's 'wandb_project'.",
+)
 cli_args.add_rsl_rl_args(parser)
 add_launcher_args(parser)
 add_frontend_args(parser)
 args_cli, remaining_args = setup_preset_cli(parser)
 args_cli.task = resolve_play_task_name(args_cli.task)
+
+if args_cli.wandb_run is not None and args_cli.checkpoint:
+    raise ValueError("--wandb_run cannot be combined with --checkpoint.")
 
 if args_cli.video:
     args_cli.enable_cameras = True
@@ -144,6 +169,15 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 resume_path = get_published_pretrained_checkpoint("rsl_rl", train_task_name, *backend_names)
                 if not resume_path:
                     return
+            elif args_cli.wandb_run is not None:
+                print(f"[INFO] Loading checkpoint from W&B run: {args_cli.wandb_run}")
+                resume_path = download_wandb_checkpoint(
+                    log_root_path,
+                    args_cli.wandb_project if args_cli.wandb_project is not None else agent_cfg.wandb_project,
+                    args_cli.wandb_run,
+                    args_cli.wandb_entity,
+                    agent_cfg.load_checkpoint,
+                )
             elif args_cli.checkpoint in CHECKPOINT_SELECTORS:
                 resume_path = resolve_checkpoint_selector(
                     log_root_path,

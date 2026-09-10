@@ -22,6 +22,9 @@ class MeshPlaneTerrainCfg(SubTerrainBaseCfg):
 
     function: str = "{DIR}.mesh_terrains:flat_terrain"
 
+    ground_height_range: tuple[float, float] = (0.0, 0.0)
+    """The height [m] of the plane at difficulty 0 and 1. Defaults to (0.0, 0.0), i.e. a plane at z = 0."""
+
 
 @configclass
 class MeshPyramidStairsTerrainCfg(SubTerrainBaseCfg):

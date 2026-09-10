@@ -58,6 +58,11 @@ def configure_x11(statefile: StateFile) -> dict[str, str]:
     else:
         tmp_dir = Path(tmp_xauth_value).parent
 
+    # mktemp creates the directory owner-only, which stops the container's runtime user from
+    # traversing it to reach the cookie. Applied to directories carried over from an earlier run
+    # as well, so an existing setup is repaired rather than left broken.
+    Path(tmp_dir).chmod(0o755)
+
     return {"__ISAACLAB_TMP_XAUTH": str(tmp_xauth_value), "__ISAACLAB_TMP_DIR": str(tmp_dir)}
 
 
@@ -176,6 +181,10 @@ def create_x11_tmpfile(tmpfile: Path | None = None, tmpdir: Path | None = None) 
     # Merge the new cookie into the create .tmp file
     subprocess.run(["xauth", "-f", tmp_xauth, "nmerge", "-"], input=xauth_cookie, text=True, check=True)
 
+    # The container runs as a uid that the host cannot know, so an owner-only cookie leaves it
+    # unable to authenticate against the display. Both mktemp and xauth default to mode 600.
+    tmp_xauth.chmod(0o644)
+
     return tmp_xauth
 
 
@@ -214,6 +223,9 @@ def x11_refresh(statefile: StateFile):
         # remove the file and create a new one
         Path(tmp_xauth_value).unlink()
         create_x11_tmpfile(tmpfile=Path(tmp_xauth_value))
+        # repair a directory left owner-only by a container started before this was handled;
+        # the cookie always lives in its own ``mktemp -d`` directory, never directly in /tmp
+        Path(tmp_xauth_value).parent.chmod(0o755)
         # update the statefile with the new path
         statefile.set_variable("__ISAACLAB_TMP_XAUTH", str(tmp_xauth_value))
     elif tmp_xauth_value is None:

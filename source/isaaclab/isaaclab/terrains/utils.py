@@ -80,6 +80,7 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
     Keyword Args:
         translation: The translation of the terrain. Defaults to None.
         orientation: The orientation of the terrain. Defaults to None.
+        disable_collider: Whether to skip authoring the collider on the mesh. Defaults to False.
         visual_material: The visual material to apply. Defaults to None.
         physics_material: The physics material to apply. Defaults to None. Accepts a legacy rigid
             material cfg, a single rigid-material fragment, or a list of fragments.
@@ -100,8 +101,9 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
         },
     )
     # apply collider properties
-    collider_cfg = sim_utils.CollisionPropertiesCfg(collision_enabled=True)
-    sim_utils.define_collision_properties(prim.GetPrimPath(), collider_cfg)
+    if not kwargs.get("disable_collider", False):
+        collider_cfg = sim_utils.CollisionPropertiesCfg(collision_enabled=True)
+        sim_utils.define_collision_properties(prim.GetPrimPath(), collider_cfg)
     # add rgba color to the mesh primvars
     if mesh.visual.vertex_colors is not None:
         # obtain color from the mesh

@@ -95,7 +95,7 @@ class TerrainImporter:
             # collide against heightfields (e.g. Newton) can swap the large collision
             # mesh for an equivalent heightfield at solver-init time; other backends
             # ignore the attribute.
-            if self._is_heightfield_collider_requested(self.cfg.terrain_generator):
+            if not self.cfg.disable_collider and self._is_heightfield_collider_requested(self.cfg.terrain_generator):
                 self._tag_heightfield_collider(self.terrain_prim_paths[-1], terrain_generator.cfg.horizontal_scale)
             if self.cfg.use_terrain_origins:
                 # configure the terrain origins based on the terrain generator
@@ -258,7 +258,11 @@ class TerrainImporter:
 
         # import the mesh
         create_prim_from_mesh(
-            prim_path, mesh, visual_material=self.cfg.visual_material, physics_material=self.cfg.physics_material
+            prim_path,
+            mesh,
+            visual_material=self.cfg.visual_material,
+            physics_material=self.cfg.physics_material,
+            disable_collider=self.cfg.disable_collider,
         )
 
     def _compute_ground_plane_size(self) -> tuple[float, float]:

@@ -229,6 +229,10 @@ class ContainerInterface:
         )
         self._run_docker_command(cmd, f"start the container '{self.container_name}'")
 
+        # sessions this script does not start, such as a VS Code Dev Containers attach, get their
+        # groups from the container's user database, so share the host group as soon as it is up
+        self.share_host_gid()
+
     def enter(self):
         """Enter the running container by executing a bash shell.
 
@@ -239,8 +243,11 @@ class ContainerInterface:
             print(f"[INFO] Entering the existing '{self.container_name}' container in a bash session...\n")
             cmd = (
                 ["docker", "exec", "--interactive", "--tty"]
+                + self._host_gid_args()
                 + (["-e", f"DISPLAY={os.environ['DISPLAY']}"] if "DISPLAY" in os.environ else [])
-                + [self.container_name, "bash"]
+                # umask 002 keeps files written into the bind mounts group-writable, so the host
+                # user can still edit what the session creates
+                + [self.container_name, "bash", "-c", "umask 002; exec bash"]
             )
             subprocess.run(cmd)
         else:
@@ -329,6 +336,77 @@ class ContainerInterface:
     """
     Helper functions.
     """
+
+    def share_host_gid(self) -> tuple[str, str] | None:
+        """Give the container's runtime user access to the bind-mounted host files.
+
+        The image fixes its runtime user at uid/gid 1000 to match CI bind mounts, so on a host
+        whose gid differs, every bind mount is read-only to the container. The mounted trees are
+        group-writable, so the host's group id is created inside the container and added as a
+        supplementary group of the runtime user. A supplementary group is used rather than a
+        ``--user`` override alone because it also covers sessions this script does not start,
+        such as the one the VS Code Dev Containers extension attaches with.
+
+        The changes live in the container's ``/etc`` and disappear with it. Failures are ignored:
+        the group may already exist, or the image may refuse a root exec.
+
+        Returns:
+            The container's user id paired with the host group id, or None when the host has no
+            POSIX group id, the group ids already match, or the container has no POSIX user
+            database.
+        """
+        if not hasattr(os, "getgid"):
+            return None
+
+        result = subprocess.run(
+            ["docker", "exec", self.container_name, "sh", "-c", "id -u; id -g"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        ids = result.stdout.split()
+        # a container without a POSIX ``id`` is left untouched rather than guessed at
+        if len(ids) != 2 or not all(entry.isdigit() for entry in ids):
+            return None
+
+        container_uid, container_gid = ids
+        host_gid = str(os.getgid())
+        if container_gid == host_gid:
+            return None
+
+        # Without an /etc/group entry the shell greets every session with "cannot find name for
+        # group ID". Every name sharing the runtime uid is added, since the image may expose the
+        # same uid under more than one login name.
+        script = (
+            f"groupadd --non-unique --gid {host_gid} hostgroup;"
+            f" for name in $(awk -F: '$3 == {container_uid} {{ print $1 }}' /etc/passwd);"
+            " do usermod --append --groups hostgroup $name; done"
+        )
+        subprocess.run(
+            ["docker", "exec", "--user", "0", self.container_name, "sh", "-c", script],
+            capture_output=True,
+            check=False,
+        )
+        return container_uid, host_gid
+
+    def _host_gid_args(self) -> list[str]:
+        """Docker ``--user`` arguments that run an interactive session under the host's group.
+
+        The supplementary group from :meth:`share_host_gid` already grants write access; making
+        it the primary group additionally means new files are created owned by it. The image's
+        uid is kept because it owns ``$HOME``, the venv, and the Kit caches, none of which are
+        reachable as another user.
+
+        Returns:
+            The ``--user`` arguments, or no arguments when the host group id is not shared.
+        """
+        shared_ids = self.share_host_gid()
+        if shared_ids is None:
+            return []
+
+        container_uid, host_gid = shared_ids
+        print(f"[INFO] Running the session as '{container_uid}:{host_gid}' so the mounted files stay writable.")
+        return ["--user", f"{container_uid}:{host_gid}"]
 
     def _resolve_image_extension(self, yamls: list[str] | None = None, envs: list[str] | None = None):
         """Resolve the image extension by setting up YAML files, profiles, and environment files for the
