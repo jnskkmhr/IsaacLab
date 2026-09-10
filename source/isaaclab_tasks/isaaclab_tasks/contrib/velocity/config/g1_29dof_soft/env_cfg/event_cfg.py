@@ -99,58 +99,12 @@ class G1EventCfg:
         },
     )
 
-    # # randomize terrain friction
-    # randomize_friction = EventTerm(
-    #     func=mdp.randomize_terrain_friction,
-    #     mode="reset",
-    #     params={
-    #         "friction_range": (0.1, 1.0),
-    #         "contact_solver_name": "physics_callback",
-    #     },
-    # )
-
-    # # randomize terrain stiffness
-    # if contact_model == "3D-warp" or contact_model == "2D-warp":
-    #     randomize_stiffness = EventTerm(
-    #         func=mdp.randomize_terrain_stiffness,
-    #         mode="reset",
-    #         params={
-    #             "stiffness_range": (0.2, 0.9),
-    #             "contact_solver_name": "physics_callback",
-    #         },
-    #     )
-    # elif contact_model == "cone-drft" or contact_model == "cone-drft-multipoint":
-    #     randomize_stiffness = EventTerm(
-    #         func=mdp.randomize_cone_model_terrain_stiffness,
-    #         mode="reset",
-    #         params={
-    #             "sigma_flat_range": (1.0e6, 10.0e6),
-    #             "sigma_cone_range": (0.15e6, 0.6e6),
-    #             # "sigma_flat_range": (1.0e6, 1.0e6),
-    #             # "sigma_cone_range": (0.15e6, 0.15e6),
-    #             # "sigma_flat_range": (10.0e6, 10.0e6),
-    #             # "sigma_cone_range": (0.6e6, 0.6e6),
-    #             "contact_solver_name": "physics_callback",
-    #         },
-    #     )
-
-    # # randomize material density (only for 3D-RFT)
-    # randomize_material_density = EventTerm(
-    #     func=mdp.randomize_material_density,
-    #     mode="reset",
-    #     params={
-    #         "packing_ratio_range": (0.5, 1.0),
-    #         "bulk_density_range": (1000.0, 3000.0),
-    #         "contact_solver_name": "physics_callback",
-    #     },
-    # )
-
     # randomize terrain friction
     randomize_friction = EventTerm(
         func=mdp.randomize_terrain_friction,
         mode="reset",
         params={
-            "friction_range": (0.8 * math.tan(math.radians(30)), 1.2 * math.tan(math.radians(30))),
+            "friction_range": (0.1, 1.0),
             "contact_solver_name": "physics_callback",
         },
     )
@@ -161,7 +115,7 @@ class G1EventCfg:
             func=mdp.randomize_terrain_stiffness,
             mode="reset",
             params={
-                "stiffness_range": (0.8 * math.tan(math.radians(30)), 1.2 * math.tan(math.radians(30))),
+                "stiffness_range": (0.2, 0.9),
                 "contact_solver_name": "physics_callback",
             },
         )
@@ -170,23 +124,69 @@ class G1EventCfg:
             func=mdp.randomize_cone_model_terrain_stiffness,
             mode="reset",
             params={
-                # TODO: check corresponding values for cone model
-                "sigma_flat_range": (0.8 * 2.79e6, 1.2 * 2.79e6),
-                "sigma_cone_range": (0.8 * 0.22e6, 1.2 * 0.22e6),
+                "sigma_flat_range": (1.0e6, 10.0e6),
+                "sigma_cone_range": (0.15e6, 0.6e6),
+                # "sigma_flat_range": (1.0e6, 1.0e6),
+                # "sigma_cone_range": (0.15e6, 0.15e6),
+                # "sigma_flat_range": (10.0e6, 10.0e6),
+                # "sigma_cone_range": (0.6e6, 0.6e6),
                 "contact_solver_name": "physics_callback",
             },
         )
 
-    # randomize material density (only for 3D-RFT)
+    # randomize material density
     randomize_material_density = EventTerm(
         func=mdp.randomize_material_density,
         mode="reset",
         params={
-            "packing_ratio_range": (0.8 * 0.6, 1.2 * 0.6),
-            "bulk_density_range": (1100 * 0.8, 1100 * 1.2),
+            "packing_ratio_range": (0.5, 1.0),
+            "bulk_density_range": (1000.0, 3000.0),
             "contact_solver_name": "physics_callback",
         },
     )
+
+    # # randomize terrain friction
+    # randomize_friction = EventTerm(
+    #     func=mdp.randomize_terrain_friction,
+    #     mode="reset",
+    #     params={
+    #         "friction_range": (0.8 * math.tan(math.radians(30)), 1.2 * math.tan(math.radians(30))),
+    #         "contact_solver_name": "physics_callback",
+    #     },
+    # )
+
+    # # randomize terrain stiffness
+    # if contact_model == "3D-warp" or contact_model == "2D-warp":
+    #     randomize_stiffness = EventTerm(
+    #         func=mdp.randomize_terrain_stiffness,
+    #         mode="reset",
+    #         params={
+    #             "stiffness_range": (0.8 * math.tan(math.radians(30)), 1.2 * math.tan(math.radians(30))),
+    #             "contact_solver_name": "physics_callback",
+    #         },
+    #     )
+    # elif contact_model == "cone-drft" or contact_model == "cone-drft-multipoint":
+    #     randomize_stiffness = EventTerm(
+    #         func=mdp.randomize_cone_model_terrain_stiffness,
+    #         mode="reset",
+    #         params={
+    #             # TODO: check corresponding values for cone model
+    #             "sigma_flat_range": (0.8 * 2.79e6, 1.2 * 2.79e6),
+    #             "sigma_cone_range": (0.8 * 0.22e6, 1.2 * 0.22e6),
+    #             "contact_solver_name": "physics_callback",
+    #         },
+    #     )
+
+    # # randomize material density (only for 3D-RFT)
+    # randomize_material_density = EventTerm(
+    #     func=mdp.randomize_material_density,
+    #     mode="reset",
+    #     params={
+    #         "packing_ratio_range": (0.8 * 0.6, 1.2 * 0.6),
+    #         "bulk_density_range": (1100 * 0.8, 1100 * 1.2),
+    #         "contact_solver_name": "physics_callback",
+    #     },
+    # )
 
     """
     interval
@@ -198,33 +198,3 @@ class G1EventCfg:
         interval_range_s=(10.0, 15.0),
         params={"velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)}},
     )
-
-    # # only inference
-    # distance_based_sample_terrain_property = EventTerm(
-    #     func=mdp.sample_terrain_property,
-    #     # func=mdp.sample_terrain_property_linear,
-    #     mode="startup",
-    #     # mode="interval",
-    #     # interval_range_s=(0.02, 0.02),
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-    #         "friction_range": (0.5, 0.5),
-    #         "stiffness_range": (0.1, 0.9),
-    #         "bulk_density_range": (3000.0, 3000.0),
-    #         # "friction_range": (1.0, 1.0),
-    #         # "stiffness_range": (0.2, 0.8),
-    #         # "bulk_density_range": (3000.0, 3000.0),
-    #         # "friction_range": (1.0, 1.0),
-    #         # "stiffness_range": (0.6, 0.6),
-    #         # "bulk_density_range": (1000.0, 3000.0),
-    #         "packing_ratio_range": (1.0, 1.0),
-    #         # "bin_size": 2.0,
-    #         # "max_bins": 8,
-    #         # "bin_size": 2.5,
-    #         # "max_bins": 6,
-    #         # "bin_size": 3.5,
-    #         # "max_bins": 4,
-    #         "max_bins": 3,
-    #         "bin_size": 2.5,
-    #     },
-    # )
