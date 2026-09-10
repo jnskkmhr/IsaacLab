@@ -16,6 +16,27 @@ from pathlib import Path
 from .state_file import StateFile
 
 
+def _is_reusable_xauth(tmp_xauth_value: str | None) -> bool:
+    """Check whether a recorded .xauth file can still be refreshed in place.
+
+    A recorded cookie survives across runs, but ``/tmp`` is cleared between boots. Docker then
+    recreates the missing bind source as a root-owned directory, which the host user can neither
+    write nor chmod, so such a directory has to be replaced rather than reused.
+
+    Args:
+        tmp_xauth_value: Path recorded in the state file, or None when nothing was recorded.
+
+    Returns:
+        Whether the file exists inside a directory owned by the current user.
+    """
+    if tmp_xauth_value is None:
+        return False
+    tmp_xauth = Path(tmp_xauth_value)
+    if not tmp_xauth.exists():
+        return False
+    return tmp_xauth.parent.stat().st_uid == os.getuid()
+
+
 # This method of x11 enabling forwarding was inspired by osrf/rocker
 # https://github.com/osrf/rocker
 def configure_x11(statefile: StateFile) -> dict[str, str]:
@@ -48,7 +69,7 @@ def configure_x11(statefile: StateFile) -> dict[str, str]:
     # load the value of the temporary xauth file
     tmp_xauth_value = statefile.get_variable("__ISAACLAB_TMP_XAUTH")
 
-    if tmp_xauth_value is None or not Path(tmp_xauth_value).exists():
+    if not _is_reusable_xauth(tmp_xauth_value):
         # create a temporary directory to store the .xauth file
         tmp_dir = subprocess.run(["mktemp", "-d"], capture_output=True, text=True, check=True).stdout.strip()
         # create the .xauth file
@@ -143,7 +164,12 @@ def x11_cleanup(statefile: StateFile):
     # if the file exists, delete it and remove the state variable
     if tmp_xauth_value is not None and Path(tmp_xauth_value).exists():
         print(f"[INFO] Removing temporary Isaac Lab '.xauth' file: {tmp_xauth_value}.")
-        Path(tmp_xauth_value).unlink()
+        try:
+            Path(tmp_xauth_value).unlink()
+        except OSError as error:
+            # a leftover root-owned directory must not block stopping the container; the state
+            # variable is dropped either way, so the next start provisions a fresh cookie
+            print(f"[WARN] Could not remove the temporary '.xauth' file: {error}")
         statefile.delete_variable("__ISAACLAB_TMP_XAUTH")
 
 
@@ -218,14 +244,28 @@ def x11_refresh(statefile: StateFile):
         status = "enabled" if is_x11_forwarding_enabled == "1" else "disabled"
         print(f"[INFO] X11 Forwarding is {status} from the settings in '.container.cfg'")
 
-    # if the file exists, delete it and create a new one
-    if tmp_xauth_value is not None and Path(tmp_xauth_value).exists():
-        # remove the file and create a new one
-        Path(tmp_xauth_value).unlink()
-        create_x11_tmpfile(tmpfile=Path(tmp_xauth_value))
-        # repair a directory left owner-only by a container started before this was handled;
-        # the cookie always lives in its own ``mktemp -d`` directory, never directly in /tmp
-        Path(tmp_xauth_value).parent.chmod(0o755)
+    # recreate the cookie at the recorded path, which the running container has bind-mounted
+    if tmp_xauth_value is not None:
+        tmp_xauth = Path(tmp_xauth_value)
+        # /tmp is cleared between boots, so the cookie may be gone while the container still binds
+        # its path. Recreating it in place is what keeps XAUTHORITY from dangling; a fresh path
+        # would only reach the container after a restart.
+        try:
+            tmp_xauth.parent.mkdir(parents=True, exist_ok=True)
+            tmp_xauth.unlink(missing_ok=True)
+            create_x11_tmpfile(tmpfile=tmp_xauth)
+            # repair a directory left owner-only by a container started before this was handled;
+            # the cookie always lives in its own ``mktemp -d`` directory, never directly in /tmp
+            tmp_xauth.parent.chmod(0o755)
+        except OSError as error:
+            # docker recreates a missing bind source as a root-owned directory, which the host user
+            # cannot write to; a restart makes configure_x11 provision a fresh directory
+            print(f"[ERROR] Failed to refresh the temporary .xauth file '{tmp_xauth}': {error}")
+            print(
+                "[ERROR] Please recreate the container by running: './docker/container.py stop' followed by"
+                " './docker/container.py start'"
+            )
+            sys.exit(1)
         # update the statefile with the new path
         statefile.set_variable("__ISAACLAB_TMP_XAUTH", str(tmp_xauth_value))
     elif tmp_xauth_value is None:

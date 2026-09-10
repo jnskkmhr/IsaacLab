@@ -5,7 +5,8 @@
 
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -27,7 +28,7 @@ class G1CommandsCfg:
     # )
 
     # lin vel, ang vel, yaw tracking
-    base_velocity = mdp.UniformVelocityYawCommandCfg(
+    base_velocity = g1_mdp.UniformVelocityYawCommandCfg(
         asset_name="robot",
         resampling_time_range=(10.0, 10.0),
         rel_standing_envs=0.2,
@@ -35,7 +36,7 @@ class G1CommandsCfg:
         heading_command=False,
         heading_control_stiffness=0.5,
         debug_vis=True,
-        ranges=mdp.UniformVelocityYawCommandCfg.Ranges(
+        ranges=g1_mdp.UniformVelocityYawCommandCfg.Ranges(
             lin_vel_x=(-1.0, 1.0),
             lin_vel_y=(-0.5, 0.5),
             ang_vel_z=(-1.0, 1.0),

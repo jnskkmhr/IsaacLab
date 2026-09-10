@@ -7,7 +7,8 @@ import math
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -51,7 +52,7 @@ class G1CurriculumCfg:
     running
     """
     command_vel = CurrTerm(
-        func=mdp.commands_vel,  # type: ignore
+        func=g1_mdp.commands_vel,  # type: ignore
         params={
             "command_name": "base_velocity",
             "velocity_stages": [
@@ -64,7 +65,7 @@ class G1CurriculumCfg:
 
     # gaussian std curriculum
     # track_lin_vel = CurrTerm(
-    #     func=mdp.modify_reward_std,
+    #     func=g1_mdp.modify_reward_std,
     #     # params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 15000 * 24},
     #     # params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 10000 * 24},
     #     params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 20000 * 24},
@@ -72,7 +73,7 @@ class G1CurriculumCfg:
     # )
 
     # track_ang_vel = CurrTerm(
-    #     func=mdp.modify_reward_std,
+    #     func=g1_mdp.modify_reward_std,
     #     # params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 15000 * 24},
     #     # params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 10000 * 24},
     #     params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 20000 * 24},
@@ -80,7 +81,7 @@ class G1CurriculumCfg:
     # )
 
     # track_heading = CurrTerm(
-    #     func=mdp.modify_reward_std,
+    #     func=g1_mdp.modify_reward_std,
     #     # params={"term_name": "track_heading", "std": 0.25, "num_steps": 15000 * 24},
     #     # params={"term_name": "track_heading", "std": 0.25, "num_steps": 10000 * 24},
     #     params={"term_name": "track_heading", "std": 0.25, "num_steps": 20000 * 24},
@@ -88,7 +89,7 @@ class G1CurriculumCfg:
     # )
 
     track_lin_vel = CurrTerm(
-        func=mdp.ramp_reward_param,
+        func=g1_mdp.ramp_reward_param,
         params={
             "term_name": "track_lin_vel_xy",
             "param_name": "std",
@@ -100,7 +101,7 @@ class G1CurriculumCfg:
     )
 
     track_ang_vel = CurrTerm(
-        func=mdp.ramp_reward_param,
+        func=g1_mdp.ramp_reward_param,
         params={
             "term_name": "track_ang_vel_z",
             "param_name": "std",
@@ -112,7 +113,7 @@ class G1CurriculumCfg:
     )
 
     track_heading = CurrTerm(
-        func=mdp.ramp_reward_param,
+        func=g1_mdp.ramp_reward_param,
         params={
             "term_name": "track_heading",
             "param_name": "std",
@@ -125,7 +126,7 @@ class G1CurriculumCfg:
 
     # weight curriculum
     track_lin_vel_weight = CurrTerm(
-        func=mdp.ramp_reward_weight,
+        func=g1_mdp.ramp_reward_weight,
         params={
             "term_name": "track_lin_vel_xy",
             "weight_0": 4.0,
@@ -136,7 +137,7 @@ class G1CurriculumCfg:
     )
 
     # track_ang_vel_weight = CurrTerm(
-    #     func=mdp.ramp_reward_weight,
+    #     func=g1_mdp.ramp_reward_weight,
     #     params={
     #         "term_name": "track_ang_vel_z",
     #         "weight_0": 1.0,
@@ -147,7 +148,7 @@ class G1CurriculumCfg:
     # )
 
     # track_heading_weight = CurrTerm(
-    #     func=mdp.ramp_reward_weight,
+    #     func=g1_mdp.ramp_reward_weight,
     #     params={
     #         "term_name": "track_heading",
     #         "weight_0": 4.0,
@@ -158,7 +159,7 @@ class G1CurriculumCfg:
     # )
 
     # feet_air_time_weight = CurrTerm(
-    #     func=mdp.ramp_reward_weight,
+    #     func=g1_mdp.ramp_reward_weight,
     #     params={
     #         "term_name": "feet_air_time",
     #         "weight_0": 0.5,
@@ -169,7 +170,7 @@ class G1CurriculumCfg:
     # )
 
     # foot_clearance_weight = CurrTerm(
-    #     func=mdp.ramp_reward_weight,
+    #     func=g1_mdp.ramp_reward_weight,
     #     params={
     #         "term_name": "foot_clearance",
     #         "weight_0": 5.0,
@@ -177,29 +178,4 @@ class G1CurriculumCfg:
     #         "step_0": 0,
     #         "step_1": 15000 * 24,
     #     }
-    # )
-
-    # """
-    # terrain parameters
-    # """
-    # terrain_friction_levels = CurrTerm(
-    #     func=mdp.terrain_friction_levels,
-    #     params={
-    #         "friction_range": (0.1, 1.0),
-    #     },
-    # )
-
-    # terrain_stiffness_levels = CurrTerm(
-    #     func=mdp.terrain_stiffness_levels,
-    #     params={
-    #         "stiffness_range": (0.2, 0.9),
-    #     },
-    # )
-
-    # terrain_density_levels = CurrTerm(
-    #     func=mdp.terrain_density_levels,
-    #     params={
-    #         "density_range": (1000.0, 3000.0),
-    #         "packing_ratio_range": (1.0, 1.0),
-    #     },
     # )

@@ -9,7 +9,9 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_soft.mdp as g1_soft_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 SOFT_CONTACT_THRESHOLD = 40.0
 
@@ -28,7 +30,7 @@ class G1RewardsCfg:
         params={"command_name": "base_velocity", "std": math.sqrt(0.5)},
     )
     track_heading = RewTerm(
-        func=mdp.track_heading_world_exp,
+        func=g1_mdp.track_heading_world_exp,
         weight=4.0,
         params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "base_velocity", "std": math.sqrt(0.5)},
     )
@@ -43,12 +45,12 @@ class G1RewardsCfg:
     """
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
     action_rate_l2_lower_body = RewTerm(
-        func=mdp.action_rate_l2,
+        func=g1_mdp.action_rate_l2,
         weight=-0.01,
         params={"joint_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]},
     )
     action_rate_l2_upper_body = RewTerm(
-        func=mdp.action_rate_l2,
+        func=g1_mdp.action_rate_l2,
         weight=-0.05,
         params={"joint_idx": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]},
     )
@@ -69,7 +71,7 @@ class G1RewardsCfg:
     """
     joint regularization.
     """
-    energy = RewTerm(func=mdp.energy, weight=-1e-3)
+    energy = RewTerm(func=g1_mdp.energy, weight=-1e-3)
     dof_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-2e-4)
     dof_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
 
@@ -81,7 +83,7 @@ class G1RewardsCfg:
     )
 
     joint_deviation = RewTerm(
-        func=mdp.variable_posture_l1,  # type: ignore
+        func=g1_mdp.variable_posture_l1,  # type: ignore
         weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
@@ -147,7 +149,7 @@ class G1RewardsCfg:
     """
 
     feet_roll = RewTerm(
-        func=mdp.reward_feet_roll,
+        func=g1_mdp.reward_feet_roll,
         weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg(
@@ -159,7 +161,7 @@ class G1RewardsCfg:
     )
 
     feet_roll_diff = RewTerm(
-        func=mdp.reward_feet_roll_diff,
+        func=g1_mdp.reward_feet_roll_diff,
         weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg(
@@ -171,7 +173,7 @@ class G1RewardsCfg:
     )
 
     feet_pitch = RewTerm(
-        func=mdp.reward_feet_pitch,
+        func=g1_mdp.reward_feet_pitch,
         weight=-4.0,
         params={
             "asset_cfg": SceneEntityCfg(
@@ -183,7 +185,7 @@ class G1RewardsCfg:
     )
 
     feet_pitch_diff = RewTerm(
-        func=mdp.reward_feet_pitch_diff,
+        func=g1_mdp.reward_feet_pitch_diff,
         weight=-4.0,
         params={
             "asset_cfg": SceneEntityCfg(
@@ -195,7 +197,7 @@ class G1RewardsCfg:
     )
     # avoid toe contact
     feet_pitch_contact = RewTerm(
-        func=mdp.reward_feet_pitch_contact_hybrid,
+        func=g1_soft_mdp.reward_feet_pitch_contact_hybrid,
         weight=-4.0,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
@@ -214,7 +216,7 @@ class G1RewardsCfg:
 
     # physx and soft contact model coupling
     feet_air_time = RewTerm(
-        func=mdp.feet_air_time_positive_biped_hybrid,
+        func=g1_soft_mdp.feet_air_time_positive_biped_hybrid,
         weight=0.5,
         params={
             "command_name": "base_velocity",
@@ -226,7 +228,7 @@ class G1RewardsCfg:
     )
 
     no_fly = RewTerm(
-        func=mdp.no_fly_hybrid,
+        func=g1_soft_mdp.no_fly_hybrid,
         weight=-1.0,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
@@ -244,7 +246,7 @@ class G1RewardsCfg:
     # penalize lateral foot distance
     foot_distance = RewTerm(
         # func=mdp.reward_foot_distance,
-        func=mdp.reward_foot_lateral_symmetry,
+        func=g1_mdp.reward_foot_lateral_symmetry,
         weight=-2.0,
         params={
             "ref_dist": 0.2,
@@ -287,7 +289,7 @@ class G1RewardsCfg:
     """
 
     foot_clearance = RewTerm(
-        func=mdp.foot_clearance_reward,
+        func=g1_mdp.foot_clearance_reward,
         weight=5.0,
         params={
             "target_height": 0.1,

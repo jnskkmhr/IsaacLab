@@ -9,8 +9,8 @@ from isaaclab_rl.rsl_rl import (
     RslRlMLPModelCfg,
     RslRlOnPolicyRunnerCfg,
     RslRlPpoAlgorithmCfg,
-    RslRlRNNModelCfg,
-    RslRlSymmetryCfg,
+    # RslRlRNNModelCfg,
+    # RslRlSymmetryCfg,
 )
 
 # from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import g1

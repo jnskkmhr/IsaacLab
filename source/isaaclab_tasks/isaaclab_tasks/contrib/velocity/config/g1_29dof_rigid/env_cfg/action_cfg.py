@@ -5,7 +5,7 @@
 
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass

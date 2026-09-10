@@ -9,7 +9,9 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
-from .. import mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_soft.mdp as g1_soft_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 SOFT_CONTACT_THRESHOLD = 40.0
 ACTIVE_JOINT = [
@@ -177,12 +179,12 @@ class PrivilegedObsCfg(ObsGroup):
 
     base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
     foot_height = ObsTerm(
-        func=mdp.foot_height,
+        func=g1_mdp.foot_height,
         params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},
     )
 
     foot_contact = ObsTerm(
-        func=mdp.foot_contact_hybrid,
+        func=g1_soft_mdp.foot_contact_hybrid,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "soft_contact_sensor_name": "physics_callback",
@@ -191,7 +193,7 @@ class PrivilegedObsCfg(ObsGroup):
         },
     )
     foot_contact_force = ObsTerm(
-        func=mdp.foot_contact_forces_hybrid,
+        func=g1_soft_mdp.foot_contact_forces_hybrid,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "soft_contact_sensor_name": "physics_callback",
@@ -200,7 +202,7 @@ class PrivilegedObsCfg(ObsGroup):
         },
     )
     foot_air_time = ObsTerm(
-        func=mdp.foot_air_time_hybrid,
+        func=g1_soft_mdp.foot_air_time_hybrid,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "soft_contact_sensor_name": "physics_callback",
@@ -209,7 +211,7 @@ class PrivilegedObsCfg(ObsGroup):
 
     terrain_material_parameters = ObsTerm(
         # func=mdp.terrain_material_parameters_all_hybrid,
-        func=mdp.terrain_material_parameters_hybrid,
+        func=g1_soft_mdp.terrain_material_parameters_hybrid,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "soft_contact_sensor_name": "physics_callback",
@@ -246,7 +248,7 @@ class LoggingObsCfg(ObsGroup):
         params={"command_name": "base_velocity"},
     )
     contact_forces = ObsTerm(
-        func=mdp.foot_contact_forces_raw_hybrid,
+        func=g1_soft_mdp.foot_contact_forces_raw_hybrid,
         params={
             "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
             "soft_contact_sensor_name": "physics_callback",

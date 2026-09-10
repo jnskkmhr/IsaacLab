@@ -9,8 +9,8 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
-from .. import mdp
-
+import isaaclab_tasks.core.velocity.mdp as mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 
 
 @configclass
@@ -255,21 +255,21 @@ class PrivilegedObsCfg(ObsGroup):
 
     base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
     foot_height = ObsTerm(
-        func=mdp.foot_height,
+        func=g1_mdp.foot_height,
         params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},
     )
 
     # contact
     foot_contact = ObsTerm(
-        func=mdp.foot_contact,
+        func=g1_mdp.foot_contact,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"), "threshold": 5.0},
     )
     foot_contact_force = ObsTerm(
-        func=mdp.foot_contact_forces,
+        func=g1_mdp.foot_contact_forces,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")},
     )
     foot_air_time = ObsTerm(
-        func=mdp.foot_air_time,
+        func=g1_mdp.foot_air_time,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")},
     )
     # terrain_material_parameters = ObsTerm(func=mdp.terrain_material_parameters)

@@ -5,14 +5,13 @@
 
 from isaaclab.utils.configclass import configclass
 
+import isaaclab_tasks.core.velocity.mdp as mdp
 from isaaclab_tasks.contrib.soft_contact import (
     BoxColliderCfg,
     PhysicsCallbackActionCfg,
     PlaneColliderCfg,
     SphereColliderCfg,
 )
-
-from .. import mdp
 
 """
 collider geometry

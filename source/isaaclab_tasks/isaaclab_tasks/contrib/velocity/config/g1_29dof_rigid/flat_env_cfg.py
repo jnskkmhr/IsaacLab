@@ -4,13 +4,16 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import math
 
-from isaaclab.envs.common import ViewerCfg
+from isaaclab_visualizers.kit import KitVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+
 from isaaclab.utils.configclass import configclass
 
-from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
-
 from .rough_env_cfg import G1RoughEnvCfg
+
+VISUALIZER = "newton_gl"
+# VISUALIZER = "newton_rtx"
+# VISUALIZER = "kit"
 
 
 @configclass
@@ -68,10 +71,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         super().__post_init__()
 
         # change timestep
-        # self.sim.dt = 1/200 # 200Hz
-        # self.decimation = 4 # 50Hz
-        # self.sim.render_interval = self.decimation
-        self.episode_length_s = 10.0
+        self.episode_length_s = 20.0
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -98,7 +98,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s / 4, self.episode_length_s / 4)
-        # self.commands.base_velocity.debug_vis = False
+        self.commands.base_velocity.debug_vis = False
 
         # Randomization
         self.events.reset_base.params = {
@@ -119,7 +119,23 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             },
         }
 
-        self.sim.visualizer_cfgs = [
-            # KitVisualizerCfg(eye=(4.0, 4.0, 2.0)),
-            NewtonGLVisualizerCfg(eye=(0.0, -3.5, 1.0), lookat=(0.0, -0.0, 0.0)),
-        ]
+        if VISUALIZER == "newton_gl":
+            self.sim.visualizer_cfgs = [
+                NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0)),
+            ]
+
+            self.video_recorders = []
+
+        elif VISUALIZER == "newton_rtx":
+            self.sim.visualizer_cfgs = [
+                NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0)),
+            ]
+
+            self.video_recorders = []
+
+        elif VISUALIZER == "kit":
+            self.sim.visualizer_cfgs = [
+                KitVisualizerCfg(eye=(12.0, 0.0, 6.0)),
+            ]
+
+            self.video_recorders = []

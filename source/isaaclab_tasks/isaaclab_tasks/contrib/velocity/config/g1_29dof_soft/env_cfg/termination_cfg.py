@@ -6,7 +6,8 @@
 from isaaclab.managers import SceneEntityCfg, TerminationTermCfg
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -15,7 +16,7 @@ class G1TerminationsCfg:
 
     time_out = TerminationTermCfg(func=mdp.time_out, time_out=True)
     base_too_low = TerminationTermCfg(
-        func=mdp.root_height_below_minimum_adaptive,
+        func=g1_mdp.root_height_below_minimum_adaptive,
         params={
             # "minimum_height": 0.5,
             "minimum_height": 0.2,

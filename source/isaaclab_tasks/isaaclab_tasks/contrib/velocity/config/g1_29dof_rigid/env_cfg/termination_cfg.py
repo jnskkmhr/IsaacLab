@@ -4,12 +4,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import math
+
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
-
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -18,7 +19,7 @@ class G1TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     base_too_low = DoneTerm(
-        func=mdp.root_height_below_minimum_adaptive,
+        func=g1_mdp.root_height_below_minimum_adaptive,
         params={
             # "minimum_height": 0.5,
             "minimum_height": 0.2,

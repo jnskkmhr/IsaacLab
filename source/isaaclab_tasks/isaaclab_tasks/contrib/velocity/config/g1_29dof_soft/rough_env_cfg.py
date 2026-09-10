@@ -3,12 +3,14 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+from isaaclab_visualizers.kit import KitVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
 from isaaclab_tasks.core.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
-from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
 
 ##
 # Pre-defined configs
@@ -25,11 +27,14 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 
+VISUALIZER = "newton_gl"
+# VISUALIZER = "newton_rtx"
+# VISUALIZER = "kit"
+
 
 @configclass
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    # physics settings owned by the task instead of inherited from the velocity base env
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg()) # type: ignore
     rewards: G1RewardsCfg = G1RewardsCfg()
     actions: G1ActionsCfg = G1ActionsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()
@@ -44,11 +49,6 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         super().__post_init__()
 
-        # Optionally override physics speed
-        # self.sim.dt = 0.002 # 500 Hz
-        # self.decimation = 10 # 50 Hz
-        # self.sim.render_interval = self.decimation
-
         # Randomization
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
@@ -62,10 +62,32 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             },
         }
 
-        self.sim.visualizer_cfgs = [
-            # KitVisualizerCfg(eye=(4.0, 4.0, 2.0)),
-            NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0)),
-        ]
+        if VISUALIZER == "newton_gl":
+            self.sim.visualizer_cfgs = [
+                NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            ]
+
+            self.video_recorders = [
+                VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+            ]
+
+        elif VISUALIZER == "newton_rtx":
+            self.sim.visualizer_cfgs = [
+                NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            ]
+
+            self.video_recorders = [
+                VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+            ]
+
+        elif VISUALIZER == "kit":
+            self.sim.visualizer_cfgs = [
+                KitVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            ]
+
+            self.video_recorders = [
+                VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+            ]
 
 
 @configclass

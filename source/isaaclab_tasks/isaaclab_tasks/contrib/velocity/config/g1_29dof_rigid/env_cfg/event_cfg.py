@@ -8,7 +8,7 @@ from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -52,7 +52,7 @@ class G1EventCfg:
     """
 
     reset_base = EventTerm(
-        func=mdp.reset_root_state_uniform,
+        func=mdp.reset_root_state_uniform, # type: ignore
         mode="reset",
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},

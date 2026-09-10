@@ -9,7 +9,9 @@ from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_soft.mdp as g1_soft_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 contact_model = "3D-warp"
 # contact_model = "2D-warp"
@@ -61,7 +63,7 @@ class G1EventCfg:
 
     reset_base = EventTerm(
         # func=mdp.reset_root_state_uniform,
-        func=mdp.reset_root_state_uniform_on_ground,
+        func=g1_mdp.reset_root_state_uniform_on_ground,
         mode="reset",
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
@@ -101,7 +103,7 @@ class G1EventCfg:
 
     # randomize terrain friction
     randomize_friction = EventTerm(
-        func=mdp.randomize_terrain_friction,
+        func=g1_soft_mdp.randomize_terrain_friction,
         mode="reset",
         params={
             "friction_range": (0.1, 1.0),
@@ -112,7 +114,7 @@ class G1EventCfg:
     # randomize terrain stiffness
     if contact_model == "3D-warp" or contact_model == "2D-warp":
         randomize_stiffness = EventTerm(
-            func=mdp.randomize_terrain_stiffness,
+            func=g1_soft_mdp.randomize_terrain_stiffness,
             mode="reset",
             params={
                 "stiffness_range": (0.2, 0.9),
@@ -121,7 +123,7 @@ class G1EventCfg:
         )
     elif contact_model == "cone-drft" or contact_model == "cone-drft-multipoint":
         randomize_stiffness = EventTerm(
-            func=mdp.randomize_cone_model_terrain_stiffness,
+            func=g1_soft_mdp.randomize_cone_model_terrain_stiffness,
             mode="reset",
             params={
                 "sigma_flat_range": (1.0e6, 10.0e6),
@@ -136,7 +138,7 @@ class G1EventCfg:
 
     # randomize material density
     randomize_material_density = EventTerm(
-        func=mdp.randomize_material_density,
+        func=g1_soft_mdp.randomize_material_density,
         mode="reset",
         params={
             "packing_ratio_range": (0.5, 1.0),
@@ -144,49 +146,6 @@ class G1EventCfg:
             "contact_solver_name": "physics_callback",
         },
     )
-
-    # # randomize terrain friction
-    # randomize_friction = EventTerm(
-    #     func=mdp.randomize_terrain_friction,
-    #     mode="reset",
-    #     params={
-    #         "friction_range": (0.8 * math.tan(math.radians(30)), 1.2 * math.tan(math.radians(30))),
-    #         "contact_solver_name": "physics_callback",
-    #     },
-    # )
-
-    # # randomize terrain stiffness
-    # if contact_model == "3D-warp" or contact_model == "2D-warp":
-    #     randomize_stiffness = EventTerm(
-    #         func=mdp.randomize_terrain_stiffness,
-    #         mode="reset",
-    #         params={
-    #             "stiffness_range": (0.8 * math.tan(math.radians(30)), 1.2 * math.tan(math.radians(30))),
-    #             "contact_solver_name": "physics_callback",
-    #         },
-    #     )
-    # elif contact_model == "cone-drft" or contact_model == "cone-drft-multipoint":
-    #     randomize_stiffness = EventTerm(
-    #         func=mdp.randomize_cone_model_terrain_stiffness,
-    #         mode="reset",
-    #         params={
-    #             # TODO: check corresponding values for cone model
-    #             "sigma_flat_range": (0.8 * 2.79e6, 1.2 * 2.79e6),
-    #             "sigma_cone_range": (0.8 * 0.22e6, 1.2 * 0.22e6),
-    #             "contact_solver_name": "physics_callback",
-    #         },
-    #     )
-
-    # # randomize material density (only for 3D-RFT)
-    # randomize_material_density = EventTerm(
-    #     func=mdp.randomize_material_density,
-    #     mode="reset",
-    #     params={
-    #         "packing_ratio_range": (0.8 * 0.6, 1.2 * 0.6),
-    #         "bulk_density_range": (1100 * 0.8, 1100 * 1.2),
-    #         "contact_solver_name": "physics_callback",
-    #     },
-    # )
 
     """
     interval

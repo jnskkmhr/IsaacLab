@@ -6,8 +6,8 @@
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.utils.configclass import configclass
 
-from .. import mdp
-
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -16,7 +16,7 @@ class G1CurriculumCfg:
 
     terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)  # type: ignore
     command_vel = CurrTerm(
-        func=mdp.commands_vel,  # type: ignore
+        func=g1_mdp.commands_vel,  # type: ignore
         params={
             "command_name": "base_velocity",
             "velocity_stages": [
@@ -31,21 +31,21 @@ class G1CurriculumCfg:
     )
 
     track_lin_vel = CurrTerm(
-        func=mdp.modify_reward_std,
+        func=g1_mdp.modify_reward_std,
         # params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 15000 * 24},
         # params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 10000 * 24},
         params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 20000 * 24},
     )
 
     track_ang_vel = CurrTerm(
-        func=mdp.modify_reward_std,
+        func=g1_mdp.modify_reward_std,
         # params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 15000 * 24},
         # params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 10000 * 24},
         params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 20000 * 24},
     )
 
     track_heading = CurrTerm(
-        func=mdp.modify_reward_std,
+        func=g1_mdp.modify_reward_std,
         # params={"term_name": "track_heading", "std": 0.25, "num_steps": 15000 * 24},
         # params={"term_name": "track_heading", "std": 0.25, "num_steps": 10000 * 24},
         params={"term_name": "track_heading", "std": 0.25, "num_steps": 20000 * 24},
