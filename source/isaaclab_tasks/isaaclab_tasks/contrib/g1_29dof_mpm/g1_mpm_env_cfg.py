@@ -165,7 +165,7 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
-        self.events.reset_robot_joints.params["position_range"] = (0.0, 0.0)
+        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # commands
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
@@ -174,31 +174,43 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
 
-        if VISUALIZER == "newton_gl":
-            self.sim.visualizer_cfgs = [
-                NewtonGLVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
-            ]
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
+            NewtonRTXVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
+            # KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
+        ]
 
-            self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
-            ]
+        # self.video_recorders = [
+        #     VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+        #     VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+        # ]
 
-        elif VISUALIZER == "newton_rtx":
-            self.sim.visualizer_cfgs = [
-                NewtonRTXVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
-            ]
 
-            self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
-            ]
+        # if VISUALIZER == "newton_gl":
+        #     self.sim.visualizer_cfgs = [
+        #         NewtonGLVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
+        #     ]
 
-        elif VISUALIZER == "kit":
-            self.sim.visualizer_cfgs = [
-                KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
-            ]
+        #     self.video_recorders = [
+        #         VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+        #     ]
 
-            self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
-            ]
+        # elif VISUALIZER == "newton_rtx":
+        #     self.sim.visualizer_cfgs = [
+        #         NewtonRTXVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
+        #     ]
+
+        #     self.video_recorders = [
+        #         VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+        #     ]
+
+        # elif VISUALIZER == "kit":
+        #     self.sim.visualizer_cfgs = [
+        #         KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
+        #     ]
+
+        #     self.video_recorders = [
+        #         VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+        #     ]
 
         configure_sparse_mpm_capacities(self)

@@ -17,12 +17,12 @@ uv run --with wandb wandb login
 ## Training
 ```bash
 isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Sand-G1-29dof-MPM --num_envs 32 --viz none
-uv run --with wandb --extra isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Sand-G1-29dof-MPM --num_envs 16 --viz none
+uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Sand-G1-29dof-MPM --num_envs 16 --viz none
 ```
 
 ## Inference
 ```bash
-uv run --with wandb --extra isaaclab play --rl_library rsl_rl --task IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play --num_envs 4 --viz newton_gl --wandb_run 4blqnxbi
+uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play --num_envs 4 --viz newton_gl --wandb_run 4blqnxbi
 uv run --with wandb --extra ovrtx isaaclab play --rl_library rsl_rl --task IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play --num_envs 4 --viz newton_rtx --wandb_run 4blqnxbi
 ```
 
