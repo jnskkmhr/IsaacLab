@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass
 
 import isaaclab.envs.mdp as mdp
 from isaaclab_assets import UNITREE_G1_29DOF_MIMIC_ACTION_SCALE

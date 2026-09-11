@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import math
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
 from isaaclab_tasks.contrib.mimic import MOTION_TRACKING_DATA_DIR

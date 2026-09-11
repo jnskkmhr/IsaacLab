@@ -6,7 +6,7 @@
 import math
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass
 
 import isaaclab.envs.mdp as mdp
 import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
