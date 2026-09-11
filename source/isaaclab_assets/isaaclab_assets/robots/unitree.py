@@ -1015,3 +1015,20 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
         ),
     },
 )
+
+# Alias used by the mimic/motion-tracking tasks (contrib/mimic). Same articulation as
+# UNITREE_G1_29DOF_CFG; kept as a separate name to match the upstream mimic task's asset reference.
+UNITREE_G1_29DOF_MIMIC_CFG = UNITREE_G1_29DOF_CFG
+
+UNITREE_G1_29DOF_MIMIC_ACTION_SCALE = {}
+for a in UNITREE_G1_29DOF_MIMIC_CFG.actuators.values():
+    e = a.effort_limit_sim
+    s = a.stiffness
+    names = a.joint_names_expr
+    if not isinstance(e, dict):
+        e = {n: e for n in names}
+    if not isinstance(s, dict):
+        s = {n: s for n in names}
+    for n in names:
+        if n in e and n in s and s[n]:
+            UNITREE_G1_29DOF_MIMIC_ACTION_SCALE[n] = 0.25 * e[n] / s[n]  # type: ignore
