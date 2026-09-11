@@ -54,6 +54,8 @@ __all__ = [
     "G1_MINIMAL_CFG",
     "G1_29DOF_CFG",
     "UNITREE_G1_29DOF_CFG",
+    "UNITREE_G1_29DOF_MIMIC_CFG",
+    "UNITREE_G1_29DOF_MIMIC_ACTION_SCALE",
     "G1_INSPIRE_FTP_CFG",
     "UR10_CFG",
     "UR10e_CFG",
@@ -111,6 +113,8 @@ from .unitree import (
     G1_MINIMAL_CFG,
     G1_29DOF_CFG,
     UNITREE_G1_29DOF_CFG,
+    UNITREE_G1_29DOF_MIMIC_CFG,
+    UNITREE_G1_29DOF_MIMIC_ACTION_SCALE,
     G1_INSPIRE_FTP_CFG,
 )
 from .universal_robots import (
