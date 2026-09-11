@@ -14,8 +14,8 @@ from isaaclab.utils.configclass import configclass
 from . import mdp
 from .rough_env_cfg import G1RoughEnvCfg
 
-# VISUALIZER = "newton_gl"
-VISUALIZER = "newton_rtx"
+VISUALIZER = "newton_gl"
+# VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
 
 

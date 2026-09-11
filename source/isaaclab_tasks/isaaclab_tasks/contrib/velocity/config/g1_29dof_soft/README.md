@@ -6,7 +6,7 @@ pip install 'moviepy<2'
 
 ## Training 
 ```bash
-uv run --with wandb --extra isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Flat-G1-29dof-Soft --num_envs 4096 --viz none
+uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Flat-G1-29dof-Soft --num_envs 4096 --viz newton_gl --run_name xxx
 ```
 
 ## Inference 
