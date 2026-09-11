@@ -258,31 +258,31 @@ class G1RewardsCfg:
         },
     )
 
-    # # physx and soft contact model coupling
-    # feet_slide = RewTerm(
-    #     func=mdp.feet_slide_hybrid,
-    #     weight=-0.25,
-    #     params={
-    #         "rigid_contact_sensor_cfg": SceneEntityCfg(
-    #             "contact_forces", body_names=".*ankle_roll.*", preserve_order=True
-    #         ),
-    #         "soft_contact_sensor_name": "physics_callback",
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*ankle_roll.*"),
-    #         "rigid_contact_threshold": 5.0,
-    #         "soft_contact_threshold": SOFT_CONTACT_THRESHOLD,
-    #     },
-    # )
+    # physx and soft contact model coupling
+    feet_slide = RewTerm(
+        func=g1_soft_mdp.feet_slide_hybrid,
+        weight=-0.25,
+        params={
+            "rigid_contact_sensor_cfg": SceneEntityCfg(
+                "contact_forces", body_names=".*ankle_roll.*", preserve_order=True
+            ),
+            "soft_contact_sensor_name": "physics_callback",
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*ankle_roll.*"),
+            "rigid_contact_threshold": 5.0,
+            "soft_contact_threshold": SOFT_CONTACT_THRESHOLD,
+        },
+    )
 
-    # contact_impulse = RewTerm(
-    #     func=mdp.reward_soft_landing_hybrid,
-    #     weight=-5e-3,
-    #     params={
-    #         "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
-    #         "soft_contact_sensor_name": "physics_callback",
-    #         "command_name": "base_velocity",
-    #         "command_threshold": 0.05,
-    #     },
-    # )
+    contact_impulse = RewTerm(
+        func=g1_soft_mdp.reward_soft_landing_hybrid,
+        weight=-5e-3,
+        params={
+            "rigid_contact_sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
+            "soft_contact_sensor_name": "physics_callback",
+            "command_name": "base_velocity",
+            "command_threshold": 0.05,
+        },
+    )
 
     """
     Swing foot

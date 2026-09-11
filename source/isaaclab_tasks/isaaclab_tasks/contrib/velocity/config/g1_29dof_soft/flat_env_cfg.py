@@ -14,8 +14,8 @@ from isaaclab.utils.configclass import configclass
 from . import mdp
 from .rough_env_cfg import G1RoughEnvCfg
 
-VISUALIZER = "newton_gl"
-# VISUALIZER = "newton_rtx"
+# VISUALIZER = "newton_gl"
+VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
 
 
@@ -55,10 +55,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
-        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
-
-        # disable curriculum for walking only
-        # self.curriculum.command_vel = None
+        self.events.reset_robot_joints.params["position_range"] = (0.5, 1.5)
 
         # edit command range
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)

@@ -271,4 +271,4 @@ class G1ObservationsCfg:
     critic: CriticHistoryCfg = CriticHistoryCfg()
     privileged: PrivilegedHistoryCfg = PrivilegedHistoryCfg()
 
-    logging: LoggingObsCfg = LoggingObsCfg()
+    # logging: LoggingObsCfg = LoggingObsCfg()

@@ -147,16 +147,16 @@ class G1CurriculumCfg:
     #     }
     # )
 
-    # track_heading_weight = CurrTerm(
-    #     func=g1_mdp.ramp_reward_weight,
-    #     params={
-    #         "term_name": "track_heading",
-    #         "weight_0": 4.0,
-    #         "weight_1": 8.0,
-    #         "step_0": 0,
-    #         "step_1": 15000 * 24,
-    #     }
-    # )
+    track_heading_weight = CurrTerm(
+        func=g1_mdp.ramp_reward_weight,
+        params={
+            "term_name": "track_heading",
+            "weight_0": 4.0,
+            "weight_1": 8.0,
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        }
+    )
 
     # feet_air_time_weight = CurrTerm(
     #     func=g1_mdp.ramp_reward_weight,
