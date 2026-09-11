@@ -72,7 +72,9 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             ]
 
             self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+                VideoRecorderCfg(
+                    source="visualizer:newton_gl", output_dir="videos/", video_length=200, video_interval=2000
+                ),
             ]
 
         elif VISUALIZER == "newton_rtx":
@@ -81,7 +83,9 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             ]
 
             self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+                VideoRecorderCfg(
+                    source="visualizer:newton_rtx", output_dir="videos/", video_length=200, video_interval=2000
+                ),
             ]
 
         elif VISUALIZER == "kit":
@@ -90,7 +94,9 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             ]
 
             self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+                VideoRecorderCfg(
+                    source="visualizer:kit", output_dir="videos/", video_length=200, video_interval=2000
+                ),
             ]
 
 

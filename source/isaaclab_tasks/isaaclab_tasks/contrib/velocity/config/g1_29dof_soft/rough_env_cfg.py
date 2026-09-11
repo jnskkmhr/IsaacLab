@@ -34,7 +34,7 @@ VISUALIZER = "newton_gl"
 
 @configclass
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg()) # type: ignore
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
     rewards: G1RewardsCfg = G1RewardsCfg()
     actions: G1ActionsCfg = G1ActionsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()
@@ -68,7 +68,9 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             ]
 
             self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+                VideoRecorderCfg(
+                    source="visualizer:newton_gl", output_dir="videos/", video_length=200, video_interval=2000
+                ),
             ]
 
         elif VISUALIZER == "newton_rtx":
@@ -77,7 +79,9 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             ]
 
             self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+                VideoRecorderCfg(
+                    source="visualizer:newton_rtx", output_dir="videos/", video_length=200, video_interval=2000
+                ),
             ]
 
         elif VISUALIZER == "kit":
@@ -86,7 +90,9 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
             ]
 
             self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+                VideoRecorderCfg(
+                    source="visualizer:kit", output_dir="videos/", video_length=200, video_interval=2000
+                ),
             ]
 
 
