@@ -21,3 +21,4 @@ docs/source/_static/actuators/*.png binary linguist-generated
 *.sh text eol=lf
 
 source/isaaclab_assets/data/texture/** filter=lfs diff=lfs merge=lfs -text
+source/isaaclab_assets/data/unitree/** filter=lfs diff=lfs merge=lfs -text
