@@ -1,0 +1,37 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+from isaaclab.managers import SceneEntityCfg, TerminationTermCfg
+from isaaclab.utils.configclass import configclass
+
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
+
+from .. import mdp as mpm_mdp
+
+
+@configclass
+class G1TerminationsCfg:
+    """Termination terms for the MDP."""
+
+    time_out = TerminationTermCfg(func=mdp.time_out, time_out=True)
+    base_too_low = TerminationTermCfg(
+        func=g1_mdp.root_height_below_minimum_adaptive,
+        params={
+            "minimum_height": 0.2,
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
+        },
+    )
+    bad_orientation = TerminationTermCfg(func=mdp.bad_orientation, params={"limit_angle": 0.8})
+    # a diverged granular solve leaves the world NaN, where every thresholded term stays false
+    solver_diverged = TerminationTermCfg(
+        func=mpm_mdp.root_state_not_finite,
+        params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    # granular replacement for the terrain out-of-bounds check
+    outside_sand_bed = TerminationTermCfg(
+        func=mpm_mdp.root_outside_sand_bed,
+        params={"margin": 0.3, "asset_cfg": SceneEntityCfg("robot")},
+    )
