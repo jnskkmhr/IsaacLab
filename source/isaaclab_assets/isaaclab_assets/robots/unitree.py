@@ -841,8 +841,8 @@ DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ  # 1.068141502
 
 
 spawn_robot_usd = sim_utils.UsdFileCfg(
-    usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
-    # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0_box_foot/g1_29dof_rev_1_0_box_foot.usda",
+    # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
+    usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0_box_foot/g1_29dof_rev_1_0_box_foot.usda",
     activate_contact_sensors=True,
     rigid_props=sim_utils.RigidBodyPropertiesCfg(
         disable_gravity=False,
