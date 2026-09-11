@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import torch
 
 import isaaclab.utils.math as math_utils
-from isaaclab.assets import Articulation, RigidObject
+from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 
@@ -80,6 +80,7 @@ def foot_contact_forces(
     contact_forces = contact_sensor.data.net_forces_w.torch[:, sensor_cfg.body_ids, :]  # (num_envs, num_body_ids, 3)
     forces_flat = contact_forces.reshape(env.num_envs, -1)
     return torch.sign(forces_flat) * torch.log1p(torch.abs(forces_flat))
+
 
 """
 terrain

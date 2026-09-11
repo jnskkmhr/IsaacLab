@@ -34,7 +34,7 @@ VISUALIZER = "newton_gl"
 
 @configclass
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg()) # type: ignore
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
     rewards: G1RewardsCfg = G1RewardsCfg()
     actions: G1ActionsCfg = G1ActionsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()

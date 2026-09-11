@@ -14,8 +14,8 @@ from isaaclab.utils.configclass import configclass
 from . import mdp
 from .rough_env_cfg import G1RoughEnvCfg
 
-# VISUALIZER = "newton_gl"
-VISUALIZER = "newton_rtx"
+VISUALIZER = "newton_gl"
+# VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
 
 
@@ -29,6 +29,11 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.sim.dt = 0.005  # 200Hz
         self.decimation = 4  # 50Hz
         self.sim.render_interval = self.decimation
+
+        # # physics
+        # newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
+        # newton_mjwarp.solver_cfg.njmax = 95
+        # newton_mjwarp.solver_cfg.nconmax = 10
 
         # make curriculum soft terrain
         self.scene.terrain = mdp.CurriculumSoftTerrain
@@ -85,7 +90,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.scene.env_spacing = 0.0
 
         self.scene.terrain = mdp.SoftTerrain
-        # self.scene.rigid_floor = mdp.RigidPatch
+
+        # self.scene.terrain = mdp.RigidPatch
+        # self.scene.terrain.terrain_type = "plane"
+        # self.scene.terrain.terrain_generator = None
+        # self.actions.physics_callback.disable = True
 
         # disable curriculum
         self.curriculum.terrain_levels = None  # type: ignore

@@ -11,16 +11,12 @@ specify the reward function and its parameters.
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
 import torch
 
 import isaaclab.utils.math as math_utils
-from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.managers.manager_base import ManagerTermBase
-from isaaclab.managers.manager_term_cfg import RewardTermCfg
 from isaaclab.sensors import ContactSensor
 
 if TYPE_CHECKING:

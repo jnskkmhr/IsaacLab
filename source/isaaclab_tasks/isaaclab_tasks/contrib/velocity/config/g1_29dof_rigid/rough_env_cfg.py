@@ -3,13 +3,14 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+from isaaclab_visualizers.kit import KitVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
 from isaaclab_tasks.core.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
-from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab_visualizers.kit import KitVisualizerCfg
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 ##
 # Pre-defined configs
@@ -30,10 +31,11 @@ VISUALIZER = "newton_gl"
 # VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
 
+
 @configclass
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     # physics settings owned by the task instead of inherited from the velocity base env
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg()) # type: ignore
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
     rewards: G1RewardsCfg = G1RewardsCfg()
     actions: G1ActionsCfg = G1ActionsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()

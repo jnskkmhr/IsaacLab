@@ -7,8 +7,6 @@
 
 from __future__ import annotations
 
-import math
-
 from isaaclab_visualizers.kit import KitVisualizerCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
@@ -28,11 +26,22 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .env_cfg.physics_cfg import DEFAULT_PROXY_MASS_SCALE, configure_sparse_mpm_capacities, g1_mpm_physics_cfg
-from .env_cfg.scene_cfg import MPM_VISUAL_COLOR
+from .env_cfg.scene_cfg import APPROACH_LENGTH, MPM_VISUAL_COLOR
 
-# VISUALIZER = "newton_gl"
-VISUALIZER = "newton_rtx"
+VISUALIZER = "newton_gl"
+# VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
+
+CHASE_CAM_EYE = (-2.0, -4.0, 1.5)
+"""Eye offset of the follow camera relative to the robot root [m].
+
+Behind and to the side, so the approach platform, the robot and the bed edge stay in frame while
+the robot walks in ``+x``. The free-fly viewport camera (:attr:`VisualizerCfg.eye`) is static; the
+tracking view is the streaming panel, which is what the video recorders capture.
+"""
+
+CHASE_CAM_TARGET = "/World/envs/*/Robot"
+"""Prim the follow camera tracks; resolved per environment by ``env_path_from_template``."""
 
 
 @configclass
@@ -44,7 +53,7 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
     """
 
     # scene
-    scene: G1MPMSceneCfg = G1MPMSceneCfg(num_envs=32, env_spacing=4.0, replicate_physics=True, clone_in_fabric=True)
+    scene: G1MPMSceneCfg = G1MPMSceneCfg(num_envs=32, env_spacing=8.0, replicate_physics=True, clone_in_fabric=True)
 
     # basic settings
     observations: G1ObservationsCfg = G1ObservationsCfg()
@@ -74,34 +83,44 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
 
     # -- solver capacities, scaled with the world count before the simulation is created
     proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE
-    mpm_active_cell_count_per_world: int = 1 << 16
+    mpm_active_cell_count_per_world: int = 1 << 18
     mpm_leaf_node_count_per_world: int = 1 << 13
     mpm_lower_node_count_per_world: int = 1 << 10
     mpm_upper_node_count_per_world: int = 16
 
     def __post_init__(self) -> None:
         # general settings
-        self.decimation = 4  # 50 Hz control
-        self.episode_length_s = 10.0
+        self.decimation = 8  # 50 Hz control
+        # The approach has to be crossed before the granular part of the episode even begins.
+        self.episode_length_s = 10.0 + APPROACH_LENGTH
         self.is_finite_horizon = False
 
         # simulation settings
-        self.sim = SimulationCfg(dt=1 / 200, render_interval=self.decimation)  # 200 Hz physics
+        self.sim = SimulationCfg(dt=1 / 400, render_interval=self.decimation)  # 200 Hz physics
         self.sim.physics = g1_mpm_physics_cfg(self.proxy_mass_scale)
         self.sim.use_newton_actuators = True
 
         # The bed is a few metres across, so the high-speed stages of the cloned command
         # curriculum would drive the robot off it within an episode.
         self.curriculum.command_vel = None  # type: ignore
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
+        # The robot spawns on the rigid platform and the bed lies ahead of it, so the command is
+        # biased forward; a backward command would spend the episode walking away from the sand.
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
         if VISUALIZER == "newton_gl":
             self.sim.visualizer_cfgs = [
                 NewtonGLVisualizerCfg(
-                    eye=(0.0, -6.0, 1.5), headless=True, show_particles=True, particle_color=MPM_VISUAL_COLOR
+                    eye=(0.0, -6.0, 1.5),
+                    headless=True,
+                    show_particles=True,
+                    particle_color=MPM_VISUAL_COLOR,
+                    streaming_view=True,
+                    streaming_cam_target_prim_path=CHASE_CAM_TARGET,
+                    streaming_cam_eye=CHASE_CAM_EYE,
+                    streaming_envs=1,
                 ),
             ]
 
@@ -112,7 +131,14 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
         elif VISUALIZER == "newton_rtx":
             self.sim.visualizer_cfgs = [
                 NewtonRTXVisualizerCfg(
-                    eye=(0.0, -6.0, 1.5), headless=True, show_particles=True, particle_color=MPM_VISUAL_COLOR
+                    eye=(0.0, -6.0, 1.5),
+                    headless=True,
+                    show_particles=True,
+                    particle_color=MPM_VISUAL_COLOR,
+                    streaming_view=True,
+                    streaming_cam_target_prim_path=CHASE_CAM_TARGET,
+                    streaming_cam_eye=CHASE_CAM_EYE,
+                    streaming_envs=1,
                 ),
             ]
 
@@ -155,7 +181,7 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.events.physics_material = None  # type: ignore
         self.events.scale_actuator_gains = None  # type: ignore
         self.events.reset_base.params = {
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-math.pi, math.pi)},
+            "pose_range": {"x": (-0.25, 0.25), "y": (-0.25, 0.25), "yaw": (0.0, 0.0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -175,16 +201,24 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
-            NewtonRTXVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
+            NewtonGLVisualizerCfg(
+                eye=(0.0, -6.0, 1.5),
+                show_particles=True,
+                particle_color=MPM_VISUAL_COLOR,
+            ),
+            NewtonRTXVisualizerCfg(
+                eye=(-0.5, -3.0, 1.5),
+                lookat=(-0.5, 0.0, 0.0),
+                show_particles=True,
+                particle_color=MPM_VISUAL_COLOR,
+            ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
         ]
 
-        # self.video_recorders = [
-        #     VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
-        #     VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
-        # ]
-
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+        ]
 
         # if VISUALIZER == "newton_gl":
         #     self.sim.visualizer_cfgs = [

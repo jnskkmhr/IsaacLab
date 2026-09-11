@@ -42,7 +42,7 @@ def terrain_levels_vel(
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    terrain: TerrainImporter = env.scene.terrain # type: ignore
+    terrain: TerrainImporter = env.scene.terrain  # type: ignore
     command = env.command_manager.get_command("base_velocity")
     # compute the distance the robot walked
     distance = torch.norm(asset.data.root_pos_w.torch[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
@@ -52,29 +52,32 @@ def terrain_levels_vel(
     move_down = distance < torch.norm(command[env_ids, :2], dim=1) * env.max_episode_length_s * 0.5
     move_down *= ~move_up
     # update terrain levels
-    terrain.update_env_origins(env_ids, move_up, move_down) # type: ignore
+    terrain.update_env_origins(env_ids, move_up, move_down)  # type: ignore
     # return the mean terrain level
     return torch.mean(terrain.terrain_levels.float())
+
 
 """
 command curriculums
 """
+
 
 class VelocityStage(TypedDict):
     step: int
     lin_vel_x: tuple[float, float] | None
     lin_vel_y: tuple[float, float] | None
     ang_vel_z: tuple[float, float] | None
-  
+
+
 def commands_vel(
-    env: ManagerBasedRLEnv, 
+    env: ManagerBasedRLEnv,
     env_ids: torch.Tensor,
     command_name: str,
     velocity_stages: list[VelocityStage],
-    ) -> dict[str, torch.Tensor]:
+) -> dict[str, torch.Tensor]:
     """
-    Curriculum that updates the command velocity ranges based on predefined learning iterations. 
-    Example: 
+    Curriculum that updates the command velocity ranges based on predefined learning iterations.
+    Example:
         "velocity_stages": [
           {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
           {"step": 5000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
@@ -88,23 +91,25 @@ def commands_vel(
     for stage in velocity_stages:
         if env.common_step_counter > stage["step"]:
             if "lin_vel_x" in stage and stage["lin_vel_x"] is not None:
-                cfg.ranges.lin_vel_x = stage["lin_vel_x"] # type: ignore
+                cfg.ranges.lin_vel_x = stage["lin_vel_x"]  # type: ignore
             if "lin_vel_y" in stage and stage["lin_vel_y"] is not None:
-                cfg.ranges.lin_vel_y = stage["lin_vel_y"] # type: ignore
+                cfg.ranges.lin_vel_y = stage["lin_vel_y"]  # type: ignore
             if "ang_vel_z" in stage and stage["ang_vel_z"] is not None:
-                cfg.ranges.ang_vel_z = stage["ang_vel_z"] # type: ignore
+                cfg.ranges.ang_vel_z = stage["ang_vel_z"]  # type: ignore
     return {
-        "lin_vel_x_min": torch.tensor(cfg.ranges.lin_vel_x[0]), # type: ignore
-        "lin_vel_x_max": torch.tensor(cfg.ranges.lin_vel_x[1]), # type: ignore
-        "lin_vel_y_min": torch.tensor(cfg.ranges.lin_vel_y[0]), # type: ignore
-        "lin_vel_y_max": torch.tensor(cfg.ranges.lin_vel_y[1]), # type: ignore
-        "ang_vel_z_min": torch.tensor(cfg.ranges.ang_vel_z[0]), # type: ignore
-        "ang_vel_z_max": torch.tensor(cfg.ranges.ang_vel_z[1]), # type: ignore
+        "lin_vel_x_min": torch.tensor(cfg.ranges.lin_vel_x[0]),  # type: ignore
+        "lin_vel_x_max": torch.tensor(cfg.ranges.lin_vel_x[1]),  # type: ignore
+        "lin_vel_y_min": torch.tensor(cfg.ranges.lin_vel_y[0]),  # type: ignore
+        "lin_vel_y_max": torch.tensor(cfg.ranges.lin_vel_y[1]),  # type: ignore
+        "ang_vel_z_min": torch.tensor(cfg.ranges.ang_vel_z[0]),  # type: ignore
+        "ang_vel_z_max": torch.tensor(cfg.ranges.ang_vel_z[1]),  # type: ignore
     }
+
 
 """
 reward weight curriculums
 """
+
 
 def modify_reward_std(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name: str, std: float, num_steps: int):
     """Curriculum that modifies a exponential reward std a given number of steps.
@@ -122,7 +127,8 @@ def modify_reward_std(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name:
         # update term settings
         term_cfg.params["std"] = std
         env.reward_manager.set_term_cfg(term_name, term_cfg)
-        
+
+
 def ramp_reward_weight(
     env: ManagerBasedRLEnv,
     env_ids: Sequence[int],
@@ -159,7 +165,8 @@ def ramp_reward_weight(
     env.reward_manager.set_term_cfg(term_name, term_cfg)
 
     return env.reward_manager.get_term_cfg(term_name).weight
-        
+
+
 def modify_reward_param(
     env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name: str, param_name: str, param_val: float, num_steps: int
 ):
@@ -192,7 +199,7 @@ def ramp_reward_param(
     val_1: float,
     step_0: int,
     step_1: int,
-)-> float:
+) -> float:
     """Curriculum that continuously sets the reward parameter. The value is `val_0` before
     `step_0`, then linearly ramps to `val_1` at `step_1`, and is `val_1` after `step_1`.
 
@@ -220,4 +227,4 @@ def ramp_reward_param(
     term_cfg.params[param_name] = (1.0 - alpha) * val_0 + alpha * val_1
     env.reward_manager.set_term_cfg(term_name, term_cfg)
 
-    return env.reward_manager.get_term_cfg(term_name).params[param_name] # type: ignore
+    return env.reward_manager.get_term_cfg(term_name).params[param_name]  # type: ignore

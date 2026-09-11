@@ -9,8 +9,8 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
-import isaaclab_tasks.core.velocity.mdp as mdp
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -315,4 +315,3 @@ class G1ObservationsCfg:
     critic: CriticHistoryCfg = CriticHistoryCfg()
     privileged: PrivilegedHistoryCfg = PrivilegedHistoryCfg()
     logging: LoggingObsCfg = LoggingObsCfg()
-

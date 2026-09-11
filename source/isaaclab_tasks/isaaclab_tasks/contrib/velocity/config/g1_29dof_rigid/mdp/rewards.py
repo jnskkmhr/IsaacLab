@@ -11,14 +11,12 @@ specify the reward function and its parameters.
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 import torch
 
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation, RigidObject
-from isaaclab.envs import mdp
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers.manager_base import ManagerTermBase
 from isaaclab.managers.manager_term_cfg import RewardTermCfg
@@ -114,7 +112,9 @@ def feet_slide(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = Scen
     """
     # Penalize feet sliding
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    contacts = contact_sensor.data.net_forces_w_history.torch[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+    contacts = (
+        contact_sensor.data.net_forces_w_history.torch[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+    )
     asset = env.scene[asset_cfg.name]
 
     body_vel = asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids, :2]
@@ -212,7 +212,9 @@ def foot_clearance_reward(
     foot_z_target_error = torch.square(
         asset.data.body_pos_w.torch[:, asset_cfg.body_ids, 2] - (target_height + standing_position_foot_z)
     )
-    foot_velocity_tanh = torch.tanh(tanh_mult * torch.norm(asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids, :2], dim=2))
+    foot_velocity_tanh = torch.tanh(
+        tanh_mult * torch.norm(asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids, :2], dim=2)
+    )
     reward = foot_z_target_error * foot_velocity_tanh
     reward = torch.exp(-torch.sum(reward, dim=1) / std)
     return reward
@@ -240,7 +242,9 @@ def track_ang_vel_z_world_exp(
     """Reward tracking of angular velocity commands (yaw) in world frame using exponential kernel."""
     # extract the used quantities (to enable type-hinting)
     asset = env.scene[asset_cfg.name]
-    ang_vel_error = torch.square(env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_w.torch[:, 2])
+    ang_vel_error = torch.square(
+        env.command_manager.get_command(command_name)[:, 2] - asset.data.root_ang_vel_w.torch[:, 2]
+    )
     return torch.exp(-ang_vel_error / std**2)
 
 
@@ -320,7 +324,6 @@ def reward_feet_roll(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     # feet_index: list[int] = [22, 23]
 ) -> torch.Tensor:
-
     # Calculate roll angles from quaternions for the feet
     feet_roll, _, _ = _feet_rpy(
         env,
@@ -335,7 +338,6 @@ def reward_feet_roll_diff(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     # feet_index: list[int] = [22, 23]):
 ) -> torch.Tensor:
-
     # Calculate pitch angles from quaternions for the feet
     feet_roll, _, _ = _feet_rpy(
         env,
@@ -350,7 +352,6 @@ def reward_feet_pitch(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     # feet_index: list[int] = [22, 23]
 ) -> torch.Tensor:
-
     # Calculate roll angles from quaternions for the feet
     _, feet_pitch, _ = _feet_rpy(
         env,
@@ -382,7 +383,6 @@ def reward_feet_pitch_diff(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-
     # Calculate pitch angles from quaternions for the feet
     _, feet_pitch, _ = _feet_rpy(
         env,
@@ -423,7 +423,6 @@ def reward_feet_yaw_mean(
     env: ManagerBasedRLEnv,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-
     # Calculate yaw angles from quaternions for the feet
     _, _, feet_yaw = _feet_rpy(
         env,
@@ -485,7 +484,6 @@ class variable_posture_l1(ManagerTermBase):
         walking_threshold: float = 0.5,
         running_threshold: float = 1.5,
     ) -> torch.Tensor:
-
         asset = env.scene[asset_cfg.name]
         command = env.command_manager.get_command(command_name)
 
@@ -530,4 +528,3 @@ def action_rate_l2(env: ManagerBasedRLEnv, joint_idx: list[int]) -> torch.Tensor
 """
 reimplementation of contact rewards to handle soft contact.
 """
-

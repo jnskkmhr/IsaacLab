@@ -13,15 +13,6 @@ from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.core.velocity.mdp as mdp
 
-FOOT_SOLE_EDGE_X = (-0.065, 0.141)
-"""Sole extent along the foot's forward axis relative to the ankle roll link [m]."""
-
-FOOT_SOLE_EDGE_Y = (-0.0368, 0.0368)
-"""Sole extent along the foot's lateral axis relative to the ankle roll link [m]."""
-
-FOOT_SOLE_Z = -0.03539
-"""Sole height relative to the ankle roll link origin [m]."""
-
 ACTIVE_JOINT = [
     "left_hip_pitch_joint",
     "left_hip_roll_joint",

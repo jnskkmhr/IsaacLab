@@ -7,7 +7,6 @@
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
-import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass

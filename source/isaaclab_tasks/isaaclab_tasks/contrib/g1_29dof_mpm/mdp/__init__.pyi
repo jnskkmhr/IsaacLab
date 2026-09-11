@@ -12,7 +12,7 @@ __all__ = [
     "foot_contact_force_raw",
     "no_fly",
     "reset_sand_bed",
-    "root_outside_sand_bed",
+    "root_outside_workspace",
     "root_state_not_finite",
     "terrain_material_parameters",
 ]
@@ -26,5 +26,5 @@ from .observations import (
     terrain_material_parameters,
 )
 from .rewards import feet_air_time_positive_biped, feet_pitch_contact, no_fly
-from .terminations import root_outside_sand_bed, root_state_not_finite
+from .terminations import root_outside_workspace, root_state_not_finite
 from isaaclab.envs.mdp import *

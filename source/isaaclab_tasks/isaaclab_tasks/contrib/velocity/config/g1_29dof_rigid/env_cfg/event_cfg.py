@@ -52,7 +52,7 @@ class G1EventCfg:
     """
 
     reset_base = EventTerm(
-        func=mdp.reset_root_state_uniform, # type: ignore
+        func=mdp.reset_root_state_uniform,  # type: ignore
         mode="reset",
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},

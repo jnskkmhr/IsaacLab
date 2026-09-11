@@ -841,9 +841,7 @@ DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ  # 1.068141502
 
 
 spawn_robot_usd = sim_utils.UsdFileCfg(
-    # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
-    usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
-    # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/g1_29dof_rev_1_0_box_foot/g1_29dof_rev_1_0_box_foot.usda",
+    usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
     # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0_box_foot/g1_29dof_rev_1_0_box_foot.usda",
     activate_contact_sensors=True,
     rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -883,7 +881,7 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
     spawn=spawn_robot_usd,
     # spawn=spawn_robot_urdf,
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.76),
+        pos=(0.0, 0.0, 0.8),
         joint_pos={
             ".*_hip_pitch_joint": -0.312,
             ".*_knee_joint": 0.669,

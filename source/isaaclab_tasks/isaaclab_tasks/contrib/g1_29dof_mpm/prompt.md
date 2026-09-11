@@ -1,23 +1,23 @@
-<!-- ## What do I want to do ? 
-* Implement g1_29_dof locomotion environment with Mjwarp + MPM solver soupled with Proxy/ADMM solver coupler. 
+<!-- ## What do I want to do ?
+* Implement g1_29_dof locomotion environment with Mjwarp + MPM solver soupled with Proxy/ADMM solver coupler.
 * Locomotion policy formulation is from /workspace/isaaclab/source/isaaclab_tasks/isaaclab_tasks/contrib/velocity/config/g1_29dof_soft
 * MPM + Mjwarp coupling code can be referred to /workspace/isaaclab/source/isaaclab_tasks/isaaclab_tasks/contrib/ur10_particle_push or /workspace/isaaclab/source/isaaclab_tasks/isaaclab_tasks/contrib/franka_pour
 * Also, I have standalone newton implementation, so you can refer how I spawn MPM sand (coupling should be done by ProxyCoupling or ADMM coupling, see how coupling is done in two environments mentioned above). /home/jkamohara/isaac/newton/newton/examples/mpm/g1
 
-## How to implement? 
+## How to implement?
 
 ### RL formulation
-* action, command, curriculum, termination can be cloned from g1_29dof_soft as these terms may not be dependent on physics solver 
+* action, command, curriculum, termination can be cloned from g1_29dof_soft as these terms may not be dependent on physics solver
 * event terms depends on physics solver, but I would drop terrain parameter randomization for now to simplify code
-* observation is tricky. Privileged information includes terrain information. You can think about how to retrieve these from mpm solver 
-* reward is also tricky. You can ignore reward functions that requires contact state. 
-* scene config should be implemented by referring to franka_pur/ur10_particle_push 
+* observation is tricky. Privileged information includes terrain information. You can think about how to retrieve these from mpm solver
+* reward is also tricky. You can ignore reward functions that requires contact state.
+* scene config should be implemented by referring to franka_pur/ur10_particle_push
 
 * When you access to MPM sand state that are used for reward/observation/event, it might be better to add additional method to environment class that override manager_based_rl_env.py. This is because each method in env class can bookeep MPM variables. If you implement each terms as separate class, you cannot bookeep, thus you end up computing the same variables multiple times (contact force computed from MPM contact impulse for example). I think good example is `_particle_position_e` in ur10_particle_push_env.py
 
-### Physics 
-* look at how physics are coupled in franka_pur/ur10_particle_push 
-```python 
+### Physics
+* look at how physics are coupled in franka_pur/ur10_particle_push
+```python
         self.sim.physics = NewtonCfg(
             solver_cfg=CouplerProxyCfg(
                 entries=[
@@ -94,9 +94,9 @@
 ``` -->
 
 
-* Correct privileged observation misalignment with g1_29dof_soft. 
-* privileged observation in g1_29dof_soft is 
-```python 
+* Correct privileged observation misalignment with g1_29dof_soft.
+* privileged observation in g1_29dof_soft is
+```python
 @configclass
 class PrivilegedObsCfg(ObsGroup):
     """Observations for policy group."""
@@ -143,8 +143,8 @@ class PrivilegedObsCfg(ObsGroup):
     )
 
 ```
-and g1_29dof_mpm has the following privileged information: 
-```python 
+and g1_29dof_mpm has the following privileged information:
+```python
 @configclass
 class PrivilegedObsCfg(ObsGroup):
     """Granular-terrain information available to the critic only."""
@@ -166,5 +166,5 @@ class PrivilegedObsCfg(ObsGroup):
         self.history_length = 1
 ```
 
-`foot_sinkage` and `sand_height_scan` came out of nowhere. Please correct them. 
-Also, current observation is missing foot_contact_force and terrain_material_parameters. If you do not know how to deal with terrain material parameters, just implement mdp function that returns zero tensor with the same shape. 
+`foot_sinkage` and `sand_height_scan` came out of nowhere. Please correct them.
+Also, current observation is missing foot_contact_force and terrain_material_parameters. If you do not know how to deal with terrain material parameters, just implement mdp function that returns zero tensor with the same shape.

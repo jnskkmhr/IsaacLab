@@ -57,11 +57,13 @@ class G1EventCfg:
         mode="reset",
     )
 
+    # The robot starts on the rigid approach platform, so the yaw spread is narrow enough that a
+    # forward command carries it onto the bed rather than off the side of the platform.
     reset_base = EventTerm(
         func=g1_mdp.reset_root_state_uniform_on_ground,
         mode="reset",
         params={
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-0.3, 0.3)},
             "velocity_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.5, 0.5),

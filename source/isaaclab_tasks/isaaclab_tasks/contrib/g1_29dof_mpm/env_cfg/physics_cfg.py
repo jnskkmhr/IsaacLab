@@ -15,7 +15,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from isaaclab_newton.physics import MJWarpSolverCfg, MPMSolverCfg, NewtonCfg, NewtonCollisionPipelineCfg
+from isaaclab_newton.physics import (
+    MJWarpSolverCfg,
+    MPMSolverCfg,
+    NewtonCfg,
+    NewtonCollisionPipelineCfg,
+    NewtonShapeCfg,
+)
 
 from isaaclab_contrib.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
@@ -67,6 +73,8 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
                         impratio=1.0,
                         njmax=1000,
                         nconmax=300,
+                        # njmax=90,
+                        # nconmax=10,
                     ),
                     bodies=[r"/World/envs/env_.*/Robot"],
                     # picks up the hidden static pan floor, which has no rigid body to name
@@ -104,7 +112,7 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
                     bodies=[
                         r"/World/envs/env_.*/MPMBedFloor",
                         r"/World/envs/env_.*/MPMBedWallFront",
-                        r"/World/envs/env_.*/MPMBedWallBack",
+                        r"/World/envs/env_.*/MPMApproachBank",
                         r"/World/envs/env_.*/MPMBedWallLeft",
                         r"/World/envs/env_.*/MPMBedWallRight",
                     ],
@@ -119,7 +127,7 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
                 CouplerProxyMappingCfg(
                     source=RIGID_ENTRY,
                     destination=MPM_ENTRY,
-                    bodies=FOOT_PROXY_BODIES, # type: ignore
+                    bodies=FOOT_PROXY_BODIES,  # type: ignore
                     mode="lagged",
                     mass_scale=proxy_mass_scale,
                     collision_pipeline=None,
@@ -128,6 +136,11 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
             iterations=1,
         ),
         collision_cfg=NewtonCollisionPipelineCfg(soft_contact_max=0),
+        # Newton's default shape stiffness (ke 2.5e3, kd 1e2) is two orders of magnitude too
+        # compliant for a 32 kg humanoid: `MJWarpSolverCfg.use_mujoco_contacts=False` routes it
+        # through `convert_solref`, so the rigid approach platform answers a footfall like a
+        # mattress. These are the values the rigid and soft-contact G1 tasks walk on.
+        default_shape_cfg=NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0),
         num_substeps=1,
         use_cuda_graph=True,
     )
@@ -146,7 +159,7 @@ def get_mpm_solver_cfg(cfg: G1MPMEnvCfg) -> MPMSolverCfg:
         ValueError: If the physics configuration does not hold exactly one MPM entry.
     """
     assert cfg.sim.physics is not None
-    entries = [entry for entry in cfg.sim.physics.solver_cfg.entries if entry.name == MPM_ENTRY] # type: ignore
+    entries = [entry for entry in cfg.sim.physics.solver_cfg.entries if entry.name == MPM_ENTRY]  # type: ignore
     if len(entries) != 1 or not isinstance(entries[0].solver_cfg, MPMSolverCfg):
         raise ValueError(f"Expected one {MPM_ENTRY!r} MPMSolverCfg entry, found {len(entries)}.")
     return entries[0].solver_cfg

@@ -26,4 +26,4 @@ class G1TerminationsCfg:
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
         },
     )
-    bad_orientation = DoneTerm(func=mdp.bad_orientation, params={"limit_angle": math.pi/4})
+    bad_orientation = DoneTerm(func=mdp.bad_orientation, params={"limit_angle": math.pi / 4})

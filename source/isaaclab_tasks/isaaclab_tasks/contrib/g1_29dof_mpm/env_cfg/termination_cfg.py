@@ -30,8 +30,8 @@ class G1TerminationsCfg:
         func=mpm_mdp.root_state_not_finite,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
-    # granular replacement for the terrain out-of-bounds check
-    outside_sand_bed = TerminationTermCfg(
-        func=mpm_mdp.root_outside_sand_bed,
+    # replacement for the terrain out-of-bounds check: platform plus bed
+    outside_workspace = TerminationTermCfg(
+        func=mpm_mdp.root_outside_workspace,
         params={"margin": 0.3, "asset_cfg": SceneEntityCfg("robot")},
     )

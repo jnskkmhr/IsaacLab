@@ -14,33 +14,34 @@ import torch
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 
-from ..env_cfg.scene_cfg import SAND_BED_XY_BOUNDS
+from ..env_cfg.scene_cfg import WALKABLE_XY_BOUNDS
 
 if TYPE_CHECKING:
     from ..g1_mpm_env import G1MPMEnv
 
 
-def root_outside_sand_bed(
+def root_outside_workspace(
     env: G1MPMEnv,
     margin: float = 0.3,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Terminate when the base leaves the granular bed.
+    """Terminate when the base leaves the supported surface.
 
-    Replaces the terrain out-of-bounds check of the rough tasks: outside the bed there is no
-    granular support, so the episode carries no useful signal.
+    Replaces the terrain out-of-bounds check of the rough tasks. The supported surface is the
+    rigid approach platform followed by the granular bed; beyond it there is nothing to walk on,
+    so the episode carries no useful signal.
 
     Args:
         env: Environment instance.
-        margin: Distance inside the bed edge at which the episode ends [m].
+        margin: Distance inside the surface edge at which the episode ends [m].
         asset_cfg: Configuration of the tracked articulation.
 
     Returns:
-        Whether the base is outside the bed, shape ``(num_envs,)``.
+        Whether the base is outside the supported surface, shape ``(num_envs,)``.
     """
     asset: Articulation = env.scene[asset_cfg.name]
     position_e = asset.data.root_pos_w.torch - env.scene.env_origins
-    (x_lo, x_hi), (y_lo, y_hi) = SAND_BED_XY_BOUNDS
+    (x_lo, x_hi), (y_lo, y_hi) = WALKABLE_XY_BOUNDS
     outside_x = (position_e[:, 0] < x_lo + margin) | (position_e[:, 0] > x_hi - margin)
     outside_y = (position_e[:, 1] < y_lo + margin) | (position_e[:, 1] > y_hi - margin)
     return outside_x | outside_y

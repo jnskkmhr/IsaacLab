@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -102,10 +102,10 @@ SoftTerrain = TerrainImporterCfg(
 )
 
 RigidPatch = TerrainImporterCfg(
-    prim_path="/World/rigid_patch",
+    prim_path="/World/ground",
     terrain_type="generator",
     terrain_generator=terrain_gen.TerrainGeneratorCfg(
-        size=(5, 5),  # size of sub-terrain
+        size=(50, 50),  # size of sub-terrain
         border_width=0.0,
         num_rows=1,
         num_cols=1,
