@@ -71,9 +71,13 @@ def bad_anchor_ori(
     asset: RigidObject | Articulation = env.scene[asset_cfg.name]
 
     command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
-    motion_projected_gravity_b = quat_apply_inverse(command.anchor_quat_w, asset.data.GRAVITY_VEC_W)
+    # On Newton, GRAVITY_VEC_W is a ProxyArray (warp-backed); quat_apply_inverse needs a plain
+    # torch.Tensor. PhysX already returns a Tensor, so only convert when the accessor is present.
+    gravity_vec_w = asset.data.GRAVITY_VEC_W
+    gravity_vec_w = gravity_vec_w.torch if hasattr(gravity_vec_w, "torch") else gravity_vec_w
+    motion_projected_gravity_b = quat_apply_inverse(command.anchor_quat_w, gravity_vec_w)
 
-    robot_projected_gravity_b = quat_apply_inverse(command.robot_anchor_quat_w, asset.data.GRAVITY_VEC_W)
+    robot_projected_gravity_b = quat_apply_inverse(command.robot_anchor_quat_w, gravity_vec_w)
 
     bad = (motion_projected_gravity_b[:, 2] - robot_projected_gravity_b[:, 2]).abs() > threshold
     return _gate_on_tracking(command, bad, only_when_tracking)
