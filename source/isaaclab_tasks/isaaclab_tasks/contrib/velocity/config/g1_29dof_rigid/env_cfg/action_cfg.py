@@ -5,14 +5,16 @@
 
 from isaaclab.utils.configclass import configclass
 
-import isaaclab_tasks.core.velocity.mdp as mdp
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
+from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorJointPositionActionCfg
 
 
 @configclass
 class G1ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(
+    joint_pos = MirrorJointPositionActionCfg(
+        mirror=symmetry.mirror_g1_joints,
         asset_name="robot",
         joint_names=[
             "left_hip_pitch_joint",
@@ -50,3 +52,5 @@ class G1ActionsCfg:
         use_default_offset=True,
         preserve_order=True,
     )
+
+    joint_pos.mirror_params = {"joint_names": joint_pos.joint_names}

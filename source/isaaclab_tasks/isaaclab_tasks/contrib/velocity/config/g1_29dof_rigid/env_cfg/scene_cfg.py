@@ -16,7 +16,7 @@ from isaaclab.utils.configclass import configclass
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import UNITREE_G1_29DOF_CFG
+from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG, UNITREE_G1_29DOF_CFG
 
 
 @configclass
@@ -44,7 +44,8 @@ class G1SceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
     # robots
-    robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
+    # robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
 
     # sensors
     height_scanner = RayCasterCfg(

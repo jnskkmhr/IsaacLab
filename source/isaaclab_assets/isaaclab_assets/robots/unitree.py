@@ -820,6 +820,7 @@ This configuration is designed for high-precision manipulation tasks such as tro
 """
 G1 29DOF configuration from BeyondMimic
 """
+from isaaclab_newton.sim.schemas import NewtonMeshCollisionPropertiesCfg
 
 ARMATURE_5020 = 0.003609725
 ARMATURE_7520_14 = 0.010177520
@@ -841,8 +842,7 @@ DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ  # 1.068141502
 
 
 spawn_robot_usd = sim_utils.UsdFileCfg(
-    # usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
-    usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0_box_foot/g1_29dof_rev_1_0_box_foot.usda",
+    usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usda",
     activate_contact_sensors=True,
     rigid_props=sim_utils.RigidBodyPropertiesCfg(
         disable_gravity=False,
@@ -858,6 +858,19 @@ spawn_robot_usd = sim_utils.UsdFileCfg(
     ),
 )
 
+spawn_box_foot_robot_usd = spawn_robot_usd.copy()
+spawn_box_foot_robot_usd.usd_path = (
+    # f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0_box_foot/g1_29dof_rev_1_0_box_foot.usda"
+    f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0_box_foot_improved_collision/g1_29dof_rev_1_0_box_foot_improved_collision.usda"
+)
+spawn_box_foot_robot_usd.collision_props = sim_utils.CollisionPropertiesCfg(
+    collision_enabled=True,
+    mesh_collision_property=NewtonMeshCollisionPropertiesCfg(
+        mesh_approximation_name="none",
+    ),
+)
+
+# NOTE: newton backend does not support URDF for now.
 spawn_robot_urdf = sim_utils.UrdfFileCfg(
     fix_base=False,
     replace_cylinders_with_capsules=True,
@@ -879,7 +892,6 @@ spawn_robot_urdf = sim_utils.UrdfFileCfg(
 
 UNITREE_G1_29DOF_CFG = ArticulationCfg(
     spawn=spawn_robot_usd,
-    # spawn=spawn_robot_urdf,
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.8),
         joint_pos={
@@ -1016,3 +1028,5 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
         ),
     },
 )
+
+UNITREE_G1_29DOF_BOX_FOOT_CFG = UNITREE_G1_29DOF_CFG.replace(spawn=spawn_box_foot_robot_usd)

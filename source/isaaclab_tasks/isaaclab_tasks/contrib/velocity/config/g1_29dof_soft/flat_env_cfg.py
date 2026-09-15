@@ -14,10 +14,6 @@ from isaaclab.utils.configclass import configclass
 from . import mdp
 from .rough_env_cfg import G1RoughEnvCfg
 
-VISUALIZER = "newton_gl"
-# VISUALIZER = "newton_rtx"
-# VISUALIZER = "kit"
-
 
 @configclass
 class G1FlatEnvCfg(G1RoughEnvCfg):
@@ -136,23 +132,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             },
         }
 
-        if VISUALIZER == "newton_gl":
-            self.sim.visualizer_cfgs = [
-                NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            ]
-
-            self.video_recorders = []
-
-        elif VISUALIZER == "newton_rtx":
-            self.sim.visualizer_cfgs = [
-                NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            ]
-
-            self.video_recorders = []
-
-        elif VISUALIZER == "kit":
-            self.sim.visualizer_cfgs = [
-                KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            ]
-
-            self.video_recorders = []
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+        ]
+        self.video_recorders = []

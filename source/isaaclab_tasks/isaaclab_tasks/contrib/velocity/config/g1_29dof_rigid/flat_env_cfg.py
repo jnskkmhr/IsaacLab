@@ -4,16 +4,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import math
 
-from isaaclab_visualizers.kit import KitVisualizerCfg
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
 
 from isaaclab.utils.configclass import configclass
 
 from .rough_env_cfg import G1RoughEnvCfg
-
-VISUALIZER = "newton_gl"
-# VISUALIZER = "newton_rtx"
-# VISUALIZER = "kit"
 
 
 @configclass
@@ -33,7 +28,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
 
         # curriculum settings
         self.curriculum.terrain_levels = None  # type: ignore
-        # self.curriculum.command_vel = None  # no running
+        self.curriculum.command_vel = None # type: ignore
 
         # no height scan
         self.scene.height_scanner = None  # type: ignore
@@ -91,7 +86,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.scale_actuator_gains = None  # type: ignore
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (2, 2)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
@@ -105,9 +100,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             "pose_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.5, 0.5),
-                # "yaw": (-math.pi, math.pi),
-                # "yaw": (-math.pi/2, -math.pi/2),
-                "yaw": (0, 0),
+                "yaw": (-math.pi, math.pi),
             },
             "velocity_range": {
                 "x": (0.0, 0.0),
@@ -119,23 +112,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             },
         }
 
-        if VISUALIZER == "newton_gl":
-            self.sim.visualizer_cfgs = [
-                NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0)),
-            ]
-
-            self.video_recorders = []
-
-        elif VISUALIZER == "newton_rtx":
-            self.sim.visualizer_cfgs = [
-                NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0)),
-            ]
-
-            self.video_recorders = []
-
-        elif VISUALIZER == "kit":
-            self.sim.visualizer_cfgs = [
-                KitVisualizerCfg(eye=(12.0, 0.0, 6.0)),
-            ]
-
-            self.video_recorders = []
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            # NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+        ]
+        self.video_recorders = []
