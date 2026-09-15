@@ -72,49 +72,10 @@ def randomize_joint_default_pos(
         env.action_manager.get_term(joint_action_name)._offset[env_ids, joint_ids] = pos  # type: ignore
 
 
-def randomize_rigid_body_com(
-    env: ManagerBasedEnv,
-    env_ids: torch.Tensor | None,
-    com_range: dict[str, tuple[float, float]],
-    asset_cfg: SceneEntityCfg,
-):
-    """Randomize the center of mass (CoM) of rigid bodies by adding a random value sampled from the given ranges.
-
-    .. note::
-        This function uses CPU tensors to assign the CoM. It is recommended to use this function
-        only during the initialization of the environment.
-    """
-    # extract the used quantities (to enable type-hinting)
-    asset: Articulation = env.scene[asset_cfg.name]
-    # resolve environment ids
-    if env_ids is None:
-        env_ids = torch.arange(env.scene.num_envs, device="cpu")
-    else:
-        env_ids = env_ids.cpu()
-
-    # resolve body indices
-    if asset_cfg.body_ids == slice(None):
-        body_ids = torch.arange(asset.num_bodies, dtype=torch.int, device="cpu")
-    else:
-        body_ids = torch.tensor(asset_cfg.body_ids, dtype=torch.int, device="cpu")
-
-    # sample random CoM values
-    range_list = [com_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z"]]
-    ranges = torch.tensor(range_list, device="cpu")
-    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (len(env_ids), 3), device="cpu").unsqueeze(1)
-
-    # get the current com of the selected bodies (len(env_ids), len(body_ids), 3)
-    # NOTE: uses the backend-agnostic Articulation API (asset.data / asset.set_coms_index) instead of
-    # the PhysX-only root_physx_view.get_coms()/set_coms(), so this works on both the PhysX and Newton
-    # backends. Unlike the PhysX view, this does not touch the CoM orientation -- Newton always keeps
-    # it aligned with the body frame, so there is nothing to preserve there.
-    coms = asset.data.body_com_pos_b[env_ids][:, body_ids].clone().cpu()
-
-    # Randomize the com in range
-    coms += rand_samples
-
-    # Set the new coms
-    asset.set_coms_index(coms=coms, body_ids=body_ids, env_ids=env_ids)
+# randomize_rigid_body_com is intentionally not redefined here -- isaaclab.envs.mdp already provides
+# a backend-aware version (handles the PhysX full-pose vs. Newton position-only set_coms_index calling
+# convention correctly), pulled in via the `from isaaclab.envs.mdp import *` in this package's
+# __init__.py. A local redefinition here would shadow that and needs to be kept in sync by hand.
 
 
 # Default body the assistive wrench acts about: the floating base. Override per-config with the
