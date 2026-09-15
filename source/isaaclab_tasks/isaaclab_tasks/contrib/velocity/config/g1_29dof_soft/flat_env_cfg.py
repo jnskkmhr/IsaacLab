@@ -26,10 +26,10 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.decimation = 4  # 50Hz
         self.sim.render_interval = self.decimation
 
-        # # physics
-        # newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
-        # newton_mjwarp.solver_cfg.njmax = 95
-        # newton_mjwarp.solver_cfg.nconmax = 10
+        # physics
+        newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
+        newton_mjwarp.solver_cfg.njmax = 95
+        newton_mjwarp.solver_cfg.nconmax = 10
 
         # make curriculum soft terrain
         self.scene.terrain = mdp.CurriculumSoftTerrain
@@ -59,7 +59,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # disable curriculum for walking only
-        # self.curriculum.command_vel = None
+        self.curriculum.command_vel = None # type: ignore
 
         # edit command range
         self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
@@ -135,6 +135,6 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
         self.video_recorders = []

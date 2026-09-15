@@ -98,7 +98,8 @@ def foot_contact_forces_hybrid(
         .reshape(env.num_envs, -1)
     )
     forces = forces.reshape(env.num_envs, -1)
-    forces = forces * (forces > threshold).float()
+    # Retain both force directions so left/right reflection commutes with filtering.
+    forces = forces * (forces.abs() > threshold).float()
 
     return torch.sign(forces) * torch.log1p(torch.abs(forces))
 

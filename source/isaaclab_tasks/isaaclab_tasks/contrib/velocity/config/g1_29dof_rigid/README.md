@@ -1,3 +1,8 @@
+## Moviepy install 
+Need this for video logging
+```bash 
+pip install 'moviepy<2'
+```
 ## Wandb login
 ```bash
 uv run --with wandb wandb login

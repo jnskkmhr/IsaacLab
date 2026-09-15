@@ -48,12 +48,12 @@ CurriculumSoftTerrain = TerrainImporterCfg(
         static_friction=1.0,
         dynamic_friction=1.0,
     ),
-    # visual_material=sim_utils.MdlFileCfg(
-    #     mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
-    #     project_uvw=True,
-    #     texture_scale=(0.25, 0.25),
-    #     albedo_brightness=0.2,
-    # ),
+    visual_material=sim_utils.MdlFileCfg(
+        mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+        project_uvw=True,
+        texture_scale=(0.25, 0.25),
+        albedo_brightness=0.2,
+    ),
     max_init_terrain_level=0,
     # debug_vis=True,
 )
