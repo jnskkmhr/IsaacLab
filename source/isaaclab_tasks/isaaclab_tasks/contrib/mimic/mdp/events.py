@@ -329,7 +329,11 @@ class AssistiveWrench(ManagerTermBase):
         ori_err = math_utils.quat_box_minus(q_ref, q)  # (N, 3): hat{Phi} boxminus Phi (world axis-angle)
         # base -> whole-body CoM (world): moment arm for the gravity-torque comp, measured from the body the
         # torque acts about (``base`` = body 9), so it stays consistent with the body-9 PD error / inertia.
-        r_bcom = asset.data.robot_com_w - p  # (N, 3)
+        # `robot_com_w` doesn't exist in this fork; the equivalent is `root_com_pos_w` (world-frame
+        # position of the whole-body CoM), returned as a ProxyArray -- convert to Tensor before use.
+        root_com_pos_w = asset.data.root_com_pos_w
+        root_com_pos_w = root_com_pos_w.torch if hasattr(root_com_pos_w, "torch") else root_com_pos_w
+        r_bcom = root_com_pos_w - p  # (N, 3)
         torque = (
             inertia_apply(a_ang_ref)
             + k_p_ang * inertia_apply(ori_err)
