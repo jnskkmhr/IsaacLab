@@ -1,0 +1,1 @@
+Fixed legacy G1 reference joint positions and velocities to be reordered by explicit joint names into the runtime robot order. Set motion_joint_names to the NPZ column names when using a different motion file.

@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Replay a WBC motion from an npz file.
 
 .. code-block:: bash
@@ -15,17 +20,22 @@ Pass ``--video`` to save the replay to an mp4 instead of only viewing it. This w
 
 from __future__ import annotations
 
-import sys
 import argparse
 import os
+from typing import Literal
 
 import numpy as np
 
 from isaaclab.app import AppLauncher
 
-
 parser = argparse.ArgumentParser(description="Replay a WBC npz motion in Isaac Sim.")
 parser.add_argument("--motion_file", "-f", type=str, required=True, help="Path to the motion npz file.")
+parser.add_argument(
+    "--quaternion_order",
+    choices=("wxyz", "xyzw"),
+    default="wxyz",
+    help="Order for untagged motion files; NPZ quaternion_order metadata takes precedence.",
+)
 parser.add_argument(
     "--root_body_index",
     type=int,
@@ -63,11 +73,11 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
-from isaaclab.utils.configclass import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.utils.configclass import configclass
+from isaaclab.utils.math import convert_quat
 
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.env_cfg.scene_cfg import G1SceneCfg
-
 
 ROBOT_CFG = G1SceneCfg().robot
 
@@ -92,8 +102,8 @@ class ReplayNpzSceneCfg(InteractiveSceneCfg):
 class NpzMotion:
     """Small loader for the npz files consumed by the WBC motion command."""
 
-    def __init__(self, motion_file: str, device: str):
-        data = np.load(motion_file)
+    def __init__(self, motion_file: str, device: str, quaternion_order: Literal["wxyz", "xyzw"] = "wxyz"):
+        data = np.load(motion_file, allow_pickle=False)
         required_keys = ("fps", "joint_pos", "joint_vel", "body_pos_w", "body_quat_w")
         missing_keys = [key for key in required_keys if key not in data]
         if missing_keys:
@@ -105,6 +115,14 @@ class NpzMotion:
         self.joint_vel = torch.tensor(data["joint_vel"], dtype=torch.float32, device=device)
         self.body_pos_w = torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device)
         self.body_quat_w = torch.tensor(data["body_quat_w"], dtype=torch.float32, device=device)
+        if "quaternion_order" in data:
+            quaternion_order = str(np.asarray(data["quaternion_order"]).item())
+        if quaternion_order not in ("wxyz", "xyzw"):
+            data.close()
+            raise ValueError(f"Unsupported motion quaternion order: {quaternion_order!r}")
+        if quaternion_order == "wxyz":
+            self.body_quat_w = convert_quat(self.body_quat_w, to="xyzw")
+        data.close()
         self.num_frames = self.joint_pos.shape[0]
         self.current_idx = 0
 
@@ -163,7 +181,7 @@ class ViewportRecorder:
 def run_simulator(sim: SimulationContext, scene: InteractiveScene):
     """Stream the saved motion state into the robot and render it."""
 
-    motion = NpzMotion(args_cli.motion_file, sim.device)
+    motion = NpzMotion(args_cli.motion_file, sim.device, args_cli.quaternion_order)
     robot = scene["robot"]
 
     print("[INFO]: Isaac Lab articulation joint index order:")
@@ -182,8 +200,7 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
 
     if args_cli.root_body_index >= motion.body_pos_w.shape[1]:
         raise ValueError(
-            f"root_body_index={args_cli.root_body_index} is out of range for "
-            f"{motion.body_pos_w.shape[1]} saved bodies."
+            f"root_body_index={args_cli.root_body_index} is out of range for {motion.body_pos_w.shape[1]} saved bodies."
         )
 
     recorder = None
@@ -229,7 +246,7 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
 
 def main():
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
-    sim_cfg.dt = 1.0 / NpzMotion(args_cli.motion_file, "cpu").fps
+    sim_cfg.dt = 1.0 / NpzMotion(args_cli.motion_file, "cpu", args_cli.quaternion_order).fps
     sim = SimulationContext(sim_cfg)
 
     scene_cfg = ReplayNpzSceneCfg(num_envs=1, env_spacing=2.0)

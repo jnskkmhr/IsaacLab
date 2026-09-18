@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Convert a torch-pickled retarget motion (dict of global_translation/global_rotation/dof_pos/...)
 into the wbc motion npz format expected by MotionLoader (wbc/mdp/commands.py).
 
@@ -14,8 +19,8 @@ robot and reading back body_pos_w/body_quat_w/body_lin_vel_w/body_ang_vel_w for 
 
 """Launch Isaac Sim Simulator first."""
 
-import sys
 import argparse
+import sys
 
 from isaaclab.app import AppLauncher
 
@@ -40,8 +45,8 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
-from isaaclab.utils.configclass import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.utils.configclass import configclass
 from isaaclab.utils.math import quat_slerp
 
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.env_cfg.scene_cfg import G1SceneCfg
@@ -50,21 +55,43 @@ ROBOT_CFG = G1SceneCfg().robot
 
 # target 29-joint order used by g1_29dof(_gm) (matches action_cfg.py / convert_csv_to_npz.py)
 TARGET_JOINT_NAMES = [
-    "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint", "left_knee_joint",
-    "left_ankle_pitch_joint", "left_ankle_roll_joint",
-    "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint", "right_knee_joint",
-    "right_ankle_pitch_joint", "right_ankle_roll_joint",
-    "waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint",
-    "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint",
-    "left_elbow_joint", "left_wrist_roll_joint", "left_wrist_pitch_joint", "left_wrist_yaw_joint",
-    "right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint",
-    "right_elbow_joint", "right_wrist_roll_joint", "right_wrist_pitch_joint", "right_wrist_yaw_joint",
+    "left_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "right_hip_pitch_joint",
+    "right_hip_roll_joint",
+    "right_hip_yaw_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_ankle_roll_joint",
+    "waist_yaw_joint",
+    "waist_roll_joint",
+    "waist_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_roll_joint",
+    "right_wrist_pitch_joint",
+    "right_wrist_yaw_joint",
 ]
 
 # retarget dof_names (no "_joint" suffix, "_pitch" on knee/elbow) -> target joint name
 DOF_NAME_MAP = {
-    "left_knee_pitch": "left_knee_joint", "right_knee_pitch": "right_knee_joint",
-    "left_elbow_pitch": "left_elbow_joint", "right_elbow_pitch": "right_elbow_joint",
+    "left_knee_pitch": "left_knee_joint",
+    "right_knee_pitch": "right_knee_joint",
+    "left_elbow_pitch": "left_elbow_joint",
+    "right_elbow_pitch": "right_elbow_joint",
 }
 
 
@@ -92,7 +119,7 @@ def lerp(a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
 def slerp_batch(a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
     out = torch.zeros_like(a)
     for i in range(a.shape[0]):
-        out[i] = quat_slerp(a[i], b[i], blend[i]) # type: ignore
+        out[i] = quat_slerp(a[i], b[i], blend[i])  # type: ignore
     return out
 
 
@@ -118,7 +145,7 @@ def run(sim: SimulationContext, scene: InteractiveScene):
     # root = index 0 body in the retarget (pelvis)
     root_pos_in = data["global_translation"][:, 0].to(torch.float32)
     root_quat_xyzw = data["global_rotation"][:, 0].to(torch.float32)
-    root_quat_in = root_quat_xyzw[:, [3, 0, 1, 2]]  # xyzw -> wxyz
+    root_quat_in = root_quat_xyzw  # The source and this backend both use xyzw.
 
     dof_names_in = [to_target_joint_name(n) for n in data["dof_names"]]
     dof_pos_in_raw = data["dof_pos"].to(torch.float32)
@@ -142,8 +169,15 @@ def run(sim: SimulationContext, scene: InteractiveScene):
     dof_pos = dof_pos.to(robot.device)
     robot_joint_indexes = robot.find_joints(TARGET_JOINT_NAMES, preserve_order=True)[0]
 
-    log = {"fps": [args_cli.output_fps], "joint_pos": [], "joint_vel": [], "body_pos_w": [],
-           "body_quat_w": [], "body_lin_vel_w": [], "body_ang_vel_w": []}
+    log = {
+        "fps": [args_cli.output_fps],
+        "joint_pos": [],
+        "joint_vel": [],
+        "body_pos_w": [],
+        "body_quat_w": [],
+        "body_lin_vel_w": [],
+        "body_ang_vel_w": [],
+    }
 
     dt = 1.0 / args_cli.output_fps
     frame_idx = 0
@@ -178,7 +212,7 @@ def run(sim: SimulationContext, scene: InteractiveScene):
     for k in ("joint_pos", "body_pos_w", "body_quat_w", "body_lin_vel_w", "body_ang_vel_w"):
         log[k] = np.stack(log[k], axis=0)
 
-    np.savez(args_cli.output_name, **log)
+    np.savez(args_cli.output_name, quaternion_order=np.array("xyzw"), **log)
     print("[INFO]: Motion npz file saved to", args_cli.output_name)
 
 

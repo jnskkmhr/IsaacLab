@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 """This script replay a motion from a csv file and output it to a npz file
 
 .. code-block:: bash
@@ -9,6 +14,7 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+
 import numpy as np
 
 from isaaclab.app import AppLauncher
@@ -53,15 +59,17 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
-from isaaclab.utils.configclass import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.utils.configclass import configclass
 from isaaclab.utils.math import axis_angle_from_quat, quat_conjugate, quat_mul, quat_slerp
 
 ##
 # Pre-defined configs
 ##
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.env_cfg.scene_cfg import G1SceneCfg
+
 ROBOT_CFG = G1SceneCfg().robot
+
 
 @configclass
 class ReplayMotionsSceneCfg(InteractiveSceneCfg):
@@ -120,7 +128,7 @@ class MotionLoader:
         motion = motion.to(torch.float32).to(self.device)
         self.motion_base_poss_input = motion[:, :3]
         self.motion_base_rots_input = motion[:, 3:7]
-        self.motion_base_rots_input = self.motion_base_rots_input[:, [3, 0, 1, 2]]  # convert to wxyz
+        # The CSV and this backend both use xyzw.
         self.motion_dof_poss_input = motion[:, 7:]
 
         self.input_frames = motion.shape[0]
@@ -233,41 +241,37 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     # Extract scene entities
     robot = scene["robot"]
-    joint_names=[
-            "left_hip_pitch_joint", 
-            "left_hip_roll_joint", 
-            "left_hip_yaw_joint", 
-            "left_knee_joint", 
-            "left_ankle_pitch_joint", 
-            "left_ankle_roll_joint", 
-            
-            "right_hip_pitch_joint", 
-            "right_hip_roll_joint", 
-            "right_hip_yaw_joint", 
-            "right_knee_joint", 
-            "right_ankle_pitch_joint", 
-            "right_ankle_roll_joint", 
-            
-            "waist_yaw_joint", 
-            "waist_roll_joint", 
-            "waist_pitch_joint", 
-            
-            "left_shoulder_pitch_joint", 
-            "left_shoulder_roll_joint", 
-            "left_shoulder_yaw_joint", 
-            "left_elbow_joint", 
-            "left_wrist_roll_joint", 
-            "left_wrist_pitch_joint", 
-            "left_wrist_yaw_joint", 
-
-            "right_shoulder_pitch_joint", 
-            "right_shoulder_roll_joint", 
-            "right_shoulder_yaw_joint", 
-            "right_elbow_joint", 
-            "right_wrist_roll_joint", 
-            "right_wrist_pitch_joint", 
-            "right_wrist_yaw_joint", 
-        ]
+    joint_names = [
+        "left_hip_pitch_joint",
+        "left_hip_roll_joint",
+        "left_hip_yaw_joint",
+        "left_knee_joint",
+        "left_ankle_pitch_joint",
+        "left_ankle_roll_joint",
+        "right_hip_pitch_joint",
+        "right_hip_roll_joint",
+        "right_hip_yaw_joint",
+        "right_knee_joint",
+        "right_ankle_pitch_joint",
+        "right_ankle_roll_joint",
+        "waist_yaw_joint",
+        "waist_roll_joint",
+        "waist_pitch_joint",
+        "left_shoulder_pitch_joint",
+        "left_shoulder_roll_joint",
+        "left_shoulder_yaw_joint",
+        "left_elbow_joint",
+        "left_wrist_roll_joint",
+        "left_wrist_pitch_joint",
+        "left_wrist_yaw_joint",
+        "right_shoulder_pitch_joint",
+        "right_shoulder_roll_joint",
+        "right_shoulder_yaw_joint",
+        "right_elbow_joint",
+        "right_wrist_roll_joint",
+        "right_wrist_pitch_joint",
+        "right_wrist_yaw_joint",
+    ]
     robot_joint_indexes = robot.find_joints(joint_names, preserve_order=True)[0]
 
     # ------- data logger -------------------------------------------------------
@@ -338,7 +342,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             ):
                 log[k] = np.stack(log[k], axis=0)
 
-            np.savez(args_cli.output_name, **log)
+            np.savez(args_cli.output_name, quaternion_order=np.array("xyzw"), **log)
             print("[INFO]: Motion npz file saved to", args_cli.output_name)
 
 

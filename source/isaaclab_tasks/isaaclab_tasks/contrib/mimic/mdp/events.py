@@ -14,7 +14,8 @@ the event introduced by the function.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Literal
 
 import torch
 
@@ -130,9 +131,7 @@ def reset_root_state_from_reference(
     root_lin_vel = root_lin_vel + rand_samples[:, :3]
     root_ang_vel = root_ang_vel + rand_samples[:, 3:]
 
-    asset.write_root_state_to_sim(
-        torch.cat([root_pos, root_ori, root_lin_vel, root_ang_vel], dim=-1), env_ids=env_ids
-    )
+    asset.write_root_state_to_sim(torch.cat([root_pos, root_ori, root_lin_vel, root_ang_vel], dim=-1), env_ids=env_ids)
 
 
 def reset_joint_state_from_reference(
@@ -210,10 +209,10 @@ class AssistiveWrench(ManagerTermBase):
         self._ref_lin_acc_w: torch.Tensor | None = None
         self._ref_ang_acc_w: torch.Tensor | None = None
 
-        # Per-env frozen yaw anchor. Identity quaternion (w, x, y, z)
+        # Per-env frozen yaw anchor. Identity quaternion (x, y, z, w)
         # and zero pivot until the first capture; re-armed per env by ``reset``.
         self._anchor_delta_ori_w = torch.zeros((self.num_envs, 4), device=self.device)
-        self._anchor_delta_ori_w[:, 0] = 1.0
+        self._anchor_delta_ori_w[:, 3] = 1.0
         self._anchor_pivot_w = torch.zeros((self.num_envs, 3), device=self.device)
         self._anchor_pending = torch.ones(self.num_envs, dtype=torch.bool, device=self.device)
 
@@ -329,11 +328,13 @@ class AssistiveWrench(ManagerTermBase):
         ori_err = math_utils.quat_box_minus(q_ref, q)  # (N, 3): hat{Phi} boxminus Phi (world axis-angle)
         # base -> whole-body CoM (world): moment arm for the gravity-torque comp, measured from the body the
         # torque acts about (``base`` = body 9), so it stays consistent with the body-9 PD error / inertia.
-        # `robot_com_w` doesn't exist in this fork; the equivalent is `root_com_pos_w` (world-frame
-        # position of the whole-body CoM), returned as a ProxyArray -- convert to Tensor before use.
-        root_com_pos_w = asset.data.root_com_pos_w
-        root_com_pos_w = root_com_pos_w.torch if hasattr(root_com_pos_w, "torch") else root_com_pos_w
-        r_bcom = root_com_pos_w - p  # (N, 3)
+        # Preserve the original whole-robot CoM; root_com_pos_w describes only the root link.
+        body_mass = asset.data.body_mass
+        body_mass = body_mass.torch if hasattr(body_mass, "torch") else body_mass
+        body_com_pos_w = asset.data.body_com_pos_w
+        body_com_pos_w = body_com_pos_w.torch if hasattr(body_com_pos_w, "torch") else body_com_pos_w
+        robot_com_w = (body_mass.unsqueeze(-1) * body_com_pos_w).sum(dim=1) / body_mass.sum(dim=1, keepdim=True)
+        r_bcom = robot_com_w - p  # (N, 3)
         torque = (
             inertia_apply(a_ang_ref)
             + k_p_ang * inertia_apply(ori_err)

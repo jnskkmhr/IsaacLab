@@ -1,5 +1,10 @@
 # Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
 
 """Common functions containing command generators for whole body tracking."""
 
@@ -9,7 +14,7 @@ import math
 import os
 from collections.abc import Sequence
 from dataclasses import MISSING
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import torch
@@ -20,6 +25,7 @@ from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.markers.config import FRAME_MARKER_CFG
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.math import (
+    convert_quat,
     quat_apply,
     quat_error_magnitude,
     quat_inv,
@@ -33,18 +39,58 @@ if TYPE_CHECKING:
 
 
 class MotionLoader:
-    def __init__(self, motion_file: str, body_indexes: Sequence[int], device: str = "cpu"):
+    def __init__(
+        self,
+        motion_file: str,
+        body_indexes: Sequence[int],
+        device: str = "cpu",
+        quaternion_order: Literal["wxyz", "xyzw"] = "wxyz",
+        source_joint_names: Sequence[str] | None = None,
+        target_joint_names: Sequence[str] | None = None,
+    ):
+        """Load motion with runtime quaternions in xyzw order.
+
+        NPZ ``quaternion_order`` metadata takes precedence over the fallback argument.
+        Untagged legacy motion files default to wxyz; untagged xyzw files must opt in.
+        Explicit source/target joint names reorder both joint position and velocity.
+        Omitting both preserves the stored joint column order.
+        """
         assert os.path.isfile(motion_file), f"Invalid file path: {motion_file}"
-        data = np.load(motion_file)
+        data = np.load(motion_file, allow_pickle=False)
         self.fps = float(np.asarray(data["fps"]).reshape(-1)[0])
         self.joint_pos = torch.tensor(data["joint_pos"], dtype=torch.float32, device=device)
         self.joint_vel = torch.tensor(data["joint_vel"], dtype=torch.float32, device=device)
         self._body_pos_w = torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device)
         self._body_quat_w = torch.tensor(data["body_quat_w"], dtype=torch.float32, device=device)
+        if "quaternion_order" in data:
+            quaternion_order = str(np.asarray(data["quaternion_order"]).item())
+        if quaternion_order not in ("wxyz", "xyzw"):
+            data.close()
+            raise ValueError(f"Unsupported motion quaternion order: {quaternion_order!r}")
+        if quaternion_order == "wxyz":
+            self._body_quat_w = convert_quat(self._body_quat_w, to="xyzw")
         self._body_lin_vel_w = torch.tensor(data["body_lin_vel_w"], dtype=torch.float32, device=device)
         self._body_ang_vel_w = torch.tensor(data["body_ang_vel_w"], dtype=torch.float32, device=device)
         self._body_indexes = body_indexes
         self.time_step_total = self.joint_pos.shape[0]
+        data.close()
+        if (source_joint_names is None) != (target_joint_names is None):
+            raise ValueError("Both source_joint_names and target_joint_names must be provided together.")
+        if source_joint_names is not None:
+            source_names = list(source_joint_names)
+            target_names = list(target_joint_names)
+            if self.joint_pos.ndim != 2 or self.joint_vel.shape != self.joint_pos.shape:
+                raise ValueError("Motion joint position and velocity must have matching [frames, joints] shapes.")
+            if (
+                len(source_names) != self.joint_pos.shape[1]
+                or len(set(source_names)) != len(source_names)
+                or len(set(target_names)) != len(target_names)
+                or set(source_names) != set(target_names)
+            ):
+                raise ValueError("Motion and robot joint names must uniquely cover the same joint columns.")
+            joint_indexes = torch.tensor([source_names.index(name) for name in target_names], device=device)
+            self.joint_pos = self.joint_pos[:, joint_indexes]
+            self.joint_vel = self.joint_vel[:, joint_indexes]
 
     @property
     def body_pos_w(self) -> torch.Tensor:
@@ -81,12 +127,19 @@ class MotionCommand(CommandTerm):
         # or lookups for any tracked body whose robot index exceeds the motion file's body count go
         # out of bounds.
         motion_body_indexes = torch.arange(len(self.cfg.body_names), dtype=torch.long, device=self.device)
-        self.motion = MotionLoader(self.cfg.motion_file, motion_body_indexes, device=self.device)  # type: ignore
+        self.motion = MotionLoader(
+            self.cfg.motion_file,
+            motion_body_indexes,
+            device=self.device,
+            quaternion_order=self.cfg.motion_quaternion_order,
+            source_joint_names=self.cfg.motion_joint_names,
+            target_joint_names=self.robot.joint_names if self.cfg.motion_joint_names is not None else None,
+        )
         self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
         self.frame_stance_weight = self._build_frame_stance_weight()
         self.body_pos_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 3, device=self.device)
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
-        self.body_quat_relative_w[:, :, 0] = 1.0
+        self.body_quat_relative_w[:, :, 3] = 1.0
 
         self.bin_count = int(self.motion.time_step_total // (1 / (env.cfg.decimation * env.cfg.sim.dt))) + 1
         # Where episodes *died*, which is what biases the sampler toward the hard parts of the clip.
@@ -496,6 +549,17 @@ class MotionCommandCfg(CommandTermCfg):
     asset_name: str = MISSING  # type: ignore
 
     motion_file: str = MISSING  # type: ignore
+    motion_quaternion_order: Literal["wxyz", "xyzw"] = "wxyz"
+    """Quaternion order for untagged NPZ files; file metadata overrides this fallback.
+
+    Legacy references use wxyz. Runtime tensors and newly converted references use xyzw.
+    """
+    motion_joint_names: list[str] | None = None
+    """Joint names in NPZ column order; None assumes the robot already uses that order.
+
+    Set this for the specific motion file, not from the body list. Both position and
+    velocity are reordered by name into robot joint order when loading.
+    """
     anchor_body_name: str = MISSING  # type: ignore
     body_names: list[str] = MISSING  # type: ignore
 
