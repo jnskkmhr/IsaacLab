@@ -13,6 +13,8 @@ from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.common import ViewerCfg
 from isaaclab.sim import SimulationCfg
 
+import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
+
 ##
 # Pre-defined configs
 ##
@@ -56,6 +58,11 @@ class G1WBCEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.dt = 1 / 240
         self.decimation = 4  # 60hz
         self.sim.render_interval = self.decimation
+
+        # curriculum soft terrain (per-env branch: contrib/mimic/andy), following the same swap
+        # contrib/velocity/g1_29dof_soft makes for its soft-contact task
+        self.scene.terrain = mimic_mdp.CurriculumSoftTerrain
+
         self.sim.physics_material = self.scene.terrain.physics_material
 
         self.viewer = ViewerCfg(
