@@ -6,7 +6,6 @@
 """Whole body control environments for legged robots."""
 
 import os
-import toml
 
 # Conveniences to other module directories via relative paths
 MOTION_TRACKING_EXT_DIR = os.path.abspath(os.path.join(__file__, "../"))
