@@ -1,0 +1,24 @@
+# Copyright (c) 2022-2026, Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+[build-system]
+requires = ["setuptools>=70.0,<82.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "isaaclab_neural"
+version = "0.0.1"
+description = "Neural robot dynamics, datasets, training, and Newton integration for Isaac Lab."
+requires-python = ">=3.12"
+license = {text = "BSD-3-Clause"}
+dependencies = ["isaaclab", "isaaclab-newton", "isaaclab-tasks", "isaaclab-rl"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["isaaclab_neural", "isaaclab_neural.*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.pyi", "*.yaml", "*.sh"]
+"isaaclab_neural" = ["train/cfg/**/*.yaml", "generate/scripts/*.sh"]

@@ -1,0 +1,328 @@
+# IsaacLab-NeRD Local Evaluation
+
+This guide describes local NeRD checkpoint smoke evaluation with
+`isaaclab_neural.eval.eval` for:
+
+- Cartpole with fixed-ground contacts
+- Anymal-C with fixed-ground contacts
+- Anymal-C with Newton native contacts
+
+All commands assume the current directory is the `IsaacLab-NeRD` repository root.
+
+See [RL policy learning](rl.md) for policy training and the validated flat-terrain
+recipe. `eval.py` focuses on dynamics checkpoint smoke tests and optional
+closed-loop policy evaluation. Use `isaaclab_neural.rl.rsl_rl` for full PPO
+training and playback.
+
+## Setup
+
+```bash
+uv sync
+```
+
+`eval.py` launches a registered NeRD task and steps the environment:
+
+- Without `--policy-checkpoint`, it uses zero actions.
+- With `--policy-checkpoint`, it loads an RSL-RL policy for a closed-loop rollout.
+- With `--checkpoint`, it restores the `env.neural_solver_cfg` saved during
+  training and points `neural_model_path` to that checkpoint.
+
+This checks that checkpoint loading, task registration, environment resets and
+steps, and policy inference work together. The trainer's internal evaluator
+computes dataset rollout MSE during training.
+
+## Common Arguments
+
+```text
+--task                 Gym task id
+--checkpoint           NeRD checkpoint
+--policy-checkpoint    Optional RSL-RL policy checkpoint
+--policy-agent         RSL-RL agent cfg entry point
+--num-envs             Number of parallel envs
+--num-steps            Number of env steps
+--seed                 Environment seed
+--contact-mode         fixed_ground or newton_native
+--num-contacts-per-env Native fixed contact slots
+--video                Record rollout video
+--video-dir            Video output directory
+--visualizer none             Headless launcher mode
+--device               Launcher device, e.g. cuda:0
+```
+
+For Newton/MJWarp Anymal tasks, keep `presets=newton_mjwarp`.
+
+## Checkpoint Paths
+
+Training with timestamped logdirs usually writes checkpoints under:
+
+```text
+./data/trained_models/<experiment>/<timestamp>/nn/final_model.pt
+```
+
+If `--no-time-stamp` was used, the path is usually:
+
+```text
+./data/trained_models/<experiment>/nn/final_model.pt
+```
+
+OSMO runs upload checkpoints and logs to NV-Datasets under:
+
+```text
+IsaacLab-NeRD-Output/<workflow_name>/<env_name>/<timestamp>/nn/final_model.pt
+```
+
+Download a run locally before eval:
+
+```bash
+uv run python osmo_scripts/pull_nvdataset.py \
+  IsaacLab-NeRD-Output \
+  --prefix <workflow_name> \
+  --output-dir ./data/osmo_outputs \
+  --clean \
+  --list
+```
+
+Then point `--checkpoint` at the downloaded `final_model.pt`.
+
+## Cartpole Fixed Ground
+
+### Zero-Action Eval
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Cartpole-NeRD-v0 \
+  --checkpoint ./data/trained_models/Cartpole/nn/final_model.pt \
+  --num-envs 16 \
+  --num-steps 32 \
+  --seed 0 \
+  --contact-mode fixed_ground \
+  --visualizer none
+```
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Cartpole-NeRD-v0 \
+  --checkpoint data/trained_models/Cartpole/09-16-2026-15-52-32/nn/best_eval_model.pt \
+  --num-envs 1 \
+  --num-steps 2000 \
+  --device cuda:0 \
+  --visualizer newton_gl
+```
+
+If the checkpoint is under a timestamped run, replace the checkpoint path, for example:
+
+```text
+./data/trained_models/Cartpole/07-08-2026-12-00-00/nn/final_model.pt
+```
+
+## Anymal-C Fixed Ground
+
+### Zero-Action Eval
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Velocity-Flat-Anymal-C-NeRD-v0 \
+  --checkpoint ./data/trained_models/Anymal-C/nn/final_model.pt \
+  --num-envs 16 \
+  --num-steps 32 \
+  --seed 0 \
+  --contact-mode fixed_ground \
+  --visualizer none \
+  presets=newton_mjwarp
+```
+
+### Policy Eval
+
+Use a policy trained on NeRD with matching contact mode (see [rl.md](rl.md)).
+Example with the flat NeRD experiment logdir:
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Velocity-Flat-Anymal-C-NeRD-v0 \
+  --checkpoint ./data/trained_models/Anymal-C/nn/final_model.pt \
+  --policy-checkpoint logs/rsl_rl/anymal_c_flat_nerd/<run>/model_499.pt \
+  --policy-agent rsl_rl_cfg_entry_point \
+  --num-envs 16 \
+  --num-steps 200 \
+  --seed 0 \
+  --contact-mode fixed_ground \
+  --visualizer none \
+  presets=newton_mjwarp
+```
+
+If `params/agent.yaml` exists next to the policy checkpoint, `eval.py` uses it to match the original RSL-RL runner config.
+
+## Anymal-C Newton Native
+
+Native eval should use a native-trained checkpoint. The checkpoint stores:
+
+```yaml
+contact_mode: newton_native
+num_contacts_per_env: 64
+contact_packing_policy: penetration_priority
+```
+
+Passing `--contact-mode newton_native --num-contacts-per-env 64` makes the CLI override explicit. The packing policy is restored from the checkpoint config.
+
+### Zero-Action Eval
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Velocity-Flat-Anymal-C-NeRD-v0 \
+  --checkpoint ./data/trained_models/Anymal-C-Native/nn/final_model.pt \
+  --num-envs 16 \
+  --num-steps 32 \
+  --seed 0 \
+  --contact-mode newton_native \
+  --num-contacts-per-env 64 \
+  --visualizer none \
+  presets=newton_mjwarp
+```
+
+### Policy Eval
+
+Prefer a policy trained under ``newton_native`` (validated recipe in
+[rl.md](rl.md)):
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Velocity-Flat-Anymal-C-NeRD-v0 \
+  --checkpoint ./data/trained_models/Anymal-C-Native/nn/final_model.pt \
+  --policy-checkpoint logs/rsl_rl/anymal_c_flat_nerd/<run>/model_499.pt \
+  --policy-agent rsl_rl_cfg_entry_point \
+  --num-envs 16 \
+  --num-steps 200 \
+  --seed 0 \
+  --contact-mode newton_native \
+  --num-contacts-per-env 64 \
+  --visualizer none \
+  presets=newton_mjwarp
+```
+
+## Anymal-C Rough Newton Native
+
+Rough eval should use the rough NeRD task, a rough-native checkpoint, and a
+matching rough RSL-RL policy checkpoint. Do not evaluate the rough checkpoint
+through the flat NeRD task.
+
+### Zero-Action Smoke Eval
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Velocity-Rough-Anymal-C-NeRD-v0 \
+  --checkpoint ./data/trained_models/Anymal-C-Rough-Native/nn/final_model.pt \
+  --num-envs 16 \
+  --num-steps 32 \
+  --seed 0 \
+  --contact-mode newton_native \
+  --num-contacts-per-env 64 \
+  --visualizer none \
+  presets=newton_mjwarp
+```
+
+### Rough Policy Eval
+
+```bash
+uv run python -m isaaclab_neural.eval.eval \
+  --task Isaac-Velocity-Rough-Anymal-C-NeRD-v0 \
+  --checkpoint ./data/trained_models/Anymal-C-Rough-Native/nn/final_model.pt \
+  --policy-checkpoint /path/to/rsl_rl/Anymal-C-Velocity-Rough/model.pt \
+  --policy-agent rsl_rl_cfg_entry_point \
+  --num-envs 16 \
+  --num-steps 400 \
+  --seed 0 \
+  --contact-mode newton_native \
+  --num-contacts-per-env 64 \
+  --visualizer none \
+  presets=newton_mjwarp
+```
+
+For the negative/control baseline, run the flat-native checkpoint on the same
+rough task and compare the rollout video/reward profile against the rough-native
+checkpoint.
+
+## Video Recording
+
+Add these flags to any eval command:
+
+```bash
+--video \
+--video-length 400 \
+--video-dir ./videos/eval
+```
+
+## Reward Plot
+
+Add ``--plot-rewards`` to save the per-step reward averaged across all
+environments, together with a moving-average curve:
+
+```bash
+--plot-rewards \
+--reward-plot-path ./videos/eval/rewards.png
+```
+
+If ``--reward-plot-path`` is omitted, the plot is saved as
+``<video-dir>/rewards.png``.
+
+## Expected Output
+
+Zero-action mode prints lines like:
+
+```text
+[eval] task=..., num_envs=..., steps=..., action_shape=..., action_source=zero
+[step 0] obs_keys=..., reward_mean=..., terminated=..., truncated=..., info_keys=...
+```
+
+Policy mode prints lines like:
+
+```text
+[eval] task=..., num_envs=..., steps=..., action_source=rsl_rl
+[step 0] reward_mean=..., dones=..., info_keys=...
+```
+
+Use these outputs to confirm reset/step succeeds, rewards are finite, and no unexpected termination or contact-mode mismatch occurs.
+
+## Troubleshooting
+
+### `No module named 'omni.physics'`
+
+Anymal-C eval creates the inherited PhysX contact sensor scene entities. If the
+current local Python/Isaac Sim runtime cannot import `omni.physics.tensors`, eval
+can fail while constructing the environment with an error similar to:
+
+```text
+Could not resolve ... isaaclab_physx.sensors.contact_sensor.contact_sensor:ContactSensor
+Received the error:
+ No module named 'omni.physics'
+```
+
+This is a runtime installation issue, not a NeRD checkpoint issue. Use a full
+Isaac Sim/PhysX environment, the same Isaac Lab container used by OSMO, or run on
+a machine where this import succeeds:
+
+```bash
+uv run python -c "import omni.physics.tensors as physx; print('ok')"
+```
+
+### Zero-action vs policy eval
+
+Without `--policy-checkpoint`, `eval.py` uses zero actions. This only smoke-tests
+checkpoint loading and environment stepping. To evaluate closed-loop locomotion,
+pass the matching RSL-RL policy checkpoint with `--policy-checkpoint`.
+
+## Contact Token Diagnostics
+
+For native contact-token datasets and checkpoints, use the offline tools below
+before long training runs:
+
+```bash
+uv run python -m isaaclab_neural.eval.contact_distribution_stats --dataset PATH
+uv run python -m isaaclab_neural.eval.contact_regime_eval --dataset PATH --overflow-gate
+uv run python -m isaaclab_neural.eval.contact_reconstruction_diagnostic \
+  --task Isaac-Velocity-Flat-Anymal-C-NeRD-v0 \
+  --checkpoint PATH \
+  --dataset PATH \
+  --num-envs 16
+```
+
+Pass `--overflow-gate` to fail when contact capacity truncates tokens.
