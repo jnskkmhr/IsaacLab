@@ -96,3 +96,13 @@ benchmark_*.json
 
 # Superpowers (Claude Code plugin artifacts)
 docs/superpowers/
+
+.claude
+.serena
+migration.md
+
+# ...except the Unitree robot assets, which are tracked with Git LFS (see .gitattributes).
+!source/isaaclab_assets/data/unitree/**/*.usd
+!source/isaaclab_assets/data/unitree/**/*.usda
+!source/isaaclab_assets/data/unitree/**/*.usdc
+!source/isaaclab_assets/data/unitree/**/*.usdz

@@ -121,6 +121,13 @@ class TerrainImporterCfg:
     debug_vis: bool = False
     """Whether to enable visualization of terrain origins for the terrain. Defaults to False."""
 
+    disable_collider: bool = False
+    """Whether to import the terrain without a collider. Defaults to False.
+
+    When True the terrain mesh is authored as a visual-only prim. This is useful when the ground
+    reaction is supplied by a separate contact model instead of the physics engine.
+    """
+
     def __post_init__(self):
         """Resolve the terrain-type-specific visual material default."""
         if isinstance(self.visual_material, type(MISSING)):
