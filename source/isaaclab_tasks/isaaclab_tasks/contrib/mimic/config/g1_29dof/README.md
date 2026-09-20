@@ -1,6 +1,6 @@
-## Moviepy install 
+## Moviepy install
 Need this for video logging
-```bash 
+```bash
 pip install 'moviepy<2'
 ```
 ## Wandb login
@@ -60,3 +60,26 @@ transitions, and no assistance during full stance. This applies to both fixed an
 adaptive assistance, including gravity compensation. The survival-based adaptive
 gain remains frozen for the episode; phase gating does not alter its statistics.
 The wrench arrows display the phase-scaled force and torque.
+
+
+## Symmetry augmentation
+
+The default RSL-RL runner augments PPO batches with sagittal reflections using
+`MirrorObservationTermCfg` and `MirrorJointPositionActionCfg`. Reference joint
+positions, robot joints, and actions swap left/right channels and negate roll/yaw
+axes. Linear vectors reflect their Y component; angular vectors reflect X/Z.
+Motion phase stays unchanged. Critic body terms also swap corresponding bodies;
+6D rotations reflect both frames with `S @ R @ S`, where `S = diag(1, -1, 1)`.
+The transform uses recorded batch values and supports observation histories.
+
+Mirror rules use the explicit joint/body orders in the configuration. If those
+orders are overridden, update the corresponding `mirror_params` as well. Joint
+observations and actions are relative to default positions: augmentation treats
+randomized defaults as reflected along with the robot, rather than reusing an
+individual environment's asymmetric offsets for the reflected sample.
+
+Observation/action dimensions and the reference file are unchanged. Existing
+checkpoints remain compatible; resumed training with the new runner configuration
+uses augmentation. Set `algorithm.symmetry_cfg.use_data_augmentation=False` to
+disable augmentation. Mirror loss defaults to disabled and can be enabled
+separately with `use_mirror_loss=True` and a positive `mirror_loss_coeff`.

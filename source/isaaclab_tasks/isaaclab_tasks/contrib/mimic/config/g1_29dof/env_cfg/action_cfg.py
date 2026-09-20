@@ -3,8 +3,10 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import isaaclab.envs.mdp as mdp
 from isaaclab.utils.configclass import configclass
+
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints
+from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorJointPositionActionCfg
 
 CONTROLLED_JOINTS = [
     "left_hip_pitch_joint",
@@ -38,11 +40,14 @@ CONTROLLED_JOINTS = [
     "right_wrist_yaw_joint",
 ]
 
+
 @configclass
 class G1ActionsCfg:
     """Action specifications for the MDP."""
 
-    joint_pos = mdp.JointPositionActionCfg(
+    joint_pos = MirrorJointPositionActionCfg(
+        mirror=mirror_g1_joints,
+        mirror_params={"joint_names": CONTROLLED_JOINTS},
         asset_name="robot",
         joint_names=CONTROLLED_JOINTS,
         scale=0.2,
