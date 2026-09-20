@@ -1,0 +1,21 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+import math
+from dataclasses import MISSING
+
+import isaaclab.envs.mdp as mdp
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.utils.configclass import configclass
+
+import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
+
+
+@configclass
+class G1CurriculumCfg:
+    """Curriculum terms for the MDP."""
+
+    pass
