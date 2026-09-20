@@ -212,7 +212,13 @@ def run(sim: SimulationContext, scene: InteractiveScene):
     for k in ("joint_pos", "body_pos_w", "body_quat_w", "body_lin_vel_w", "body_ang_vel_w"):
         log[k] = np.stack(log[k], axis=0)
 
-    np.savez(args_cli.output_name, quaternion_order=np.array("xyzw"), **log)
+    np.savez(
+        args_cli.output_name,
+        joint_names=np.array(robot.joint_names),
+        body_names=np.array(robot.body_names),
+        quaternion_order=np.array("xyzw"),
+        **log,
+    )
     print("[INFO]: Motion npz file saved to", args_cli.output_name)
 
 

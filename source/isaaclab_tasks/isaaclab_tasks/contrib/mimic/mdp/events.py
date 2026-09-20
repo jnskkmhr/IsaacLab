@@ -115,10 +115,10 @@ def reset_root_state_from_reference(
     command.resample_time_steps(env_ids)
     asset: Articulation = env.scene[asset_cfg.name]
 
-    root_pos = command.body_pos_w[env_ids, 0]
-    root_ori = command.body_quat_w[env_ids, 0]
-    root_lin_vel = command.body_lin_vel_w[env_ids, 0]
-    root_ang_vel = command.body_ang_vel_w[env_ids, 0]
+    root_pos = command.root_pos_w[env_ids]
+    root_ori = command.root_quat_w[env_ids]
+    root_lin_vel = command.root_lin_vel_w[env_ids]
+    root_ang_vel = command.root_ang_vel_w[env_ids]
 
     keys = ["x", "y", "z", "roll", "pitch", "yaw"]
     ranges = torch.tensor([pose_range.get(key, (0.0, 0.0)) for key in keys], device=asset.device)
@@ -158,8 +158,8 @@ def reset_joint_state_from_reference(
     command.resample_time_steps(env_ids)
     asset: Articulation = env.scene[asset_cfg.name]
 
-    joint_pos = command.joint_pos[env_ids]
-    joint_vel = command.joint_vel[env_ids]
+    joint_pos = command.joint_pos_robot_order[env_ids]
+    joint_vel = command.joint_vel_robot_order[env_ids]
 
     joint_pos = joint_pos + sample_uniform(*position_range, joint_pos.shape, joint_pos.device)
     soft_limits = asset.data.soft_joint_pos_limits[env_ids]
@@ -235,11 +235,11 @@ class AssistiveWrench(ManagerTermBase):
         Computed once over the whole motion and indexed per env by the command's ``time_steps`` at
         runtime. The last frame is zeroed because there is no next frame to difference against.
         """
-        self._motion_base_body_id = motion_command.cfg.body_names.index(self._base_body_name)
+        self._motion_base_body_id = motion_command.motion_body_names.index(self._base_body_name)
         base = self._motion_base_body_id
         dt = self._env.step_dt
-        lin_vel = motion_command.motion.body_lin_vel_w[:, base, :]  # (num_frames, 3)
-        ang_vel = motion_command.motion.body_ang_vel_w[:, base, :]
+        lin_vel = motion_command.motion._body_lin_vel_w[:, base, :]  # (num_frames, 3)
+        ang_vel = motion_command.motion._body_ang_vel_w[:, base, :]
 
         lin_acc = torch.zeros_like(lin_vel)
         ang_acc = torch.zeros_like(ang_vel)
@@ -277,11 +277,16 @@ class AssistiveWrench(ManagerTermBase):
         frame_idx = motion_command.time_steps  # (N,)
 
         # Share the episode reference frame with tracking rewards and observations.
-        p_ref = motion_command.body_pos_w[:, motion_base]
-        q_ref = motion_command.body_quat_w[:, motion_base]
-        v_ref = motion_command.body_lin_vel_w[:, motion_base]
-        w_ref = motion_command.body_ang_vel_w[:, motion_base]
         rotation = motion_command.reference_quat_offset
+        motion = motion_command.motion
+        p_ref = (
+            math_utils.quat_apply(rotation, motion._body_pos_w[frame_idx, motion_base])
+            + motion_command.reference_pos_offset
+            + env.scene.env_origins
+        )
+        q_ref = math_utils.quat_mul(rotation, motion._body_quat_w[frame_idx, motion_base])
+        v_ref = math_utils.quat_apply(rotation, motion._body_lin_vel_w[frame_idx, motion_base])
+        w_ref = math_utils.quat_apply(rotation, motion._body_ang_vel_w[frame_idx, motion_base])
         a_lin_ref = math_utils.quat_apply(rotation, self._ref_lin_acc_w[frame_idx])
         a_ang_ref = math_utils.quat_apply(rotation, self._ref_ang_acc_w[frame_idx])
 
@@ -325,8 +330,6 @@ class AssistiveWrench(ManagerTermBase):
             beta = scale  # scalar
 
         # -- scale by beta: the applied wrench (world frame) for every env --
-        # Fade assistance with tracking rewards so stance is learned without external support.
-        beta = beta * motion_command.tracking_weight.unsqueeze(-1)
         applied_force = beta * force  # (N, 3)
         applied_torque = beta * torque  # (N, 3)
 

@@ -46,8 +46,8 @@ class G1TerminationsCfg:
             "body_names": [
                 "left_ankle_roll_link",
                 "right_ankle_roll_link",
-                "left_wrist_yaw_link",
-                "right_wrist_yaw_link",
+                # "left_wrist_yaw_link",
+                # "right_wrist_yaw_link",
             ],
         },
     )
