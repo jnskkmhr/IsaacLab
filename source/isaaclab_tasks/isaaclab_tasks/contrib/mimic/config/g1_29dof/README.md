@@ -1,7 +1,7 @@
 ## Moviepy install
 Need this for video logging
 ```bash
-pip install 'moviepy<2'
+uv pip install 'moviepy<2'
 ```
 ## Wandb login
 ```bash
@@ -83,3 +83,20 @@ checkpoints remain compatible; resumed training with the new runner configuratio
 uses augmentation. Set `algorithm.symmetry_cfg.use_data_augmentation=False` to
 disable augmentation. Mirror loss defaults to disabled and can be enabled
 separately with `use_mirror_loss=True` and a positive `mirror_loss_coeff`.
+
+## Export reference joint positions
+
+To export a headerless CSV with one motion frame per row and one joint per column:
+
+```bash
+uv run python source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/convert_npz_to_joint_pos_csv.py \
+  --input_file source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/cmu_83_43.npz \
+  --output_file /tmp/cmu_83_43_joint_pos.csv
+```
+
+Columns follow `JOINT_NAMES` in `env_cfg/commands_cfg.py`, matching the default
+policy's reference-joint command order. Values are absolute joint positions in
+radians, without root poses, velocities, timestamps, or a header. The input must
+include `joint_names` metadata so source columns can be reordered safely. If
+`--output_file` is omitted, the converter writes `<input_stem>_joint_pos.csv`
+beside the input NPZ.

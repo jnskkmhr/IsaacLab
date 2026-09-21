@@ -18,7 +18,8 @@ from isaaclab_tasks.contrib.velocity.config.vel_mdp import compute_mirrored_stat
 @configclass
 class G1PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 30_000
+    # max_iterations = 30_000
+    max_iterations = 60_000
     save_interval = 500
     obs_groups = {"actor": ["policy"], "critic": ["critic"]}
     actor = RslRlMLPModelCfg(
@@ -54,5 +55,7 @@ class G1PPORunnerCfg(RslRlOnPolicyRunnerCfg):
         ),
     )
     logger = "wandb"
-    wandb_project = "g1_jump_rigid"
-    experiment_name = "g1_jump_rigid"
+    # wandb_project = "g1_jump_rigid"
+    # experiment_name = "g1_jump_rigid"
+    wandb_project = "g1_jump_soft"
+    experiment_name = "g1_jump_soft"

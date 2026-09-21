@@ -86,7 +86,7 @@ class EnvCfg_PLAY(EnvCfg):
         self.terminations.base_ang_vel_exceed = None  # type: ignore
 
         self.commands.motion.start_from_beginning = True
-        self.events.reset_joints.params["position_range"] = (0.0, 0.0)
+        # self.events.reset_joints.params["position_range"] = (0.0, 0.0)
         self.events.assistive_wrench = None  # type: ignore
 
         self.sim.visualizer_cfgs = [
@@ -94,4 +94,8 @@ class EnvCfg_PLAY(EnvCfg):
             # NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.video_recorders = []
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=600),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=600),
+            # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+        ]

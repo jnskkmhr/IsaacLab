@@ -18,7 +18,7 @@ import torch
 import isaaclab.envs.mdp as base_mdp
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
-from isaaclab.utils.math import quat_error_magnitude
+from isaaclab.utils.math import quat_apply_inverse, quat_error_magnitude
 
 from .commands import MotionCommand
 
@@ -53,6 +53,29 @@ def motion_global_anchor_orientation_error_exp(env: ManagerBasedRLEnv, command_n
     command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
     error = quat_error_magnitude(command.anchor_quat_w, command.robot_anchor_quat_w) ** 2
     return torch.exp(-error / std**2) * _phase_gate(env, command_name, "tracking")
+
+
+def motion_global_anchor_tilt_error_l2(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
+    """Penalize anchor tilt error relative to the reference throughout the motion.
+
+    Compares unit gravity vectors in the reference and robot anchor frames, ignoring
+    world yaw. Unlike the phase-gated exponential orientation reward, this penalty
+    stays active during stance and distinguishes large pre-takeoff tilt errors.
+    Following a tilted reference incurs no penalty.
+
+    Args:
+        env: The environment.
+        command_name: The motion command identifying the reference and robot anchor.
+
+    Returns:
+        Dimensionless squared gravity-vector distance in [0, 4], shape [N].
+    """
+    command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
+    gravity_w = torch.zeros_like(command.anchor_quat_w[:, :3])
+    gravity_w[:, 2] = -1.0
+    reference_gravity = quat_apply_inverse(command.anchor_quat_w, gravity_w)
+    robot_gravity = quat_apply_inverse(command.robot_anchor_quat_w, gravity_w)
+    return torch.sum(torch.square(robot_gravity - reference_gravity), dim=-1)
 
 
 def motion_global_anchor_linear_velocity_error_exp(

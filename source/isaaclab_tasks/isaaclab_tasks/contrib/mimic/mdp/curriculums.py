@@ -12,7 +12,7 @@ the curriculum introduced by the function.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -65,8 +65,8 @@ def terrain_levels_motion_success(
     """Curriculum based on motion reference completion before termination.
 
     This term is used to increase the difficulty of the terrain when the robot successfully completes
-    the motion reference before any termination condition is triggered. If the motion is not completed,
-    the robot stays at the current terrain level.
+    the motion reference before any termination condition is triggered. Incomplete episodes or simultaneous
+    failures move the robot to an easier terrain level.
 
     Args:
         env: The environment.
@@ -89,8 +89,8 @@ def terrain_levels_motion_success(
     motion_completed = motion_command.has_reached_end[env_ids]
 
     # Move up to harder terrain if motion was successfully completed
-    move_up = motion_completed
-    move_down = ~motion_completed
+    move_up = motion_completed & ~env.termination_manager.terminated[env_ids]
+    move_down = ~move_up
 
     # update terrain levels
     terrain.update_env_origins(env_ids, move_up, move_down)
