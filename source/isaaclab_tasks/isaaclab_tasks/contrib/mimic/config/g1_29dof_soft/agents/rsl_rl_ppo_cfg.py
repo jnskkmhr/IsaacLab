@@ -55,7 +55,5 @@ class G1PPORunnerCfg(RslRlOnPolicyRunnerCfg):
         ),
     )
     logger = "wandb"
-    # wandb_project = "g1_jump_rigid"
-    # experiment_name = "g1_jump_rigid"
     wandb_project = "g1_jump_soft"
     experiment_name = "g1_jump_soft"

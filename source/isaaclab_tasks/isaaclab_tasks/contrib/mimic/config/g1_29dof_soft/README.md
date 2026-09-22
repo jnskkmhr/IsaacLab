@@ -10,17 +10,25 @@ Soft material parameters are randomized on reset using the locomotion ranges:
 friction 0.1–1.0, stiffness parameter 0.2–0.9, packing ratio 0.5–1.0, and bulk
 density 1000–3000 kg/m³. The rigid task's reset and randomization events remain.
 
-The terrain curriculum increases soft-layer depth by lowering the rigid floor
-from 0 toward −0.12 m. Training starts each episode at the beginning of the reference. Completing the
-whole clip without a failure promotes an environment; failed or incomplete
-episodes demote it. Reference origins stay at the soft
-surface (world Z=0), so changing floor depth does not lower the target motion.
-The rigid floor has a 0.05 m solid backing for single-tile MuJoCo compatibility.
-The Play task uses a fixed 0.12 m layer without terrain progression.
+Training and playback use a fixed 0.12 m soft layer, with terrain-level progression disabled.
+Training starts each episode at the beginning of the reference. Reference origins stay at the
+soft surface (world Z=0); the rigid floor is at −0.12 m and has 0.05 m solid backing for
+single-tile MuJoCo compatibility. Material randomization remains enabled.
+
+For push-recovery fine-tuning, training samples independent world-frame x/y velocity increments
+in [−0.5, 0.5] m/s every 1–3 seconds. Vertical and angular velocity are unchanged. The event
+only applies to environments with fully active stance rewards (`standing_weight >= 1 - 1e-6`)
+and at least one foot in contact, using the existing hybrid rigid/soft contact helper. This
+excludes the blended stance/tracking transition and skips delayed landings that are still
+airborne. Skipped events are not queued for touchdown, so not every landing receives a push.
+Assistance is disabled; rewards and policy observations are unchanged by this fine-tuning setup.
 
 ```bash
 uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft --num_envs 4096 --viz newton_gl --video
-uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft-Play --num_envs 4 --viz newton_gl --wandb_run 5uq0oyh5
+uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft-Play --num_envs 1 --viz newton_gl --wandb_run 5uq0oyh5
+
+# finetune 
+uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft --num_envs 4096 --viz newton_gl --video --wandb_run ... 
 ```
 
 Training logs use `logs/rsl_rl/g1_jump_soft`. Existing rigid checkpoints retain

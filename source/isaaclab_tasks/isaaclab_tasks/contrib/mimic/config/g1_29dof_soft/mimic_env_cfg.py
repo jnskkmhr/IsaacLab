@@ -22,7 +22,7 @@ from .env_cfg.scene_cfg import G1SceneCfg
 
 @configclass
 class EnvCfg(RigidEnvCfg):
-    """Train the rigid mimic policy interface on randomized soft foot contact."""
+    """Fine-tune the rigid mimic policy with stance pushes on a fixed-depth soft layer."""
 
     actions: G1ActionsCfg = G1ActionsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
@@ -32,8 +32,28 @@ class EnvCfg(RigidEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        # Require the full motion before a completion can advance soft-layer depth.
+        # Evaluate complete jumps at a fixed depth while learning push recovery.
         self.commands.motion.start_from_beginning = True
+
+        # disable push for pre-training
+        self.events.push_robot = None  # type: ignore
+
+@configclass
+class EnvCfgFinetune(EnvCfg):
+    """Fine-tune the rigid mimic policy with stance pushes on a fixed-depth soft layer."""
+
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.events.assistive_wrench = None  # type: ignore
+
+        # finetuning
+        self.curriculum.terrain_levels = None
+        self.scene.terrain.terrain_generator.num_rows = 1
+        self.scene.terrain.terrain_generator.num_cols = 1
+        self.scene.terrain.terrain_generator.curriculum = False
+        self.scene.terrain.terrain_generator.difficulty_range = (1.0, 1.0)
+        self.scene.terrain.terrain_generator.size = (100.0, 100.0)
 
 
 @configclass

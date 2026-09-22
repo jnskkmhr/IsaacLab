@@ -4,5 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from .curriculum import soft_flat_terrain
+from .events import push_by_setting_velocity_in_stance
 
-__all__ = ["soft_flat_terrain"]
+__all__ = ["soft_flat_terrain", "push_by_setting_velocity_in_stance"]

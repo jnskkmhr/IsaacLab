@@ -205,6 +205,19 @@ Resume from the latest compatible checkpoint:
    uv run isaaclab train --rl_library rsl_rl --task Isaac-Cartpole \
        --checkpoint latest
 
+For RSL-RL, resume from a Weights & Biases run using ``--wandb_run`` with its run ID:
+
+.. code-block:: bash
+
+   uv run isaaclab train --rl_library rsl_rl --task Isaac-Cartpole \
+     --wandb_run <run-id> --wandb_project <project> --wandb_entity <entity>
+
+The project defaults to the agent configuration's ``wandb_project`` and the entity
+uses the local W&B login. The latest uploaded checkpoint matching
+``agent.load_checkpoint`` is downloaded. These options also work for distillation
+to load the teacher or resume a distillation checkpoint. Do not combine
+``--wandb_run`` with ``--checkpoint``.
+
 When loading an explicit checkpoint, use the same task, agent, ML framework,
 and observation/action presets used during training. A checkpoint stores policy
 state; it cannot make incompatible observations or actions compatible.
