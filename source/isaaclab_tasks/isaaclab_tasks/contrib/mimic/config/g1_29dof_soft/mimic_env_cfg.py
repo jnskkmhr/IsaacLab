@@ -53,7 +53,7 @@ class EnvCfgFinetune(EnvCfg):
         # disable tracking based termination
         self.terminations.anchor_pos = None
         self.terminations.anchor_ori = None
-        self.terminations.ee_body_pos = None
+        # self.terminations.ee_body_pos = None
 
         # finetuning
         self.curriculum.terrain_levels = None
