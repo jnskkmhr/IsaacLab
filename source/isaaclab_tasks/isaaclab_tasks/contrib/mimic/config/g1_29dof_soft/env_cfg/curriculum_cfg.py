@@ -15,6 +15,6 @@ class G1CurriculumCfg(RigidCurriculumCfg):
     """Increase soft-layer depth when the full reference is completed without failure."""
 
     terrain_levels = CurriculumTermCfg(
-        func=terrain_levels_motion_success,
+        func=terrain_levels_motion_success, # type: ignore
         params={"command_name": "motion"},
     )

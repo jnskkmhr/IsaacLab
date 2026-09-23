@@ -178,7 +178,7 @@ class G1RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                body_names=[".*ankle_roll.*"],
+                body_names=[".*ankle_pitch.*"],
                 preserve_order=True,
             ),
         },
@@ -190,7 +190,7 @@ class G1RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                body_names=[".*ankle_roll.*"],
+                body_names=[".*ankle_pitch.*"],
                 preserve_order=True,
             ),
         },
@@ -204,7 +204,7 @@ class G1RewardsCfg:
             "soft_contact_sensor_name": "physics_callback",
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                body_names=[".*ankle_roll.*"],
+                body_names=[".*ankle_pitch.*"],
                 preserve_order=True,
             ),
         },

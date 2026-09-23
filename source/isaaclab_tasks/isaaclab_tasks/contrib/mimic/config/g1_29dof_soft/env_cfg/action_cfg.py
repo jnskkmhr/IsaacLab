@@ -14,6 +14,15 @@ from isaaclab_tasks.contrib.velocity.config.vel_mdp import (
     mirror_identity,
 )
 
+from ..mdp.actions import AnklePitchPerturbationCfg
+
+
+@configclass
+class MirrorAnklePitchPerturbationCfg(AnklePitchPerturbationCfg, MirrorActionTermCfg):
+    """Identity mirror for the empty perturbation action slice."""
+
+    mirror = mirror_identity
+
 
 @configclass
 class MirrorPhysicsCallbackActionCfg(PhysicsCallbackActionCfg, MirrorActionTermCfg):
@@ -53,3 +62,7 @@ class G1ActionsCfg:
         history_logging_decimation=10,
         contact_vis_force_threshold=40.0,
     )
+
+@configclass
+class G1ActionsFinetuneCfg(G1ActionsCfg):
+    ankle_pitch_perturbation = MirrorAnklePitchPerturbationCfg(asset_name="robot")

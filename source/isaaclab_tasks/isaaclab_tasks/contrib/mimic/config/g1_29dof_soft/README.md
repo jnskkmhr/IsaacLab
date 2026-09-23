@@ -28,7 +28,7 @@ uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Mimic
 uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft-Play --num_envs 1 --viz newton_gl --wandb_run 5uq0oyh5
 
 # finetune 
-uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft --num_envs 4096 --viz newton_gl --video --wandb_run ... 
+uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-Soft-Finetune --num_envs 4096 --viz newton_gl --video --wandb_run irsvxnpg
 ```
 
 Training logs use `logs/rsl_rl/g1_jump_soft`. Existing rigid checkpoints retain
@@ -63,3 +63,26 @@ changing a reward does not change an existing checkpoint's playback behavior.
 Compare torso pitch error during preparation and full-motion completion at matched
 terrain depth. Disable the new term with `env.rewards.motion_anchor_tilt.weight=0.0`
 for a comparison with the previous reward configuration.
+
+### Ankle-pitch torque perturbations
+
+`events.perturb_ankle_pitch` triggers independent signed torque pulses on the left
+and right ankle-pitch bodies during fully weighted, grounded stance. Its defaults
+are `torque_range=(-5.0, 5.0)` [N m], `duration_range_s=(0.2, 0.5)` [s], and
+`interval_range_s=(1.0, 3.0)` [s]. The torque acts about each body's local y axis,
+which is the G1 ankle-pitch axis. This is an external body torque, not a joint
+position change or an internal motor torque.
+
+`actions.ankle_pitch_perturbation` applies a sine-squared pulse envelope at physics
+step midpoints through the instantaneous wrench buffer. It follows
+`physics_callback`, whose contact forces remain in the permanent buffer; the
+simulator combines both. The action consumes zero policy outputs, preserving the
+policy action dimension. The pulse stops for a foot when contact is lost and for
+both feet when full stance ends or the environment resets. Active pulses are not
+restarted by another interval event.
+
+Set `events.perturb_ankle_pitch=None` to disable new pulses. Set `events.push_foot=None`
+when evaluating torque perturbations alone. Keep the perturbation action after
+`physics_callback`, and keep its body and contact-sensor lists in matching
+left/right order. These defaults are initial training settings, not a calibrated
+model of MPM contact moments.

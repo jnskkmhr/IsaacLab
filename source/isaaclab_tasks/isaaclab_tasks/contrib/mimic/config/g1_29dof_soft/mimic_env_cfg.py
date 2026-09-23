@@ -13,10 +13,10 @@ from isaaclab.utils import configclass
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.mimic_env_cfg import EnvCfg as RigidEnvCfg
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.mimic_env_cfg import EnvCfg_PLAY as RigidPlayEnvCfg
 
-from .env_cfg.action_cfg import G1ActionsCfg
+from .env_cfg.action_cfg import G1ActionsCfg, G1ActionsFinetuneCfg
 from .env_cfg.curriculum_cfg import G1CurriculumCfg
-from .env_cfg.event_cfg import G1EventCfg
-from .env_cfg.reward_cfg import G1RewardsCfg
+from .env_cfg.event_cfg import G1EventCfg, G1EventFinetuneCfg
+from .env_cfg.reward_cfg import G1RewardsCfg, G1RewardsFinetuneCfg
 from .env_cfg.scene_cfg import G1SceneCfg
 
 
@@ -35,17 +35,25 @@ class EnvCfg(RigidEnvCfg):
         # Evaluate complete jumps at a fixed depth while learning push recovery.
         self.commands.motion.start_from_beginning = True
 
-        # disable push for pre-training
-        self.events.push_robot = None  # type: ignore
 
 @configclass
 class EnvCfgFinetune(EnvCfg):
+    actions: G1ActionsFinetuneCfg = G1ActionsFinetuneCfg()
+    events: G1EventFinetuneCfg = G1EventFinetuneCfg()
+    rewards: G1RewardsFinetuneCfg = G1RewardsFinetuneCfg()
     """Fine-tune the rigid mimic policy with stance pushes on a fixed-depth soft layer."""
 
     def __post_init__(self):
         super().__post_init__()
 
         self.events.assistive_wrench = None  # type: ignore
+        self.events.reset_base.params["pose_range"]["x"] = (-80.0, 80.0)
+        self.events.reset_base.params["pose_range"]["y"] = (-80.0, 80.0)
+
+        # disable tracking based termination
+        self.terminations.anchor_pos = None
+        self.terminations.anchor_ori = None
+        self.terminations.ee_body_pos = None
 
         # finetuning
         self.curriculum.terrain_levels = None
