@@ -16,6 +16,38 @@ from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorObservationTermCfg as ObsTerm
 from isaaclab_tasks.contrib.velocity.config.vel_mdp import mirror_identity, mirror_quat, mirror_vec3
 
+ACTIVE_JOINTS=[
+    "left_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "right_hip_pitch_joint",
+    "right_hip_roll_joint",
+    "right_hip_yaw_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_ankle_roll_joint",
+    "waist_yaw_joint",
+    "waist_roll_joint",
+    "waist_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_roll_joint",
+    "right_wrist_pitch_joint",
+    "right_wrist_yaw_joint",
+]
+
 
 @configclass
 class PolicyCfg(ObsGroup):
@@ -34,11 +66,6 @@ class PolicyCfg(ObsGroup):
         mirror=mirror_vec3,
         noise=Unoise(n_min=-0.05, n_max=0.05),
     )
-    velocity_commands = ObsTerm(
-        func=mdp.generated_commands,
-        params={"command_name": "base_velocity"},
-        mirror=symmetry.mirror_velocity_heading,
-    )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
@@ -46,37 +73,7 @@ class PolicyCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=[
-                    "left_hip_pitch_joint",
-                    "left_hip_roll_joint",
-                    "left_hip_yaw_joint",
-                    "left_knee_joint",
-                    "left_ankle_pitch_joint",
-                    "left_ankle_roll_joint",
-                    "right_hip_pitch_joint",
-                    "right_hip_roll_joint",
-                    "right_hip_yaw_joint",
-                    "right_knee_joint",
-                    "right_ankle_pitch_joint",
-                    "right_ankle_roll_joint",
-                    "waist_yaw_joint",
-                    "waist_roll_joint",
-                    "waist_pitch_joint",
-                    "left_shoulder_pitch_joint",
-                    "left_shoulder_roll_joint",
-                    "left_shoulder_yaw_joint",
-                    "left_elbow_joint",
-                    "left_wrist_roll_joint",
-                    "left_wrist_pitch_joint",
-                    "left_wrist_yaw_joint",
-                    "right_shoulder_pitch_joint",
-                    "right_shoulder_roll_joint",
-                    "right_shoulder_yaw_joint",
-                    "right_elbow_joint",
-                    "right_wrist_roll_joint",
-                    "right_wrist_pitch_joint",
-                    "right_wrist_yaw_joint",
-                ],
+                joint_names=ACTIVE_JOINTS,
                 preserve_order=True,
             ),
         },
@@ -89,37 +86,7 @@ class PolicyCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=[
-                    "left_hip_pitch_joint",
-                    "left_hip_roll_joint",
-                    "left_hip_yaw_joint",
-                    "left_knee_joint",
-                    "left_ankle_pitch_joint",
-                    "left_ankle_roll_joint",
-                    "right_hip_pitch_joint",
-                    "right_hip_roll_joint",
-                    "right_hip_yaw_joint",
-                    "right_knee_joint",
-                    "right_ankle_pitch_joint",
-                    "right_ankle_roll_joint",
-                    "waist_yaw_joint",
-                    "waist_roll_joint",
-                    "waist_pitch_joint",
-                    "left_shoulder_pitch_joint",
-                    "left_shoulder_roll_joint",
-                    "left_shoulder_yaw_joint",
-                    "left_elbow_joint",
-                    "left_wrist_roll_joint",
-                    "left_wrist_pitch_joint",
-                    "left_wrist_yaw_joint",
-                    "right_shoulder_pitch_joint",
-                    "right_shoulder_roll_joint",
-                    "right_shoulder_yaw_joint",
-                    "right_elbow_joint",
-                    "right_wrist_roll_joint",
-                    "right_wrist_pitch_joint",
-                    "right_wrist_yaw_joint",
-                ],
+                joint_names=ACTIVE_JOINTS,
                 preserve_order=True,
             ),
         },
@@ -158,18 +125,10 @@ class CriticCfg(ObsGroup):
         mirror_params={"axial": True},
         scale=0.25,
     )
-    # projected_gravity = ObsTerm(
-    #     func=mdp.projected_gravity,
-    # )
     base_quat = ObsTerm(
         func=mdp.root_quat_w,
         mirror=mirror_quat,
         params={"make_quat_unique": True},
-    )
-    velocity_commands = ObsTerm(
-        func=mdp.generated_commands,
-        params={"command_name": "base_velocity"},
-        mirror=symmetry.mirror_velocity_heading,
     )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
@@ -177,37 +136,7 @@ class CriticCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=[
-                    "left_hip_pitch_joint",
-                    "left_hip_roll_joint",
-                    "left_hip_yaw_joint",
-                    "left_knee_joint",
-                    "left_ankle_pitch_joint",
-                    "left_ankle_roll_joint",
-                    "right_hip_pitch_joint",
-                    "right_hip_roll_joint",
-                    "right_hip_yaw_joint",
-                    "right_knee_joint",
-                    "right_ankle_pitch_joint",
-                    "right_ankle_roll_joint",
-                    "waist_yaw_joint",
-                    "waist_roll_joint",
-                    "waist_pitch_joint",
-                    "left_shoulder_pitch_joint",
-                    "left_shoulder_roll_joint",
-                    "left_shoulder_yaw_joint",
-                    "left_elbow_joint",
-                    "left_wrist_roll_joint",
-                    "left_wrist_pitch_joint",
-                    "left_wrist_yaw_joint",
-                    "right_shoulder_pitch_joint",
-                    "right_shoulder_roll_joint",
-                    "right_shoulder_yaw_joint",
-                    "right_elbow_joint",
-                    "right_wrist_roll_joint",
-                    "right_wrist_pitch_joint",
-                    "right_wrist_yaw_joint",
-                ],
+                joint_names=ACTIVE_JOINTS,
                 preserve_order=True,
             ),
         },
@@ -218,37 +147,7 @@ class CriticCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=[
-                    "left_hip_pitch_joint",
-                    "left_hip_roll_joint",
-                    "left_hip_yaw_joint",
-                    "left_knee_joint",
-                    "left_ankle_pitch_joint",
-                    "left_ankle_roll_joint",
-                    "right_hip_pitch_joint",
-                    "right_hip_roll_joint",
-                    "right_hip_yaw_joint",
-                    "right_knee_joint",
-                    "right_ankle_pitch_joint",
-                    "right_ankle_roll_joint",
-                    "waist_yaw_joint",
-                    "waist_roll_joint",
-                    "waist_pitch_joint",
-                    "left_shoulder_pitch_joint",
-                    "left_shoulder_roll_joint",
-                    "left_shoulder_yaw_joint",
-                    "left_elbow_joint",
-                    "left_wrist_roll_joint",
-                    "left_wrist_pitch_joint",
-                    "left_wrist_yaw_joint",
-                    "right_shoulder_pitch_joint",
-                    "right_shoulder_roll_joint",
-                    "right_shoulder_yaw_joint",
-                    "right_elbow_joint",
-                    "right_wrist_roll_joint",
-                    "right_wrist_pitch_joint",
-                    "right_wrist_yaw_joint",
-                ],
+                joint_names=ACTIVE_JOINTS,
                 preserve_order=True,
             ),
         },
@@ -285,6 +184,20 @@ class PolicyHistoryCfg(PolicyCfg):
 class CriticHistoryCfg(CriticCfg):
     def __post_init__(self):
         self.history_length = 10
+
+@configclass
+class CommandCfg(ObsGroup):
+    """Observations for command group."""
+
+    velocity_commands = ObsTerm(
+        func=mdp.generated_commands,
+        params={"command_name": "base_velocity"},
+        mirror=symmetry.mirror_velocity_heading,
+    )
+
+    def __post_init__(self):
+        self.enable_corruption = False
+        self.concatenate_terms = True
 
 
 @configclass
@@ -356,5 +269,7 @@ class G1ObservationsCfg:
     # observation groups
     policy: PolicyHistoryCfg = PolicyHistoryCfg()
     critic: CriticHistoryCfg = CriticHistoryCfg()
+    command: CommandCfg = CommandCfg()
     privileged: PrivilegedHistoryCfg = PrivilegedHistoryCfg()
-    logging: LoggingObsCfg = LoggingObsCfg()
+
+    # logging: LoggingObsCfg = LoggingObsCfg()

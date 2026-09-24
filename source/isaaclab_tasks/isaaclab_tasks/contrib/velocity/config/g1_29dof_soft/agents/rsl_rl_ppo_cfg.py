@@ -53,8 +53,8 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         ),
     )
     logger = "wandb"
-    wandb_project = "g1_29dof_soft_rough"
-    experiment_name = "g1_29dof_soft_rough"
+    wandb_project = "g1_29dof_soft_rough_ppo"
+    experiment_name = "g1_29dof_soft_rough_ppo"
 
 
 @configclass
@@ -63,5 +63,5 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         super().__post_init__()  # type: ignore
 
         self.max_iterations = 20_000
-        self.wandb_project = "g1_29dof_soft_vanilla_ppo"
-        self.experiment_name = "g1_29dof_soft_vanilla_ppo"
+        self.wandb_project = "g1_29dof_soft_flat_ppo"
+        self.experiment_name = "g1_29dof_soft_flat_ppo"
