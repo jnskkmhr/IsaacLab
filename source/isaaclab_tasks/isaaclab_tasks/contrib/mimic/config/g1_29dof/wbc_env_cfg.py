@@ -5,12 +5,13 @@
 
 import math
 
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
+
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
-from isaaclab.envs.common import ViewerCfg
 from isaaclab.sim import SimulationCfg
 
 ##
@@ -58,13 +59,9 @@ class G1WBCEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.render_interval = self.decimation
         self.sim.physics_material = self.scene.terrain.physics_material
 
-        self.viewer = ViewerCfg(
-            eye=(0.0, -12.0, 0.4),
-            lookat=(0.0, -0.0, 0.0),
-            resolution=(1920, 1080),
-            origin_type="asset_root",
-            asset_name="robot",
-        )
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(12.0, 0.0, 3.0), headless=True),
+        ]
 
 
 @configclass
@@ -84,10 +81,6 @@ class G1WBCEnvCfg_PLAY(G1WBCEnvCfg):
         self.events.reset_joints.params["position_range"] = (0.0, 0.0)
         self.events.assistive_wrench = None  # type: ignore
 
-        self.viewer = ViewerCfg(
-            eye=(-3.0, -3.0, 1.0),
-            lookat=(0.0, -0.0, 0.0),
-            resolution=(1920, 1080),
-            origin_type="asset_root",
-            asset_name="robot",
-        )
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+        ]
