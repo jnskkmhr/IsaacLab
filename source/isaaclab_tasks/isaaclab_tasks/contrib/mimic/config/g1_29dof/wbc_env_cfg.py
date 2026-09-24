@@ -12,6 +12,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
 
 ##
@@ -63,6 +64,10 @@ class G1WBCEnvCfg(ManagerBasedRLEnvCfg):
             NewtonGLVisualizerCfg(eye=(12.0, 0.0, 3.0), headless=True),
         ]
 
+        self.video_recorders = [
+            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+        ]
+
 
 @configclass
 class G1WBCEnvCfg_PLAY(G1WBCEnvCfg):
@@ -83,4 +88,7 @@ class G1WBCEnvCfg_PLAY(G1WBCEnvCfg):
 
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+        ]
+        self.video_recorders = [
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=600),
         ]
