@@ -47,24 +47,24 @@ class G1RewardsFinetuneCfg(G1RewardsCfg):
     #         "asset_cfg": SceneEntityCfg("robot", joint_names=".*waist_pitch.*"),
     #     },
     # )
-    flat_orientation_l2 = RewardTermCfg(
-        func=mdp.flat_orientation_l2,
-        # weight=-20.0,
-        weight=-1.0,
-    )
+    # flat_orientation_l2 = RewardTermCfg(
+    #     func=mdp.flat_orientation_l2,
+    #     # weight=-20.0,
+    #     weight=-1.0,
+    # )
 
-    feet_pitch = RewardTermCfg(
-        func=g1_mdp.reward_feet_pitch,
-        # weight=-4.0,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_pitch.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_pitch = RewardTermCfg(
+    #     func=g1_mdp.reward_feet_pitch,
+    #     # weight=-4.0,
+    #     weight=-1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_pitch.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
     com_foot_center = RewardTermCfg(
         func=soft_rewards.grounded_com_foot_center_l2,
