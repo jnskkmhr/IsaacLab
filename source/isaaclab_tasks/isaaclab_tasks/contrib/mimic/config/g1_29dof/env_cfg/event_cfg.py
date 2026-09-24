@@ -77,12 +77,12 @@ class G1EventCfg:
         params={
             "command_name": "motion",
             "pose_range": {
-                "x": (-0.05, 0.05),
-                "y": (-0.05, 0.05),
-                "z": (-0.01, 0.01),
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "z": (-0.05, 0.05),
                 "roll": (-0.1, 0.1),
                 "pitch": (-0.1, 0.1),
-                "yaw": (-0.2, 0.2),
+                "yaw": (-math.pi, math.pi),
             },
             "velocity_range": {
                 "x": (-0.5, 0.5),

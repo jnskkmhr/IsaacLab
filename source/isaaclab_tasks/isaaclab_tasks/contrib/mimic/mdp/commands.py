@@ -28,6 +28,7 @@ from isaaclab.utils.math import (
     convert_quat,
     quat_apply,
     quat_error_magnitude,
+    quat_from_euler_xyz,
     quat_inv,
     quat_mul,
     sample_uniform,
@@ -64,11 +65,8 @@ class MotionLoader:
         self._body_quat_w = torch.tensor(data["body_quat_w"], dtype=torch.float32, device=device)
         if "quaternion_order" in data:
             quaternion_order = str(np.asarray(data["quaternion_order"]).item())
-        if quaternion_order not in ("wxyz", "xyzw"):
-            data.close()
-            raise ValueError(f"Unsupported motion quaternion order: {quaternion_order!r}")
         if quaternion_order == "wxyz":
-            self._body_quat_w = convert_quat(self._body_quat_w, to="xyzw")
+            self._body_quat_w: torch.Tensor = convert_quat(self._body_quat_w, to="xyzw")  # type: ignore
         self._body_lin_vel_w = torch.tensor(data["body_lin_vel_w"], dtype=torch.float32, device=device)
         self._body_ang_vel_w = torch.tensor(data["body_ang_vel_w"], dtype=torch.float32, device=device)
         self._body_indexes = body_indexes
@@ -116,26 +114,59 @@ class MotionCommand(CommandTerm):
         super().__init__(cfg, env)
 
         self.robot: Articulation = env.scene[cfg.asset_name]
+
+        with np.load(cfg.motion_file, allow_pickle=False) as data:
+            source_joint_names = data["joint_names"].tolist() if "joint_names" in data else self.cfg.motion_joint_names
+            source_body_names = data["body_names"].tolist() if "body_names" in data else None
+            if source_body_names is not None:
+                if len(source_body_names) != data["body_pos_w"].shape[1] or len(set(source_body_names)) != len(
+                    source_body_names
+                ):
+                    raise ValueError("Motion body_names must uniquely label every body column.")
+                if self.cfg.body_names is None:
+                    self.cfg.body_names = source_body_names
+            if self.cfg.body_names is None:
+                raise ValueError("Motion file has no body_names metadata; provide body_names for this legacy file.")
+            if len(set(self.cfg.body_names)) != len(self.cfg.body_names):
+                raise ValueError("Tracked body_names must be unique.")
+            if source_body_names is not None:
+                missing = set(self.cfg.body_names) - set(source_body_names)
+                if missing:
+                    raise ValueError(f"Tracked bodies missing from motion metadata: {sorted(missing)}")
+                motion_body_indexes = [source_body_names.index(name) for name in self.cfg.body_names]
+            else:
+                motion_body_indexes = list(range(len(self.cfg.body_names)))
+        # process joint/body ordering and indexes, then load the motion data
+        stored_body_names = source_body_names if source_body_names is not None else self.cfg.body_names
+        self.motion_body_names = stored_body_names
+        self.motion_root_body_index = stored_body_names.index(self.robot.body_names[0])
+        self.joint_indexes = slice(None)
+        if self.cfg.joint_names is not None:
+            if len(set(self.cfg.joint_names)) != len(self.cfg.joint_names):
+                raise ValueError("Tracked joint_names must be unique.")
+            self.joint_indexes = [self.robot.joint_names.index(name) for name in self.cfg.joint_names]
         self.robot_anchor_body_index = self.robot.body_names.index(self.cfg.anchor_body_name)
         self.motion_anchor_body_index = self.cfg.body_names.index(self.cfg.anchor_body_name)
         self.body_indexes = torch.tensor(
             self.robot.find_bodies(self.cfg.body_names, preserve_order=True)[0], dtype=torch.long, device=self.device
         )
 
-        # The motion file stores exactly `len(cfg.body_names)` bodies, already in that list's order --
-        # not the robot's own (larger) body numbering. Index it by position, not by robot body index,
-        # or lookups for any tracked body whose robot index exceeds the motion file's body count go
-        # out of bounds.
-        motion_body_indexes = torch.arange(len(self.cfg.body_names), dtype=torch.long, device=self.device)
         self.motion = MotionLoader(
             self.cfg.motion_file,
             motion_body_indexes,
             device=self.device,
             quaternion_order=self.cfg.motion_quaternion_order,
-            source_joint_names=self.cfg.motion_joint_names,
-            target_joint_names=self.robot.joint_names if self.cfg.motion_joint_names is not None else None,
+            source_joint_names=source_joint_names,
+            target_joint_names=self.robot.joint_names if source_joint_names is not None else None,
         )
+
+        # pre-allocate tensors
         self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+        self.reference_pos_offset = torch.zeros(self.num_envs, 3, device=self.device)
+        """Fixed episode reference translation [m], shape [N, 3], excluding environment origins."""
+        self.reference_quat_offset = torch.zeros(self.num_envs, 4, device=self.device)
+        """Fixed episode yaw rotation in xyzw order, shape [N, 4]."""
+        self.reference_quat_offset[:, 3] = 1.0
         self.frame_stance_weight = self._build_frame_stance_weight()
         self.body_pos_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 3, device=self.device)
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
@@ -212,51 +243,146 @@ class MotionCommand(CommandTerm):
 
     @property
     def joint_pos(self) -> torch.Tensor:
-        return self.motion.joint_pos[self.time_steps]
+        return self.joint_pos_robot_order[:, self.joint_indexes]
 
     @property
     def joint_vel(self) -> torch.Tensor:
+        return self.joint_vel_robot_order[:, self.joint_indexes]
+
+    @property
+    def joint_pos_robot_order(self) -> torch.Tensor:
+        """Full reset joint positions [rad] in articulation order, shape [N, J]."""
+        return self.motion.joint_pos[self.time_steps]
+
+    @property
+    def joint_vel_robot_order(self) -> torch.Tensor:
+        """Full reset joint velocities [rad/s] in articulation order, shape [N, J]."""
         return self.motion.joint_vel[self.time_steps]
 
     @property
+    def root_pos_w(self) -> torch.Tensor:
+        """Reference root positions [m], independent of tracked body order, shape [N, 3]."""
+        return (
+            quat_apply(
+                self.reference_quat_offset, self.motion._body_pos_w[self.time_steps, self.motion_root_body_index]
+            )
+            + self.reference_pos_offset
+            + self._env.scene.env_origins
+        )
+
+    @property
+    def root_quat_w(self) -> torch.Tensor:
+        """Reference root orientations in xyzw order, shape [N, 4]."""
+        return quat_mul(
+            self.reference_quat_offset, self.motion._body_quat_w[self.time_steps, self.motion_root_body_index]
+        )
+
+    @property
+    def root_lin_vel_w(self) -> torch.Tensor:
+        """Reference root linear velocities [m/s], shape [N, 3]."""
+        return quat_apply(
+            self.reference_quat_offset, self.motion._body_lin_vel_w[self.time_steps, self.motion_root_body_index]
+        )
+
+    @property
+    def root_ang_vel_w(self) -> torch.Tensor:
+        """Reference root angular velocities [rad/s], shape [N, 3]."""
+        return quat_apply(
+            self.reference_quat_offset, self.motion._body_ang_vel_w[self.time_steps, self.motion_root_body_index]
+        )
+
+    def set_reference_frame(
+        self, env_ids: torch.Tensor, position_offset: torch.Tensor, yaw_offset: torch.Tensor
+    ) -> None:
+        """Set the episode's fixed reference frame about the sampled root position.
+
+        Args:
+            env_ids: Environment indices, shape [N].
+            position_offset: Initial XY translation [m], shape [N, 2].
+            yaw_offset: Initial world-Z rotation [rad], shape [N].
+
+        Height and roll/pitch perturbations remain tracking errors. This replaces
+        the previous frame; later robot drift does not change the reference.
+        """
+        zeros = torch.zeros_like(yaw_offset)
+        rotation = quat_from_euler_xyz(zeros, zeros, yaw_offset)
+        pivot = self.motion._body_pos_w[self.time_steps[env_ids], self.motion_root_body_index]
+        translation = pivot - quat_apply(rotation, pivot)
+        translation[:, :2] += position_offset
+        self.reference_pos_offset[env_ids] = translation
+        self.reference_quat_offset[env_ids] = rotation
+
+    @property
     def body_pos_w(self) -> torch.Tensor:
-        return self.motion.body_pos_w[self.time_steps] + self._env.scene.env_origins[:, None, :]
+        """Episode-aligned reference body positions [m], shape [N, B, 3]."""
+        return (
+            quat_apply(
+                self.reference_quat_offset[:, None, :].expand(-1, len(self.cfg.body_names), -1),
+                self.motion.body_pos_w[self.time_steps],
+            )
+            + self.reference_pos_offset[:, None, :]
+            + self._env.scene.env_origins[:, None, :]
+        )
 
     @property
     def body_quat_w(self) -> torch.Tensor:
-        return self.motion.body_quat_w[self.time_steps]
+        """Episode-aligned reference body orientations in xyzw order, shape [N, B, 4]."""
+        return quat_mul(
+            self.reference_quat_offset[:, None, :].expand(-1, len(self.cfg.body_names), -1),
+            self.motion.body_quat_w[self.time_steps],
+        )
 
     @property
     def body_lin_vel_w(self) -> torch.Tensor:
-        return self.motion.body_lin_vel_w[self.time_steps]
+        """Episode-aligned reference body linear velocities [m/s], shape [N, B, 3]."""
+        return quat_apply(
+            self.reference_quat_offset[:, None, :].expand(-1, len(self.cfg.body_names), -1),
+            self.motion.body_lin_vel_w[self.time_steps],
+        )
 
     @property
     def body_ang_vel_w(self) -> torch.Tensor:
-        return self.motion.body_ang_vel_w[self.time_steps]
+        """Episode-aligned reference body angular velocities [rad/s], shape [N, B, 3]."""
+        return quat_apply(
+            self.reference_quat_offset[:, None, :].expand(-1, len(self.cfg.body_names), -1),
+            self.motion.body_ang_vel_w[self.time_steps],
+        )
 
     @property
     def anchor_pos_w(self) -> torch.Tensor:
-        return self.motion.body_pos_w[self.time_steps, self.motion_anchor_body_index] + self._env.scene.env_origins
+        return (
+            quat_apply(
+                self.reference_quat_offset, self.motion.body_pos_w[self.time_steps, self.motion_anchor_body_index]
+            )
+            + self.reference_pos_offset
+            + self._env.scene.env_origins
+        )
 
     @property
     def anchor_quat_w(self) -> torch.Tensor:
-        return self.motion.body_quat_w[self.time_steps, self.motion_anchor_body_index]
+        return quat_mul(
+            self.reference_quat_offset, self.motion.body_quat_w[self.time_steps, self.motion_anchor_body_index]
+        )
 
     @property
     def anchor_lin_vel_w(self) -> torch.Tensor:
-        return self.motion.body_lin_vel_w[self.time_steps, self.motion_anchor_body_index]
+        return quat_apply(
+            self.reference_quat_offset, self.motion.body_lin_vel_w[self.time_steps, self.motion_anchor_body_index]
+        )
 
     @property
     def anchor_ang_vel_w(self) -> torch.Tensor:
-        return self.motion.body_ang_vel_w[self.time_steps, self.motion_anchor_body_index]
+        return quat_apply(
+            self.reference_quat_offset, self.motion.body_ang_vel_w[self.time_steps, self.motion_anchor_body_index]
+        )
 
     @property
     def robot_joint_pos(self) -> torch.Tensor:
-        return self.robot.data.joint_pos
+        return self.robot.data.joint_pos[:, self.joint_indexes]
 
     @property
     def robot_joint_vel(self) -> torch.Tensor:
-        return self.robot.data.joint_vel
+        return self.robot.data.joint_vel[:, self.joint_indexes]
 
     @property
     def robot_body_pos_w(self) -> torch.Tensor:
@@ -452,6 +578,9 @@ class MotionCommand(CommandTerm):
         if len(pending) == 0:
             return
         self._adaptive_sampling(pending)
+        self.reference_pos_offset[pending] = 0.0
+        self.reference_quat_offset[pending] = 0.0
+        self.reference_quat_offset[pending, 3] = 1.0
         self._resample_pending[pending] = False
 
     def _resample_command(self, env_ids: Sequence[int]):
@@ -475,6 +604,8 @@ class MotionCommand(CommandTerm):
         robot_anchor_pos_w_repeat = self.robot_anchor_pos_w[:, None, :].repeat(1, len(self.cfg.body_names), 1)
         robot_anchor_quat_w_repeat = self.robot_anchor_quat_w[:, None, :].repeat(1, len(self.cfg.body_names), 1)
 
+        # find relative transform from reference anchor pose to current (measured) robot anchor pose.
+        # then, apply this relative transform to reference body poses.
         delta_pos_w = robot_anchor_pos_w_repeat
         delta_pos_w[..., 2] = anchor_pos_w_repeat[..., 2]
         delta_ori_w = yaw_quat(quat_mul(robot_anchor_quat_w_repeat, quat_inv(anchor_quat_w_repeat)))
@@ -555,13 +686,20 @@ class MotionCommandCfg(CommandTermCfg):
     Legacy references use wxyz. Runtime tensors and newly converted references use xyzw.
     """
     motion_joint_names: list[str] | None = None
-    """Joint names in NPZ column order; None assumes the robot already uses that order.
+    """Fallback joint names in stored column order for files without joint_names metadata.
 
-    Set this for the specific motion file, not from the body list. Both position and
-    velocity are reordered by name into robot joint order when loading.
+    NPZ metadata takes precedence. Positions and velocities are mapped into robot
+    joint order. With neither metadata nor fallback names, robot ordering is assumed.
+    """
+    joint_names: list[str] | None = None
+    """Joint selection and order for policy reference and tracking metrics; None uses robot order.
+
+    Source column labels come from NPZ metadata or the legacy motion_joint_names fallback.
+    Reset writes always use the complete reference in articulation order.
     """
     anchor_body_name: str = MISSING  # type: ignore
-    body_names: list[str] = MISSING  # type: ignore
+    body_names: list[str] | None = None
+    """Bodies to track; None uses NPZ body_names. Untagged files require column-order names."""
 
     adaptive_kernel_size: int = 1
     adaptive_lambda: float = 0.8

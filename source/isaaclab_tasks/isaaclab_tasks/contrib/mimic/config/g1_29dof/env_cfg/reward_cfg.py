@@ -28,6 +28,16 @@ class G1RewardsCfg:
         weight=2.0,
         params={"command_name": "motion", "std": 0.4},
     )
+    motion_global_anchor_lin_vel = RewTerm(
+        func=mimic_mdp.motion_global_anchor_linear_velocity_error_exp,
+        weight=1.0,
+        params={"command_name": "motion", "std": 1.0},
+    )
+    motion_global_anchor_ang_vel = RewTerm(
+        func=mimic_mdp.motion_global_anchor_angular_velocity_error_exp,
+        weight=1.0,
+        params={"command_name": "motion", "std": 3.14},
+    )
     motion_body_pos = RewTerm(
         func=mimic_mdp.motion_relative_body_position_error_exp,
         weight=1.0,
@@ -38,17 +48,8 @@ class G1RewardsCfg:
         weight=1.0,
         params={"command_name": "motion", "std": 0.4},
     )
-    motion_body_lin_vel = RewTerm(
-        func=mimic_mdp.motion_global_body_linear_velocity_error_exp,
-        weight=1.0,
-        params={"command_name": "motion", "std": 1.0},
-    )
-    motion_body_ang_vel = RewTerm(
-        func=mimic_mdp.motion_global_body_angular_velocity_error_exp,
-        weight=1.0,
-        params={"command_name": "motion", "std": 3.14},
-    )
-    
+
+
     alive_reward = RewTerm(func=mdp.is_alive, weight=1.0)
 
     # -- standing terms, active only inside the stance intervals of the clip

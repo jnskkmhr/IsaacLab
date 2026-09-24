@@ -14,7 +14,6 @@ the event introduced by the function.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 import torch
@@ -105,6 +104,8 @@ def reset_root_state_from_reference(
     ``pose_range`` and ``velocity_range`` are keyed by ``x``/``y``/``z``/``roll``/``pitch``/``yaw``;
     missing keys default to no offset. Position and velocity offsets are added, the orientation offset
     is composed onto the reference orientation.
+    Initial XY and yaw define the fixed episode reference frame. Height, tilt,
+    and velocity noise remain tracking errors.
 
     Pair this with :func:`reset_joint_state_from_reference`. Both call
     :meth:`MotionCommand.resample_time_steps`, which draws the episode's start frame if it has not been
@@ -114,10 +115,10 @@ def reset_root_state_from_reference(
     command.resample_time_steps(env_ids)
     asset: Articulation = env.scene[asset_cfg.name]
 
-    root_pos = command.body_pos_w[env_ids, 0]
-    root_ori = command.body_quat_w[env_ids, 0]
-    root_lin_vel = command.body_lin_vel_w[env_ids, 0]
-    root_ang_vel = command.body_ang_vel_w[env_ids, 0]
+    root_pos = command.root_pos_w[env_ids]
+    root_ori = command.root_quat_w[env_ids]
+    root_lin_vel = command.root_lin_vel_w[env_ids]
+    root_ang_vel = command.root_ang_vel_w[env_ids]
 
     keys = ["x", "y", "z", "roll", "pitch", "yaw"]
     ranges = torch.tensor([pose_range.get(key, (0.0, 0.0)) for key in keys], device=asset.device)
@@ -125,6 +126,10 @@ def reset_root_state_from_reference(
     root_pos = root_pos + rand_samples[:, 0:3]
     orientations_delta = math_utils.quat_from_euler_xyz(rand_samples[:, 3], rand_samples[:, 4], rand_samples[:, 5])
     root_ori = math_utils.quat_mul(orientations_delta, root_ori)
+    command.set_reference_frame(env_ids, rand_samples[:, :2], rand_samples[:, 5])
+    rotation = command.reference_quat_offset[env_ids]
+    root_lin_vel = math_utils.quat_apply(rotation, root_lin_vel)
+    root_ang_vel = math_utils.quat_apply(rotation, root_ang_vel)
 
     ranges = torch.tensor([velocity_range.get(key, (0.0, 0.0)) for key in keys], device=asset.device)
     rand_samples = sample_uniform(ranges[:, 0], ranges[:, 1], (len(env_ids), 6), device=asset.device)
@@ -153,8 +158,8 @@ def reset_joint_state_from_reference(
     command.resample_time_steps(env_ids)
     asset: Articulation = env.scene[asset_cfg.name]
 
-    joint_pos = command.joint_pos[env_ids]
-    joint_vel = command.joint_vel[env_ids]
+    joint_pos = command.joint_pos_robot_order[env_ids]
+    joint_vel = command.joint_vel_robot_order[env_ids]
 
     joint_pos = joint_pos + sample_uniform(*position_range, joint_pos.shape, joint_pos.device)
     soft_limits = asset.data.soft_joint_pos_limits[env_ids]
@@ -178,8 +183,11 @@ class AssistiveWrench(ManagerTermBase):
     a fixed schedule (see ``mimic.mdp.curriculums.assistive_wrench_scale``). ``scale`` multiplies the
     adaptive gain too, so it can be left at 1.0.
 
-    Base orientation is computed from a global-frame that is first aligned to match the yaw randomization in
-    our RL environments.
+    The applied force and torque are also multiplied by the tracking phase weight,
+    smoothly fading to zero during stance without changing the adaptive gain.
+
+    Base targets use the command's fixed episode reference frame, including initial
+    XY translation and yaw randomization.
 
     Must be registered as an ``interval`` event with ``interval_range_s=(0.0, 0.0)`` and
     ``is_global_time=True`` so it fires every env step on all envs.
@@ -209,15 +217,7 @@ class AssistiveWrench(ManagerTermBase):
         self._ref_lin_acc_w: torch.Tensor | None = None
         self._ref_ang_acc_w: torch.Tensor | None = None
 
-        # Per-env frozen yaw anchor. Identity quaternion (x, y, z, w)
-        # and zero pivot until the first capture; re-armed per env by ``reset``.
-        self._anchor_delta_ori_w = torch.zeros((self.num_envs, 4), device=self.device)
-        self._anchor_delta_ori_w[:, 3] = 1.0
-        self._anchor_pivot_w = torch.zeros((self.num_envs, 3), device=self.device)
-        self._anchor_pending = torch.ones(self.num_envs, dtype=torch.bool, device=self.device)
-
-        # Optional debug visualization: native Isaac Lab arrow marks.
-        # Red arrow for the applied force, Blue arrow for the applied torque, both at the base.
+        # Optional force and torque arrows at the base.
         if cfg.params.get("visualize", False):
             from isaaclab.markers.config import BLUE_ARROW_X_MARKER_CFG, RED_ARROW_X_MARKER_CFG
 
@@ -229,25 +229,17 @@ class AssistiveWrench(ManagerTermBase):
             self._force_visualizer = VisualizationMarkers(force_cfg)
             self._torque_visualizer = VisualizationMarkers(torque_cfg)
 
-    def reset(self, env_ids: Sequence[int] | None = None) -> None:
-        # Re-arm the frozen yaw anchor for the resetting envs; it is recaptured on the next __call__
-        # (post physics step), when the robot's root state reflects the reset yaw randomization.
-        if env_ids is None:
-            self._anchor_pending[:] = True
-        else:
-            self._anchor_pending[torch.as_tensor(env_ids, device=self.device)] = True
-
     def _precompute_reference_accelerations(self, motion_command) -> None:
         """Forward-difference the reference base velocity buffers into world-frame accelerations.
 
         Computed once over the whole motion and indexed per env by the command's ``time_steps`` at
         runtime. The last frame is zeroed because there is no next frame to difference against.
         """
-        self._motion_base_body_id = motion_command.cfg.body_names.index(self._base_body_name)
+        self._motion_base_body_id = motion_command.motion_body_names.index(self._base_body_name)
         base = self._motion_base_body_id
         dt = self._env.step_dt
-        lin_vel = motion_command.motion.body_lin_vel_w[:, base, :]  # (num_frames, 3)
-        ang_vel = motion_command.motion.body_ang_vel_w[:, base, :]
+        lin_vel = motion_command.motion._body_lin_vel_w[:, base, :]  # (num_frames, 3)
+        ang_vel = motion_command.motion._body_ang_vel_w[:, base, :]
 
         lin_acc = torch.zeros_like(lin_vel)
         ang_acc = torch.zeros_like(ang_vel)
@@ -280,41 +272,29 @@ class AssistiveWrench(ManagerTermBase):
         if self._ref_lin_acc_w is None:
             self._precompute_reference_accelerations(motion_command)
 
-        motion = motion_command.motion
         base = self._base_body_id
         motion_base = self._motion_base_body_id
         frame_idx = motion_command.time_steps  # (N,)
 
-        # -- reference base state (world frame); env_origins recovers the per-env world position --
-        p_ref = motion.body_pos_w[frame_idx, motion_base, :] + env.scene.env_origins
-        q_ref = motion.body_quat_w[frame_idx, motion_base, :]
-        v_ref = motion.body_lin_vel_w[frame_idx, motion_base, :]
-        w_ref = motion.body_ang_vel_w[frame_idx, motion_base, :]
-        a_lin_ref = self._ref_lin_acc_w[frame_idx]
-        a_ang_ref = self._ref_ang_acc_w[frame_idx]
+        # Share the episode reference frame with tracking rewards and observations.
+        rotation = motion_command.reference_quat_offset
+        motion = motion_command.motion
+        p_ref = (
+            math_utils.quat_apply(rotation, motion._body_pos_w[frame_idx, motion_base])
+            + motion_command.reference_pos_offset
+            + env.scene.env_origins
+        )
+        q_ref = math_utils.quat_mul(rotation, motion._body_quat_w[frame_idx, motion_base])
+        v_ref = math_utils.quat_apply(rotation, motion._body_lin_vel_w[frame_idx, motion_base])
+        w_ref = math_utils.quat_apply(rotation, motion._body_ang_vel_w[frame_idx, motion_base])
+        a_lin_ref = math_utils.quat_apply(rotation, self._ref_lin_acc_w[frame_idx])
+        a_ang_ref = math_utils.quat_apply(rotation, self._ref_ang_acc_w[frame_idx])
 
-        # -- actual base state (world frame) -- read at the same body the reference is stored at
         p = asset.data.body_link_pos_w[:, base]
         q = asset.data.body_link_quat_w[:, base]
         v = asset.data.body_link_lin_vel_w[:, base]
         w = asset.data.body_link_ang_vel_w[:, base]
 
-        # -- pin the reference world frame to the post-reset robot heading --
-        if torch.any(self._anchor_pending):
-            current_delta = math_utils.yaw_quat(math_utils.quat_mul(q, math_utils.quat_inv(q_ref)))
-            self._anchor_delta_ori_w[self._anchor_pending] = current_delta[self._anchor_pending]
-            self._anchor_pivot_w[self._anchor_pending] = p_ref[self._anchor_pending]
-            self._anchor_pending[:] = False
-
-        delta = self._anchor_delta_ori_w  # (N, 4), frozen for the episode
-        q_ref = math_utils.quat_mul(delta, q_ref)
-        v_ref = math_utils.quat_apply(delta, v_ref)
-        w_ref = math_utils.quat_apply(delta, w_ref)
-        a_lin_ref = math_utils.quat_apply(delta, a_lin_ref)
-        a_ang_ref = math_utils.quat_apply(delta, a_ang_ref)
-        p_ref = self._anchor_pivot_w + math_utils.quat_apply(delta, p_ref - self._anchor_pivot_w)
-
-        # -- inertial quantities: M (whole body), I_w (root inertia rotated into world), g --
         mass = self._total_mass  # (N, 1)
         rot = math_utils.matrix_from_quat(q)  # (N, 3, 3)
         inertia_w = rot @ self._base_inertia_b @ rot.transpose(-1, -2)  # (N, 3, 3)
