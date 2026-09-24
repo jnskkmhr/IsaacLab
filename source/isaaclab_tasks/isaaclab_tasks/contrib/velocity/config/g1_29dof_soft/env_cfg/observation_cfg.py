@@ -81,9 +81,6 @@ class PolicyCfg(ObsGroup):
         mirror=mirror_vec3,
         noise=Unoise(n_min=-0.05, n_max=0.05),
     )
-    velocity_commands = ObsTerm(
-        func=mdp.generated_commands, params={"command_name": "base_velocity"}, mirror=symmetry.mirror_velocity_heading
-    )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
@@ -145,9 +142,6 @@ class CriticCfg(ObsGroup):
         mirror=mirror_quat,
         params={"make_quat_unique": True},
     )
-    velocity_commands = ObsTerm(
-        func=mdp.generated_commands, params={"command_name": "base_velocity"}, mirror=symmetry.mirror_velocity_heading
-    )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
@@ -195,12 +189,17 @@ class PolicyHistoryCfg(PolicyCfg):
     def __post_init__(self):
         self.history_length = 10
 
-
 @configclass
 class CriticHistoryCfg(CriticCfg):
     def __post_init__(self):
         self.history_length = 10
 
+@configclass
+class CommandObsCfg(ObsGroup):
+    """Observations for command group."""
+    velocity_commands = ObsTerm(
+        func=mdp.generated_commands, params={"command_name": "base_velocity"}, mirror=symmetry.mirror_velocity_heading
+    )
 
 @configclass
 class PrivilegedObsCfg(ObsGroup):
@@ -305,6 +304,7 @@ class G1ObservationsCfg:
     # observation groups
     policy: PolicyHistoryCfg = PolicyHistoryCfg()
     critic: CriticHistoryCfg = CriticHistoryCfg()
+    command: CommandObsCfg = CommandObsCfg()
     privileged: PrivilegedHistoryCfg = PrivilegedHistoryCfg()
 
-    logging: LoggingObsCfg = LoggingObsCfg()
+    # logging: LoggingObsCfg = LoggingObsCfg()

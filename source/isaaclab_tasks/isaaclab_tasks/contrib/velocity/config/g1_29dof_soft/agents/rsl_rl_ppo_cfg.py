@@ -21,7 +21,7 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 1500
     save_interval = 500
-    obs_groups = {"actor": ["policy"], "critic": ["critic", "privileged"]}
+    obs_groups = {"actor": ["policy", "command"], "critic": ["critic", "command", "privileged"]}
     actor = RslRlMLPModelCfg(
         hidden_dims=[512, 256, 128],
         activation="elu",
