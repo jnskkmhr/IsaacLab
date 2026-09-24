@@ -86,3 +86,37 @@ when evaluating torque perturbations alone. Keep the perturbation action after
 `physics_callback`, and keep its body and contact-sensor lists in matching
 left/right order. These defaults are initial training settings, not a calibrated
 model of MPM contact moments.
+
+### Upright sand takeoff and landing settling
+
+The fine-tuning configuration (`G1RewardsFinetuneCfg`) adds three penalties:
+
+| Term | Quantity | Allowance | Weight |
+| --- | --- | --- | --- |
+| `com_foot_center` | Squared excess horizontal whole-body CoM distance to grounded foot centers | 0.03 m | -10.0 |
+| `grounded_torso_tilt` | Squared excess torso tilt from world upright, ignoring yaw | 10 degrees | -2.0 |
+| `post_jump_torso_ang_vel` | Squared excess torso angular speed in grounded final reference stance | 0.3 rad/s | -0.1 |
+
+The CoM uses all body masses and body CoM positions. The support center averages
+only contacting feet, using the box-contact patch center `(0.038, 0, -0.03539)` m
+in each ankle-roll link frame. Keep this offset synchronized with the collider in
+`env_cfg/action_cfg.py`. It is a geometric support-center approximation, not a
+center of pressure. The CoM and upright terms apply whenever a foot is grounded,
+including takeoff preparation and landing; all three penalties are zero in flight.
+The settling term additionally uses the final stance interval ending at phase one
+and its existing stance blend weight. It does not penalize the initial stance.
+
+Fine-tuning root pushes now add independently sampled x/y velocity increments in
+`[-1.0, 1.0]` m/s during grounded full stance. These are per-axis increments, not a
+1 m/s cap on total horizontal speed. Base training and play retain their existing
+0.5 m/s per-axis push ranges and rewards.
+
+These are candidate weights, not validated improvements in MPM. The existing
+reference-tracking rewards still favor the reference motion, including its torso
+lean. CoM alignment alone does not enforce an upright torso, hence the separate
+absolute tilt term. Compare the penalties individually before relying on the
+combined configuration: inspect takeoff vertical/horizontal velocity, foot slip,
+jump completion, and post-landing torso tilt/angular speed. A higher return alone
+can reflect avoiding the jump to reduce penalties. To reproduce the previous
+fine-tuning configuration, set the three added reward terms to `None` and restore
+its `push_robot` x/y ranges to `(-0.5, 0.5)`.

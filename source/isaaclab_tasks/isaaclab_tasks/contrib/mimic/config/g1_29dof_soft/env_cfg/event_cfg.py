@@ -64,7 +64,7 @@ class G1EventFinetuneCfg(G1EventCfg):
         mode="interval",
         interval_range_s=(1.0, 3.0),
         params={
-            "velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)},
+            "velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)},
             "sensor_cfg": SceneEntityCfg(
                 "contact_forces",
                 body_names=["left_ankle_roll_link", "right_ankle_roll_link"],
