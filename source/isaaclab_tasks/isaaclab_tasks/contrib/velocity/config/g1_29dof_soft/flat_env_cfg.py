@@ -9,14 +9,12 @@ from isaaclab_visualizers.kit import KitVisualizerCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 # from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+from isaaclab.managers import EventTermCfg
 from isaaclab.utils.configclass import configclass
 
 from . import mdp
+from .mdp.events import follow_robot_camera
 from .rough_env_cfg import G1RoughEnvCfg
-
-VISUALIZER = "newton_gl"
-# VISUALIZER = "newton_rtx"
-# VISUALIZER = "kit"
 
 
 @configclass
@@ -30,10 +28,10 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.decimation = 4  # 50Hz
         self.sim.render_interval = self.decimation
 
-        # # physics
-        # newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
-        # newton_mjwarp.solver_cfg.njmax = 95
-        # newton_mjwarp.solver_cfg.nconmax = 10
+        # physics
+        newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
+        newton_mjwarp.solver_cfg.njmax = 95
+        newton_mjwarp.solver_cfg.nconmax = 10
 
         # make curriculum soft terrain
         self.scene.terrain = mdp.CurriculumSoftTerrain
@@ -63,13 +61,13 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # disable curriculum for walking only
-        # self.curriculum.command_vel = None
+        # self.curriculum.command_vel = None # type: ignore
 
         # edit command range
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
+        # self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
+        # self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
 
         # disable for non rough terrain
         self.terminations.terrain_out_of_bounds = None  # type: ignore
@@ -110,9 +108,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.scale_actuator_gains = None  # type: ignore
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0, 0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (1, 1)
 
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
@@ -136,23 +134,16 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             },
         }
 
-        if VISUALIZER == "newton_gl":
-            self.sim.visualizer_cfgs = [
-                NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            ]
-
-            self.video_recorders = []
-
-        elif VISUALIZER == "newton_rtx":
-            self.sim.visualizer_cfgs = [
-                NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            ]
-
-            self.video_recorders = []
-
-        elif VISUALIZER == "kit":
-            self.sim.visualizer_cfgs = [
-                KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            ]
-
-            self.video_recorders = []
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
+            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
+            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+        ]
+        self.events.follow_robot_camera = EventTermCfg(
+            func=follow_robot_camera,
+            mode="interval",
+            interval_range_s=(0.0, 0.0),
+            is_global_time=True,
+            params={"eye_offset":(0.0, -2.0, 0.5)},
+        )
+        self.video_recorders = []

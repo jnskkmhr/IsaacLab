@@ -28,8 +28,8 @@ from .env_cfg import (
 from .env_cfg.physics_cfg import DEFAULT_PROXY_MASS_SCALE, configure_sparse_mpm_capacities, g1_mpm_physics_cfg
 from .env_cfg.scene_cfg import APPROACH_LENGTH, MPM_VISUAL_COLOR
 
-VISUALIZER = "newton_gl"
-# VISUALIZER = "newton_rtx"
+# VISUALIZER = "newton_gl"
+VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
 
 CHASE_CAM_EYE = (-2.0, -4.0, 1.5)
@@ -205,20 +205,27 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
                 eye=(0.0, -6.0, 1.5),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
+                streaming_view=True,
+                streaming_cam_target_prim_path=CHASE_CAM_TARGET,
+                streaming_cam_eye=CHASE_CAM_EYE,
+                streaming_envs=1,
             ),
             NewtonRTXVisualizerCfg(
-                eye=(-0.5, -3.0, 1.5),
-                lookat=(-0.5, 0.0, 0.0),
+                eye=(0.0, -6.0, 1.5),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
+                streaming_view=True,
+                streaming_cam_target_prim_path=CHASE_CAM_TARGET,
+                streaming_cam_eye=CHASE_CAM_EYE,
+                streaming_envs=1,
             ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
         ]
 
-        self.video_recorders = [
-            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
-            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
-        ]
+        # self.video_recorders = [
+        #     VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+        #     VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
+        # ]
 
         # if VISUALIZER == "newton_gl":
         #     self.sim.visualizer_cfgs = [

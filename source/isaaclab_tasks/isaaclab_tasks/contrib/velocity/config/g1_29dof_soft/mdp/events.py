@@ -213,3 +213,26 @@ def sample_terrain_property_linear(
             log["Events/packing_ratio"] = packing_ratio.mean()
         if "Events/bulk_density" in log:
             log["Events/bulk_density"] = bulk_density.mean()
+
+
+def follow_robot_camera(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor | None,
+    eye_offset: tuple[float, float, float] = (-2.0, -4.0, 1.5),
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    env_index: int = 0,
+) -> None:
+    """Move the main visualizer camera with one robot, keeping a world-aligned offset.
+
+    Register as a global interval event with a zero interval for control-step updates.
+
+    Args:
+        env: Environment whose main viewer camera should follow the robot.
+        env_ids: Unused; the camera follows the explicitly selected environment.
+        eye_offset: Camera offset from the robot root in world axes [m].
+        asset_cfg: Robot to follow.
+        env_index: Environment containing the followed robot.
+    """
+    target = env.scene[asset_cfg.name].data.root_pos_w.torch[env_index].tolist()
+    eye = tuple(position + offset for position, offset in zip(target, eye_offset))
+    env.sim.set_camera_view(eye=eye, target=tuple(target))

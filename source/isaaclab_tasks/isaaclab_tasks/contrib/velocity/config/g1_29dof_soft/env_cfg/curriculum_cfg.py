@@ -49,7 +49,7 @@ class G1CurriculumCfg:
     # # )
 
     """
-    running
+    command ramp up
     """
     command_vel = CurrTerm(
         func=g1_mdp.commands_vel,  # type: ignore
@@ -88,7 +88,7 @@ class G1CurriculumCfg:
     #     # params={"term_name": "track_heading", "std": 0.25, "num_steps": 50_000}, # fastSAC
     # )
 
-    track_lin_vel = CurrTerm(
+    track_lin_vel_std = CurrTerm(
         func=g1_mdp.ramp_reward_param,
         params={
             "term_name": "track_lin_vel_xy",
@@ -100,7 +100,7 @@ class G1CurriculumCfg:
         },
     )
 
-    track_ang_vel = CurrTerm(
+    track_ang_vel_std = CurrTerm(
         func=g1_mdp.ramp_reward_param,
         params={
             "term_name": "track_ang_vel_z",
@@ -112,7 +112,7 @@ class G1CurriculumCfg:
         },
     )
 
-    track_heading = CurrTerm(
+    track_heading_std = CurrTerm(
         func=g1_mdp.ramp_reward_param,
         params={
             "term_name": "track_heading",
@@ -147,16 +147,16 @@ class G1CurriculumCfg:
     #     }
     # )
 
-    # track_heading_weight = CurrTerm(
-    #     func=g1_mdp.ramp_reward_weight,
-    #     params={
-    #         "term_name": "track_heading",
-    #         "weight_0": 4.0,
-    #         "weight_1": 8.0,
-    #         "step_0": 0,
-    #         "step_1": 15000 * 24,
-    #     }
-    # )
+    track_heading_weight = CurrTerm(
+        func=g1_mdp.ramp_reward_weight,
+        params={
+            "term_name": "track_heading",
+            "weight_0": 4.0,
+            "weight_1": 8.0,
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        }
+    )
 
     # feet_air_time_weight = CurrTerm(
     #     func=g1_mdp.ramp_reward_weight,

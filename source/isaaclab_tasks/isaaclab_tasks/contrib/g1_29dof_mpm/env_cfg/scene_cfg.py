@@ -31,7 +31,7 @@ from isaaclab.utils.configclass import configclass
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import UNITREE_G1_29DOF_CFG
+from isaaclab_assets import UNITREE_G1_29DOF_CFG, UNITREE_G1_29DOF_BOX_FOOT_CFG
 
 ##
 # Granular bed geometry. All values are expressed in the environment frame.
@@ -321,12 +321,12 @@ class G1MPMSceneCfg(InteractiveSceneCfg):
     """G1 standing on a per-environment MPM bed held by a rigid pan."""
 
     # robots
-    robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(  # type: ignore
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",
-        init_state=UNITREE_G1_29DOF_CFG.init_state.replace(  # type: ignore
+        init_state=UNITREE_G1_29DOF_BOX_FOOT_CFG.init_state.replace(  # type: ignore
             pos=(ROBOT_SPAWN_X, 0.0, ROBOT_SPAWN_Z),
         ),
-        spawn=UNITREE_G1_29DOF_CFG.spawn.replace(  # type: ignore
+        spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
             # Scoped to the sole colliders. Newton sums both shapes' margins, so applying this to
             # the whole robot pushes every non-adjacent link pair apart by twice the margin; with
             # self-collisions enabled the shin and the sole sit 0.02 m apart in the nominal stance

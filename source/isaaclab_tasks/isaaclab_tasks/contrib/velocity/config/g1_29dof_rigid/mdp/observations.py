@@ -87,16 +87,35 @@ terrain
 """
 
 
-def terrain_material_parameters(env: ManagerBasedRLEnv) -> torch.Tensor:
-    """Terrain material parameters on rigid ground.
+# def terrain_material_parameters(env: ManagerBasedRLEnv) -> torch.Tensor:
+#     """Terrain material parameters on rigid ground.
 
-    Rigid terrain has no compliant material, so the parameters are reported as constants to keep
-    the observation layout identical to the soft-terrain task.
+#     Rigid terrain has no compliant material, so the parameters are reported as constants to keep
+#     the observation layout identical to the soft-terrain task.
+
+#     Returns:
+#         Friction coefficient, material density [kg/m^3] and internal friction, shape [N, 3].
+#     """
+#     friction_coef = torch.ones(env.num_envs, device=env.device)
+#     rho_c = torch.ones(env.num_envs, device=env.device)
+#     mu_int = torch.ones(env.num_envs, device=env.device)
+#     return torch.stack([friction_coef, rho_c, mu_int], dim=-1)
+
+
+def terrain_material_parameters(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Placeholder for the terrain material parameters of the soft-contact task.
+
+    ``g1_29dof_soft`` reports the contact-model stiffness under the feet, which the MPM bed has
+    no single counterpart for: its resistance emerges from the elasto-plastic particle state
+    rather than from a per-foot parameter. The term is kept at the soft-contact shape so that the
+    critic input layout is identical, and it is filled with zeros until a granular stiffness
+    estimate is available.
+
+    Args:
+        env: Environment instance.
 
     Returns:
-        Friction coefficient, material density [kg/m^3] and internal friction, shape [N, 3].
+        Zeros, shape ``(num_envs, 1)``.
     """
-    friction_coef = torch.ones(env.num_envs, device=env.device)
-    rho_c = torch.ones(env.num_envs, device=env.device)
-    mu_int = torch.ones(env.num_envs, device=env.device)
-    return torch.stack([friction_coef, rho_c, mu_int], dim=-1)
+    return torch.zeros(env.num_envs, 1, device=env.device)
+    # return torch.zeros(env.num_envs, 4, device=env.device)

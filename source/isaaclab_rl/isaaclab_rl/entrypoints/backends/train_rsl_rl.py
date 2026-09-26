@@ -28,6 +28,7 @@ from isaaclab_rl.entrypoints.common import (
     apply_video_recording,
     configure_io_descriptors,
     create_isaaclab_env,
+    download_wandb_checkpoint,
     dump_train_configs,
     enable_cameras_for_video,
     pre_launch_video_config,
@@ -86,6 +87,27 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="Fully qualified path to an externally defined callback.",
     )
+    parser.add_argument(
+        "--wandb_run",
+        type=str,
+        default=None,
+        help=(
+            "Weights & Biases run id to download the checkpoint from for training or distillation."
+            " Cannot be combined with --checkpoint."
+        ),
+    )
+    parser.add_argument(
+        "--wandb_entity",
+        type=str,
+        default=None,
+        help="Weights & Biases entity owning --wandb_run. Defaults to the entity of the local W&B login.",
+    )
+    parser.add_argument(
+        "--wandb_project",
+        type=str,
+        default=None,
+        help="Weights & Biases project holding --wandb_run. Defaults to the agent configuration's 'wandb_project'.",
+    )
     cli_args.add_rsl_rl_args(parser)
     add_launcher_args(parser)
 
@@ -99,6 +121,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         remaining_args_env_registration = external_callback_function()
 
     args_cli, remaining_args = setup_preset_cli(parser, argv)
+    if args_cli.wandb_run is not None and args_cli.checkpoint:
+        raise ValueError("--wandb_run cannot be combined with --checkpoint.")
     enable_cameras_for_video(args_cli)
 
     set_hydra_args(list_intersection(remaining_args, remaining_args_env_registration))
@@ -183,7 +207,16 @@ def _run(args_cli: argparse.Namespace) -> None:
                 convert_marl_to_single_agent=isinstance(env_cfg, DirectMARLEnvCfg),
             )
 
-            if args_cli.checkpoint in CHECKPOINT_SELECTORS:
+            if args_cli.wandb_run is not None:
+                print(f"[INFO] Loading checkpoint from W&B run: {args_cli.wandb_run}")
+                resume_path = download_wandb_checkpoint(
+                    log_root_path,
+                    args_cli.wandb_project if args_cli.wandb_project is not None else agent_cfg.wandb_project,
+                    args_cli.wandb_run,
+                    args_cli.wandb_entity,
+                    agent_cfg.load_checkpoint,
+                )
+            elif args_cli.checkpoint in CHECKPOINT_SELECTORS:
                 resume_path = resolve_checkpoint_selector(
                     log_root_path,
                     args_cli.checkpoint,
@@ -201,7 +234,7 @@ def _run(args_cli: argparse.Namespace) -> None:
             elif args_cli.checkpoint:
                 resume_path = retrieve_file_path(args_cli.checkpoint)
             elif agent_cfg.algorithm.class_name == "Distillation":
-                raise ValueError("Distillation training requires --checkpoint.")
+                raise ValueError("Distillation training requires --checkpoint or --wandb_run.")
 
             env = wrap_training_capture(env, log_dir, args_cli)
 
@@ -225,7 +258,7 @@ def _run(args_cli: argparse.Namespace) -> None:
                 configure_seed(env_cfg.seed, torch_deterministic=True)
 
             runner.add_git_repo_to_log(__file__)
-            if args_cli.checkpoint:
+            if args_cli.checkpoint or args_cli.wandb_run is not None:
                 print(f"[INFO]: Loading model checkpoint from: {resume_path}")
                 runner.load(resume_path)
 
