@@ -39,7 +39,7 @@ MPM_ENTRY = "sand"
 FOOT_PROXY_BODIES = [r"/World/envs/env_.*/Robot/.*ankle_roll_link"]
 """Rigid bodies handed to the MPM solver as colliders."""
 
-DEFAULT_PROXY_MASS_SCALE = 26.6
+DEFAULT_PROXY_MASS_SCALE = 1.0
 """Effective-mass scale applied to the proxied feet.
 
 Mirrors ``coupling_relaxation`` of the standalone Newton G1 sand example: the G1 weighs about
@@ -95,10 +95,14 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
                         strain_basis="P0",
                         transfer_scheme="apic",
                         max_iterations=25,
-                        tolerance=1.0e-5,
+                        # tolerance=1.0e-5,
+                        # warmstart_mode="auto",
+                        # velocity_basis="Q1",
+                        # collider_basis="S2",
+                        tolerance=1.0e-4,
                         warmstart_mode="auto",
                         velocity_basis="Q1",
-                        collider_basis="S2",
+                        collider_basis="pic27",
                         collider_velocity_mode="forward",
                         solver="auto",
                         # Voxel fill fraction below which the yield surface collapses. The bed is

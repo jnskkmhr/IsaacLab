@@ -12,6 +12,8 @@ import numpy as np
 import torch
 import trimesh
 
+from pxr import Usd, UsdGeom, UsdPhysics
+
 import isaaclab.sim as sim_utils
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.markers.config import FRAME_MARKER_CFG
@@ -231,6 +233,7 @@ class TerrainImporter:
         # get the mesh
         ground_plane_cfg = sim_utils.GroundPlaneCfg(physics_material=self.cfg.physics_material, size=size, color=color)
         ground_plane_cfg.func(prim_path, ground_plane_cfg)
+        self._apply_import_flags(prim_path)
 
     def import_mesh(self, name: str, mesh: trimesh.Trimesh):
         """Import a mesh into the simulator.
@@ -263,6 +266,7 @@ class TerrainImporter:
             visual_material=self.cfg.visual_material,
             physics_material=self.cfg.physics_material,
             disable_collider=self.cfg.disable_collider,
+            disable_visual=self.cfg.disable_visual,
         )
 
     def _compute_ground_plane_size(self) -> tuple[float, float]:
@@ -341,6 +345,19 @@ class TerrainImporter:
         # add the prim path
         cfg = sim_utils.UsdFileCfg(usd_path=usd_path)
         cfg.func(prim_path, cfg)
+        self._apply_import_flags(prim_path)
+
+    def _apply_import_flags(self, prim_path: str) -> None:
+        """Apply visual and collision switches to an imported USD or ground-plane hierarchy."""
+        if not self.cfg.disable_visual and not self.cfg.disable_collider:
+            return
+        prim = sim_utils.get_current_stage().GetPrimAtPath(prim_path)
+        if self.cfg.disable_visual:
+            UsdGeom.Imageable(prim).MakeInvisible()
+        if self.cfg.disable_collider:
+            for child in Usd.PrimRange(prim):
+                if child.HasAPI(UsdPhysics.CollisionAPI):
+                    UsdPhysics.CollisionAPI(child).CreateCollisionEnabledAttr(False)
 
     """
     Operations - Origins.

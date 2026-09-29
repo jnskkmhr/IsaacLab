@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from isaaclab.utils import configclass
@@ -38,7 +39,7 @@ class MPMSolverCfg(NewtonSolverCfg):
     tolerance: float = 1.0e-4
     """Tolerance for the rheology solver."""
 
-    solver: str | tuple[str, ...] = "auto"
+    solver: str | Sequence[str] = "auto"
     """Rheology solver, or an ordered warm-start sequence of solvers.
 
     ``"auto"`` lets Newton pick the solver from the velocity basis (``"gs"`` for
@@ -63,6 +64,13 @@ class MPMSolverCfg(NewtonSolverCfg):
 
     grid_type: Literal["sparse", "dense", "fixed"] = "sparse"
     """Type of grid to use."""
+
+    check_particle_grid_mapping: bool = False
+    """Check that every active particle maps to a grid cell before material updates.
+
+    This point-integration diagnostic reads one integer back from the device and
+    disables outer CUDA graph capture. It requires Newton's mapping-check support.
+    """
 
     grid_padding: int = 0
     """Number of empty cells to add around particles when allocating the grid."""

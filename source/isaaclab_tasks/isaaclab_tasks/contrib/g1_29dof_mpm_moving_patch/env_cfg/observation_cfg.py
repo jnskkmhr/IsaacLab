@@ -126,7 +126,7 @@ class CommandCfg(ObsGroup):
     """Command observations for the actor and critic."""
 
     velocity_commands = ObsTerm(
-        func=mdp.generated_commands, 
+        func=mdp.generated_commands,
         params={"command_name": "base_velocity"},
         )
 

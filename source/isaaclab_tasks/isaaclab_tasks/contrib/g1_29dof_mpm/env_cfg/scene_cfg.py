@@ -61,7 +61,7 @@ The rigid entry only ever meets the hidden catch-net pan below the bed, so the s
 inconsequential there.
 """
 
-MPM_PARTICLE_SPACING = 0.02
+MPM_PARTICLE_SPACING = 0.04
 """Lattice spacing requested when sampling the bed [m].
 
 Implicit MPM needs roughly two particles per background voxel to transfer stress; a bed sampled
@@ -73,7 +73,7 @@ here matches the standalone Newton G1 example (``0.025`` voxels sampled at ``0.0
 MPM_VISUAL_COLOR = (0.32, 0.24, 0.21)
 """Display color of the granular bed."""
 
-SAND_BED_SIZE = (3.0, 3.0, 0.25)
+SAND_BED_SIZE = (1.5, 1.5, 0.25)
 """Extent of the deformable bed [m], ``(x, y, z)``.
 
 The depth spans several background voxels so that a loaded foot reaches bearing capacity inside

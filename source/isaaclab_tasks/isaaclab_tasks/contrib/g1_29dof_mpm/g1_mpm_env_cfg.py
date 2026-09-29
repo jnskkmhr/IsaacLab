@@ -83,7 +83,7 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
 
     # -- solver capacities, scaled with the world count before the simulation is created
     proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE
-    mpm_active_cell_count_per_world: int = 1 << 18
+    mpm_active_cell_count_per_world: int = 1 << 17
     mpm_leaf_node_count_per_world: int = 1 << 13
     mpm_lower_node_count_per_world: int = 1 << 10
     mpm_upper_node_count_per_world: int = 16

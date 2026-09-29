@@ -31,6 +31,7 @@ import logging
 import subprocess
 import sys
 import textwrap
+from dataclasses import fields
 from inspect import signature
 from types import SimpleNamespace
 
@@ -520,6 +521,7 @@ _MPM_FIELD_VALUES = [
     ("voxel_size", 0.0375),
     ("grid_type", "dense"),
     ("grid_padding", 4),
+    ("check_particle_grid_mapping", True),
     ("max_active_cell_count", 1024),
     ("max_leaf_node_count", 512),
     ("max_lower_node_count", 128),
@@ -536,6 +538,20 @@ _MPM_FIELD_VALUES = [
 ]
 
 
+def test_mpm_solver_cfg_covers_native_config():
+    """Every upstream solver setting must be exposed, default-aligned, and tested."""
+    native = SolverImplicitMPM.Config()
+    native_fields = {field.name for field in fields(native)}
+    exposed_fields = {field.name for field in fields(MPMSolverCfg)}
+    assert native_fields <= exposed_fields, f"Unexposed Newton MPM fields: {native_fields - exposed_fields}"
+    assert native_fields == {name for name, _ in _MPM_FIELD_VALUES}, "Update the forwarding cases for Newton's fields"
+    exposed = MPMSolverCfg()
+    mapped = _make_solver_config(exposed)
+    for name in native_fields:
+        assert getattr(exposed, name) == getattr(native, name), name
+        assert getattr(mapped, name) == getattr(native, name), name
+
+
 @pytest.mark.parametrize("field_name, value", _MPM_FIELD_VALUES)
 def test_mpm_solver_cfg_forwards_every_solver_field(field_name, value):
     """Every tunable MPM cfg field round-trips into ``SolverImplicitMPM.Config``.
@@ -549,6 +565,23 @@ def test_mpm_solver_cfg_forwards_every_solver_field(field_name, value):
         f"{field_name!r} disappeared from SolverImplicitMPM.Config — MPMSolverCfg needs to drop or rename it."
     )
     assert getattr(newton_cfg, field_name) == value
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"solver": ["cr", "gs"]},
+        {"solver": ("cr", "gs")},
+        {"warmstart_mode": "grid"},
+        {"warmstart_mode": "smoothed"},
+        {"collider_basis": "pic27", "strain_basis": "pic8", "velocity_basis": "B3"},
+    ],
+)
+def test_mpm_solver_cfg_preserves_native_option_forms(options):
+    """Keep Newton's sequence and basis options intact through the config bridge."""
+    mapped = _make_solver_config(MPMSolverCfg(**options))
+    for name, value in options.items():
+        assert getattr(mapped, name) == value
 
 
 _KAMINO_PADMM_FIELD_VALUES = [
@@ -1034,6 +1067,8 @@ def test_mpm_project_outside_colliders_gates_projection(project_outside):
     ("overrides", "expected"),
     [
         pytest.param({"grid_type": "fixed"}, True, id="fixed"),
+        pytest.param({"check_particle_grid_mapping": True}, False, id="diagnostic_sparse"),
+        pytest.param({"grid_type": "fixed", "check_particle_grid_mapping": True}, False, id="diagnostic_fixed"),
         pytest.param({}, True, id="bounded_sparse"),
         pytest.param({"max_active_cell_count": -1}, False, id="unbounded_sparse"),
         pytest.param({"grid_type": "dense"}, False, id="dense"),
@@ -1046,6 +1081,7 @@ def test_mpm_project_outside_colliders_gates_projection(project_outside):
 def test_mpm_cuda_graph_capture_supports_static_topology(monkeypatch, overrides, expected):
     """Only fixed and capacity-bounded rebuildable sparse grids support outer capture."""
     values = {
+        "check_particle_grid_mapping": False,
         "grid_type": "sparse",
         "max_active_cell_count": 1024,
         "grid_padding": 0,
