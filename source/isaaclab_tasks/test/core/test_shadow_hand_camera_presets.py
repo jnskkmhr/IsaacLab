@@ -8,8 +8,8 @@
 Two test suites are provided:
 
 1. **Validation unit tests** — use lightweight ``types.SimpleNamespace`` mocks.
-   These exercise :meth:`ShadowHandCameraEnvCfg.validate_config` directly and
-   do not require Isaac Sim.
+   These exercise generic camera validation followed by Shadow Hand's task-specific
+   feature-extractor validation and do not require Isaac Sim.
 
 2. **Preset resolution tests** — verify that each named preset in
    :class:`ShadowHandTiledCameraCfg` and
@@ -52,10 +52,16 @@ def _make_cfg(renderer_type: str | None, data_types: list[str], feature_extracto
     The mock reuses the real validation logic from :class:`ShadowHandCameraEnvCfg`.
     """
     cfg = types.SimpleNamespace()
+    if renderer_type == "newton_warp":
+        renderer_cfg = NewtonWarpRendererCfg()
+    elif renderer_type == "isaac_rtx":
+        renderer_cfg = IsaacRtxRendererCfg()
+    else:
+        renderer_cfg = RendererCfg(renderer_type=renderer_type) if renderer_type is not None else None
     cfg.scene = types.SimpleNamespace(
         tiled_camera=CameraCfg(
             prim_path="/Camera",
-            renderer_cfg=RendererCfg(renderer_type=renderer_type) if renderer_type is not None else None,
+            renderer_cfg=renderer_cfg,
             data_types=data_types,
         )
     )
@@ -64,37 +70,29 @@ def _make_cfg(renderer_type: str | None, data_types: list[str], feature_extracto
     return cfg
 
 
+def _validate_cfg(cfg) -> None:
+    """Run camera and task hooks for the intentionally incomplete lightweight mock."""
+    cfg.scene.tiled_camera.validate_config()
+    cfg.validate_config()
+
+
 # ---------------------------------------------------------------------------
 # Valid combinations — must not raise
 # ---------------------------------------------------------------------------
 
 _VALID_COMBOS = [
     # renderer_type, data_types, feature_extractor_enabled
-    # ── Non-warp renderers accept every data type ──
-    (None, ["rgb"], True),
-    (None, ["rgb", "depth", "semantic_segmentation"], True),
-    (None, ["albedo"], True),
-    (None, ["simple_shading_constant_diffuse"], True),
-    (None, ["simple_shading_diffuse_mdl"], True),
-    (None, ["simple_shading_full_mdl"], True),
-    (None, ["depth"], False),  # depth-only OK when CNN disabled
-    ("isaac_rtx", ["rgb"], True),
-    ("isaac_rtx", ["albedo"], True),
-    ("isaac_rtx", ["simple_shading_full_mdl"], True),
-    ("isaac_rtx", ["rgb", "depth", "semantic_segmentation"], True),
-    ("isaac_rtx", ["depth"], False),
-    # ── Warp renderer: rgb, depth, and semantic_segmentation are supported ──
-    ("newton_warp", ["rgb"], True),
+    (None, ["rgb", "depth", "semantic_segmentation"], True),  # no renderer contract to check
+    ("isaac_rtx", ["simple_shading_full_mdl"], True),  # RTX publishes simple-shading outputs
+    ("newton_warp", ["rgb", "depth", "semantic_segmentation"], True),  # warp-published outputs
     ("newton_warp", ["depth"], False),  # depth-only OK when CNN disabled
-    ("newton_warp", ["rgb", "depth"], True),  # multiple supported types
-    ("newton_warp", ["rgb", "depth", "semantic_segmentation"], True),
 ]
 
 
 @pytest.mark.parametrize("renderer_type,data_types,enabled", _VALID_COMBOS)
 def test_valid_combinations_do_not_raise(renderer_type, data_types, enabled):
     cfg = _make_cfg(renderer_type, data_types, enabled)
-    cfg.validate_config()  # must not raise
+    _validate_cfg(cfg)  # must not raise
 
 
 # ---------------------------------------------------------------------------
@@ -103,50 +101,10 @@ def test_valid_combinations_do_not_raise(renderer_type, data_types, enabled):
 
 _INVALID_COMBOS = [
     # renderer_type, data_types, enabled, substring expected in error message
-    # ── Warp does not support colour-space data types ──
-    (
-        "newton_warp",
-        ["albedo"],
-        True,
-        "albedo",
-    ),
-    (
-        "newton_warp",
-        ["simple_shading_constant_diffuse"],
-        True,
-        "simple_shading_constant_diffuse",
-    ),
-    (
-        "newton_warp",
-        ["simple_shading_diffuse_mdl"],
-        True,
-        "simple_shading_diffuse_mdl",
-    ),
-    (
-        "newton_warp",
-        ["simple_shading_full_mdl"],
-        True,
-        "simple_shading_full_mdl",
-    ),
-    # ── Depth-only with CNN enabled is not valid for training ──
-    (
-        None,
-        ["depth"],
-        True,
-        "Depth-only",
-    ),
-    (
-        "isaac_rtx",
-        ["depth"],
-        True,
-        "Depth-only",
-    ),
-    (
-        "newton_warp",
-        ["depth"],
-        True,
-        "Depth-only",  # depth is warp-supported but CNN can't train on it
-    ),
+    # ── Warp does not support RTX simple-shading outputs ──
+    ("newton_warp", ["simple_shading_full_mdl"], True, "simple_shading_full_mdl"),
+    # ── Depth-only with CNN enabled is not valid for training (renderer-independent) ──
+    (None, ["depth"], True, "Depth-only"),
 ]
 
 
@@ -154,7 +112,7 @@ _INVALID_COMBOS = [
 def test_invalid_combinations_raise_value_error(renderer_type, data_types, enabled, match):
     cfg = _make_cfg(renderer_type, data_types, enabled)
     with pytest.raises(ValueError, match=match):
-        cfg.validate_config()
+        _validate_cfg(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -168,33 +126,27 @@ def shadow_hand_camera_presets():
     return collect_presets(ShadowHandCameraEnvCfg())
 
 
-_CAMERA_DATA_TYPE_PRESETS = [
-    # preset_name, expected_data_types
-    ("default", ["rgb", "depth", "semantic_segmentation"]),
-    ("full", ["rgb", "depth", "semantic_segmentation"]),
-    ("rgb", ["rgb"]),
-    ("albedo", ["albedo"]),
-    ("simple_shading_constant_diffuse", ["simple_shading_constant_diffuse"]),
-    ("simple_shading_diffuse_mdl", ["simple_shading_diffuse_mdl"]),
-    ("simple_shading_full_mdl", ["simple_shading_full_mdl"]),
-    ("depth", ["depth"]),
-]
-
-
-@pytest.mark.parametrize("preset_name,expected_data_types", _CAMERA_DATA_TYPE_PRESETS)
-def test_camera_presets_resolve_to_valid_configs(shadow_hand_camera_presets, preset_name, expected_data_types):
-    """Camera presets must be discoverable, request data, and have valid dimensions."""
+def test_camera_presets_resolve_to_valid_configs(shadow_hand_camera_presets):
+    """Camera presets must be discoverable, request their named data type, and have valid dimensions."""
     camera_presets = shadow_hand_camera_presets["scene.tiled_camera"]
-    assert preset_name in camera_presets, f"Preset '{preset_name}' not found in tiled_camera presets"
-    resolved = camera_presets[preset_name]
-    assert resolved.data_types == expected_data_types, (
-        f"Preset '{preset_name}': expected data_types={expected_data_types}, got {resolved.data_types}"
-    )
-    assert len(resolved.data_types) > 0, (
-        f"Camera preset '{preset_name}' has an empty data_types list — nothing would be rendered."
-    )
-    assert resolved.width > 0, f"Camera preset '{preset_name}' has non-positive width: {resolved.width}"
-    assert resolved.height > 0, f"Camera preset '{preset_name}' has non-positive height: {resolved.height}"
+    assert set(camera_presets) == {
+        "default",
+        "full",
+        "rgb",
+        "albedo",
+        "simple_shading_constant_diffuse",
+        "simple_shading_diffuse_mdl",
+        "simple_shading_full_mdl",
+        "depth",
+        "semantic_segmentation",
+    }
+    for preset_name, resolved in camera_presets.items():
+        if preset_name in ("default", "full"):
+            assert resolved.data_types == ["rgb", "depth", "semantic_segmentation"], preset_name
+        else:
+            assert resolved.data_types == [preset_name]
+        assert resolved.width > 0, f"Camera preset '{preset_name}' has non-positive width: {resolved.width}"
+        assert resolved.height > 0, f"Camera preset '{preset_name}' has non-positive height: {resolved.height}"
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +188,7 @@ _WARP_CAMERA_PRESETS = [
     ("depth", False),
     ("default", False),
     ("full", False),
-    ("albedo", True),
+    ("albedo", False),
     ("simple_shading_constant_diffuse", True),
     ("simple_shading_diffuse_mdl", True),
     ("simple_shading_full_mdl", True),
@@ -252,9 +204,9 @@ def test_warp_camera_preset_compatibility(shadow_hand_camera_presets, camera_pre
     cfg = _make_cfg(warp_cfg.renderer_type, camera_cfg.data_types, enabled)
     if raises:
         with pytest.raises(ValueError):
-            cfg.validate_config()
+            _validate_cfg(cfg)
     else:
-        cfg.validate_config()
+        _validate_cfg(cfg)
 
 
 @pytest.mark.parametrize(

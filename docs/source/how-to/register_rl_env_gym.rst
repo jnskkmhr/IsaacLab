@@ -8,8 +8,7 @@ Registering an Environment
 .. currentmodule:: isaaclab
 
 In the previous tutorial, we learned how to create a custom cartpole environment. We manually
-created an instance of the environment by importing the environment class and its configuration
-class.
+created an instance of the environment from the class named by its configuration's ``class_type``.
 
 .. dropdown:: Environment creation in the previous tutorial
    :icon: code
@@ -17,7 +16,7 @@ class.
    .. literalinclude:: ../../../scripts/tutorials/03_envs/run_cartpole_rl_env.py
       :language: python
       :start-at: # create environment configuration
-      :end-at: env = ManagerBasedRLEnv(cfg=env_cfg)
+      :end-at: env = instantiate(env_cfg)
 
 While straightforward, this approach is not scalable as we have a large suite of environments.
 In this tutorial, we will show how to use the :meth:`gymnasium.register` method to register
@@ -30,8 +29,8 @@ the :meth:`gymnasium.make` function.
 
    .. literalinclude:: ../../../source/isaaclab_rl/isaaclab_rl/entrypoints/simple_agents.py
       :language: python
-      :start-at: # parse configuration via Hydra
-      :end-at: env = gym.make(args_cli.task, cfg=env_cfg)
+      :start-at: env_cfg, _ = resolve_task_config(args_cli.task, "")
+      :end-at: gym.make(args_cli.task, cfg=env_cfg)
 
 
 The Code
@@ -141,8 +140,8 @@ and whether to render, are used to override the default configuration.
 
 .. literalinclude:: ../../../source/isaaclab_rl/isaaclab_rl/entrypoints/simple_agents.py
    :language: python
-   :start-at: # parse configuration via Hydra
-   :end-at: env = gym.make(args_cli.task, cfg=env_cfg)
+   :start-at: env_cfg, _ = resolve_task_config(args_cli.task, "")
+   :end-at: gym.make(args_cli.task, cfg=env_cfg)
 
 Once creating the environment, the rest of the execution follows the standard resetting and stepping.
 
