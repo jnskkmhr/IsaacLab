@@ -81,6 +81,7 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
         translation: The translation of the terrain. Defaults to None.
         orientation: The orientation of the terrain. Defaults to None.
         disable_collider: Whether to skip authoring the collider on the mesh. Defaults to False.
+        disable_visual: Whether to hide the mesh and skip its visual material. Defaults to False.
         visual_material: The visual material to apply. Defaults to None.
         physics_material: The physics material to apply. Defaults to None. Accepts a legacy rigid
             material cfg, a single rigid-material fragment, or a list of fragments.
@@ -100,9 +101,12 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
             "subdivisionScheme": "bilinear",
         },
     )
-    # apply collider properties
-    collider_fragments = [sim_utils.UsdPhysicsCollisionCfg(collision_enabled=True)]
-    sim_utils.apply_collision_properties(str(prim.GetPrimPath()), collider_fragments, create_if_missing=True)
+    if not kwargs.get("disable_collider", False):
+        collider_fragments = [sim_utils.UsdPhysicsCollisionCfg(collision_enabled=True)]
+        sim_utils.apply_collision_properties(str(prim.GetPrimPath()), collider_fragments, create_if_missing=True)
+    if kwargs.get("disable_visual", False):
+        UsdGeom.Imageable(prim).MakeInvisible()
+
     # add rgba color to the mesh primvars
     if mesh.visual.vertex_colors is not None:
         # obtain color from the mesh
@@ -119,7 +123,7 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
         display_prim_var.Set(rgba_colors[:, 3])
 
     # create visual material
-    if kwargs.get("visual_material") is not None:
+    if not kwargs.get("disable_visual", False) and kwargs.get("visual_material") is not None:
         visual_material_cfg: sim_utils.VisualMaterialCfg = kwargs.get("visual_material")
         # spawn the material
         visual_material_cfg.func(f"{prim_path}/visualMaterial", visual_material_cfg)

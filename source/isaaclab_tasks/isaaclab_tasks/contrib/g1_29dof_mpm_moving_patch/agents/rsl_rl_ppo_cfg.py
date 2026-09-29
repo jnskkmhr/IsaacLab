@@ -9,7 +9,7 @@ from isaaclab_rl.rsl_rl import RslRlMLPModelCfg, RslRlOnPolicyRunnerCfg, RslRlPp
 
 
 @configclass
-class G1MPMPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20_000
     save_interval = 500
@@ -43,8 +43,6 @@ class G1MPMPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
     logger = "wandb"
-    # wandb_project = "g1_29dof_mpm"
-    # experiment_name = "g1_29dof_mpm"
     # wandb_project = "g1_29dof_soft_vanilla_ppo"
     # experiment_name = "g1_29dof_soft_vanilla_ppo"
     wandb_project = "g1_29dof_soft_flat_ppo"

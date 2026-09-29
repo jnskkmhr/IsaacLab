@@ -127,3 +127,21 @@ def test_mpm_manager_explicit_reset_deduplicates_manager_states(monkeypatch):
     NewtonMPMManager.reset_solver_state(world_mask=world_mask, flags=17)
 
     assert calls == [((state_0,), {"world_mask": world_mask, "flags": 17})]
+
+
+@pytest.mark.parametrize("check_mapping", [False, True])
+def test_mpm_mapping_diagnostic_controls_capture(cpu_mpm_solver_and_state, check_mapping):
+    """Forward the diagnostic to Newton and prevent capturing its host readback."""
+    original, _ = cpu_mpm_solver_and_state
+    solver = NewtonMPMManager._create_solver(
+        original.model,
+        MPMSolverCfg(
+            grid_type="fixed",
+            grid_padding=1,
+            max_iterations=1,
+            solver="jacobi",
+            check_particle_grid_mapping=check_mapping,
+        ),
+    )
+    assert solver.check_particle_grid_mapping is check_mapping
+    assert NewtonMPMManager._solver_supports_cuda_graph_capture(solver) is (not check_mapping)

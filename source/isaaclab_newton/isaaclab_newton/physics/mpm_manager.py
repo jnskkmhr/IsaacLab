@@ -51,6 +51,7 @@ def _make_solver_config(solver_cfg: MPMSolverCfg) -> SolverImplicitMPM.Config:
         voxel_size=solver_cfg.voxel_size,
         grid_type=solver_cfg.grid_type,
         grid_padding=solver_cfg.grid_padding,
+        check_particle_grid_mapping=solver_cfg.check_particle_grid_mapping,
         max_active_cell_count=solver_cfg.max_active_cell_count,
         max_leaf_node_count=solver_cfg.max_leaf_node_count,
         max_lower_node_count=solver_cfg.max_lower_node_count,
@@ -163,6 +164,8 @@ class NewtonMPMManager(NewtonManager):
     @staticmethod
     def _solver_supports_cuda_graph_capture(solver: SolverImplicitMPM) -> bool:
         """Return whether an implicit-MPM solver satisfies Newton's capture contract."""
+        if solver.check_particle_grid_mapping:
+            return False
         if solver.grid_type == "fixed":
             return True
         if solver.grid_type != "sparse":

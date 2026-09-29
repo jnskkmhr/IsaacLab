@@ -1,0 +1,1 @@
+Added `TerrainImporterCfg.disable_visual` to hide terrain while retaining collision, and fixed `disable_collider` handling for generated meshes, USD terrain, and planes. Both options defaulted to false. Mesh imports skipped visual material creation when visuals were disabled and omitted collision properties when collision was disabled.

@@ -121,6 +121,12 @@ class TerrainImporterCfg:
     debug_vis: bool = False
     """Whether to enable visualization of terrain origins for the terrain. Defaults to False."""
 
+    disable_visual: bool = False
+    """Whether to hide terrain geometry while retaining collision. Defaults to False.
+
+    This controls normal rendering. A viewer's collision-debug display may still show colliders.
+    """
+
     disable_collider: bool = False
     """Whether to import the terrain without a collider. Defaults to False.
 

@@ -1,0 +1,1 @@
+Fixed multiple terrain importers overwriting the primary scene terrain according to declaration order. When present, the configuration entry named `terrain` supplied environment origins; additional importers were available through `scene.extras` and named lookup. Preserved last-imported terrain selection when no entry was named `terrain`.
