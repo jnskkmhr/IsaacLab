@@ -24,13 +24,6 @@ import signal
 import sys
 from typing import Literal
 
-try:
-    import isaacsim  # noqa: F401
-except ModuleNotFoundError:
-    isaacsim = None
-
-SimulationApp = getattr(isaacsim, "SimulationApp", None)
-
 from isaaclab.app.loading_screen import report_activity
 from isaaclab.app.logging_utils import apply_python_logging_level
 from isaaclab.app.settings_manager import get_settings_manager
@@ -265,7 +258,12 @@ class KitLauncher(SimulationLauncher):
         full Isaac Sim installation, before and after Kit starts. Use
         :func:`~isaaclab.utils.version.has_kit` to check whether Kit is currently running.
         """
-        return SimulationApp is not None
+        # Importing Isaac Sim bootstraps Kit, so defer it until Kit is requested.
+        try:
+            import isaacsim
+        except ModuleNotFoundError:
+            return False
+        return getattr(isaacsim, "SimulationApp", None) is not None
 
     @staticmethod
     def add_launcher_args(parser: argparse.ArgumentParser) -> None:
@@ -762,6 +760,8 @@ class KitLauncher(SimulationLauncher):
 
     def _create_app(self):
         """Launch and create the SimulationApp based on the parsed simulation config."""
+        from isaacsim import SimulationApp
+
         # Initialize SimulationApp
         # hack sys module to make sure that the SimulationApp is initialized correctly
         # this is to avoid the warnings from the simulation app about not ok modules

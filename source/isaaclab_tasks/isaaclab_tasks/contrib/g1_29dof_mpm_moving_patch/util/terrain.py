@@ -16,7 +16,7 @@ from isaaclab_newton.sim.schemas import NewtonCollisionCfg
 from isaaclab_newton.sim.spawners.mpm import MPMParticleMaterialCfg
 
 import isaaclab.sim as sim_utils
-from isaaclab.terrains import TerrainImporter, TerrainImporterCfg
+from isaaclab.terrains import TerrainGenerator, TerrainGeneratorCfg, TerrainImporter, TerrainImporterCfg
 from isaaclab.utils import configclass
 
 from .kernel import sample_heights
@@ -177,11 +177,11 @@ class BackgroundTerrainImporter(TerrainImporter):
         return False
 
     def configure_env_origins(self, origins=None):
-        """Place robots on a regular grid over one terrain, sampling each spawn height."""
-        if origins is not None:
-            raise ValueError("Set use_terrain_origins=False for shared moving-patch terrain")
-        super().configure_env_origins()
-        self.background_mesh.initial_origins = self.env_origins.detach().cpu().numpy().copy()
+        """Place robots on grid or terrain-tile origins and sample spawn heights [m]."""
+        super().configure_env_origins(origins)
+        # Particles are authored at clone-grid origins, independently of reset tile selection.
+        clone_origins = self._compute_env_origins_grid(self.cfg.num_envs, self.cfg.env_spacing)
+        self.background_mesh.initial_origins = clone_origins.cpu().numpy().copy()
         query = wp.from_torch(self.env_origins.contiguous(), dtype=wp.vec3)
         self.background_mesh.sample(query)
         self.background_mesh.spawn_origins = self.env_origins.detach().cpu().numpy().copy()
@@ -216,8 +216,6 @@ class BackgroundTerrainImporterCfg(TerrainImporterCfg):
         self.moving_patch_terrain.validate_geometry()
         if self.terrain_type != "generator" or self.terrain_generator is None:
             raise ValueError("Moving-patch background terrain requires terrain_type='generator'")
-        if self.use_terrain_origins:
-            raise ValueError("Set use_terrain_origins=False for moving-patch background terrain")
         generator = self.terrain_generator
         if len(generator.size) != 2 or not all(math.isfinite(v) and v > 0 for v in generator.size):
             raise ValueError("terrain_generator.size must contain two positive finite values")

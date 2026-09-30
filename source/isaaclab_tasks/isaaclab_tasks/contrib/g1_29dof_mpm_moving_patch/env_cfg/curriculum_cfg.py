@@ -8,14 +8,15 @@ from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
-import isaaclab_tasks.core.velocity.mdp as mdp
+
+from .. import mdp
 
 
 @configclass
 class G1CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    # terrain_levels = CurrTerm(func=mdp.terrain_levels_vel) # type: ignore
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)  # type: ignore
 
     command_vel = CurrTerm(
         func=g1_mdp.commands_vel,  # type: ignore

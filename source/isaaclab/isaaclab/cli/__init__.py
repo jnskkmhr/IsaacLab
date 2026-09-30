@@ -6,7 +6,6 @@
 import argparse
 import importlib.metadata
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 from .commands.envs import command_setup_conda, command_setup_uv
@@ -46,49 +45,6 @@ def _load_external_tasks() -> None:
     """Import task packages registered by installed downstream projects."""
     for entry_point in importlib.metadata.entry_points(group=_TASK_ENTRY_POINT_GROUP):
         entry_point.load()
-
-
-def _run_simulation_command(command: Callable[[list[str]], None], args: list[str]) -> None:
-    """Start an explicitly requested Kit runtime before task imports can load standalone USD."""
-    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
-    parser.add_argument("--visualizer", "--viz", default="")
-    selected, _ = parser.parse_known_args(args)
-    if "kit" not in selected.visualizer.split(",") or any(arg in ("-h", "--help") for arg in args):
-        _load_external_tasks()
-        command(args)
-        return
-
-    # Keep the project's Warp runtime ahead of Kit's bundled version.
-    import warp  # noqa: F401
-    from isaaclab_physx.app import KitLauncher
-
-    from isaaclab.app.sim_launcher import fuse_kit_args
-
-    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
-    KitLauncher.add_launcher_args(parser)
-    parser.add_argument("--video", action="store_true")
-    launcher_args, _ = parser.parse_known_args(fuse_kit_args(args))
-    launcher_args.kit_visualizer = True
-    launcher_args.enable_cameras = True
-    launcher = KitLauncher(launcher_args)
-    exit_code = 0
-    try:
-        _load_external_tasks()
-        command(args)
-    except KeyboardInterrupt:
-        exit_code = 130
-        raise
-    except SystemExit as exc:
-        exit_code = exc.code if isinstance(exc.code, int) else int(exc.code is not None)
-        raise
-    except Exception:
-        exit_code = 1
-        import traceback
-
-        traceback.print_exc()
-        raise
-    finally:
-        launcher.close(exit_code)
 
 
 def train(args: list[str] | None = None) -> None:
@@ -238,11 +194,8 @@ def cli() -> None:
         example(sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] in subcommands:
-        if sys.argv[1] in ("train", "play", "zero_agent", "random_agent"):
-            _run_simulation_command(subcommands[sys.argv[1]], sys.argv[2:])
-        else:
-            _load_external_tasks()
-            subcommands[sys.argv[1]](sys.argv[2:])
+        _load_external_tasks()
+        subcommands[sys.argv[1]](sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] == "teleop":
         teleop(sys.argv[2:])

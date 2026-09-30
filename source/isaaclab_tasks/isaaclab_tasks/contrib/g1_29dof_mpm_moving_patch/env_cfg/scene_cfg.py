@@ -12,12 +12,12 @@ from isaaclab_newton.sim.schemas import NewtonCollisionCfg
 from isaaclab_newton.sim.spawners.mpm import MPMGridCfg, MPMParticleMaterialCfg
 
 import isaaclab.sim as sim_utils
+import isaaclab.terrains as terrain_gen
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import CameraCfg
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporterCfg
-import isaaclab.terrains as terrain_gen
 from isaaclab.terrains.height_field.hf_terrains_cfg import HfWaveTerrainCfg
 from isaaclab.terrains.trimesh.mesh_terrains_cfg import MeshPlaneTerrainCfg
 from isaaclab.utils import configclass
@@ -44,8 +44,8 @@ VOXEL_SIZE = 0.04
 
 GENERATOR = TerrainGeneratorCfg(
     seed=42,
-    size=(30.0, 30.0),
-    num_rows=3,
+    size=(20.0, 20.0),
+    num_rows=1,
     num_cols=1,
     border_width=0.0,
     horizontal_scale=0.1,
@@ -53,7 +53,7 @@ GENERATOR = TerrainGeneratorCfg(
     sub_terrains={
         # One tile is selected by these weights; entries are not blended.
         # To select waves, set flat.proportion=0.0 and waves.proportion=1.0.
-        "flat": MeshPlaneTerrainCfg(),
+        # "flat": MeshPlaneTerrainCfg(),
         "waves": HfWaveTerrainCfg(
             amplitude_range=(0.4, 0.4),
             num_waves=4,
@@ -65,9 +65,9 @@ GENERATOR = TerrainGeneratorCfg(
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
     seed=42,
     size=(8.0, 8.0),
-    border_width=20.0,
+    border_width=5.0,
     num_rows=10,
-    num_cols=20,
+    num_cols=4,
     horizontal_scale=0.1,
     vertical_scale=0.005,
     slope_threshold=0.75,
@@ -144,7 +144,7 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             ),
             floor_thickness=0.1,
             show_boundary_particles=False,
-            visual_color=(0.72, 0.55, 0.34)
+            visual_color=(0.72, 0.55, 0.34),
         ),
     )
     visual_terrain: TerrainImporterCfg = TexturedTerrainImporterCfg(
@@ -153,15 +153,12 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         terrain_type="generator",
         disable_collider=True,
         use_terrain_origins=False,
-        # terrain_generator=GENERATOR.copy(), # type: ignore
+        # terrain_generator=GENERATOR.copy(),  # type: ignore
         terrain_generator=ROUGH_TERRAINS_CFG.copy(), # type: ignore
         mesh_origin_offset=(0.0, 0.0, -0.15),
     )
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",
-        # init_state=UNITREE_G1_29DOF_BOX_FOOT_CFG.init_state.replace(  # type: ignore
-        #     pos=(0.0, 0.0, MovingPatchTerrainCfg().robot_spawn_height),
-        # ),
         spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
             # Scoped to the sole colliders. Newton sums both shapes' margins, so applying this to
             # the whole robot pushes every non-adjacent link pair apart by twice the margin; with

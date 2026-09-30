@@ -14,11 +14,13 @@ __all__ = [
     "reset_root_state_on_terrain",
     "root_outside_workspace",
     "root_state_not_finite",
+    "terrain_levels_vel",
     "terrain_material_parameters",
 ]
 
 from isaaclab.envs.mdp import *  # noqa: F403
 
+from .curriculums import terrain_levels_vel
 from .events import reset_root_state_on_terrain
 from .observations import (
     foot_air_time,

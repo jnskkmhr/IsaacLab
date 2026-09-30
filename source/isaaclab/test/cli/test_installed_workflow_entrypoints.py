@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -64,57 +63,6 @@ def test_editor_option_uses_cli_dispatcher():
         cli.cli()
 
     editor.assert_called_once_with(["--isaac_path", "/sim", "--verbose"])
-
-
-@pytest.mark.parametrize("status", [0, 3])
-def test_kit_starts_before_external_tasks_and_preserves_exit_status(monkeypatch, status):
-    """Kit must own USD before plugins import tasks, and fast shutdown must preserve failures."""
-    events = []
-
-    class Launcher:
-        @staticmethod
-        def add_launcher_args(parser):
-            parser.add_argument("--visualizer", "--viz")
-
-        def __init__(self, args):
-            events.append("kit")
-            assert args.kit_visualizer
-
-        def close(self, exit_code):
-            events.append(("close", exit_code))
-
-    def load_tasks():
-        assert events == ["kit"], "Task imports loaded standalone USD before Kit started"
-        events.append("tasks")
-
-    def run(args):
-        assert events == ["kit", "tasks"]
-        events.append("run")
-        if status:
-            raise SystemExit(status)
-
-    monkeypatch.setitem(sys.modules, "isaaclab_physx.app", SimpleNamespace(KitLauncher=Launcher))
-    monkeypatch.setattr(cli, "_load_external_tasks", load_tasks)
-    monkeypatch.setattr(cli, "zero_agent", run)
-    monkeypatch.setattr(sys, "argv", ["isaaclab", "zero_agent", "--viz", "kit"])
-    if status:
-        with pytest.raises(SystemExit) as exc_info:
-            cli.cli()
-        assert exc_info.value.code == status
-    else:
-        cli.cli()
-    assert events == ["kit", "tasks", "run", ("close", status)]
-
-
-def test_kit_help_does_not_start_runtime(monkeypatch):
-    """Help remains available without importing the optional Kit runtime."""
-    monkeypatch.setitem(sys.modules, "isaaclab_physx.app", None)
-    monkeypatch.setattr(cli, "_load_external_tasks", lambda: None)
-    run = mock.Mock()
-    monkeypatch.setattr(cli, "zero_agent", run)
-    monkeypatch.setattr(sys, "argv", ["isaaclab", "zero_agent", "--viz", "kit", "--help"])
-    cli.cli()
-    run.assert_called_once_with(["--viz", "kit", "--help"])
 
 
 _RL_ENTRYPOINTS = "isaaclab_rl.entrypoints"

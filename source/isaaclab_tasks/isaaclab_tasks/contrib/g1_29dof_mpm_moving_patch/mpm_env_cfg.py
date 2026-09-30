@@ -78,6 +78,13 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         """
         if self.sim.physics.use_cuda_graph: # type: ignore
             raise ValueError("Moving-patch particle updates require sim.physics.use_cuda_graph=False")
+
+        use_terrain_curriculum = getattr(self.curriculum, "terrain_levels", None) is not None
+        if self.scene.terrain.terrain_generator is not None:
+            self.scene.terrain.terrain_generator.curriculum = use_terrain_curriculum
+            self.scene.visual_terrain.terrain_generator.curriculum = use_terrain_curriculum # type: ignore
+        if use_terrain_curriculum:
+            self.scene.terrain.use_terrain_origins = True
         self.scene.configure_terrain()
         self.sim.physics.configure_terrain(self.scene.terrain.moving_patch_terrain, self.proxy_mass_scale)  # type: ignore
         configure_sparse_mpm_capacities(self)
@@ -86,26 +93,17 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         self.episode_length_s = 20.0
         self.sim.render_interval = self.decimation
 
-        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
+        # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
-            # MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            MovingPatchGLVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
+            # MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [
             VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]
-
-        # check if terrain levels curriculum is enabled - if so, enable curriculum for terrain generator
-        # this generates terrains with increasing difficulty and is useful for training
-        if getattr(self.curriculum, "terrain_levels", None) is not None:
-            if self.scene.terrain.terrain_generator is not None:
-                self.scene.terrain.terrain_generator.curriculum = True
-        else:
-            if self.scene.terrain.terrain_generator is not None:
-                self.scene.terrain.terrain_generator.curriculum = False
 
 
 @configclass

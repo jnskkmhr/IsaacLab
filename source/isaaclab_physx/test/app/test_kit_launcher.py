@@ -8,7 +8,9 @@
 import argparse
 import logging
 import signal
+import subprocess
 import sys
+import textwrap
 from types import SimpleNamespace
 
 import isaaclab_physx.app as app_module
@@ -212,6 +214,31 @@ def test_add_launcher_args_registers_every_launcher_option():
     names = ("livestream", "xr", "device", "visualizer", "experience", "deterministic", "kit_args", "max_visible_envs")
     for name in names:
         assert parser._option_string_actions[f"--{name}"]
+
+
+def test_add_launcher_args_does_not_load_isaac_sim():
+    """Kitless CLI parsing must not bootstrap the Isaac Sim runtime."""
+    code = textwrap.dedent("""
+        import argparse
+        import builtins
+
+        original_import = builtins.__import__
+
+        def import_without_isaac_sim(name, *args, **kwargs):
+            if name == "isaacsim" or name.startswith("isaacsim."):
+                raise AssertionError("CLI argument registration imported Isaac Sim")
+            return original_import(name, *args, **kwargs)
+
+        builtins.__import__ = import_without_isaac_sim
+        from isaaclab.app import add_launcher_args
+
+        parser = argparse.ArgumentParser()
+        add_launcher_args(parser)
+        args = parser.parse_args(["--viz", "newton_gl"])
+        assert args.visualizer == ["newton_gl"]
+    """)
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_visualizer_alias_parsing():
@@ -837,7 +864,7 @@ def test_allows_isaacsim_full_streaming_experience_when_livestream_disabled(tmp_
 
 
 def test_constructor_reports_missing_isaac_sim(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(kit_launcher_module, "SimulationApp", None)
+    monkeypatch.setitem(sys.modules, "isaacsim", None)
 
     monkeypatch.setattr(utils_module, "has_kit", lambda: False)
     with pytest.raises(SystemExit):
@@ -845,10 +872,10 @@ def test_constructor_reports_missing_isaac_sim(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_is_available_reflects_simulation_app_presence(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(kit_launcher_module, "SimulationApp", None)
+    monkeypatch.setitem(sys.modules, "isaacsim", SimpleNamespace())
     assert KitLauncher.is_available() is False
 
-    monkeypatch.setattr(kit_launcher_module, "SimulationApp", object())
+    monkeypatch.setitem(sys.modules, "isaacsim", SimpleNamespace(SimulationApp=object()))
     assert KitLauncher.is_available() is True
 
 

@@ -50,17 +50,6 @@ def test_default_stays_kitless_for_a_kitless_config(kit_branch_taken):
     assert kit_branch_taken == []
 
 
-def test_explicit_visualizer_selection_ignores_unselected_runtimes(kit_branch_taken):
-    """Configured alternatives must not introduce incompatible runtimes when the CLI selects one."""
-    cfg = types.SimpleNamespace(
-        physics=PhysicsCfg(),
-        visualizer_cfgs=[VisualizerCfg(visualizer_type="kit"), VisualizerCfg(visualizer_type="newton_rtx")],
-    )
-    with launch_simulation(cfg, {"visualizer": ["kit"]}):
-        pass
-    assert kit_branch_taken == [True]
-
-
 def test_kitless_launch_configures_storage_before_user_code(kit_branch_taken, monkeypatch: pytest.MonkeyPatch):
     """A direct OmniClient read inside a kitless runtime must see profile routing."""
     events = []
