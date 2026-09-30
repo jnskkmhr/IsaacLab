@@ -19,7 +19,7 @@ from isaaclab.utils import configclass
 
 from isaaclab_contrib.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
-from .scene_cfg import MovingPatchTerrainCfg
+from .scene_cfg import VOXEL_SIZE, MovingPatchTerrainCfg
 
 RIGID_ENTRY = "robot"
 """Name of the MJWarp coupler entry."""
@@ -32,10 +32,6 @@ FOOT_PROXY_BODIES = [r"/World/envs/env_.*/Robot/.*ankle_roll_link"]
 
 DEFAULT_PROXY_MASS_SCALE = 1.0
 """Effective-mass scale applied to the proxied feet.
-
-Mirrors ``coupling_relaxation`` of the standalone Newton G1 sand example: the G1 weighs about
-32.3 kg while a single ankle roll link weighs 0.608 kg, so the two feet must present the whole
-body mass to the granular solver for the robot to be supported rather than sink.
 """
 
 
@@ -67,8 +63,7 @@ class G1PhysicsCfg(NewtonCfg):
             CouplerEntryCfg(
                 name=MPM_ENTRY,
                 solver_cfg=MPMSolverCfg(
-                    check_particle_grid_mapping=True,
-                    voxel_size=MovingPatchTerrainCfg().voxel_size,
+                    voxel_size=VOXEL_SIZE,
                     grid_type="sparse",
                     # A sparse grid stays rebuildable, and therefore CUDA-graph capturable,
                     # only while it is unpadded. The standalone Newton examples pad by 50
@@ -88,16 +83,12 @@ class G1PhysicsCfg(NewtonCfg):
                     collider_basis="pic27",
                     collider_velocity_mode="forward",
                     solver="auto",
-                    # Voxel fill fraction below which the yield surface collapses. The bed is
-                    # sampled at a spacing that does not divide the voxel size, so its cells
-                    # straddle the 0.5 the standalone G1 example uses and half the bed loses
-                    # its shear strength; keep the Newton default so the bed stays granular.
                     critical_fraction=0.0,
                     separate_worlds=True,
                     project_outside_colliders=False,
                 ),
                 bodies=[],
-                shape_label_patterns=[r"/World/ground/mpm_support/.*"],
+                shape_label_patterns=[r"/World/ground/mpm_ground/.*"],
                 all_particles=True,
                 include_static_shapes=False,
                 include_child_joints=False,
@@ -131,4 +122,4 @@ class G1PhysicsCfg(NewtonCfg):
             proxy.mass_scale = proxy_mass_scale
         for entry in self.solver_cfg.entries:
             if entry.name == MPM_ENTRY:
-                entry.solver_cfg.voxel_size = moving_patch_terrain.voxel_size
+                entry.solver_cfg.voxel_size = moving_patch_terrain.voxel_size  # type: ignore

@@ -5,19 +5,24 @@
 
 """Standalone G1 assets, geometry and material configuration for moving terrain."""
 
+import math
+
 from isaaclab_newton.assets import MPMObjectCfg
 from isaaclab_newton.sim.schemas import NewtonCollisionCfg
-from isaaclab_newton.sim.spawners.mpm import MPMGridCfg
+from isaaclab_newton.sim.spawners.mpm import MPMGridCfg, MPMParticleMaterialCfg
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
+from isaaclab.sensors import CameraCfg
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporterCfg
 from isaaclab.terrains.height_field.hf_terrains_cfg import HfWaveTerrainCfg
 from isaaclab.terrains.trimesh.mesh_terrains_cfg import MeshPlaneTerrainCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+
+from isaaclab_tasks.utils.presets import MultiBackendRendererCfg
 
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
@@ -32,6 +37,8 @@ FLOOR_CONTACT_MARGIN = 0.004
 """Rigid catch-floor contact margin [m]."""
 FLOOR_CONTACT_GAP = 0.002
 """Rigid catch-floor contact detection gap [m]."""
+VOXEL_SIZE = 0.04
+"""MPM voxel size [m]."""
 
 
 GENERATOR = TerrainGeneratorCfg(
@@ -47,10 +54,8 @@ GENERATOR = TerrainGeneratorCfg(
         # To select waves, set flat.proportion=0.0 and waves.proportion=1.0.
         # "flat": MeshPlaneTerrainCfg(proportion=1.0),
         "waves": HfWaveTerrainCfg(
-            # proportion=0.0,
             amplitude_range=(0.4, 0.4),
             num_waves=4,
-            # Keep height-field edge correction inside a flat perimeter [m].
             border_width=0.5,
         ),
     },
@@ -60,6 +65,22 @@ GENERATOR = TerrainGeneratorCfg(
 @configclass
 class G1MovingPatchSceneCfg(InteractiveSceneCfg):
     """G1, shared terrain, particles and lights for the moving-patch task."""
+
+    # NOTE: do we need camera cfg???
+    # overview_camera: CameraCfg = CameraCfg(
+    #     prim_path="{ENV_REGEX_NS}/OverviewCamera",
+    #     width=320,
+    #     height=240,
+    #     data_types=["rgb"],
+    #     renderer_cfg=MultiBackendRendererCfg(),
+    #     spawn=sim_utils.PinholeCameraCfg(focal_length=24.0, horizontal_aperture=20.955, clipping_range=(0.1, 30.0)),
+    #     # Fixed view from (3, -4, 2.5) toward (0, 0, 0.6), relative to each environment.
+    #     offset=CameraCfg.OffsetCfg(
+    #         pos=(3.0, -4.0, 2.5),
+    #         rot=(0.538657606, 0.179552540, 0.260309190, 0.780927658),
+    #         convention="opengl",
+    #     ),
+    # )
 
     terrain: BackgroundTerrainImporterCfg = BackgroundTerrainImporterCfg(
         disable_visual=True,
@@ -72,6 +93,27 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         collision_group=-1,
         terrain_generator=GENERATOR,
         physics_material=RigidBodyMaterialBaseCfg(static_friction=0.9, dynamic_friction=0.8),
+        moving_patch_terrain=MovingPatchTerrainCfg(
+            moving_terrain_size=(1.3, 1.3),
+            boundary_terrain_size=0.2,
+            tracked_body="pelvis",
+            particle_depth=0.25,
+            robot_spawn_height=0.76,
+            shift_step=0.2,
+            voxel_size=VOXEL_SIZE,
+            particles_per_cell=1.25,
+            jitter=0.05,
+            material=MPMParticleMaterialCfg(
+                density=2700.0,
+                young_modulus=15.0e6,
+                poisson_ratio=0.3,
+                friction=math.tan(math.radians(40.0)),
+                yield_pressure=1.0e12,
+            ),
+            floor_thickness=0.1,
+            show_boundary_particles=False,
+            visual_color=(0.72, 0.55, 0.34)
+        ),
     )
     visual_terrain: TerrainImporterCfg = TexturedTerrainImporterCfg(
         prim_path="/World/visual_terrain",
@@ -80,12 +122,13 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         disable_collider=True,
         use_terrain_origins=False,
         terrain_generator=GENERATOR.copy(), # type: ignore
+        mesh_origin_offset=(0.0, 0.0, -0.15),
     )
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",
-        init_state=UNITREE_G1_29DOF_BOX_FOOT_CFG.init_state.replace(  # type: ignore
-            pos=(0.0, 0.0, MovingPatchTerrainCfg().robot_spawn_height),
-        ),
+        # init_state=UNITREE_G1_29DOF_BOX_FOOT_CFG.init_state.replace(  # type: ignore
+        #     pos=(0.0, 0.0, MovingPatchTerrainCfg().robot_spawn_height),
+        # ),
         spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
             # Scoped to the sole colliders. Newton sums both shapes' margins, so applying this to
             # the whole robot pushes every non-adjacent link pair apart by twice the margin; with

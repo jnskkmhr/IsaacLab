@@ -357,6 +357,12 @@ def scan(cfg, launcher_args: argparse.Namespace | dict | None = None) -> Scan:
 
     def visit(node, parent, key):
         nonlocal effective_cfg, has_ovrtx, has_auto_rtx, has_auto_physx, has_kit_camera
+        if (
+            isinstance(node, VisualizerCfg)
+            and args["visualizer"] is not None
+            and node.visualizer_type not in args["visualizer"]
+        ):
+            return
         if isinstance(node, RendererCfg) and node.renderer_type == "auto_rtx":
             has_auto_rtx = True
             auto_rtx_locations.append((parent, key, isinstance(parent, CameraCfg) and key == "renderer_cfg"))
@@ -402,6 +408,8 @@ def scan(cfg, launcher_args: argparse.Namespace | dict | None = None) -> Scan:
             visit(child, node, name)
 
     visit(cfg, None, None)
+    if args["visualizer"] is not None:
+        visualizer_cfgs = [cfg for cfg in visualizer_cfgs if cfg.visualizer_type in args["visualizer"]]
     has_ovrtx = has_ovrtx or any(visualizer_cfg.visualizer_type == "newton_rtx" for visualizer_cfg in visualizer_cfgs)
 
     has_physics = bool(physics_cfgs)

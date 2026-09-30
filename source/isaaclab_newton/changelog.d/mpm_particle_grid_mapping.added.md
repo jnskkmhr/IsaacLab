@@ -1,2 +1,0 @@
-Exposed `MPMSolverCfg.check_particle_grid_mapping` and forwarded it to Newton implicit MPM. Solvers with the diagnostic enabled were excluded from outer CUDA graph capture because the check reads a result back to the host. The default remained disabled. This setting requires Newton particle-grid mapping diagnostic support.
-Aligned the solver option with Newton’s string-or-sequence type and added complete native-field/default and forwarding coverage for the installed implicit MPM configuration.

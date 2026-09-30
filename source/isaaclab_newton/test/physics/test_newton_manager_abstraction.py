@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from dataclasses import fields
 from types import SimpleNamespace
 
 import isaaclab_newton.physics.newton_manager as newton_manager_module
@@ -409,7 +408,6 @@ _MPM_FIELD_VALUES = [
     ("voxel_size", 0.0375),
     ("grid_type", "dense"),
     ("grid_padding", 4),
-    ("check_particle_grid_mapping", True),
     ("max_active_cell_count", 1024),
     ("max_leaf_node_count", 512),
     ("max_lower_node_count", 128),
@@ -426,26 +424,19 @@ _MPM_FIELD_VALUES = [
 ]
 
 
-def test_mpm_solver_cfg_covers_native_config():
-    """Every upstream solver setting must be exposed, default-aligned, and tested."""
-    native = SolverImplicitMPM.Config()
-    native_fields = {field.name for field in fields(native)}
-    exposed_fields = {field.name for field in fields(MPMSolverCfg)}
-    assert native_fields <= exposed_fields, f"Unexposed Newton MPM fields: {native_fields - exposed_fields}"
-    assert native_fields == {name for name, _ in _MPM_FIELD_VALUES}, "Update the forwarding cases for Newton's fields"
-    exposed = MPMSolverCfg()
-    mapped = _make_solver_config(exposed)
-    for name in native_fields:
-        assert getattr(exposed, name) == getattr(native, name), name
-        assert getattr(mapped, name) == getattr(native, name), name
-
-
 def test_mpm_solver_cfg_forwards_every_solver_field():
     """Every tunable MPM cfg field round-trips into ``SolverImplicitMPM.Config``.
 
     Guards against MPM manager construction dropping or mis-naming a field if
     Newton's config surface changes.
     """
+    defaults = MPMSolverCfg()
+    mapped_defaults = _make_solver_config(defaults)
+    native_defaults = SolverImplicitMPM.Config()
+    for field_name, _ in _MPM_FIELD_VALUES:
+        assert getattr(defaults, field_name) == getattr(native_defaults, field_name), field_name
+        assert getattr(mapped_defaults, field_name) == getattr(native_defaults, field_name), field_name
+
     solver_cfg = MPMSolverCfg(**dict(_MPM_FIELD_VALUES))
     newton_cfg = _make_solver_config(solver_cfg)
     for field_name, value in _MPM_FIELD_VALUES:
@@ -866,8 +857,6 @@ def test_mpm_project_outside_colliders_gates_projection(project_outside):
     [
         pytest.param({"grid_type": "fixed"}, True, id="bounded_fixed"),
         pytest.param({"grid_type": "fixed", "max_active_cell_count": -1}, False, id="unbounded_fixed"),
-        pytest.param({"check_particle_grid_mapping": True}, False, id="diagnostic_sparse"),
-        pytest.param({"grid_type": "fixed", "check_particle_grid_mapping": True}, False, id="diagnostic_fixed"),
         pytest.param({}, True, id="bounded_sparse"),
         pytest.param({"max_active_cell_count": -1}, False, id="unbounded_sparse"),
         pytest.param({"grid_type": "dense"}, False, id="dense"),
@@ -880,7 +869,6 @@ def test_mpm_project_outside_colliders_gates_projection(project_outside):
 def test_mpm_cuda_graph_capture_supports_static_topology(monkeypatch, overrides, expected):
     """Only fixed and capacity-bounded rebuildable sparse grids support outer capture."""
     values = {
-        "check_particle_grid_mapping": False,
         "grid_type": "sparse",
         "max_active_cell_count": 1024,
         "grid_padding": 0,

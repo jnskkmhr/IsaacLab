@@ -64,13 +64,6 @@ class MPMSolverCfg(NewtonSolverCfg):
     grid_type: Literal["sparse", "dense", "fixed"] = "sparse"
     """Type of grid to use."""
 
-    check_particle_grid_mapping: bool = False
-    """Check that every active particle maps to a grid cell before material updates.
-
-    This point-integration diagnostic reads one integer back from the device and
-    disables outer CUDA graph capture. It requires Newton's mapping-check support.
-    """
-
     grid_padding: int = 0
     """Number of empty cells to add around particles when allocating the grid."""
 

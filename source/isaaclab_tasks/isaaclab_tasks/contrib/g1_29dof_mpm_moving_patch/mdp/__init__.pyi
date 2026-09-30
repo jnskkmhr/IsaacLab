@@ -12,7 +12,6 @@ __all__ = [
     "foot_contact_force_raw",
     "no_fly",
     "reset_root_state_on_terrain",
-    "reset_mpm_state",
     "root_outside_workspace",
     "root_state_not_finite",
     "terrain_material_parameters",
@@ -20,7 +19,7 @@ __all__ = [
 
 from isaaclab.envs.mdp import *  # noqa: F403
 
-from .events import reset_mpm_state, reset_root_state_on_terrain
+from .events import reset_root_state_on_terrain
 from .observations import (
     foot_air_time,
     foot_contact,

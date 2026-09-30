@@ -22,6 +22,9 @@ class TexturedTerrainImporter(TerrainImporter):
 
     def import_mesh(self, name: str, mesh: trimesh.Trimesh) -> None:
         """Import scene geometry with planar UVs and an MDL-compatible preview material."""
+        if any(self.cfg.mesh_origin_offset):
+            mesh = mesh.copy()
+            mesh.apply_translation(self.cfg.mesh_origin_offset)
         super().import_mesh(name, mesh)
         if self.cfg.disable_visual:
             return
@@ -67,6 +70,12 @@ class TexturedTerrainImporterCfg(TerrainImporterCfg):
     """Standard terrain import with a portable color texture for GL and RTX."""
 
     class_type: type = TexturedTerrainImporter
+
+    mesh_origin_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """Translation of imported mesh vertices along the terrain's local axes [m].
+
+    Does not shift environment origins or the source mesh. Only applies to mesh imports.
+    """
     visual_material: sim_utils.MdlFileCfg = sim_utils.MdlFileCfg(
         mdl_path=f"{ISAACLAB_ASSETS_DATA_DIR}/texture/Ground_080/Ground080_4K.mdl",
         project_uvw=False,

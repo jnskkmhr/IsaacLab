@@ -7,50 +7,72 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import torch
 import warp as wp
 
+import isaaclab.utils.math as math_utils
+from isaaclab.assets import Articulation
+from isaaclab.envs.mdp import reset_root_state_uniform
 from isaaclab.managers import SceneEntityCfg
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.events import reset_root_state_uniform_on_ground
+from ..util.terrain import BackgroundTerrainImporterCfg
 
 if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
 
 
-def reset_mpm_state(env: G1MovingPatchEnv, env_ids: Sequence[int] | torch.Tensor) -> None:
-    """Restore the flat granular bed for the selected environments.
+class reset_root_state_on_terrain(reset_root_state_uniform):
+    """Reset robots above the terrain height sampled at their randomized world XY.
 
-    Args:
-        env: Environment instance.
-        env_ids: Indices of the environments to reset.
+    Sampling ranges are cached by :class:`reset_root_state_uniform`. The sampled terrain height
+    replaces the environment origin's Z offset, preserving the default root clearance [m].
+    Regular terrain importers use the environment origin's Z offset instead.
     """
-    env.reset_mpm_state(env_ids)
 
+    def __call__(
+        self,
+        env: G1MovingPatchEnv,
+        env_ids: torch.Tensor | slice,
+        pose_range: dict[str, tuple[float, float]],
+        velocity_range: dict[str, tuple[float, float]],
+        asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    ) -> None:
+        """Sample root pose and velocity, then write the terrain-adjusted state once.
 
-def reset_root_state_on_terrain(
-    env: G1MovingPatchEnv,
-    env_ids: torch.Tensor,
-    pose_range: dict[str, tuple[float, float]],
-    velocity_range: dict[str, tuple[float, float]],
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> None:
-    """Reset selected robots above the generated surface at their sampled world XY.
+        Args:
+            env: Moving-patch environment with a shared terrain surface.
+            env_ids: Environment indices or a slice selecting robots to reset.
+            pose_range: Pose offsets [m or rad, depending on axis], cached at construction.
+            velocity_range: Velocity offsets [m/s or rad/s], cached at construction.
+            asset_cfg: Robot selection.
+        """
+        asset: Articulation = env.scene[asset_cfg.name]
+        default_root_pose = asset.data.default_root_pose.torch[env_ids]
+        default_root_vel = asset.data.default_root_vel.torch[env_ids]
+        if default_root_pose.shape[0] == 0:
+            return
 
-    Args:
-        env: Moving-patch environment with a shared terrain surface.
-        env_ids: Robot environment indices to reset.
-        pose_range: Pose offsets [m or rad, depending on axis].
-        velocity_range: Initial linear/angular velocity ranges [m/s or rad/s].
-        asset_cfg: Robot selection.
-    """
-    reset_root_state_uniform_on_ground(env, env_ids, pose_range, velocity_range, asset_cfg)
-    asset = env.scene[asset_cfg.name]
-    pose = asset.data.root_state_w.torch[env_ids, :7].clone()
-    points = wp.from_torch(pose[:, :3].clone().contiguous(), dtype=wp.vec3)
-    env.scene.terrain.background_mesh.sample(points)
-    pose[:, 2] += wp.to_torch(points)[:, 2]
-    asset.write_root_pose_to_sim(pose, env_ids=env_ids)
+        ranges = self._pose_ranges
+        rand_samples = math_utils.sample_uniform(
+            ranges[:, 0], ranges[:, 1], (default_root_pose.shape[0], 6), device=asset.device
+        )
+        positions = default_root_pose[:, :3] + rand_samples[:, :3]
+        positions[:, :2] += env.scene.env_origins[env_ids][:, :2]
+        if isinstance(env.scene.terrain.cfg, BackgroundTerrainImporterCfg):
+            points = wp.from_torch(positions.clone().contiguous(), dtype=wp.vec3)
+            env.scene.terrain.background_mesh.sample(points)
+            positions[:, 2] += wp.to_torch(points)[:, 2]
+        else:
+            positions[:, 2] += env.scene.env_origins[env_ids][:, 2]
+
+        orientations_delta = math_utils.quat_from_euler_xyz(rand_samples[:, 3], rand_samples[:, 4], rand_samples[:, 5])
+        orientations = math_utils.quat_mul(default_root_pose[:, 3:7], orientations_delta)
+        ranges = self._velocity_ranges
+        rand_samples = math_utils.sample_uniform(
+            ranges[:, 0], ranges[:, 1], (default_root_pose.shape[0], 6), device=asset.device
+        )
+        velocities = default_root_vel + rand_samples
+        asset.write_root_pose_to_sim_index(root_pose=torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
+        asset.write_root_velocity_to_sim_index(root_velocity=velocities, env_ids=env_ids)

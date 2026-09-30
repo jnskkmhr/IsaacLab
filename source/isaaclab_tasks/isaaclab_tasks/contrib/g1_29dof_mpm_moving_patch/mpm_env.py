@@ -20,7 +20,7 @@ from isaaclab.envs import ManagerBasedRLEnv
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
 from .util.particles import MovingPatchParticles
-from .util.visualizer import MovingPatchGLVisualizer, MovingPatchRTXVisualizer
+from .util.visualizer import MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer
 
 
 class G1MovingPatchEnv(ManagerBasedRLEnv):
@@ -34,7 +34,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
     cfg: G1MovingPatchEnvCfg
 
     def __init__(self, cfg, render_mode=None, **kwargs):
-        self._contact_state_ready = False
         self.moving_patch_particle: MovingPatchParticles | None = None
         super().__init__(cfg, render_mode, **kwargs)
 
@@ -59,14 +58,14 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             model=NewtonManager.get_model(),
             state=NewtonManager.get_state_0(),
             coupled_solver=NewtonManager._solver,
-            terrain=terrain.cfg.moving_patch_terrain,
+            terrain=self.cfg.scene.terrain.moving_patch_terrain,
             entry_name=MPM_ENTRY,
-            background_mesh=terrain.background_mesh,
+            background_mesh=terrain.background_mesh, # type: ignore
         )
         NewtonManager.register_state_force_callback(self._update_moving_patch_particle)
         NewtonManager.register_post_step_callback(self._restore_boundary_particles)
         for visualizer in self.sim._visualizers:
-            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchRTXVisualizer)):
+            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
                 visualizer.moving_patch_particle = self.moving_patch_particle
 
     def _update_moving_patch_particle(self, state: newton.State) -> None:
@@ -86,7 +85,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             NewtonManager._state_force_callbacks.remove(self._update_moving_patch_particle)
         NewtonManager.unregister_post_step_callback(self._restore_boundary_particles)
         for visualizer in self.sim._visualizers:
-            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchRTXVisualizer)):
+            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
                 visualizer.moving_patch_particle = None
         self.moving_patch_particle = None
         super().close()
@@ -147,20 +146,18 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         )
         self._gait_timer_step = self.common_step_counter
 
-    def reset_mpm_state(self, env_ids: Sequence[int] | torch.Tensor) -> None:
+    def reset_mpm_state(self, env_ids: Sequence[int] | torch.Tensor | slice) -> None:
         """Restore the bed and clear the solver history of the selected environments.
 
         Args:
-            env_ids: Indices of the environments to reset.
+            env_ids: Environment indices or a slice selecting environments to reset.
         """
-        env_ids = torch.as_tensor(env_ids, dtype=torch.long, device=self.device)
-        if env_ids.numel() == 0:
-            return
-
         particle_state = self._sand.data.default_particle_state_w.torch[env_ids].clone()
+        if particle_state.shape[0] == 0:
+            return
         if self.cfg.reset_particle_jitter > 0.0:
             jitter = (
-                2.0 * torch.rand((env_ids.numel(), self._sand.particles_per_object, 3), device=self.device) - 1.0
+                2.0 * torch.rand(particle_state.shape[:2] + (3,), device=self.device) - 1.0
             ) * self.cfg.reset_particle_jitter
             particle_state[..., :3] += jitter
         particle_state[..., 3:] = 0.0
@@ -169,7 +166,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         # Clear the constitutive, contact and proxy-feedback history of exactly the reset worlds.
         # Newton reset masks carry one trailing slot for global (world -1) entities.
         world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
-        world_mask[env_ids] = True
+        world_mask[: self.num_envs][env_ids] = True
         NewtonMPMManager.reset_solver_state(
             world_mask=wp.from_torch(world_mask, dtype=wp.bool),
             flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE,
@@ -207,7 +204,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
         self._contact_state_step = -1
         self._gait_timer_step = -1
-        self._contact_state_ready = True
         self._refresh_contact_forces()
 
     def _resolve_newton_body_ids(self, foot_names: Sequence[str]) -> torch.Tensor:
@@ -260,15 +256,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         force_magnitude = torch.norm(self._foot_contact_force, dim=-1)
         self._foot_contact = force_magnitude > self.cfg.foot_contact_force_threshold
 
-    def _reset_idx(self, env_ids: Sequence[int]) -> None:
-        super()._reset_idx(env_ids)
-        if self.moving_patch_particle is not None:
-            world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
-            world_mask[env_ids] = True
-            self.moving_patch_particle.reset(wp.from_torch(world_mask, dtype=wp.bool))
-        if not self._contact_state_ready:
-            return
-        self._foot_air_time[env_ids] = 0.0
-        self._foot_contact_time[env_ids] = 0.0
-        self._foot_first_contact[env_ids] = False
-        self._contact_state_step = -1
+    def _reset_idx(self, env_ids: Sequence[int] | torch.Tensor | slice) -> None:
+        super()._reset_idx(env_ids) # type: ignore
+        self.reset_mpm_state(env_ids)

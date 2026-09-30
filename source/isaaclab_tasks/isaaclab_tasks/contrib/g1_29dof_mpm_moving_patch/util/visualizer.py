@@ -5,7 +5,10 @@
 
 """Standard particle rendering with task-local visibility filtering."""
 
+import numpy as np
+import torch
 import warp as wp
+from isaaclab_visualizers.kit import KitVisualizer, KitVisualizerCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 from isaaclab_visualizers.newton.newton_visualizer import (
     NewtonGLVisualizer,
@@ -14,6 +17,10 @@ from isaaclab_visualizers.newton.newton_visualizer import (
     NewtonViewerRTX,
 )
 
+from pxr import UsdGeom, Vt
+
+import isaaclab.sim as sim_utils
+from isaaclab.scene_data import SceneDataFormat
 from isaaclab.utils import configclass
 
 from .kernel import gather_visible_particles, mark_visible_particles
@@ -147,6 +154,74 @@ class MovingPatchRTXVisualizer(NewtonRTXVisualizer):
         )
         viewer.moving_patch_visualizer = self
         return viewer
+
+
+class MovingPatchKitVisualizer(KitVisualizer):
+    """Filter existing USD particle clouds while Kit updates their positions through Fabric."""
+
+    moving_patch_particle: MovingPatchParticles | None = None
+
+    def __init__(self, cfg: "MovingPatchKitVisualizerCfg"):
+        super().__init__(cfg)
+        self._particle_width_bindings = None
+
+    def _update_particle_visibility(self) -> None:
+        patch = self.moving_patch_particle
+        if patch is None:
+            return
+        if self._particle_width_bindings is None:
+            self._particle_width_bindings = []
+            stage = sim_utils.get_current_stage()
+            for source, ranges in self._scene_data_provider.backend.get_geometry_batches():
+                if source._cls is not SceneDataFormat.Points:
+                    continue
+                for path, (start, count) in ranges.items():
+                    points = UsdGeom.Points(stage.GetPrimAtPath(path))
+                    if points:
+                        widths = points.GetWidthsAttr()
+                        self._particle_width_bindings.append((widths, start, count, widths.Get()))
+
+        widths = 2.0 * wp.to_torch(patch.model.particle_radius)
+        if not self.cfg.show_particles:
+            widths.zero_()
+        else:
+            if not patch.terrain.show_boundary_particles:
+                widths *= wp.to_torch(patch.dynamic) != 0
+            visible_env_ids = self._resolved_visible_env_ids
+            if visible_env_ids is not None:
+                worlds = wp.to_torch(patch.model.particle_world)
+                widths *= torch.isin(worlds, torch.tensor(visible_env_ids, device=worlds.device, dtype=worlds.dtype))
+        widths = widths.cpu().numpy()
+        for attr, start, count, _ in self._particle_width_bindings:
+            attr.Set(Vt.FloatArray.FromNumpy(widths[start : start + count]))
+
+    def step(self, dt: float) -> None:
+        """Update particle visibility before Kit renders the scene."""
+        if not self._runtime_headless:
+            self._update_particle_visibility()
+        super().step(dt)
+
+    def render_rgb_array(self) -> np.ndarray:
+        """Capture Kit RGB output with current particle visibility, including headless mode."""
+        self._update_particle_visibility()
+        return super().render_rgb_array()
+
+    def close(self) -> None:
+        """Restore shared USD particle widths and release Kit resources."""
+        if self._particle_width_bindings is not None:
+            for attr, _, _, original in self._particle_width_bindings:
+                attr.Set(original)
+            self._particle_width_bindings = None
+        super().close()
+
+
+@configclass
+class MovingPatchKitVisualizerCfg(KitVisualizerCfg):
+    """Use Kit's particle clouds with moving-patch boundary and environment filtering."""
+
+    class_type: type = MovingPatchKitVisualizer
+    show_particles: bool = True
+    """Whether to display moving-patch particles."""
 
 
 @configclass

@@ -50,15 +50,9 @@ class G1EventCfg:
     reset
     """
 
-    # restore the flat bed before the robot is placed on it
-    reset_mpm_state = EventTerm(
-        func=mpm_mdp.reset_mpm_state,
-        mode="reset",
-    )
-
     # Randomize the reset pose around the configured sand-surface spawn position.
     reset_base = EventTerm(
-        func=mpm_mdp.reset_root_state_on_terrain,
+        func=mpm_mdp.reset_root_state_on_terrain, # type: ignore
         mode="reset",
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-0.3, 0.3)},
@@ -98,9 +92,9 @@ class G1EventCfg:
     interval
     """
 
-    # push_robot = EventTerm(
-    #     func=mdp.push_by_setting_velocity,
-    #     mode="interval",
-    #     interval_range_s=(10.0, 15.0),
-    #     params={"velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)}},
-    # )
+    push_robot = EventTerm(
+        func=mdp.push_by_setting_velocity,
+        mode="interval",
+        interval_range_s=(10.0, 15.0),
+        params={"velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)}},
+    )

@@ -11,6 +11,7 @@ from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
+from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
@@ -25,7 +26,7 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .util.solver_setting import configure_sparse_mpm_capacities
-from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchRTXVisualizerCfg
+from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchKitVisualizerCfg, MovingPatchRTXVisualizerCfg
 
 
 @configclass
@@ -75,7 +76,7 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         IsaacLab calls this through ``cfg.validate()`` after CLI/Hydra overrides.
         Repeated validation recomputes derived settings without replacing the solvers.
         """
-        if self.sim.physics.use_cuda_graph:
+        if self.sim.physics.use_cuda_graph: # type: ignore
             raise ValueError("Moving-patch particle updates require sim.physics.use_cuda_graph=False")
         self.scene.configure_terrain()
         self.sim.physics.configure_terrain(self.scene.terrain.moving_patch_terrain, self.proxy_mass_scale)  # type: ignore
@@ -85,9 +86,11 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         self.episode_length_s = 20.0
         self.sim.render_interval = self.decimation
 
+        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(3.0, -4.0, 2.0), show_particles=True),
-            MovingPatchRTXVisualizerCfg(eye=(3.0, -4.0, 2.0), show_particles=True),
+            MovingPatchGLVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [
             VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
@@ -120,8 +123,10 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.debug_vis = False
 
+        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(eye=(0.0, -15.0, 4.0)),
-            # MovingPatchRTXVisualizerCfg(eye=(3.0, -4.0, 2.0), show_particles=True),
+            MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0)),
+            MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
         self.video_recorders = []

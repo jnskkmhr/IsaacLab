@@ -26,33 +26,27 @@ from .kernel import sample_heights
 class MovingPatchTerrainCfg:
     """Alpha terrain: retain simulated particles and regenerate particles entering the patch."""
 
-    moving_terrain_size: tuple[float, float] = (1.3, 1.3)
+    moving_terrain_size: tuple[float, float] = MISSING
     """Width of continuously simulated terrain [m], along X and Y."""
-    boundary_terrain_size: float = 0.2
+    boundary_terrain_size: float = MISSING
     """Width of the zero-mass boundary on each side [m]."""
-    tracked_body: str = "pelvis"
+    tracked_body: str = "base"
     """Exact robot body name used to center the patch in each environment."""
-    particle_depth: float = 0.25
+    particle_depth: float = MISSING
     """Vertical particle-layer depth below the undisturbed terrain surface [m]."""
-    robot_spawn_height: float = 0.76
+    robot_spawn_height: float = MISSING
     """Initial robot root height above the sand surface [m]."""
-    shift_step: float = 0.2
+    shift_step: float = MISSING
     """Patch-center quantization distance [m]."""
-    voxel_size: float = 0.04
+    voxel_size: float = MISSING
     """MPM background-grid voxel size [m]."""
-    particles_per_cell: float = 1.25
+    particles_per_cell: float = MISSING
     """Particle samples along each voxel dimension (IsaacLab MPMGridCfg convention)."""
-    jitter: float = 0.05
+    jitter: float = MISSING
     """MPMGridCfg jitter as a fraction of lattice spacing, not Newton's jitter distance."""
-    material: MPMParticleMaterialCfg = MPMParticleMaterialCfg(
-        density=2700.0,
-        young_modulus=15.0e6,
-        poisson_ratio=0.3,
-        friction=math.tan(math.radians(40.0)),
-        yield_pressure=1.0e12,
-    )
+    material: MPMParticleMaterialCfg = MISSING
     """Particle density and constitutive parameters, shared by initial and recycled particles."""
-    floor_thickness: float = 0.1
+    floor_thickness: float = MISSING
     """Thickness of the static supporting floor below the sand [m]."""
     show_boundary_particles: bool = False
     """Render the kinematic boundary along with simulated particles."""
@@ -162,7 +156,7 @@ class BackgroundTerrainImporter(TerrainImporter):
         # physics_cfg.py assigns "terrain" to MJWarp and "mpm_ground_mesh" to MPM.
         # The coupler does not allow one collider to belong to both solvers.
         super().import_mesh(name, ground_mesh)
-        super().import_mesh("mpm_support", ground_mesh)
+        super().import_mesh("mpm_ground", ground_mesh)
 
         # for path in self.terrain_prim_paths:
         #     mpm = path.endswith("/mpm_support")
@@ -214,7 +208,7 @@ class BackgroundTerrainImporterCfg(TerrainImporterCfg):
     rigid_contact_gap: float = MISSING
     """Rigid support contact detection gap [m], supplied by scene configuration."""
 
-    moving_patch_terrain: MovingPatchTerrainCfg = MovingPatchTerrainCfg()
+    moving_patch_terrain: MovingPatchTerrainCfg = MISSING
     """Particle sampling, material, simulated terrain and boundary settings."""
 
     def validate_geometry(self) -> None:
