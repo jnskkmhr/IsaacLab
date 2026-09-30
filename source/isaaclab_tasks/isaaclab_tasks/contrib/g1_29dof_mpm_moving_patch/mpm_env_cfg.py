@@ -89,14 +89,23 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
-            MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
-            MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            # MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [
             VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]
+
+        # check if terrain levels curriculum is enabled - if so, enable curriculum for terrain generator
+        # this generates terrains with increasing difficulty and is useful for training
+        if getattr(self.curriculum, "terrain_levels", None) is not None:
+            if self.scene.terrain.terrain_generator is not None:
+                self.scene.terrain.terrain_generator.curriculum = True
+        else:
+            if self.scene.terrain.terrain_generator is not None:
+                self.scene.terrain.terrain_generator.curriculum = False
 
 
 @configclass
@@ -117,6 +126,7 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # override command ranges for the PLAY configuration
+        self.curriculum.command_vel = None  # type: ignore
         self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
@@ -127,6 +137,6 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(eye=(0.0, -15.0, 4.0)),
             MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0)),
-            MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
+            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
         self.video_recorders = []

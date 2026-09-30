@@ -17,6 +17,7 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import CameraCfg
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporterCfg
+import isaaclab.terrains as terrain_gen
 from isaaclab.terrains.height_field.hf_terrains_cfg import HfWaveTerrainCfg
 from isaaclab.terrains.trimesh.mesh_terrains_cfg import MeshPlaneTerrainCfg
 from isaaclab.utils import configclass
@@ -44,7 +45,7 @@ VOXEL_SIZE = 0.04
 GENERATOR = TerrainGeneratorCfg(
     seed=42,
     size=(30.0, 30.0),
-    num_rows=1,
+    num_rows=3,
     num_cols=1,
     border_width=0.0,
     horizontal_scale=0.1,
@@ -52,11 +53,40 @@ GENERATOR = TerrainGeneratorCfg(
     sub_terrains={
         # One tile is selected by these weights; entries are not blended.
         # To select waves, set flat.proportion=0.0 and waves.proportion=1.0.
-        # "flat": MeshPlaneTerrainCfg(proportion=1.0),
+        "flat": MeshPlaneTerrainCfg(),
         "waves": HfWaveTerrainCfg(
             amplitude_range=(0.4, 0.4),
             num_waves=4,
             border_width=0.5,
+        ),
+    },
+)
+
+ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
+    seed=42,
+    size=(8.0, 8.0),
+    border_width=20.0,
+    num_rows=10,
+    num_cols=20,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    slope_threshold=0.75,
+    use_cache=False,
+    sub_terrains={
+        "wave": terrain_gen.HfWaveTerrainCfg(
+            proportion=0.2,
+            amplitude_range=(0.1, 0.4),
+            num_waves=4,
+            border_width=0.25,
+        ),
+        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+            proportion=0.2, noise_range=(0.02, 0.10), noise_step=0.02, border_width=0.25
+        ),
+        "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
+            proportion=0.2, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25
+        ),
+        "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
+            proportion=0.2, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25
         ),
     },
 )
@@ -91,7 +121,9 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         collision_group=-1,
-        terrain_generator=GENERATOR,
+        # terrain_generator=GENERATOR,
+        terrain_generator=ROUGH_TERRAINS_CFG,
+        max_init_terrain_level=0,
         physics_material=RigidBodyMaterialBaseCfg(static_friction=0.9, dynamic_friction=0.8),
         moving_patch_terrain=MovingPatchTerrainCfg(
             moving_terrain_size=(1.3, 1.3),
@@ -121,7 +153,8 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         terrain_type="generator",
         disable_collider=True,
         use_terrain_origins=False,
-        terrain_generator=GENERATOR.copy(), # type: ignore
+        # terrain_generator=GENERATOR.copy(), # type: ignore
+        terrain_generator=ROUGH_TERRAINS_CFG.copy(), # type: ignore
         mesh_origin_offset=(0.0, 0.0, -0.15),
     )
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore

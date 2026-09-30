@@ -5,7 +5,9 @@
 
 from isaaclab.utils.configclass import configclass
 
-from isaaclab_rl.rsl_rl import RslRlMLPModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
+from isaaclab_rl.rsl_rl import RslRlMLPModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg, RslRlSymmetryCfg
+
+from isaaclab_tasks.contrib.velocity.config.vel_mdp import compute_mirrored_states
 
 
 @configclass
@@ -16,7 +18,7 @@ class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     obs_groups = {
         "actor": ["policy", "command"],
         "critic": ["critic", "command", "privileged"],
-        }
+    }
     actor = RslRlMLPModelCfg(
         hidden_dims=[512, 256, 128],
         activation="elu",
@@ -41,6 +43,10 @@ class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         lam=0.95,
         desired_kl=0.01,
         max_grad_norm=1.0,
+        symmetry_cfg=RslRlSymmetryCfg(
+            use_data_augmentation=True,
+            data_augmentation_func=compute_mirrored_states,
+        ),
     )
     logger = "wandb"
     # wandb_project = "g1_29dof_soft_vanilla_ppo"
