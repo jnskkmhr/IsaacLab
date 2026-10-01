@@ -31,6 +31,26 @@ WAVE_TERRAINS_CFG = TerrainGeneratorCfg(
     },
 )
 
+SLOPE_TERRAINS_CFG = TerrainGeneratorCfg(
+    seed=42,
+    size=(20.0, 20.0),
+    border_width=5.0,
+    num_rows=1,
+    num_cols=1,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    slope_threshold=0.75,
+    use_cache=False,
+    sub_terrains={
+        # "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
+        #     slope_range=(0.4, 0.4), platform_width=2.0, border_width=0.25
+        # ),
+        "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
+            slope_range=(0.4, 0.4), platform_width=2.0, border_width=0.25
+        ),
+    },
+)
+
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
     seed=42,
     size=(8.0, 8.0),

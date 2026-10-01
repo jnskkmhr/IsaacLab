@@ -94,6 +94,9 @@ def update_particles(
     # Toroidal wrapping retains overlap and restores fresh material at the entering edge.
     x = ref[0] + wp.floor((center[0] + 0.5 * outer[0] - ref[0]) / outer[0]) * outer[0]
     y = ref[1] + wp.floor((center[1] + 0.5 * outer[1] - ref[1]) / outer[1]) * outer[1]
+    # Float32 wrapping can round past the patch edge and miss the terrain at its outer boundary.
+    x = wp.clamp(x, center[0] - 0.5 * outer[0], center[0] + 0.5 * outer[0])
+    y = wp.clamp(y, center[1] - 0.5 * outer[1], center[1] + 0.5 * outer[1])
     anchor = anchors[i]
     if wp.abs(anchor[0] - x) > 1.0e-5 or wp.abs(anchor[1] - y) > 1.0e-5 or reset[world] != 0:
         hit, height = surface_height(surface_mesh, x, y, ray_z, ray_length)

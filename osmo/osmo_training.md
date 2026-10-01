@@ -13,23 +13,23 @@ Custom images must also provide Git and either uv or curl.
 
 ```bash
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
-  --pool isaac-lab-l40s-07 \
-  --set num_nodes=4 num_gpu=1 \
+  --pool isaac-lab-l40-07 \
+  --set num_nodes=20 num_gpu=1 \
   --set-string \
     platform=ovx-l40 \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch --num_envs 48 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
+    args="--task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
 
 
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --pool isaac-lab-l40s-03 \
-  --set num_nodes=4 num_gpu=1 \
+  --set num_nodes=30 num_gpu=1 \
   --set-string \
     platform=ovx-l40s \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch --num_envs 48 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
+    args="--task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
 ```
 
 Append `--dry-run` to render the workflow without submitting or syncing files.

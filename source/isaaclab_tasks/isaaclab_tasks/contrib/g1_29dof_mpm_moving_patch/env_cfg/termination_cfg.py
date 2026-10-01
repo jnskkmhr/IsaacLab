@@ -9,6 +9,7 @@ from isaaclab.managers import SceneEntityCfg, TerminationTermCfg
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.vel_mdp as vel_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 
 from .. import mdp as mpm_mdp
@@ -29,11 +30,20 @@ class G1TerminationsCfg:
     bad_orientation = TerminationTermCfg(func=mdp.bad_orientation, params={"limit_angle": math.pi/4})
     terrain_out_of_bounds = TerminationTermCfg(
         func=mpm_mdp.root_outside_workspace,
-        params={"margin": 0.3, "asset_cfg": SceneEntityCfg("robot")},
+        params={"margin": 0.5, "asset_cfg": SceneEntityCfg("robot")},
     )
+
+    extreme_action = TerminationTermCfg(
+            func=vel_mdp.ExtremeJointPositionAction,  # type: ignore
+            params={
+                "action_name": "joint_pos",
+                "torque_fraction": 5.0,
+                "asset_cfg": SceneEntityCfg("robot"),
+            },
+        )
 
     # a diverged granular solve leaves the world NaN, where every thresholded term stays false
     solver_diverged = TerminationTermCfg(
-        func=mpm_mdp.root_state_not_finite,
+        func=mpm_mdp.root_state_infinite,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )

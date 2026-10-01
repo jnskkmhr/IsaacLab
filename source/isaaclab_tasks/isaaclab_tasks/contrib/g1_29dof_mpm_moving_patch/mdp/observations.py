@@ -29,7 +29,7 @@ def foot_contact(env: G1MovingPatchEnv) -> torch.Tensor:
     Returns:
         The flags as ``float``, shape ``(num_envs, foot_count)``.
     """
-    return env.foot_contact()
+    return env.foot_contact
 
 
 def foot_contact_force(env: G1MovingPatchEnv, force_filter_threshold: float = 1.0) -> torch.Tensor:
@@ -47,7 +47,7 @@ def foot_contact_force(env: G1MovingPatchEnv, force_filter_threshold: float = 1.
         The compressed forces, shape ``(num_envs, 3 * foot_count)``.
     """
     max_force = 1000.0
-    forces = env.foot_contact_force().clamp(-max_force, max_force).reshape(env.num_envs, -1)
+    forces = env.foot_contact_force.clamp(-max_force, max_force).reshape(env.num_envs, -1)
     forces = forces * (forces.abs() > force_filter_threshold).float()
     return torch.sign(forces) * torch.log1p(torch.abs(forces))
 
@@ -62,7 +62,7 @@ def foot_contact_force_raw(env: G1MovingPatchEnv, force_filter_threshold: float 
     Returns:
         The forces [N], shape ``(num_envs, 3 * foot_count)``.
     """
-    forces = env.foot_contact_force().reshape(env.num_envs, -1)
+    forces = env.foot_contact_force.reshape(env.num_envs, -1)
     return forces * (forces.abs() > force_filter_threshold).float()
 
 
@@ -76,7 +76,7 @@ def foot_air_time(env: G1MovingPatchEnv, filter_time: float = 0.5) -> torch.Tens
     Returns:
         The air times [s], shape ``(num_envs, foot_count)``.
     """
-    air_time = env.foot_air_time()
+    air_time = env.foot_air_time
     return torch.where(air_time > filter_time, 0.0, air_time)
 
 

@@ -11,9 +11,10 @@ __all__ = [
     "foot_contact_force",
     "foot_contact_force_raw",
     "no_fly",
+    "metric_sliderbar",
     "reset_root_state_on_terrain",
     "root_outside_workspace",
-    "root_state_not_finite",
+    "root_state_infinite",
     "terrain_levels_vel",
     "terrain_material_parameters",
 ]
@@ -29,5 +30,5 @@ from .observations import (
     foot_contact_force_raw,
     terrain_material_parameters,
 )
-from .rewards import feet_air_time_positive_biped, feet_pitch_contact, no_fly
-from .terminations import root_outside_workspace, root_state_not_finite
+from .rewards import feet_air_time_positive_biped, feet_pitch_contact, metric_sliderbar, no_fly
+from .terminations import root_outside_workspace, root_state_infinite

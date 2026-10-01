@@ -22,7 +22,7 @@ def root_outside_workspace(
     env: G1MovingPatchEnv, margin: float = 0.3, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
     """Terminate outside terrain XY bounds inset by boundary width plus margin [m]."""
-    bounds = env.scene.terrain.background_mesh.bounds
+    bounds = env.scene.terrain.background_mesh.bounds # type: ignore
     root = env.scene[asset_cfg.name].data.root_pos_w.torch[:, :2]
     pad = env.cfg.scene.terrain.moving_patch_terrain.boundary_terrain_size + margin
     lo = torch.tensor(bounds[0, :2] + pad, device=env.device)
@@ -30,7 +30,7 @@ def root_outside_workspace(
     return ((root < lo) | (root > hi)).any(dim=1)
 
 
-def root_state_not_finite(env: G1MovingPatchEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+def root_state_infinite(env: G1MovingPatchEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Terminate when the coupled solve left the base state non-finite.
 
     A diverging granular solve turns a whole world's particle and body state into ``NaN``. Every

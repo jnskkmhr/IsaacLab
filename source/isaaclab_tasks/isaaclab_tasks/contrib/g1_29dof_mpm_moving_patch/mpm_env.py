@@ -43,6 +43,10 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         # carries a NaN reward even though `solver_diverged` already reset it. One NaN sample is
         # enough to destroy a policy update, so it is scrubbed here.
         torch.nan_to_num_(reward, nan=0.0, posinf=0.0, neginf=0.0)
+        # Preserve pre-reset diagnostics and give the logger a fresh per-step snapshot.
+        observation_metrics = extras.pop("_observation_metrics", None)
+        if observation_metrics is not None:
+            extras["log"] = {**extras.get("log", {}), **observation_metrics}
         return obs, reward, terminated, truncated, extras
 
     def load_managers(self) -> None:
@@ -60,7 +64,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             coupled_solver=NewtonManager._solver,
             terrain=self.cfg.scene.terrain.moving_patch_terrain,
             entry_name=MPM_ENTRY,
-            background_mesh=terrain.background_mesh, # type: ignore
+            background_mesh=terrain.background_mesh,  # type: ignore
         )
         NewtonManager.register_state_force_callback(self._update_moving_patch_particle)
         NewtonManager.register_post_step_callback(self._restore_boundary_particles)
@@ -90,39 +94,51 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         self.moving_patch_particle = None
         super().close()
 
+    """
+    properties
+    """
+
     @property
     def foot_count(self) -> int:
         """Number of feet tracked against the granular bed."""
         return self._foot_body_ids.shape[1]
 
-    """
-    Contact state accessors used by the MDP terms.
-    """
-
+    @property
     def foot_contact_force(self) -> torch.Tensor:
-        """Granular reaction force on each foot in world frame [N], shape ``(num_envs, foot_count, 3)``."""
+        """Granular reaction force in world frame [N], shape ``(num_envs, foot_count, 3)``.
+
+        Nonfinite components are reported as zero; the solver's feedback buffer is unchanged.
+        """
         self.update_contact_state()
         return self._foot_contact_force
 
+    @property
     def foot_contact(self) -> torch.Tensor:
         """Contact flag per foot as ``float``, shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_contact.float()
 
+    @property
     def foot_first_contact(self) -> torch.Tensor:
         """Whether a foot touched down this step as ``float``, shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_first_contact.float()
 
+    @property
     def foot_air_time(self) -> torch.Tensor:
         """Time since each foot last left the bed [s], shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_air_time
 
+    @property
     def foot_contact_time(self) -> torch.Tensor:
         """Time since each foot last touched the bed [s], shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_contact_time
+
+    """
+    Contact state accessors used by the MDP terms.
+    """
 
     def update_contact_state(self) -> None:
         """Harvest the proxy feedback wrench and advance the gait timers, at most once per step."""
@@ -249,13 +265,19 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         )
 
     def _refresh_contact_forces(self) -> None:
-        """Read the proxy feedback wrench and rebuild the contact flag from it."""
+        """Read feedback, replace nonfinite components with zero, and rebuild contact flags."""
         # the coupler stores the feedback as (force, torque); only the linear part is a contact force
         forces = wp.to_torch(self._coupling_forces, requires_grad=False)[:, :3]
         self._foot_contact_force = forces[self._foot_body_ids].to(self.device)
+        # Retain evidence of invalid feedback even if a reset clears it later in this step.
+        nonfinite_fraction = (~torch.isfinite(self._foot_contact_force)).float().mean()
+        metrics = self.extras.setdefault("_observation_metrics", {})
+        key = "Metrics/mpm/contact_force_nonfinite_fraction"
+        metrics[key] = torch.maximum(metrics.get(key, nonfinite_fraction), nonfinite_fraction)
+        torch.nan_to_num_(self._foot_contact_force, nan=0.0, posinf=0.0, neginf=0.0)
         force_magnitude = torch.norm(self._foot_contact_force, dim=-1)
         self._foot_contact = force_magnitude > self.cfg.foot_contact_force_threshold
 
     def _reset_idx(self, env_ids: Sequence[int] | torch.Tensor | slice) -> None:
-        super()._reset_idx(env_ids) # type: ignore
+        super()._reset_idx(env_ids)  # type: ignore
         self.reset_mpm_state(env_ids)

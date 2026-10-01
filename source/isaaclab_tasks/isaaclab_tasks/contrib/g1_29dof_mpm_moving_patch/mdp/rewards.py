@@ -41,8 +41,8 @@ def feet_air_time_positive_biped(
     Returns:
         The reward, shape ``(num_envs,)``.
     """
-    air_time = env.foot_air_time()
-    contact_time = env.foot_contact_time()
+    air_time = env.foot_air_time
+    contact_time = env.foot_contact_time
     in_contact = contact_time > 0.0
     in_mode_time = torch.where(in_contact, contact_time, air_time)
     single_stance = torch.sum(in_contact.int(), dim=1) == 1
@@ -71,7 +71,7 @@ def no_fly(
     Returns:
         The penalty, shape ``(num_envs,)``.
     """
-    airborne = torch.sum(env.foot_contact(), dim=-1) < 0.5
+    airborne = torch.sum(env.foot_contact, dim=-1) < 0.5
     command_speed = torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1)
     return airborne.float() * (command_speed < velocity_threshold).float()
 
@@ -93,4 +93,54 @@ def feet_pitch_contact(
     body_quat = asset.data.body_quat_w.torch[:, asset_cfg.body_ids, :]
     _, pitch, _ = euler_xyz_from_quat(body_quat.reshape(-1, 4))
     pitch = pitch.reshape(body_quat.shape[0], body_quat.shape[1])
-    return torch.sum(torch.square(pitch) * env.foot_first_contact(), dim=-1)
+    return torch.sum(torch.square(pitch) * env.foot_first_contact, dim=-1)
+
+
+def metric_sliderbar(
+    env: G1MovingPatchEnv,
+    obs_term_names: list[str],
+    obs_group_name: str = "privileged",
+) -> torch.Tensor:
+    """Log current observation statistics without contributing to the reward.
+
+    The selected functions are evaluated before reset, without manager noise, modifiers,
+    scaling, clipping, delay, or history updates. Use state-reading observation functions;
+    stateful observation terms would be advanced by this additional evaluation.
+    ``G1MovingPatchEnv.step`` forwards the metrics to ``extras["log"]`` after resets,
+    which RSL-RL consumes through its existing logger.
+
+    Each flattened component logs its finite-value mean, maximum absolute finite value,
+    and nonfinite fraction across environments. All-invalid components report zero for
+    the first two statistics and one for the nonfinite fraction. Physical units match
+    those of the selected observation function. No observation values are modified.
+
+    Args:
+        env: Moving-patch environment instance.
+        obs_term_names: Observation term names within the selected group.
+        obs_group_name: Observation group to inspect. Defaults to ``"privileged"``.
+
+    Returns:
+        Zeros, shape ``(num_envs,)``. Configure a nonzero reward weight so the reward
+        manager invokes this diagnostic term.
+    """
+    manager = env.observation_manager
+    if obs_group_name not in manager.active_terms:
+        raise ValueError(f"Unknown observation group: {obs_group_name!r}.")
+    group_cfg = manager.cfg[obs_group_name] if isinstance(manager.cfg, dict) else getattr(manager.cfg, obs_group_name)
+    metrics = env.extras.setdefault("_observation_metrics", {})
+    for name in obs_term_names:
+        if name not in manager.active_terms[obs_group_name]:
+            raise ValueError(f"Unknown observation term: {obs_group_name}/{name}.")
+        term_cfg = group_cfg[name] if isinstance(group_cfg, dict) else getattr(group_cfg, name)
+        values = term_cfg.func(env, **term_cfg.params).detach().reshape(env.num_envs, -1)
+        finite = torch.isfinite(values)
+        safe_values = torch.where(finite, values, 0.0)
+        means = safe_values.sum(dim=0) / finite.sum(dim=0).clamp_min(1)
+        maxima = safe_values.abs().amax(dim=0)
+        nonfinite = (~finite).float().mean(dim=0)
+        prefix = f"Metrics/observations/{obs_group_name}/{name}"
+        for index in range(values.shape[1]):
+            metrics[f"{prefix}/mean_{index}"] = means[index]
+            metrics[f"{prefix}/abs_max_{index}"] = maxima[index]
+            metrics[f"{prefix}/nonfinite_fraction_{index}"] = nonfinite[index]
+    return torch.zeros(env.num_envs, device=env.device)

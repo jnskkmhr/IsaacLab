@@ -18,14 +18,32 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.vel_mdp as vel_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 
 from .. import mdp as mpm_mdp
+from .scene_cfg import SAND_DEPTH
 
 
 @configclass
 class G1RewardsCfg:
     """Reward terms for the MDP."""
+
+    metric_sliderbar = RewTerm(
+        func=mpm_mdp.metric_sliderbar,
+        weight=1.0,  # Zero-valued diagnostic; a zero weight would skip evaluation.
+        params={
+            "obs_group_name": "privileged",
+            "obs_term_names": [
+                # "base_lin_vel",
+                "foot_height",
+                "foot_contact",
+                "foot_contact_force",
+                "foot_air_time",
+                # "terrain_material_parameters",
+            ],
+        },
+    )
 
     """
     task rewards
@@ -62,7 +80,11 @@ class G1RewardsCfg:
     )
 
     # -- base penalties
-    base_height = RewTerm(func=mdp.base_height_l2, weight=-10, params={"target_height": 0.75})
+    base_height = RewTerm(
+        func=mdp.base_height_l2,
+        weight=-10,
+        params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
+    )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
@@ -133,69 +155,69 @@ class G1RewardsCfg:
         },
     )
 
-    """
-    foot orientation
-    """
+    # """
+    # foot orientation
+    # """
 
-    feet_roll = RewTerm(
-        func=g1_mdp.reward_feet_roll,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_roll = RewTerm(
+    #     func=g1_mdp.reward_feet_roll,
+    #     weight=-1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
-    feet_roll_diff = RewTerm(
-        func=g1_mdp.reward_feet_roll_diff,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_roll_diff = RewTerm(
+    #     func=g1_mdp.reward_feet_roll_diff,
+    #     weight=-1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
-    feet_pitch = RewTerm(
-        func=g1_mdp.reward_feet_pitch,
-        weight=-4.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_pitch = RewTerm(
+    #     func=g1_mdp.reward_feet_pitch,
+    #     weight=-4.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
-    feet_pitch_diff = RewTerm(
-        func=g1_mdp.reward_feet_pitch_diff,
-        weight=-4.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
-    # avoid toe contact
-    feet_pitch_contact = RewTerm(
-        func=mpm_mdp.feet_pitch_contact,
-        weight=-4.0,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                body_names=[".*ankle_roll.*"],
-                preserve_order=True,
-            ),
-        },
-    )
+    # feet_pitch_diff = RewTerm(
+    #     func=g1_mdp.reward_feet_pitch_diff,
+    #     weight=-4.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
+    # # avoid toe contact
+    # feet_pitch_contact = RewTerm(
+    #     func=mpm_mdp.feet_pitch_contact,
+    #     weight=-4.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
+    #     },
+    # )
 
     """
     gait
@@ -244,7 +266,7 @@ class G1RewardsCfg:
     """
 
     foot_clearance = RewTerm(
-        func=g1_mdp.foot_clearance_reward,
+        func=vel_mdp.foot_clearance_reward,
         weight=5.0,
         params={
             "target_height": 0.1,
@@ -252,5 +274,7 @@ class G1RewardsCfg:
             "tanh_mult": 2.0,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
             "standing_position_foot_z": 0.03539,
+            "height_sensor_cfg": SceneEntityCfg("height_scanner"),
+            "ground_height_offset": SAND_DEPTH,
         },
     )

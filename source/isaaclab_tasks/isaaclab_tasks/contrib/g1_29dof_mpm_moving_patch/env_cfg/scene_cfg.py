@@ -15,7 +15,7 @@ import isaaclab.sim as sim_utils
 import isaaclab.terrains as terrain_gen
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import CameraCfg
+from isaaclab.sensors import CameraCfg, ContactSensorCfg, RayCasterCfg, patterns
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
@@ -39,6 +39,8 @@ FLOOR_CONTACT_GAP = 0.002
 """Rigid catch-floor contact detection gap [m]."""
 VOXEL_SIZE = 0.04
 """MPM voxel size [m]."""
+SAND_DEPTH = 0.25
+"""Additional depth of the sand layer above the ground [m]."""
 
 
 @configclass
@@ -79,7 +81,7 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             moving_terrain_size=(1.2, 1.2),
             boundary_terrain_size=0.2,
             tracked_body="pelvis",
-            particle_depth=0.25,
+            particle_depth=SAND_DEPTH,
             robot_spawn_height=0.76,
             shift_step=0.2,
             voxel_size=VOXEL_SIZE,
@@ -94,7 +96,6 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             ),
             floor_thickness=0.1,
             show_boundary_particles=False,
-            # show_boundary_particles=True,
             visual_color=(0.72, 0.55, 0.34),
         ),
     )
@@ -108,7 +109,7 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         # terrain_generator=terrain_cfg.FLAT_TERRAINS_CFG,
         # terrain_generator=terrain_cfg.WAVE_TERRAINS_CFG,
         terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
-        mesh_origin_offset=(0.0, 0.0, -0.25),
+        mesh_origin_offset=(0.0, 0.0, -SAND_DEPTH),
     )
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",
@@ -129,6 +130,18 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             },
         ),
     )
+
+    height_scanner = RayCasterCfg(
+        # the URDF importer nests bodies along the kinematic tree, so match the leaf name anywhere
+        prim_path="{ENV_REGEX_NS}/Robot/.*pelvis",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0)),
+        ray_alignment="yaw",
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(0.2, 0.2)),
+        mesh_prim_paths=["/World/ground"],
+        global_world_only=True,
+        debug_vis=True,
+    )
+
     sand: MPMObjectCfg | None = None
 
     sky_light = AssetBaseCfg(

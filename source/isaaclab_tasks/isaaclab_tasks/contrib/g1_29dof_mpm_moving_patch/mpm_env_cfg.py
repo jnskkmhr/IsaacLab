@@ -15,6 +15,10 @@ from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
+    FLAT_TERRAINS_CFG,
+    ROUGH_TERRAINS_CFG,
+    SLOPE_TERRAINS_CFG,
+    WAVE_TERRAINS_CFG,
     G1ActionsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,
@@ -113,8 +117,12 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
-        for name in ("track_lin_vel", "track_ang_vel", "track_heading", "track_lin_vel_weight"):
-            setattr(self.curriculum, name, None)
+
+        # self.scene.terrain.terrain_generator = WAVE_TERRAINS_CFG
+        # self.scene.visual_terrain.terrain_generator = WAVE_TERRAINS_CFG
+        self.scene.terrain.terrain_generator = SLOPE_TERRAINS_CFG
+        self.scene.visual_terrain.terrain_generator = SLOPE_TERRAINS_CFG
+
         for name in ("add_base_mass", "push_robot", "physics_material", "scale_actuator_gains"):
             setattr(self.events, name, None)
         self.events.reset_base.params = {
@@ -125,11 +133,14 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
 
         # override command ranges for the PLAY configuration
         self.curriculum.command_vel = None  # type: ignore
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 1.0)
+        for name in ("track_lin_vel", "track_ang_vel", "track_heading", "track_lin_vel_weight"):
+            setattr(self.curriculum, name, None)
+
+        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         self.commands.base_velocity.rel_standing_envs = 0.0
-        self.commands.base_velocity.debug_vis = False
+        # self.commands.base_velocity.debug_vis = False
 
         self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
