@@ -28,13 +28,13 @@ if TYPE_CHECKING:
 
 def randomize_terrain_friction(
     env: ManagerBasedEnv,
-    env_ids: torch.Tensor,
+    env_ids: torch.Tensor | slice,
     friction_range: tuple[float, float],
     contact_solver_name: str = "physics_callback",
 ) -> None:
     contact_solver = env.action_manager.get_term(contact_solver_name).contact_solver
     friction_samples = math_utils.sample_uniform(
-        friction_range[0], friction_range[1], (len(env_ids),), device=env.device
+        friction_range[0], friction_range[1], env.scene.env_origins[env_ids].shape[:1], device=env.device
     )
     contact_solver.update_friction_params(env_ids, friction_samples, friction_samples)
     if "log" in env.extras.keys():
@@ -44,14 +44,14 @@ def randomize_terrain_friction(
 
 def randomize_terrain_stiffness(
     env: ManagerBasedEnv,
-    env_ids: Sequence[int],
+    env_ids: Sequence[int] | slice,
     stiffness_range: tuple[float, float],
     contact_solver_name: str = "physics_callback",
 ) -> None:
     # extract the used quantities (to enable type-hinting)
     contact_solver = env.action_manager.get_term(contact_solver_name).contact_solver
     stiffness_samples = math_utils.sample_uniform(
-        stiffness_range[0], stiffness_range[1], (len(env_ids),), device=env.device
+        stiffness_range[0], stiffness_range[1], env.scene.env_origins[env_ids].shape[:1], device=env.device
     )
     contact_solver.randomize_ground_stiffness(env_ids, stiffness_samples)
     if "log" in env.extras.keys():
@@ -61,7 +61,7 @@ def randomize_terrain_stiffness(
 
 def randomize_cone_model_terrain_stiffness(
     env: ManagerBasedEnv,
-    env_ids: Sequence[int],
+    env_ids: Sequence[int] | slice,
     sigma_flat_range: tuple[float, float],
     sigma_cone_range: tuple[float, float],
     contact_solver_name: str = "physics_callback",
@@ -69,10 +69,10 @@ def randomize_cone_model_terrain_stiffness(
     # extract the used quantities (to enable type-hinting)
     contact_solver = env.action_manager.get_term(contact_solver_name).contact_solver  # type: ignore
     sigma_flat_samples = math_utils.sample_uniform(
-        sigma_flat_range[0], sigma_flat_range[1], (len(env_ids),), device=env.device
+        sigma_flat_range[0], sigma_flat_range[1], env.scene.env_origins[env_ids].shape[:1], device=env.device
     )
     sigma_cone_samples = math_utils.sample_uniform(
-        sigma_cone_range[0], sigma_cone_range[1], (len(env_ids),), device=env.device
+        sigma_cone_range[0], sigma_cone_range[1], env.scene.env_origins[env_ids].shape[:1], device=env.device
     )
     contact_solver.randomize_ground_stiffness(env_ids, sigma_flat_samples, sigma_cone_samples)
     if "log" in env.extras.keys():
@@ -84,7 +84,7 @@ def randomize_cone_model_terrain_stiffness(
 
 def randomize_material_density(
     env: ManagerBasedEnv,
-    env_ids: Sequence[int],
+    env_ids: Sequence[int] | slice,
     packing_ratio_range: tuple[float, float],
     bulk_density_range: tuple[float, float],
     contact_solver_name: str = "physics_callback",
@@ -92,10 +92,10 @@ def randomize_material_density(
     # extract the used quantities (to enable type-hinting)
     contact_solver = env.action_manager.get_term(contact_solver_name).contact_solver
     packing_ratio = math_utils.sample_uniform(
-        packing_ratio_range[0], packing_ratio_range[1], (len(env_ids),), device=env.device
+        packing_ratio_range[0], packing_ratio_range[1], env.scene.env_origins[env_ids].shape[:1], device=env.device
     )
     bulk_density = math_utils.sample_uniform(
-        bulk_density_range[0], bulk_density_range[1], (len(env_ids),), device=env.device
+        bulk_density_range[0], bulk_density_range[1], env.scene.env_origins[env_ids].shape[:1], device=env.device
     )
     contact_solver.update_material_density(env_ids, packing_ratio, bulk_density)
     if "log" in env.extras.keys():
@@ -107,7 +107,7 @@ def randomize_material_density(
 
 def sample_terrain_property(
     env: ManagerBasedEnv,
-    env_ids: torch.Tensor,
+    env_ids: torch.Tensor | slice,
     friction_range: tuple[float, float],
     stiffness_range: tuple[float, float],
     packing_ratio_range: tuple[float, float],
@@ -167,7 +167,7 @@ def sample_terrain_property(
 
 def sample_terrain_property_linear(
     env: ManagerBasedEnv,
-    env_ids: torch.Tensor,
+    env_ids: torch.Tensor | slice,
     friction_range: tuple[float, float],
     stiffness_range: tuple[float, float],
     packing_ratio_range: tuple[float, float],
@@ -183,7 +183,7 @@ def sample_terrain_property_linear(
     The interpolation formula is:
         parameter = parameter_ub + (parameter_lb - parameter_ub) * ratio
     """
-    ratio = env.episode_length_buf / env.max_episode_length
+    ratio = env.episode_length_buf[env_ids] / env.max_episode_length
 
     # -- interpolate parameters: ub at ratio=0, lb at ratio=1
     friction_lb, friction_ub = friction_range

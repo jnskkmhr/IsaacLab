@@ -426,9 +426,6 @@ python-preference = "only-managed"
 package = false
 
 [tool.uv.sources]
-# Local fixes matching the pinned Warp 1.17.0 and Newton 1.6.0 releases.
-warp-lang = { path = "../newton_patch/warp", editable = true }
-newton = { path = "../newton_patch/newton", editable = true }
 omniverseclient = { index = "pypi-public" }
 ovphysx = { index = "pypi-public" }
 ovrtx = { index = "pypi-public" }

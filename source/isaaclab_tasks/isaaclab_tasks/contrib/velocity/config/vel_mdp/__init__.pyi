@@ -3,30 +3,30 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+__all__ = [
+    "ExtremeJointPositionAction",
+    "foot_clearance_reward",
+    "MirrorActionTermCfg",
+    "MirrorAugmentation",
+    "MirrorJointPositionActionCfg",
+    "MirrorObservationTermCfg",
+    "compute_mirrored_states",
+    "mirror_identity",
+    "mirror_joints",
+    "mirror_quat",
+    "mirror_vec3",
+]
+
+from .rewards import foot_clearance_reward
 from .symmetry import (
-    MirrorActionTermCfg as MirrorActionTermCfg,
+    MirrorActionTermCfg,
+    MirrorAugmentation,
+    MirrorJointPositionActionCfg,
+    MirrorObservationTermCfg,
+    compute_mirrored_states,
+    mirror_identity,
+    mirror_joints,
+    mirror_quat,
+    mirror_vec3,
 )
-from .symmetry import (
-    MirrorAugmentation as MirrorAugmentation,
-)
-from .symmetry import (
-    MirrorJointPositionActionCfg as MirrorJointPositionActionCfg,
-)
-from .symmetry import (
-    MirrorObservationTermCfg as MirrorObservationTermCfg,
-)
-from .symmetry import (
-    compute_mirrored_states as compute_mirrored_states,
-)
-from .symmetry import (
-    mirror_identity as mirror_identity,
-)
-from .symmetry import (
-    mirror_joints as mirror_joints,
-)
-from .symmetry import (
-    mirror_quat as mirror_quat,
-)
-from .symmetry import (
-    mirror_vec3 as mirror_vec3,
-)
+from .terminations import ExtremeJointPositionAction

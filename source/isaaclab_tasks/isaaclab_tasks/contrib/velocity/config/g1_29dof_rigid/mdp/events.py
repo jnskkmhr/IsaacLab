@@ -54,7 +54,7 @@ def reset_root_state_uniform_on_ground(
     # poses
     range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
     ranges = torch.tensor(range_list, device=asset.device)
-    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (len(env_ids), 6), device=asset.device)
+    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (root_states.shape[0], 6), device=asset.device)
 
     positions = root_states[:, 0:3] + rand_samples[:, 0:3]
     positions[:, :2] += env.scene.env_origins[env_ids][:, :2]
@@ -63,7 +63,7 @@ def reset_root_state_uniform_on_ground(
     # velocities
     range_list = [velocity_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
     ranges = torch.tensor(range_list, device=asset.device)
-    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (len(env_ids), 6), device=asset.device)
+    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (root_states.shape[0], 6), device=asset.device)
 
     velocities = root_states[:, 7:13] + rand_samples
 

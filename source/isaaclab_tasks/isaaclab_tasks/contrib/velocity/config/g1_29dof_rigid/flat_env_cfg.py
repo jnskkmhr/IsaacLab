@@ -28,7 +28,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
 
         # curriculum settings
         self.curriculum.terrain_levels = None  # type: ignore
-        self.curriculum.command_vel = None # type: ignore
+        # self.curriculum.command_vel = None # type: ignore
 
         # no height scan
         self.scene.height_scanner = None  # type: ignore

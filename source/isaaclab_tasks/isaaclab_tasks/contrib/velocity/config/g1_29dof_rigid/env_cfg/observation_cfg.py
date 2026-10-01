@@ -227,7 +227,7 @@ class PrivilegedObsCfg(ObsGroup):
         mirror=symmetry.mirror_foot_scalars,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")},
     )
-    terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
+    # terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
 
     def __post_init__(self):
         self.enable_corruption = False
