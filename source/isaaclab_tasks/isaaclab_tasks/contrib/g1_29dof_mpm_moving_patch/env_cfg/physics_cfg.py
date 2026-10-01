@@ -30,7 +30,7 @@ MPM_ENTRY = "sand"
 FOOT_PROXY_BODIES = [r"/World/envs/env_.*/Robot/.*ankle_roll_link"]
 """Rigid bodies handed to the MPM solver as colliders."""
 
-DEFAULT_PROXY_MASS_SCALE = 1.0
+DEFAULT_PROXY_MASS_SCALE = 3.0
 """Effective-mass scale applied to the proxied feet.
 """
 

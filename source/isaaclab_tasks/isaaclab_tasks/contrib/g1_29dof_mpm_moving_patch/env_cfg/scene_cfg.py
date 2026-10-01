@@ -17,9 +17,7 @@ from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import CameraCfg
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
-from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporterCfg
-from isaaclab.terrains.height_field.hf_terrains_cfg import HfWaveTerrainCfg
-from isaaclab.terrains.trimesh.mesh_terrains_cfg import MeshPlaneTerrainCfg
+from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
@@ -29,6 +27,7 @@ from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
 from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg
 from ..util.visual_terrain import TexturedTerrainImporterCfg
+from . import terrain_cfg
 
 MPM_COLLIDER_MARGIN = 0.0125
 """Supporting-floor MPM contact margin [m]."""
@@ -40,56 +39,6 @@ FLOOR_CONTACT_GAP = 0.002
 """Rigid catch-floor contact detection gap [m]."""
 VOXEL_SIZE = 0.04
 """MPM voxel size [m]."""
-
-
-GENERATOR = TerrainGeneratorCfg(
-    seed=42,
-    size=(20.0, 20.0),
-    num_rows=1,
-    num_cols=1,
-    border_width=0.0,
-    horizontal_scale=0.1,
-    curriculum=False,
-    sub_terrains={
-        # One tile is selected by these weights; entries are not blended.
-        # To select waves, set flat.proportion=0.0 and waves.proportion=1.0.
-        # "flat": MeshPlaneTerrainCfg(),
-        "waves": HfWaveTerrainCfg(
-            amplitude_range=(0.4, 0.4),
-            num_waves=4,
-            border_width=0.5,
-        ),
-    },
-)
-
-ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
-    seed=42,
-    size=(8.0, 8.0),
-    border_width=5.0,
-    num_rows=10,
-    num_cols=4,
-    horizontal_scale=0.1,
-    vertical_scale=0.005,
-    slope_threshold=0.75,
-    use_cache=False,
-    sub_terrains={
-        "wave": terrain_gen.HfWaveTerrainCfg(
-            proportion=0.2,
-            amplitude_range=(0.1, 0.4),
-            num_waves=4,
-            border_width=0.25,
-        ),
-        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.2, noise_range=(0.02, 0.10), noise_step=0.02, border_width=0.25
-        ),
-        "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
-            proportion=0.2, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25
-        ),
-        "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
-            proportion=0.2, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25
-        ),
-    },
-)
 
 
 @configclass
@@ -121,12 +70,13 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         collision_group=-1,
-        # terrain_generator=GENERATOR,
-        terrain_generator=ROUGH_TERRAINS_CFG,
+        # terrain_generator=terrain_cfg.FLAT_TERRAINS_CFG,
+        # terrain_generator=terrain_cfg.WAVE_TERRAINS_CFG,
+        terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
         max_init_terrain_level=0,
         physics_material=RigidBodyMaterialBaseCfg(static_friction=0.9, dynamic_friction=0.8),
         moving_patch_terrain=MovingPatchTerrainCfg(
-            moving_terrain_size=(1.3, 1.3),
+            moving_terrain_size=(1.2, 1.2),
             boundary_terrain_size=0.2,
             tracked_body="pelvis",
             particle_depth=0.25,
@@ -136,26 +86,29 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             particles_per_cell=1.25,
             jitter=0.05,
             material=MPMParticleMaterialCfg(
-                density=2700.0,
+                density=1000.0,
                 young_modulus=15.0e6,
                 poisson_ratio=0.3,
-                friction=math.tan(math.radians(40.0)),
+                friction=math.tan(math.radians(30.0)),
                 yield_pressure=1.0e12,
             ),
             floor_thickness=0.1,
             show_boundary_particles=False,
+            # show_boundary_particles=True,
             visual_color=(0.72, 0.55, 0.34),
         ),
     )
     visual_terrain: TerrainImporterCfg = TexturedTerrainImporterCfg(
         prim_path="/World/visual_terrain",
+        # disable_visual=True,
         collision_group=-1,
         terrain_type="generator",
         disable_collider=True,
         use_terrain_origins=False,
-        # terrain_generator=GENERATOR.copy(),  # type: ignore
-        terrain_generator=ROUGH_TERRAINS_CFG.copy(), # type: ignore
-        mesh_origin_offset=(0.0, 0.0, -0.15),
+        # terrain_generator=terrain_cfg.FLAT_TERRAINS_CFG,
+        # terrain_generator=terrain_cfg.WAVE_TERRAINS_CFG,
+        terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
+        mesh_origin_offset=(0.0, 0.0, -0.25),
     )
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",

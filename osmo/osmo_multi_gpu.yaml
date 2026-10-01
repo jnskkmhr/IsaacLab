@@ -1,0 +1,104 @@
+# Copyright (c) 2022-2026, Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Submit through run_multinode.sh to upload the checkout before training.
+# Task, checkpoint, logging, and video options are passed through args.
+workflow:
+  name: {{ workflow_name }}
+  resources:
+    train:
+      gpu: {{ num_gpu }}
+      cpu: {{ num_cpu }}
+      memory: {{ memory }}Gi
+      storage: {{ storage }}Gi
+      platform: {{ platform }}
+  groups:
+  - name: training
+    tasks:
+{% for rank in range(num_nodes) %}
+    - name: trainer-{{ rank }}
+{% if rank == 0 %}
+      lead: true
+{% endif %}
+      resource: train
+      image: {{ image }}
+      command: [bash, /tmp/run.sh]
+{% if wandb_credential %}
+      credentials:
+        "{{ wandb_credential }}":
+          WANDB_API_KEY: "{{ wandb_key }}"
+{% endif %}
+      environment:
+        HEADLESS: "1"
+        PYOPENGL_PLATFORM: egl
+        PYTHONUNBUFFERED: "1"
+        NVIDIA_DRIVER_CAPABILITIES: all
+        NCCL_DEBUG: WARN
+        TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+        OMP_NUM_THREADS: "{{ [1, num_cpu // num_gpu] | max }}"
+        MKL_NUM_THREADS: "{{ [1, num_cpu // num_gpu] | max }}"
+        OPENBLAS_NUM_THREADS: "{{ [1, num_cpu // num_gpu] | max }}"
+        UV_PYTHON: "3.12"
+        UV_PYTHON_PREFERENCE: only-managed
+        UV_PROJECT_ENVIRONMENT: /tmp/isaaclab-venv
+        UV_INSTALL_DIR: /tmp/uv
+        UV_NO_MODIFY_PATH: "1"
+      files:
+      - path: /tmp/run.sh
+        contents: |
+          set -euo pipefail
+          mkdir -p "{{output}}/logs"
+          unset PYTHONPATH VIRTUAL_ENV DISPLAY
+          export PATH="/tmp/uv:$PATH"
+          if ! command -v uv >/dev/null; then
+            curl --fail --location --retry 3 https://astral.sh/uv/{{ uv_version }}/install.sh | sh
+          fi
+          uv --version
+          git --version
+          cp -a "{{input:0}}" /tmp/isaaclab
+          cp -a "{{input:1}}" /tmp/isaaclab/source/isaaclab_assets/data
+          cd /tmp/isaaclab
+          ln -s "{{output}}/logs" logs
+          uv sync --locked {{ uv_args }} --no-install-package warp-lang
+          uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" --no-deps "{{input:2}}"/*.whl
+          uv run --no-sync isaaclab train_multigpu \
+            --rl_library {{ rl_library }} --num_gpus {{ num_gpu }} \
+            --nnodes {{ num_nodes }} --node_rank {{ rank }} \
+            --master_addr {{host:trainer-0}} --master_port {{ master_port }} \
+            {{ args }}
+      inputs:
+      - url: "{{ source_url }}"
+      - url: "{{ assets_url }}"
+      - url: "{{ warp_wheel_url }}"
+      outputs:
+      - url: "{{ output_url }}/{{workflow_id}}/rank-{{ rank }}"
+{% if rank == 0 %}
+      checkpoint:
+      - path: "{{output}}/logs"
+        url: "{{ output_url }}/{{workflow_id}}/rank-0/logs"
+        frequency: 10m
+{% endif %}
+{% endfor %}
+
+default-values:
+  workflow_name: isaac-lab-multinode
+  image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+  platform: ovx-l40s
+  num_nodes: 4
+  num_gpu: 1
+  num_cpu: 8
+  memory: 64
+  storage: 88
+  master_port: 29400
+  uv_version: 0.12.12
+  uv_args: --extra rsl-rl --extra wandb --extra video
+  rl_library: rsl_rl
+  args: ""
+  wandb_credential: ""
+  wandb_key: WANDB_API_KEY
+  output_url: ""
+  assets_url: ""
+  source_url: ""
+  warp_wheel_url: ""
