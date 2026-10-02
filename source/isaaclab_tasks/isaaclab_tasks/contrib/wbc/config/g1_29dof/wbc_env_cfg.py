@@ -48,6 +48,9 @@ class G1WholeBodyEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.visualizer_cfgs = [NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True)]
         self.video_recorders = [
             VideoRecorderCfg(
-                source="visualizer:newton_gl", video_length=1200, video_interval=10000, frame_stride=2, fps=30
+                source="visualizer:newton_gl",
+                output_dir=None,
+                video_length=200,
+                video_interval=2000
             )
         ]
