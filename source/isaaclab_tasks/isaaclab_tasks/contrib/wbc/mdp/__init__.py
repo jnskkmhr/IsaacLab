@@ -2,4 +2,8 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-"""Task-owned commands, observations, rewards, resets, and symmetry transforms."""
+"""WBC terms and shared Isaac Lab MDP implementations."""
+
+from isaaclab.utils.module import lazy_export
+
+lazy_export()

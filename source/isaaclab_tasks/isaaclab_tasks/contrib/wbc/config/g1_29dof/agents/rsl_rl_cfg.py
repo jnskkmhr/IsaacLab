@@ -14,7 +14,7 @@ from isaaclab_rl.rsl_rl import (
     RslRlSymmetryCfg,
 )
 
-from isaaclab_tasks.contrib.wbc.mdp.symmetry import augment_symmetry
+from isaaclab_tasks.contrib.velocity.config.vel_mdp import compute_mirrored_states
 
 
 def teacher_model() -> RslRlMLPModelCfg:
@@ -50,7 +50,7 @@ class G1WholeBodyTeacherRunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
         symmetry_cfg=RslRlSymmetryCfg(
             use_data_augmentation=True,
-            data_augmentation_func=augment_symmetry,
+            data_augmentation_func=compute_mirrored_states,
             use_mirror_loss=True,
             mirror_loss_coeff=0.1,
         ),

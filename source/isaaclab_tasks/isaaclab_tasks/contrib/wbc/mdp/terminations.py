@@ -20,10 +20,6 @@ def reference_finished(env: ManagerBasedRLEnv) -> torch.Tensor:
     return reference.frame >= reference.end_frame - 1
 
 
-def time_out(env: ManagerBasedRLEnv) -> torch.Tensor:
-    return env.episode_length_buf >= env.max_episode_length
-
-
 def fallen(env: ManagerBasedRLEnv) -> torch.Tensor:
     robot = env.scene["robot"]
     height = robot.data.root_pos_w.torch[:, 2] - env.scene.env_origins[:, 2]

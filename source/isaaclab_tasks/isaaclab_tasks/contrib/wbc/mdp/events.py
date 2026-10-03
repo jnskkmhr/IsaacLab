@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.utils.math import sample_uniform
+
 if TYPE_CHECKING:
+    from isaaclab.assets import Articulation
     from isaaclab.envs import ManagerBasedRLEnv
 
 
@@ -35,3 +39,29 @@ def reset_from_reference(env: ManagerBasedRLEnv, env_ids: torch.Tensor | slice) 
     )
     robot.write_root_state_to_sim(root_state, env_ids=env_ids)
     robot.write_joint_state_to_sim(joint_position, joint_velocity, env_ids=env_ids)
+
+
+def push_body(
+    env: ManagerBasedRLEnv,
+    env_ids: torch.Tensor | slice,
+    force_range: dict[str, tuple[float, float]],
+    torque_range: tuple[float, float],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> None:
+    """Apply a one-step world-frame wrench to selected bodies, regardless of foot contact.
+
+    Each force component is sampled independently in newtons; omitted axes receive zero
+    force. Torques are sampled in newton-metres. The instantaneous composer clears this
+    wrench after the next physics write, so it does not persist until the next interval.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    num_envs = len(range(env.num_envs)[env_ids]) if isinstance(env_ids, slice) else len(env_ids)
+    body_ids = asset_cfg.body_ids
+    num_bodies = len(range(asset.num_bodies)[body_ids]) if isinstance(body_ids, slice) else len(body_ids)
+    ranges = torch.tensor([force_range.get(axis, (0.0, 0.0)) for axis in ("x", "y", "z")], device=asset.device)
+    size = (num_envs, num_bodies, 3)
+    forces = sample_uniform(ranges[:, 0], ranges[:, 1], size, asset.device)
+    torques = sample_uniform(*torque_range, size, asset.device)
+    asset.instantaneous_wrench_composer.add_forces_and_torques_index(
+        forces=forces, torques=torques, body_ids=body_ids, env_ids=env_ids, is_global=True
+    )

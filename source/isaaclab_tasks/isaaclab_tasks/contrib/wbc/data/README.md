@@ -46,9 +46,18 @@ Allowed changes start at 0.25 radians RMS joint difference and increase to 1.0 r
 seconds after a switch; fall detection remains active. Foot targets use the group's exact
 anchors, avoiding changes from numerical IK residuals.
 
+Regularization uses Isaac Lab's joint-velocity, joint-acceleration, joint-torque, action-rate,
+joint-limit, and undesired-contact rewards. The contact penalty excludes both ankle-roll
+and wrist-yaw links. A three-frame contact sensor history captures transient contacts.
+
+Base-velocity and foot-force perturbations run independently every 5–10 seconds per
+environment, without stance gating. Base pushes add uniformly sampled world-frame X/Y
+velocity changes within ±1 m/s. Foot pushes apply a one-step world-frame X/Y force within
+±100 N to each ankle-roll link, with zero vertical force and torque.
+
 Term configurations live in `config/g1_29dof/env_cfg/`: commands, rewards, observations,
 actions, events, terminations, and curricula each have a `@configclass` collection.
-The command-specific schema is also in `env_cfg/commands_cfg.py`. `mdp/` contains
+The command-specific schema is in `mdp/commands.py`. `mdp/` contains
 implementations; `wbc_env_cfg.py` composes the environment.
 
 ## Generate a grouped dataset
@@ -94,3 +103,17 @@ targets were switched during subsequent 20-agent playback, 14 robots fell.
 
 The old run's scripts and independent-pose datasets target the previous static-hold
 implementation. Transition training uses the grouped dataset and periodic commands above.
+
+## Observation symmetry
+
+Teacher, student, and critic observations declare each term separately with its
+mirror rule, following the mimic task. PPO uses the shared `compute_mirrored_states`
+callback for observation/action augmentation and mirror loss. Joint channels use
+the configured G1 joint order; angular velocity uses axial-vector reflection, while
+gravity and linear velocity use polar-vector reflection. Target body terms swap
+left/right bodies and reflect their positions and orientations.
+
+Target positions and orientations are now separate terms rather than interleaved
+body poses. Observation dimensions remain 138 (student), 167 (teacher), and 201
+(critic), but their ordering changed. Retrain policies; previous WBC checkpoints
+and their observation normalization statistics are incompatible with this layout.

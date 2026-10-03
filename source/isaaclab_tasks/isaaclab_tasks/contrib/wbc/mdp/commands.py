@@ -5,18 +5,19 @@
 
 from __future__ import annotations
 
+from dataclasses import MISSING
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
 
-from isaaclab.managers import CommandTerm
+from isaaclab.managers import CommandTerm, CommandTermCfg
+from isaaclab.utils import configclass
 
 from .dataset import WholeBodyDataset
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
-
-    from ..config.g1_29dof.env_cfg.commands_cfg import WholeBodyCommandCfg
 
 
 class WholeBodyCommand(CommandTerm):
@@ -91,4 +92,17 @@ class WholeBodyCommand(CommandTerm):
 
     def _update_metrics(self) -> None:
         difference = self.robot.data.body_pos_w.torch[:, self.body_ids] - self.target_body_pos_w
-        self.metrics["position_error_m"] = difference.norm(dim=-1).mean(dim=-1)
+        self.metrics["position_error_m"][:] = difference.norm(dim=-1).mean(dim=-1)
+
+
+@configclass
+class WholeBodyCommandCfg(CommandTermCfg):
+    """Static targets resampled within a common foot stance, without resetting physical state."""
+
+    class_type: type = WholeBodyCommand
+    dataset_path: str = str(Path(__file__).resolve().parents[1] / "data" / "stance_poses.npz")
+    joint_names: list[str] = MISSING
+    body_names: list[str] = MISSING
+    resampling_time_range: tuple[float, float] = (4.0, 10.0)
+    initial_max_joint_rms: float = 0.25
+    tracking_grace_period: float = 2.0

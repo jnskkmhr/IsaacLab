@@ -35,14 +35,6 @@ def track_joint_position(env: ManagerBasedRLEnv, standard_deviation: float) -> t
     return torch.exp(-difference.square().mean(-1) / standard_deviation**2)
 
 
-def action_rate(env: ManagerBasedRLEnv) -> torch.Tensor:
-    return (env.action_manager.action - env.action_manager.prev_action).square().sum(-1)
-
-
-def joint_velocity(env: ManagerBasedRLEnv) -> torch.Tensor:
-    return env.scene["robot"].data.joint_vel.torch.square().sum(-1)
-
-
 def stance_foot_sliding(env: ManagerBasedRLEnv) -> torch.Tensor:
     reference = env.command_manager.get_term("whole_body")
     velocity = reference.robot.data.body_lin_vel_w.torch[:, reference.body_ids[1:3], :2]
