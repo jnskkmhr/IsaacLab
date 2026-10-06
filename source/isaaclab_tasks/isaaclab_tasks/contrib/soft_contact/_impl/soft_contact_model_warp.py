@@ -701,9 +701,11 @@ class RFT_3D:
     reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
         if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
+            env_ids = slice(None)
+        if isinstance(env_ids, slice):
+            env_ids = torch.arange(self.num_envs, device=self.device)[env_ids]
         # the managers hand out int32 indices, while the kernels below index with int64
         env_ids = env_ids.to(torch.int64)
 
@@ -1261,9 +1263,11 @@ class RFT_2D:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
         if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
+            env_ids = slice(None)
+        if isinstance(env_ids, slice):
+            env_ids = torch.arange(self.num_envs, device=self.device)[env_ids]
         # the managers hand out int32 indices, while the kernels below index with int64
         env_ids = env_ids.to(torch.int64)
 
@@ -1271,7 +1275,7 @@ class RFT_2D:
             kernel=reset_2d,
             dim=(len(env_ids), self.num_bodies * self.num_contact_points),
             inputs=[
-                wp.from_torch(env_ids.to(torch.int64), dtype=wp.int64),
+                wp.from_torch(env_ids, dtype=wp.int64),
                 self.force_gm,
                 self.force_ema,
                 self.tau_r,
@@ -1663,7 +1667,7 @@ class SpringDamper:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
         pass  # no stateful buffers (no EMA, no prev velocity)
 
 class ConeDRFT:
@@ -2111,16 +2115,18 @@ class ConeDRFT:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
         if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
+            env_ids = slice(None)
+        if isinstance(env_ids, slice):
+            env_ids = torch.arange(self.num_envs, device=self.device)[env_ids]
         # the managers hand out int32 indices, while the kernels below index with int64
         env_ids = env_ids.to(torch.int64)
         wp.launch(
             kernel=reset_cone,
             dim=(len(env_ids), self.num_bodies),
             inputs=[
-                wp.from_torch(env_ids.to(torch.int64), dtype=wp.int64),
+                wp.from_torch(env_ids, dtype=wp.int64),
                 self.z_max,
                 self.force_gm,
                 self.force_ema,
@@ -2571,16 +2577,18 @@ class ConeDRFTMultiPoint:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
         if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
+            env_ids = slice(None)
+        if isinstance(env_ids, slice):
+            env_ids = torch.arange(self.num_envs, device=self.device)[env_ids]
         # the managers hand out int32 indices, while the kernels below index with int64
         env_ids = env_ids.to(torch.int64)
         wp.launch(
             kernel=reset_cone,
             dim=(len(env_ids), self.num_bodies * self.num_contact_points),
             inputs=[
-                wp.from_torch(env_ids.to(torch.int64), dtype=wp.int64),
+                wp.from_torch(env_ids, dtype=wp.int64),
                 self.z_max.reshape((self.num_envs, -1)),
                 self.force_gm.reshape((self.num_envs, -1)),
                 self.force_ema.reshape((self.num_envs, -1)),

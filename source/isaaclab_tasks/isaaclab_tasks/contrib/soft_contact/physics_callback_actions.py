@@ -327,7 +327,7 @@ class PhysicsCallbackAction(ActionTerm):
             scale,  # <-- length proportional to magnitude
         )
 
-    def reset(self, env_ids: torch.Tensor):
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
         self.contact_wrench_b[env_ids] = 0.0
         self.contact_solver.reset(env_ids)
 
