@@ -54,3 +54,33 @@ class G1WholeBodyEnvCfg(ManagerBasedRLEnvCfg):
                 video_interval=2000
             )
         ]
+
+    def play_mode(self) -> None:
+        """Enable the target ghost for interactive playback and video capture."""
+        super().play_mode()
+        self.scene.ghost.enabled = True
+
+
+@configclass
+class G1WholeBodyEnvCfgPlay(G1WholeBodyEnvCfg):
+    """Play mode configuration for the G1 whole-body environment."""
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        self.sim.visualizer_cfgs = [NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8))]
+        self.video_recorders = [
+            VideoRecorderCfg(
+                source="visualizer:newton_gl",
+                output_dir=None,
+                video_length=200,
+                video_interval=2000
+            )
+        ]
+        self.scene.ghost.enabled = True
+        self.events.push_foot = None
+        self.events.push_robot = None
+
+        self.commands.whole_body.resampling_time_range = (3.0, 4.0)
+        self.commands.whole_body.initial_max_joint_rms = 2.0
+        self.curriculum.target_joint_change.params["final_max_joint_rms"] = 2.0

@@ -65,3 +65,17 @@ def push_body(
     asset.instantaneous_wrench_composer.add_forces_and_torques_index(
         forces=forces, torques=torques, body_ids=body_ids, env_ids=env_ids, is_global=True
     )
+
+
+def update_ghost_pose(env: ManagerBasedRLEnv, env_ids: torch.Tensor | slice | None) -> None:
+    """Display commanded joint angles and world-frame pelvis pose, without changing the robot.
+
+    Refresh all displayed targets, including after partial episode resets. The ghost
+    is disabled during training by default and has no physics representation.
+    """
+    ghost = env.scene["ghost"]
+    if not ghost.cfg.enabled:
+        return
+    reference = env.command_manager.get_term("whole_body")
+    root_pose = torch.cat((reference.target_body_pos_w[:, 0], reference.target_body_quat_w[:, 0]), dim=-1)
+    ghost.write_pose(root_pose, reference.command, reference.cfg.joint_names)

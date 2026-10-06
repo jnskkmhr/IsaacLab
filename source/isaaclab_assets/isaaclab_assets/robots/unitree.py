@@ -31,6 +31,8 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 
 from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
 
+from .ghost_robot import GhostRobotCfg, GhostRobotSpawnCfg
+
 HEALTHCARE_S3 = "https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/Healthcare/0.5.0/132c82d"
 
 ##
@@ -1055,3 +1057,10 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
 )
 
 UNITREE_G1_29DOF_BOX_FOOT_CFG = UNITREE_G1_29DOF_CFG.replace(spawn=spawn_box_foot_robot_usd)
+
+
+UNITREE_G1_29DOF_BOX_FOOT_GHOST_CFG = GhostRobotCfg(
+    prim_path="/Visuals/G1Target",
+    spawn=GhostRobotSpawnCfg(usd_path=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.usd_path),
+)
+"""Translucent blue mesh-only copy of the box-foot G1, rendered through Newton GL."""

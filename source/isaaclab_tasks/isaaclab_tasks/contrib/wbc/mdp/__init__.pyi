@@ -9,6 +9,7 @@ __all__ = [
     "target_joint_change",
     "reset_from_reference",
     "push_body",
+    "update_ghost_pose",
     "target_body_positions",
     "target_body_orientations",
     "target_joint_velocities",
@@ -30,7 +31,7 @@ __all__ = [
 
 from .commands import WholeBodyCommand, WholeBodyCommandCfg
 from .curriculums import target_joint_change
-from .events import reset_from_reference, push_body
+from .events import reset_from_reference, push_body, update_ghost_pose
 from .observations import target_body_positions, target_body_orientations, target_joint_velocities, target_foot_contacts
 from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorJointPositionActionCfg, mirror_vec3
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints, mirror_foot_scalars

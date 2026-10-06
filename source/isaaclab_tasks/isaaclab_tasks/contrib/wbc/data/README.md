@@ -117,3 +117,19 @@ Target positions and orientations are now separate terms rather than interleaved
 body poses. Observation dimensions remain 138 (student), 167 (teacher), and 201
 (critic), but their ordering changed. Retrain policies; previous WBC checkpoints
 and their observation normalization statistics are incompatible with this layout.
+
+## Target ghost robot
+
+Playback enables a translucent blue G1 showing the current commanded pelvis and
+joint pose. The ghost uses the same visual meshes as the box-foot robot, with no
+collision geometry, actuators, or additional simulated articulation. A separate
+forward-kinematics model positions the meshes; reset and interval events refresh
+all displayed targets. This visualization currently supports `--viz newton_gl`.
+
+The first 20 environment targets are displayed by default. Configure
+`env.scene.ghost.max_instances` to change this limit,
+`env.scene.ghost.spawn.opacity` for alpha (default `0.25`), and
+`env.scene.ghost.spawn.color` for RGB (default `[0.2,0.55,1.0]`). For example,
+`'env.scene.ghost.spawn.color=[1.0,0.85,0.1]'` selects yellow. Disable the overlay
+with `env.scene.ghost.enabled=false`. Training disables it by default; set
+`env.scene.ghost.enabled=true` to include the overlay in training videos.

@@ -15,3 +15,15 @@ gym.register(
         "rsl_rl_distillation_cfg_entry_point": f"{__name__}.agents.rsl_rl_cfg:G1WholeBodyStudentRunnerCfg",
     },
 )
+
+
+gym.register(
+    id="IsaacContrib-WBC-G1-29dof-Play",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.wbc_env_cfg:G1WholeBodyEnvCfgPlay",
+        "rsl_rl_cfg_entry_point": f"{__name__}.agents.rsl_rl_cfg:G1WholeBodyTeacherRunnerCfg",
+        "rsl_rl_distillation_cfg_entry_point": f"{__name__}.agents.rsl_rl_cfg:G1WholeBodyStudentRunnerCfg",
+    },
+)

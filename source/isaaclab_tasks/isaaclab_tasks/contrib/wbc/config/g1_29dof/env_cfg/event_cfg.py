@@ -16,6 +16,8 @@ class G1EventCfg:
     """Episode initialization and ungated interval perturbations."""
 
     reset_robot = EventTerm(func=mdp.reset_from_reference, mode="reset")
+    reset_ghost = EventTerm(func=mdp.update_ghost_pose, mode="reset")
+    update_ghost = EventTerm(func=mdp.update_ghost_pose, mode="interval", interval_range_s=(0.0, 0.0))
     push_robot = EventTerm(
         func=mdp.push_by_setting_velocity,
         mode="interval",
