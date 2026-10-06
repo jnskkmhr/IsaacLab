@@ -6,6 +6,7 @@
 """Standalone G1 assets, geometry and material configuration for moving terrain."""
 
 import math
+from typing import NamedTuple
 
 from isaaclab_newton.assets import MPMObjectCfg
 from isaaclab_newton.sim.schemas import NewtonCollisionCfg
@@ -43,6 +44,28 @@ SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
 
 
+class StripMaterialPreset(NamedTuple):
+    """Material values for one particle strip."""
+    density: float
+    young_modulus: float
+    friction: float
+    yield_pressure: float
+    tensile_yield_ratio: float
+    yield_stress: float
+    hardening: float
+    dilatancy: float
+    viscosity: float
+
+
+MATERIAL_PRESETS = {
+    # Values start from the sand, snow, and mud rows of Table 5 in Daviet's
+    # mixed-MPM paper. A finite 1 PPa value represents the tabulated rigid
+    # elastic limit while remaining valid input to Newton's schema.
+    "sand": StripMaterialPreset(1600.0, 1.0e15, 0.48, 1.0e15, 0.0, 0.0, 0.0, 0.0, 0.0),
+    "snow": StripMaterialPreset(250.0, 1.0e15, 0.30, 2.0e6, 0.05, 0.0, 1.0, 1.0, 0.0),
+    "clay": StripMaterialPreset(1500.0, 1.0e15, 0.0, 1.0e15, 1.0, 200.0, 0.0, 0.1, 100.0),
+}
+
 @configclass
 class G1MovingPatchSceneCfg(InteractiveSceneCfg):
     """G1, shared terrain, particles and lights for the moving-patch task."""
@@ -72,27 +95,23 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         collision_group=-1,
-        # terrain_generator=terrain_cfg.FLAT_TERRAINS_CFG,
-        # terrain_generator=terrain_cfg.WAVE_TERRAINS_CFG,
         terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
         max_init_terrain_level=0,
         physics_material=RigidBodyMaterialBaseCfg(static_friction=0.9, dynamic_friction=0.8),
         moving_patch_terrain=MovingPatchTerrainCfg(
-            moving_terrain_size=(1.2, 1.2),
+            simulated_terrain_size=(1.2, 1.2),
             boundary_terrain_size=0.2,
             tracked_body="pelvis",
-            particle_depth=SAND_DEPTH,
             robot_spawn_height=0.76,
-            shift_step=0.2,
+            patch_discretization_step=0.2,
+            particle_depth=SAND_DEPTH,
             voxel_size=VOXEL_SIZE,
             particles_per_cell=1.25,
             jitter=0.05,
             material=MPMParticleMaterialCfg(
-                density=1000.0,
-                young_modulus=15.0e6,
-                poisson_ratio=0.3,
-                friction=math.tan(math.radians(30.0)),
-                yield_pressure=1.0e12,
+                **{name: value for name, value in MATERIAL_PRESETS["sand"]._asdict().items()}
+                # **{name: value for name, value in MATERIAL_PRESETS["snow"]._asdict().items()}
+                # **{name: value for name, value in MATERIAL_PRESETS["clay"]._asdict().items()}
             ),
             floor_thickness=0.1,
             show_boundary_particles=False,
@@ -106,8 +125,6 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         terrain_type="generator",
         disable_collider=True,
         use_terrain_origins=False,
-        # terrain_generator=terrain_cfg.FLAT_TERRAINS_CFG,
-        # terrain_generator=terrain_cfg.WAVE_TERRAINS_CFG,
         terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
         mesh_origin_offset=(0.0, 0.0, -SAND_DEPTH),
     )
@@ -165,7 +182,7 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             raise ValueError("Set terrain_generator.seed so visual and support terrains match")
 
         terrain = self.terrain.moving_patch_terrain
-        x, y = terrain.patch_size
+        x, y = terrain.total_patch_size
         # TerrainImporter supplies each robot's world-space spawn origin and height.
         self.robot.init_state.pos = (0.0, 0.0, terrain.robot_spawn_height)
         self.sand = MPMObjectCfg(

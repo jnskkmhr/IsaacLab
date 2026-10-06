@@ -3,16 +3,20 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Terrain-relative foot pitch at first contact in the moving-patch task."""
+"""Terrain references and observation diagnostics for the moving-patch task."""
 
 import math
 from types import SimpleNamespace
 
 import torch
+import warp as wp
 
+from isaaclab.managers import ObservationGroupCfg, ObservationManager, ObservationTermCfg
 from isaaclab.utils.math import quat_from_euler_xyz
 
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.env_cfg.reward_cfg import G1RewardsCfg
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import metric_sliderbar
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mpm_env import G1MovingPatchEnv
 
 
 def test_touchdown_pitch_follows_scanner_slope_and_contact_order():
@@ -84,3 +88,90 @@ def test_touchdown_pitch_follows_scanner_slope_and_contact_order():
     quaternions[0, 0] = float("nan")
     contact[0, 0] = 1.0
     torch.testing.assert_close(term(env, **cfg.params), torch.zeros(num_envs))
+
+
+def test_height_rewards_use_supporting_floor():
+    """Translating both terrain and robot preserves rewards, with no sand-depth correction."""
+    root_pos = torch.tensor([[0.0, 0.0, 0.8], [0.0, 0.0, 3.8]])
+    feet = torch.zeros(2, 2, 3)
+    feet[:, :, 2] = torch.tensor([[0.13539, 0.18539], [3.13539, 3.18539]])
+    velocity = torch.zeros_like(feet)
+    velocity[:, :, 0] = math.atanh(0.5) / 2.0
+    hits = torch.zeros(2, 2, 3)
+    hits[:, :, 2] = torch.tensor([[-0.1, 0.1], [2.9, 3.1]])
+    env = SimpleNamespace(
+        scene={
+            "robot": SimpleNamespace(
+                data=SimpleNamespace(
+                    root_pos_w=SimpleNamespace(torch=root_pos),
+                    body_pos_w=SimpleNamespace(torch=feet),
+                    body_lin_vel_w=SimpleNamespace(torch=velocity),
+                )
+            ),
+            "height_scanner": SimpleNamespace(data=SimpleNamespace(ray_hits_w=SimpleNamespace(torch=hits))),
+        }
+    )
+    rewards = G1RewardsCfg()
+    torch.testing.assert_close(rewards.base_height.func(env, **rewards.base_height.params), torch.full((2,), 0.0025))
+    torch.testing.assert_close(
+        rewards.foot_clearance.func(env, **rewards.foot_clearance.params), torch.full((2,), math.exp(-0.025))
+    )
+
+
+def _sample(env):
+    return env.sample.clone()
+
+
+def test_contact_force_collection_replaces_nonfinite_components():
+    """Invalid feedback cannot poison contact observations or modify the solver's buffer."""
+    feedback = torch.tensor(
+        [
+            [float("nan"), float("inf"), float("-inf"), 1.0, 2.0, 3.0],
+            [3.0, -4.0, 0.0, 4.0, 5.0, 6.0],
+        ]
+    )
+    env = SimpleNamespace(
+        _coupling_forces=wp.from_torch(feedback, dtype=wp.spatial_vector),
+        _coupling_force_body_ids=torch.tensor([[1, 0]]),
+        device="cpu",
+        cfg=SimpleNamespace(foot_contact_force_threshold=1.0),
+        extras={},
+    )
+    G1MovingPatchEnv._refresh_contact_forces(env)
+    torch.testing.assert_close(env._foot_contact_force, torch.tensor([[[3.0, -4.0, 0.0], [0.0, 0.0, 0.0]]]))
+    torch.testing.assert_close(env._foot_contact, torch.tensor([[True, False]]))
+    assert torch.isnan(feedback[0, 0]) and torch.isposinf(feedback[0, 1]) and torch.isneginf(feedback[0, 2])
+    metrics = env.extras["_observation_metrics"]
+    assert metrics["Metrics/mpm/contact_force_nonfinite_fraction"] == 0.5
+    # A later clean read (e.g. after reset) must not erase the pre-reset diagnostic.
+    feedback[0, :3] = 0
+    G1MovingPatchEnv._refresh_contact_forces(env)
+    assert metrics["Metrics/mpm/contact_force_nonfinite_fraction"] == 0.5
+
+
+def test_observation_metrics_capture_invalid_values_without_advancing_history():
+    """Diagnostics expose current spikes and invalid components without changing observation history."""
+    env = SimpleNamespace(
+        num_envs=2, device="cpu", sim=SimpleNamespace(is_playing=lambda: True), extras={}, sample=torch.ones(2, 3)
+    )
+    group = ObservationGroupCfg(history_length=3, concatenate_terms=True)
+    group.sample = ObservationTermCfg(func=_sample)
+    env.observation_manager = ObservationManager({"privileged": group}, env)
+    before = env.observation_manager.compute(update_history=True)["privileged"].clone()
+    env.sample = torch.tensor([[2.0, float("nan"), float("inf")], [-4.0, 6.0, float("nan")]])
+    torch.testing.assert_close(metric_sliderbar(env, ["sample"]), torch.zeros(2))
+    metrics = env.extras["_observation_metrics"]
+    prefix = "Metrics/observations/privileged/sample"
+    for name, expected in {
+        "mean": [-1.0, 6.0, 0.0],
+        "abs_max": [4.0, 6.0, 0.0],
+        "nonfinite_fraction": [0.0, 0.5, 1.0],
+    }.items():
+        torch.testing.assert_close(
+            torch.stack([metrics[f"{prefix}/{name}_{i}"] for i in range(3)]), torch.tensor(expected)
+        )
+    assert torch.isnan(env.sample[0, 1]) and torch.isinf(env.sample[0, 2])
+    torch.testing.assert_close(env.observation_manager.compute(update_history=False)["privileged"], before)
+    env.sample = torch.full((2, 3), 7.0)
+    after = env.observation_manager.compute(update_history=True)["privileged"]
+    torch.testing.assert_close(after, torch.tensor([[1.0] * 6 + [7.0] * 3] * 2))

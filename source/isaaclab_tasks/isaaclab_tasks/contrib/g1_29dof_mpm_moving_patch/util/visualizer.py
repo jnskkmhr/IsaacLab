@@ -28,7 +28,7 @@ from .particles import MovingPatchParticles
 
 
 class MovingPatchParticleRendering:
-    """Filter the standard particle batch without creating a second point cloud."""
+    """Filter the standard particle batch and optionally follow a robot body."""
 
     def log_state(self, state):
         """Render particles and track the configured body's world position."""
@@ -92,12 +92,12 @@ class MovingPatchParticleRendering:
             mark_visible_particles,
             dim=model.particle_count,
             inputs=[
-                model.particle_world,  # worlds
-                patch.dynamic,  # dynamic
-                self._particle_filter_world_mask,  # visible_worlds
-                visible is not None,  # filter_worlds
-                patch.terrain.show_boundary_particles,  # show_boundary
-                self._particle_mask,  # mask
+                model.particle_world,  # particle_env_ids
+                patch.particle_is_dynamic,  # particle_is_dynamic
+                self._particle_filter_world_mask,  # env_visibility_mask
+                visible is not None,  # filter_envs
+                patch.terrain.show_boundary_particles,  # show_boundary_particles
+                self._particle_mask,  # particle_visibility_mask
             ],
             device=state.particle_q.device,
         )
@@ -111,12 +111,12 @@ class MovingPatchParticleRendering:
             gather_visible_particles,
             dim=model.particle_count,
             inputs=[
-                self._particle_mask,  # mask
-                self._particle_offsets,  # offsets
-                state.particle_q,  # positions
-                model.particle_radius,  # radii
-                self._visible_positions,  # visible_positions
-                self._visible_radii,  # visible_radii
+                self._particle_mask,  # particle_visibility_mask
+                self._particle_offsets,  # particle_visible_offsets
+                state.particle_q,  # particle_q
+                model.particle_radius,  # particle_radius
+                self._visible_positions,  # visible_particle_q
+                self._visible_radii,  # visible_particle_radius
             ],
             device=state.particle_q.device,
         )
@@ -204,7 +204,7 @@ class MovingPatchKitVisualizer(KitVisualizer):
             widths.zero_()
         else:
             if not patch.terrain.show_boundary_particles:
-                widths *= wp.to_torch(patch.dynamic) != 0
+                widths *= wp.to_torch(patch.particle_is_dynamic) != 0
             visible_env_ids = self._resolved_visible_env_ids
             if visible_env_ids is not None:
                 worlds = wp.to_torch(patch.model.particle_world)

@@ -80,7 +80,7 @@ class reset_root_state_on_terrain(reset_root_state_uniform):
         positions[:, :2] += env.scene.env_origins[env_ids][:, :2]
         if isinstance(env.scene.terrain.cfg, BackgroundTerrainImporterCfg):
             points = wp.from_torch(positions.clone().contiguous(), dtype=wp.vec3)
-            env.scene.terrain.background_mesh.sample(points)
+            env.scene.terrain.background_mesh.sample_surface_heights(points)
             positions[:, 2] += wp.to_torch(points)[:, 2]
         else:
             positions[:, 2] += env.scene.env_origins[env_ids][:, 2]

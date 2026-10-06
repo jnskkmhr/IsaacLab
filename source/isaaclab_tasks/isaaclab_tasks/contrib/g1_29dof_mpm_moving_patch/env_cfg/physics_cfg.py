@@ -61,7 +61,7 @@ class G1PhysicsProxyCfg(NewtonCfg):
                 shape_label_patterns=[r"/World/ground/terrain/.*"],
                 include_static_shapes=False,
                 # Refine the articulation integration between coupled exchanges.
-                substeps=3,
+                substeps=2,
             ),
             CouplerEntryCfg(
                 name=MPM_ENTRY,
@@ -115,6 +115,7 @@ class G1PhysicsProxyCfg(NewtonCfg):
     collision_cfg: NewtonCollisionPipelineCfg = NewtonCollisionPipelineCfg(soft_contact_max=0)
     default_shape_cfg: NewtonShapeCfg = NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0)
     num_substeps: int = 1
+    # num_substeps: int = 2 # Coupled timestep: 2.5 ms
     use_cuda_graph: bool = False
 
     def configure_terrain(self, moving_patch_terrain: MovingPatchTerrainCfg, proxy_mass_scale: float) -> None:

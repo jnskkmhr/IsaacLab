@@ -92,7 +92,7 @@ class G1EventCfg:
         mode="reset",
         params={
             "asset_cfg": SceneEntityCfg("sand"),
-            "parameter_ranges": {},
+            "parameter_ranges": {"friction": (0.2, 0.9), "density": (1000.0, 3000.0)},
             "distribution": "uniform",
         },
     )
