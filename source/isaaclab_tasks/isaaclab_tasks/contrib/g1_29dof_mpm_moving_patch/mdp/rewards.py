@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING
 import torch
 
 from isaaclab.assets import Articulation
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import euler_xyz_from_quat
+from isaaclab.managers import ManagerTermBase, RewardTermCfg, SceneEntityCfg
+from isaaclab.utils.math import euler_xyz_from_quat, quat_apply
 
 if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
@@ -94,6 +94,75 @@ def feet_pitch_contact(
     _, pitch, _ = euler_xyz_from_quat(body_quat.reshape(-1, 4))
     pitch = pitch.reshape(body_quat.shape[0], body_quat.shape[1])
     return torch.sum(torch.square(pitch) * env.foot_first_contact, dim=-1)
+
+
+class foot_touch_down_angle_penalty(ManagerTermBase):
+    """Penalize foot pitch relative to the local terrain at first contact.
+
+    Fit a plane to the existing height scanner's world-space hits, then project its slope
+    along each foot's horizontal forward direction. Both feet use the terrain estimate from
+    the scanner footprint; the reward performs no additional raycasts.
+    The penalty is the squared angular error [rad²] outside ``angle_tolerance``, summed over
+    feet that have just touched down. Both toe-first and heel-first landings are penalized.
+    Terrain samples are used only by this reward; policy observations are unchanged.
+
+    The foot body's +X axis must point toward the toes, with the sole parallel to its XY plane.
+    Ignore non-finite hits. Fewer than three non-collinear hits or a non-finite foot
+    orientation contribute zero instead of a NaN reward.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: G1MovingPatchEnv):
+        super().__init__(cfg, env)
+        asset_cfg = cfg.params["asset_cfg"]
+        self._asset: Articulation = env.scene[asset_cfg.name]
+        tracked_ids, _ = self._asset.find_bodies(env.cfg.foot_body_expr, preserve_order=True)
+        selected_ids = (
+            list(range(self._asset.num_bodies))[asset_cfg.body_ids]
+            if isinstance(asset_cfg.body_ids, slice)
+            else asset_cfg.body_ids
+        )
+        self._contact_ids = torch.tensor(
+            [tracked_ids.index(body_id) for body_id in selected_ids], dtype=torch.long, device=env.device
+        )
+        self._forward = torch.tensor([1.0, 0.0, 0.0], device=env.device)
+        if cfg.params["angle_tolerance"] < 0.0:
+            raise ValueError("angle_tolerance must be non-negative.")
+
+    def __call__(
+        self,
+        env: G1MovingPatchEnv,
+        asset_cfg: SceneEntityCfg,
+        height_sensor_cfg: SceneEntityCfg,
+        angle_tolerance: float,
+    ) -> torch.Tensor:
+        """Compare foot elevation with the scanner's fitted terrain slope at touchdown."""
+        sensor = env.scene[height_sensor_cfg.name]
+        hits = sensor.data.ray_hits_w.torch
+        valid_hits = torch.isfinite(hits).all(dim=-1, keepdim=True)
+        num_hits = valid_hits.sum(dim=1, keepdim=True)
+        points = torch.where(valid_hits, hits, 0.0)
+        mean = points.sum(dim=1, keepdim=True) / num_hits.clamp_min(1)
+        centered = torch.where(valid_hits, points - mean, 0.0)
+        covariance = centered.transpose(1, 2) @ centered
+        # Least-squares fit z = a*x + b*y + c, after removing the centroid.
+        xx, xy, xz = covariance[:, 0].unbind(dim=-1)
+        yy, yz = covariance[:, 1, 1], covariance[:, 1, 2]
+        determinant = xx * yy - xy.square()
+        valid_plane = (num_hits[:, 0, 0] >= 3) & (determinant > (1.0e-6 * xx * yy).clamp_min(1.0e-12))
+        denominator = determinant.clamp_min(1.0e-12)
+        slope = torch.stack(((yy * xz - xy * yz) / denominator, (xx * yz - xy * xz) / denominator), dim=-1)
+
+        foot_quat = self._asset.data.body_quat_w.torch[:, asset_cfg.body_ids]
+        forward = quat_apply(foot_quat, self._forward.expand_as(foot_quat[..., :3]))
+        horizontal_length = torch.linalg.vector_norm(forward[..., :2], dim=-1)
+        heading = forward[..., :2] / horizontal_length.clamp_min(1.0e-6).unsqueeze(-1)
+        terrain_angle = torch.atan((slope.unsqueeze(1) * heading).sum(dim=-1))
+        foot_angle = torch.atan2(forward[..., 2], horizontal_length)
+        error = (foot_angle - terrain_angle).abs()
+        valid = valid_plane.unsqueeze(-1) & torch.isfinite(error)
+        touchdown = env.foot_first_contact[:, self._contact_ids] > 0.0
+        penalty = (error - angle_tolerance).clamp_min(0.0).square()
+        return torch.where(valid & touchdown, penalty, 0.0).sum(dim=-1)
 
 
 def metric_sliderbar(

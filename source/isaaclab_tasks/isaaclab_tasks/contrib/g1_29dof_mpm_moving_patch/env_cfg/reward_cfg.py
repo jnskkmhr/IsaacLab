@@ -219,6 +219,18 @@ class G1RewardsCfg:
     #     },
     # )
 
+    foot_touch_down_angle_penalty = RewTerm(
+        func=mpm_mdp.foot_touch_down_angle_penalty,  # type: ignore
+        # weight=-4.0,
+        weight=-8.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=[".*ankle_roll.*"], preserve_order=True),
+            "height_sensor_cfg": SceneEntityCfg("height_scanner"),
+            # "angle_tolerance": math.radians(4.0),
+            "angle_tolerance": math.radians(1.0),
+        },
+    )
+
     """
     gait
     """
