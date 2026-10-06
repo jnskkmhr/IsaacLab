@@ -71,7 +71,10 @@ class G1WholeBodyEnvCfgPlay(G1WholeBodyEnvCfg):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        self.sim.visualizer_cfgs = [NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8))]
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8)),
+            NewtonRTXVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8)),
+            ]
         self.video_recorders = [
             VideoRecorderCfg(
                 source="visualizer:newton_gl",
