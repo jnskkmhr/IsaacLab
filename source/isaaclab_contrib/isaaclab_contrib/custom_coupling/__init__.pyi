@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "CoupledMJWarpMPMSolverCfg",
     "CoupledMJWarpVBDSolverCfg",
 ]
 
-from .newton_manager_cfg import CoupledMJWarpVBDSolverCfg
+from .newton_manager_cfg import CoupledMJWarpMPMSolverCfg, CoupledMJWarpVBDSolverCfg

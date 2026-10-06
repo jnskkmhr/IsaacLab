@@ -8,7 +8,7 @@
 import newton
 import numpy as np
 import warp as wp
-from newton.solvers.experimental.coupled import SolverCoupledProxy
+from newton.solvers.experimental.coupled import SolverCoupled
 
 from .kernel import mark_resets, refresh_density, restore_boundary_particles, update_centers, update_particles
 from .terrain import MovingPatchTerrainCfg, WarpTerrainMesh
@@ -25,7 +25,7 @@ class MovingPatchParticles:
         self,
         model: newton.Model,
         state: newton.State,
-        coupled_solver: SolverCoupledProxy,
+        coupled_solver: SolverCoupled,
         terrain: MovingPatchTerrainCfg,
         entry_name: str,
         background_mesh: WarpTerrainMesh,
@@ -38,7 +38,7 @@ class MovingPatchParticles:
         self._setup_particle_storage()
         self.update(state)
 
-    def _setup_solver(self, coupled_solver: SolverCoupledProxy, entry_name: str) -> None:
+    def _setup_solver(self, coupled_solver: SolverCoupled, entry_name: str) -> None:
         """Resolve the MPM entry and its particle material state."""
         self.solver = coupled_solver.solver(entry_name)
         self.material_state = coupled_solver.entry_state(entry_name, phase="input")
@@ -72,13 +72,13 @@ class MovingPatchParticles:
         if np.any(worlds < 0) or not np.all(np.bincount(worlds, minlength=model.world_count)):
             raise ValueError("Each environment must contain sand; global particles are unsupported")
         origins = self.background_mesh.spawn_origins
-        if origins.shape != (model.world_count, 3): # type: ignore
+        if origins.shape != (model.world_count, 3):  # type: ignore
             raise ValueError("Shared terrain origins must match the number of Newton worlds")
         # The center-update kernel uses these origins to quantize patch movement.
         self.origins = wp.array(origins, dtype=wp.vec3, device=model.device)
-        self.centers = wp.array(origins[:, :2], dtype=wp.vec2, device=model.device) # type: ignore
+        self.centers = wp.array(origins[:, :2], dtype=wp.vec2, device=model.device)  # type: ignore
         reference = model.particle_q.numpy()
-        reference[:, 2] -= self.background_mesh.initial_origins[worlds, 2] # type: ignore
+        reference[:, 2] -= self.background_mesh.initial_origins[worlds, 2]  # type: ignore
         self.reference = wp.array(reference, dtype=wp.vec3, device=model.device)
         self.anchors = wp.clone(model.particle_q)
         self.dynamic = wp.ones(model.particle_count, dtype=int, device=model.device)

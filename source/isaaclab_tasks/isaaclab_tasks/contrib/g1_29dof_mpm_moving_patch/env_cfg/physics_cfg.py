@@ -17,7 +17,10 @@ from isaaclab_newton.physics import (
 
 from isaaclab.utils import configclass
 
-from isaaclab_contrib.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
+from isaaclab_contrib.coupling import CouplerAdmmCfg, CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
+from isaaclab_contrib.custom_coupling import CoupledMJWarpMPMSolverCfg
+
+from isaaclab_tasks.utils import PresetCfg
 
 from .scene_cfg import VOXEL_SIZE, MovingPatchTerrainCfg
 
@@ -36,7 +39,7 @@ DEFAULT_PROXY_MASS_SCALE = 1.0
 
 
 @configclass
-class G1PhysicsCfg(NewtonCfg):
+class G1PhysicsProxyCfg(NewtonCfg):
     """Newton two-way rigid/MPM coupling for the moving-patch task."""
 
     solver_cfg: CouplerProxyCfg = CouplerProxyCfg(
@@ -116,10 +119,45 @@ class G1PhysicsCfg(NewtonCfg):
 
     def configure_terrain(self, moving_patch_terrain: MovingPatchTerrainCfg, proxy_mass_scale: float) -> None:
         """Apply final terrain settings without replacing user-configured solvers."""
-        if not isinstance(self.solver_cfg, CouplerProxyCfg):
-            raise ValueError("This task requires CouplerProxyCfg")
-        for proxy in self.solver_cfg.proxies:
-            proxy.mass_scale = proxy_mass_scale
+        if isinstance(self.solver_cfg, CouplerProxyCfg):
+            for proxy in self.solver_cfg.proxies:
+                proxy.mass_scale = proxy_mass_scale
         for entry in self.solver_cfg.entries:
             if entry.name == MPM_ENTRY:
                 entry.solver_cfg.voxel_size = moving_patch_terrain.voxel_size  # type: ignore
+
+
+@configclass
+class G1PhysicsADMMCfg(G1PhysicsProxyCfg):
+    """Experimental ADMM rigid-particle coupling with the same MJWarp and MPM settings."""
+
+    solver_cfg: CouplerAdmmCfg = CouplerAdmmCfg(
+        entries=G1PhysicsProxyCfg().solver_cfg.entries,
+        contact_pairs=[(RIGID_ENTRY, MPM_ENTRY)],
+        iterations=1,
+        rho=50.0,
+    )
+    # ADMM generates rigid-particle contacts; proxy coupling uses MPM grid colliders.
+    collision_cfg: NewtonCollisionPipelineCfg = NewtonCollisionPipelineCfg()
+
+
+@configclass
+class G1PhysicsDirectCfg(G1PhysicsProxyCfg):
+    """Direct lagged MPM wrench exchange with the same rigid and particle solver settings."""
+
+    solver_cfg: CoupledMJWarpMPMSolverCfg = CoupledMJWarpMPMSolverCfg(
+        entries=G1PhysicsProxyCfg().solver_cfg.entries,
+        rigid_entry=RIGID_ENTRY,
+        mpm_entry=MPM_ENTRY,
+        collider_bodies=FOOT_PROXY_BODIES,
+    )
+
+
+@configclass
+class G1PhysicsCfg(PresetCfg):
+    """Select the coupling algorithm without changing the robot or sand solver settings."""
+
+    mjwarp_mpm_proxy = G1PhysicsProxyCfg()
+    mjwarp_mpm_admm = G1PhysicsADMMCfg()
+    mjwarp_mpm_direct = G1PhysicsDirectCfg()
+    default = mjwarp_mpm_proxy

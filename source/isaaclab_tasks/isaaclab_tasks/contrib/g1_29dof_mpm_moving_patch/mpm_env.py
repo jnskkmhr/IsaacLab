@@ -14,8 +14,11 @@ import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
+from newton.solvers.experimental.coupled import SolverCoupledADMM
 
 from isaaclab.envs import ManagerBasedRLEnv
+
+from isaaclab_contrib.custom_coupling.coupled_mjwarp_mpm_manager import DirectSolverCoupler
 
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
@@ -209,7 +212,8 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
         _, foot_names = self._robot.find_bodies(self.cfg.foot_body_expr, preserve_order=True)
         self._foot_body_ids = self._resolve_newton_body_ids(foot_names)
-        self._coupling_forces = self._resolve_proxy_feedback_buffer()
+        self._coupling_force_body_ids = self._foot_body_ids
+        self._coupling_forces = self._resolve_coupling_feedback_buffer()
 
         foot_shape = (self.num_envs, len(foot_names))
         self._foot_contact_force = torch.zeros((*foot_shape, 3), device=self.device)
@@ -249,13 +253,32 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             raise RuntimeError(f"Could not resolve Newton body indices for the foot bodies {list(foot_names)}.")
         return body_ids
 
-    def _resolve_proxy_feedback_buffer(self) -> wp.array:
-        """Return the coupler buffer holding the granular reaction wrench of the proxy bodies.
+    def _resolve_coupling_feedback_buffer(self) -> wp.array:
+        """Resolve the foot–sand interface wrench buffer and its body index mapping.
 
-        Returns:
-            The per-body spatial forces, shape ``(body_count,)``, indexed by Newton body index.
+        Proxy forces use global Newton body indices; ADMM forces use robot-entry indices.
+        Both buffers exclude external forces. ADMM reports the wrench applied in its final iteration.
         """
         solver = NewtonManager._solver
+        if isinstance(solver, DirectSolverCoupler):
+            return solver.coupling_forces
+        if isinstance(solver, SolverCoupledADMM):
+            buffer = solver._admm_buffers[RIGID_ENTRY]
+            if not hasattr(buffer, "body_coupling_f"):
+                raise RuntimeError(
+                    "ADMM–MPM requires the Newton fixes in newton_patch/PR_ready/newton. "
+                    "Set PYTHONPATH=../newton_patch/PR_ready/newton before uv run."
+                )
+            entry = solver._entries[RIGID_ENTRY]
+            global_to_local = torch.full(
+                (NewtonManager.get_model().body_count,), -1, dtype=torch.long, device=self.device
+            )
+            local_to_global = wp.to_torch(entry.body_local_to_global).long()
+            global_to_local[local_to_global] = torch.arange(len(local_to_global), device=self.device)
+            self._coupling_force_body_ids = global_to_local[self._foot_body_ids]
+            if torch.any(self._coupling_force_body_ids < 0):
+                raise RuntimeError("The ADMM robot entry must own every tracked foot body")
+            return buffer.body_coupling_f
         for mapping in getattr(solver, "_proxy_mappings", ()):
             if mapping.src_name == RIGID_ENTRY and mapping.dst_name == MPM_ENTRY:
                 return mapping.coupling_forces
@@ -268,7 +291,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         """Read feedback, replace nonfinite components with zero, and rebuild contact flags."""
         # the coupler stores the feedback as (force, torque); only the linear part is a contact force
         forces = wp.to_torch(self._coupling_forces, requires_grad=False)[:, :3]
-        self._foot_contact_force = forces[self._foot_body_ids].to(self.device)
+        self._foot_contact_force = forces[self._coupling_force_body_ids].to(self.device)
         # Retain evidence of invalid feedback even if a reset clears it later in this step.
         nonfinite_fraction = (~torch.isfinite(self._foot_contact_force)).float().mean()
         metrics = self.extras.setdefault("_observation_metrics", {})

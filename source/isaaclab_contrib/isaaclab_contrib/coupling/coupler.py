@@ -42,6 +42,8 @@ from .coupler_cfg import (
 class NewtonCouplerManager(NewtonVBDManager):
     """Couple named Newton solver entries through proxy or ADMM interfaces."""
 
+    _solver_config_types = (CouplerProxyCfg, CouplerAdmmCfg)
+
     @dataclass
     class _ResolvedEntry:
         """Entry configuration with model selectors resolved to indices."""
@@ -121,10 +123,10 @@ class NewtonCouplerManager(NewtonVBDManager):
     @classmethod
     def _validate_config(cls, solver_cfg: CouplerCfg) -> None:
         """Validate adapter-specific nested-manager constraints before construction."""
-        if not isinstance(solver_cfg, (CouplerProxyCfg, CouplerAdmmCfg)):
+        if not isinstance(solver_cfg, cls._solver_config_types):
             raise TypeError(
                 f"CouplerCfg subclass {type(solver_cfg).__name__!r} is not supported; "
-                "use CouplerProxyCfg or CouplerAdmmCfg."
+                f"use {' or '.join(cfg_type.__name__ for cfg_type in cls._solver_config_types)}."
             )
         if not solver_cfg.entries:
             raise ValueError("CouplerCfg.entries must contain at least one solver entry.")
