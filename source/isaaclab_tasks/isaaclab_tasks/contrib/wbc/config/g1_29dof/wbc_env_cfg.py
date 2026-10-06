@@ -72,12 +72,12 @@ class G1WholeBodyEnvCfgPlay(G1WholeBodyEnvCfg):
         super().__post_init__()
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8)),
-            NewtonRTXVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8)),
+            NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8), headless=True),
+            NewtonRTXVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8), headless=True),
             ]
         self.video_recorders = [
             VideoRecorderCfg(
-                source="visualizer:newton_gl",
+                source="visualizer:newton_rtx",
                 output_dir=None,
                 video_length=200,
                 video_interval=2000
