@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "randomize_mpm_material",
     "feet_air_time_positive_biped",
     "feet_pitch_contact",
     "foot_air_time",
@@ -23,7 +24,7 @@ __all__ = [
 from isaaclab.envs.mdp import *  # noqa: F403
 
 from .curriculums import terrain_levels_vel
-from .events import reset_root_state_on_terrain
+from .events import randomize_mpm_material, reset_root_state_on_terrain
 from .observations import (
     foot_air_time,
     foot_contact,

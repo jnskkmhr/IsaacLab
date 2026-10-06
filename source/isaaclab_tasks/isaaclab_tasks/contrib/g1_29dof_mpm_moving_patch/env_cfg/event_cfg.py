@@ -5,9 +5,8 @@
 
 """Events for the G1 29-DoF granular locomotion task.
 
-Robot-side randomization is kept as in the soft-contact task. Terrain-parameter randomization is
-dropped: the granular properties live in the MPM material, and randomizing them per reset would
-require rebuilding the particle material. The bed itself is restored on reset instead.
+Robot-side randomization follows the soft-contact task. MPM material ranges can be
+configured through the reset-time ``mpm_material`` term.
 """
 
 from isaaclab.managers import EventTermCfg as EventTerm
@@ -52,7 +51,7 @@ class G1EventCfg:
 
     # Randomize the reset pose around the configured sand-surface spawn position.
     reset_base = EventTerm(
-        func=mpm_mdp.reset_root_state_on_terrain, # type: ignore
+        func=mpm_mdp.reset_root_state_on_terrain,  # type: ignore
         mode="reset",
         params={
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-0.3, 0.3)},
@@ -85,6 +84,16 @@ class G1EventCfg:
             "distribution": "uniform",
             "stiffness_distribution_params": (0.9, 1.1),
             "damping_distribution_params": (0.9, 1.1),
+        },
+    )
+
+    mpm_material = EventTerm(
+        func=mpm_mdp.randomize_mpm_material,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("sand"),
+            "parameter_ranges": {},
+            "distribution": "uniform",
         },
     )
 

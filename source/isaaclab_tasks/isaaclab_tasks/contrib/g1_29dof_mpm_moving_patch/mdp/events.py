@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import torch
 import warp as wp
+from isaaclab_newton.envs.mdp.events import randomize_mpm_material as randomize_newton_mpm_material
 
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation
@@ -21,6 +22,23 @@ from ..util.terrain import BackgroundTerrainImporterCfg
 
 if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
+
+
+class randomize_mpm_material(randomize_newton_mpm_material):
+    """Keep moving-patch recycling masses consistent with generic MPM material randomization."""
+
+    def __call__(
+        self,
+        env: G1MovingPatchEnv,
+        env_ids: torch.Tensor | slice | None,
+        asset_cfg: SceneEntityCfg,
+        parameter_ranges: dict[str, tuple[float, float]],
+        distribution: str = "uniform",
+    ) -> None:
+        super().__call__(env, env_ids, asset_cfg, parameter_ranges, distribution)
+        if "density" in parameter_ranges:
+            ids = slice(None) if env_ids is None else env_ids
+            env.moving_patch_particle.set_dynamic_particle_density(self.material_parameters["density"][ids], env_ids)
 
 
 class reset_root_state_on_terrain(reset_root_state_uniform):

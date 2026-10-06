@@ -7,6 +7,7 @@
 
 import newton
 import numpy as np
+import torch
 import warp as wp
 from newton.solvers.experimental.coupled import SolverCoupled
 
@@ -88,6 +89,24 @@ class MovingPatchParticles:
         self.initial_plastic = wp.clone(self.material_state.mpm.particle_Jp)
         self.pending_reset = wp.ones(model.world_count, dtype=int, device=model.device)
         self.changed = wp.zeros(2, dtype=int, device=model.device)
+
+    def set_dynamic_particle_density(self, density: torch.Tensor, env_ids: torch.Tensor | slice | None = None) -> None:
+        """Update stored dynamic masses after the backend changes the selected environments' density.
+
+        ``density`` contains one nominal material density per selected environment. This updates
+        the masses restored when boundary particles become simulated particles; it does not change
+        the current kinematic/dynamic classification or write the solver's material parameters.
+        """
+        env_ids = slice(None) if env_ids is None else env_ids
+        device = str(self.model.device)
+        selected_envs = torch.zeros(self.model.world_count, dtype=torch.bool, device=device)
+        selected_envs[env_ids] = True
+        env_density = torch.zeros(self.model.world_count, device=device)
+        env_density[env_ids] = density
+        particle_env_ids = wp.to_torch(self.model.particle_world).long()
+        selected = selected_envs[particle_env_ids]
+        radius = wp.to_torch(self.model.particle_radius)[selected]
+        wp.to_torch(self.dynamic_mass)[selected] = env_density[particle_env_ids[selected]] * (8.0 * radius**3)
 
     def update(self, state: newton.State) -> None:
         """Move centers and recycle particles before one coupled physics substep."""
