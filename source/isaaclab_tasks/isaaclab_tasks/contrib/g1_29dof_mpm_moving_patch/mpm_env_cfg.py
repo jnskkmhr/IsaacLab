@@ -15,10 +15,7 @@ from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
-    FLAT_TERRAINS_CFG,
-    ROUGH_TERRAINS_CFG,
     SLOPE_TERRAINS_CFG,
-    WAVE_TERRAINS_CFG,
     G1ActionsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,
@@ -30,7 +27,7 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .util.solver_setting import configure_sparse_mpm_capacities
-from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchKitVisualizerCfg, MovingPatchRTXVisualizerCfg
+from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchRTXVisualizerCfg
 
 
 @configclass
@@ -80,13 +77,13 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         IsaacLab calls this through ``cfg.validate()`` after CLI/Hydra overrides.
         Repeated validation recomputes derived settings without replacing the solvers.
         """
-        if self.sim.physics.use_cuda_graph: # type: ignore
+        if self.sim.physics.use_cuda_graph:  # type: ignore
             raise ValueError("Moving-patch particle updates require sim.physics.use_cuda_graph=False")
 
         use_terrain_curriculum = getattr(self.curriculum, "terrain_levels", None) is not None
         if self.scene.terrain.terrain_generator is not None:
             self.scene.terrain.terrain_generator.curriculum = use_terrain_curriculum
-            self.scene.visual_terrain.terrain_generator.curriculum = use_terrain_curriculum # type: ignore
+            self.scene.visual_terrain.terrain_generator.curriculum = use_terrain_curriculum  # type: ignore
         if use_terrain_curriculum:
             self.scene.terrain.use_terrain_origins = True
         self.scene.configure_terrain()
@@ -99,8 +96,12 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
 
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
-            # MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
+            MovingPatchGLVisualizerCfg(
+                eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True
+            ),
+            # MovingPatchRTXVisualizerCfg(
+            #     eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True
+            # ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [
@@ -144,8 +145,16 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
 
         self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(0.0, -15.0, 4.0)),
-            MovingPatchRTXVisualizerCfg(eye=(0.0, -15.0, 4.0)),
+            MovingPatchGLVisualizerCfg(
+                eye=(-2.0, -0.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+            ),
+            MovingPatchRTXVisualizerCfg(
+                eye=(-2.0, -0.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+            ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
         self.video_recorders = []
