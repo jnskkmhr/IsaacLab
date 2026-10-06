@@ -6,7 +6,7 @@
 
 """Standalone G1 whole-body environment composed from its term configurations."""
 
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
@@ -45,7 +45,10 @@ class G1WholeBodyEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self) -> None:
         self.sim.render_interval = self.decimation
         self.sim.physics_material = self.scene.terrain.physics_material
-        self.sim.visualizer_cfgs = [NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True)]
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            ]
         self.video_recorders = [
             VideoRecorderCfg(
                 source="visualizer:newton_gl",

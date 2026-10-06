@@ -13,6 +13,6 @@ import isaaclab_tasks.contrib.wbc.mdp as mdp
 @configclass
 class G1TerminationsCfg:
     time_out = TerminationTermCfg(func=mdp.time_out, time_out=True)
-    reference_finished = TerminationTermCfg(func=mdp.reference_finished, time_out=True)
+    end_of_reference = TerminationTermCfg(func=mdp.reference_finished, time_out=True)
     fallen = TerminationTermCfg(func=mdp.fallen)
     tracking_lost = TerminationTermCfg(func=mdp.tracking_lost)
