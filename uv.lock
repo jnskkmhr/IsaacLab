@@ -19,7 +19,7 @@ prerelease-mode = "allow"
 overrides = [
     { name = "mujoco", specifier = "~=3.12.0" },
     { name = "mujoco-warp", specifier = "~=3.12.0" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-opengl" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numpy", specifier = ">=2" },
     { name = "packaging", specifier = ">=20,<27" },
@@ -1989,7 +1989,7 @@ requires-dist = [
     { name = "meshio", specifier = ">=5.3.5" },
     { name = "moviepy", marker = "extra == 'video'", specifier = ">=1.0.3,<2.0.0.dev0" },
     { name = "myst-parser", marker = "extra == 'dev'" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-opengl" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numba", specifier = ">=0.63.1" },
     { name = "numpy", specifier = ">=2" },
@@ -3292,7 +3292,7 @@ wheels = [
 [[package]]
 name = "newton"
 version = "1.7.0.dev0"
-source = { git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-opengl#b75b5da1edd6417c0b11f4882988b4dcef9932fb" }
+source = { git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync#d78b97a095ddf48e34bc5fb02ef75a47ec119dfe" }
 dependencies = [
     { name = "warp-lang" },
 ]

@@ -426,9 +426,9 @@ python-preference = "only-managed"
 package = false
 
 [tool.uv.sources]
-# Forks containing the multi-environment lookup fix and OpenGL texture reuse.
+# Forks containing multi-environment lookup, OpenGL texture reuse, and coupler parameter synchronization fixes.
 warp-lang = { git = "https://github.com/jnskkmhr/warp.git", branch = "jnskkmhr/fix-multi-env-cell-lookup" }
-newton = { git = "https://github.com/jnskkmhr/newton.git", branch = "jnskkmhr/fix-opengl" }
+newton = { git = "https://github.com/jnskkmhr/newton.git", branch = "jnskkmhr/fix-coupler-solver-param-sync" }
 omniverseclient = { index = "pypi-public" }
 ovphysx = { index = "pypi-public" }
 ovrtx = { index = "pypi-public" }
