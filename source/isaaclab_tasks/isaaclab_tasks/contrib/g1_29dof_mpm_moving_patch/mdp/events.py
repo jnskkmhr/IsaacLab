@@ -44,7 +44,7 @@ class randomize_mpm_material(randomize_newton_mpm_material):
 class reset_root_state_on_terrain(reset_root_state_uniform):
     """Reset robots above the terrain height sampled at their randomized world XY.
 
-    Sampling ranges are cached by :class:`reset_root_state_uniform`. The sampled terrain height
+    Pose and velocity are sampled from the current configured ranges. The sampled terrain height
     replaces the environment origin's Z offset, preserving the default root clearance [m].
     Regular terrain importers use the environment origin's Z offset instead.
     """
@@ -72,9 +72,8 @@ class reset_root_state_on_terrain(reset_root_state_uniform):
         if default_root_pose.shape[0] == 0:
             return
 
-        ranges = self._pose_ranges
-        rand_samples = math_utils.sample_uniform(
-            ranges[:, 0], ranges[:, 1], (default_root_pose.shape[0], 6), device=asset.device
+        rand_samples = math_utils.sample_uniform_from_ranges(
+            pose_range, ("x", "y", "z", "roll", "pitch", "yaw"), default_root_pose.shape[0], device=asset.device
         )
         positions = default_root_pose[:, :3] + rand_samples[:, :3]
         positions[:, :2] += env.scene.env_origins[env_ids][:, :2]
@@ -87,9 +86,8 @@ class reset_root_state_on_terrain(reset_root_state_uniform):
 
         orientations_delta = math_utils.quat_from_euler_xyz(rand_samples[:, 3], rand_samples[:, 4], rand_samples[:, 5])
         orientations = math_utils.quat_mul(default_root_pose[:, 3:7], orientations_delta)
-        ranges = self._velocity_ranges
-        rand_samples = math_utils.sample_uniform(
-            ranges[:, 0], ranges[:, 1], (default_root_pose.shape[0], 6), device=asset.device
+        rand_samples = math_utils.sample_uniform_from_ranges(
+            velocity_range, ("x", "y", "z", "roll", "pitch", "yaw"), default_root_pose.shape[0], device=asset.device
         )
         velocities = default_root_vel + rand_samples
         asset.write_root_pose_to_sim_index(root_pose=torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
