@@ -71,7 +71,7 @@ class MovingPatchParticleRendering:
             self.log_points("/model/particles", points=self._empty_positions, hidden=True)
             return
 
-        visible = self.moving_patch_visualizer._resolved_visible_env_ids
+        visible = self.moving_patch_visualizer.get_visualized_env_ids()
         if visible is None and patch.terrain.show_boundary_particles:
             self.log_points(
                 "/model/particles",
@@ -205,7 +205,7 @@ class MovingPatchKitVisualizer(KitVisualizer):
         else:
             if not patch.terrain.show_boundary_particles:
                 widths *= wp.to_torch(patch.particle_is_dynamic) != 0
-            visible_env_ids = self._resolved_visible_env_ids
+            visible_env_ids = self.get_visualized_env_ids()
             if visible_env_ids is not None:
                 worlds = wp.to_torch(patch.model.particle_world)
                 widths *= torch.isin(worlds, torch.tensor(visible_env_ids, device=worlds.device, dtype=worlds.dtype))
