@@ -99,14 +99,14 @@ class PolicyCfg(ObsGroup):
         mirror=symmetry.mirror_g1_joints,
         mirror_params={"joint_names": G1ActionsCfg().joint_pos.joint_names},
     )
-    height_scan = ObsTerm(
-        func=mdp.height_scan,
-        mirror=symmetry.mirror_height_scan,
-        mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
-        params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-        noise=Unoise(n_min=-0.1, n_max=0.1),
-        clip=(-1.0, 1.0),
-    )
+    # height_scan = ObsTerm(
+    #     func=mdp.height_scan,
+    #     mirror=symmetry.mirror_height_scan,
+    #     mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
+    #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+    #     noise=Unoise(n_min=-0.1, n_max=0.1),
+    #     clip=(-1.0, 1.0),
+    # )
 
     def __post_init__(self):
         self.enable_corruption = True
@@ -160,13 +160,13 @@ class CriticCfg(ObsGroup):
         mirror=symmetry.mirror_g1_joints,
         mirror_params={"joint_names": G1ActionsCfg().joint_pos.joint_names},
     )
-    height_scan = ObsTerm(
-        func=mdp.height_scan,
-        mirror=symmetry.mirror_height_scan,
-        mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
-        params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-        clip=(-1.0, 1.0),
-    )
+    # height_scan = ObsTerm(
+    #     func=mdp.height_scan,
+    #     mirror=symmetry.mirror_height_scan,
+    #     mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
+    #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+    #     clip=(-1.0, 1.0),
+    # )
 
     def __post_init__(self):
         self.enable_corruption = False
@@ -227,7 +227,7 @@ class PrivilegedObsCfg(ObsGroup):
         mirror=symmetry.mirror_foot_scalars,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")},
     )
-    # terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
+    terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
 
     def __post_init__(self):
         self.enable_corruption = False
