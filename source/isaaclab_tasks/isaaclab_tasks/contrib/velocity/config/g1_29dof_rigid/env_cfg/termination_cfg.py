@@ -27,3 +27,5 @@ class G1TerminationsCfg:
         },
     )
     bad_orientation = DoneTerm(func=mdp.bad_orientation, params={"limit_angle": math.pi / 4})
+
+    terrain_out_of_bounds = DoneTerm(func=mdp.terrain_out_of_bounds)

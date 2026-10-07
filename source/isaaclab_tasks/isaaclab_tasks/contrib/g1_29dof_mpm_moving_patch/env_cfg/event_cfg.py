@@ -92,8 +92,30 @@ class G1EventCfg:
         mode="reset",
         params={
             "asset_cfg": SceneEntityCfg("sand"),
-            "parameter_ranges": {"friction": (0.2, 0.9), "density": (1000.0, 3000.0)},
+            "parameter_ranges": {
+                "friction": (0.3, 0.9),
+                "density": (1000.0, 3000.0),
+                "poisson_ratio": (0.3, 0.3),
+                # "hardening": (0.0, 0.0),
+                # "dilatancy": (0.0, 0.0),
+                # "viscosity": (0.0, 0.0),
+            },
             "distribution": "uniform",
+        },
+    )
+
+    mpm_material_log = EventTerm(
+        func=mpm_mdp.randomize_mpm_material,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("sand"),
+            "parameter_ranges": {
+                "young_modulus": (1.0e7, 1.0e9),
+                "yield_pressure": (1.0e8, 1.0e9),
+                # "tensile_yield_ratio": (1.0e-9, 1.0), # TODO: investigate instability in this parameters
+                "yield_stress": (1.0, 1.0e9),
+            },
+            "distribution": "log_uniform",
         },
     )
 

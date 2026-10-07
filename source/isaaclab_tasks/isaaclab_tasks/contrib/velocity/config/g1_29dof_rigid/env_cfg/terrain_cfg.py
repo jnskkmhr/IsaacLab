@@ -48,7 +48,7 @@ SLOPE_TERRAINS_CFG = TerrainGeneratorCfg(
         #     slope_range=(0.4, 0.4), platform_width=2.0, border_width=0.25
         # ),
         "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
-            slope_range=(math.pi * (20.0/180.0), math.pi * (20.0/180.0)), platform_width=2.0, border_width=0.25
+            slope_range=(math.pi * (30.0/180.0), math.pi * (30.0/180.0)), platform_width=2.0, border_width=0.25
         ),
     },
 )

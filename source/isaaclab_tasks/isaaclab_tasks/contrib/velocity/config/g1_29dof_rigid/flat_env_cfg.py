@@ -8,11 +8,14 @@ from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
 
 from isaaclab.utils.configclass import configclass
 
+from .env_cfg import G1RewardsCfg
 from .rough_env_cfg import G1RoughEnvCfg
 
 
 @configclass
 class G1FlatEnvCfg(G1RoughEnvCfg):
+    rewards: G1RewardsCfg = G1RewardsCfg()
+
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -86,14 +89,14 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.scale_actuator_gains = None  # type: ignore
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.rel_standing_envs = 1.0
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s / 4, self.episode_length_s / 4)
-        self.commands.base_velocity.debug_vis = False
+        # self.commands.base_velocity.debug_vis = False
 
         # Randomization
         self.events.reset_base.params = {
@@ -117,4 +120,4 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             # NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.video_recorders = []
+        # self.video_recorders = []

@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import math
+
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
@@ -21,7 +23,7 @@ from .env_cfg import (
     G1EventCfg,
     G1ObservationsCfg,
     G1PhysicsCfg,
-    G1RewardsCfg,
+    G1RewardsRoughCfg,
     G1SceneCfg,
     G1TerminationsCfg,
 )
@@ -31,7 +33,7 @@ from .env_cfg import (
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     # physics settings owned by the task instead of inherited from the velocity base env
     sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
-    rewards: G1RewardsCfg = G1RewardsCfg()
+    rewards: G1RewardsRoughCfg = G1RewardsRoughCfg()
     actions: G1ActionsCfg = G1ActionsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
@@ -45,14 +47,13 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         # post init of parent
         super().__post_init__()
 
-        # no height scan
-        self.scene.height_scanner = None  # type: ignore
-        self.observations.policy.height_scan = None  # type: ignore
-        self.observations.critic.height_scan = None  # type: ignore
-
         # Randomization
         self.events.reset_base.params = {
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "pose_range": {
+                "x": (-0.5, 0.5),
+                "y": (-0.5, 0.5),
+                "yaw": (-math.pi, math.pi),
+            },
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -62,6 +63,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
                 "yaw": (0.0, 0.0),
             },
         }
+        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),

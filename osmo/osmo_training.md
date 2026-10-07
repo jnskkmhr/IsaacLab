@@ -24,7 +24,7 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
 
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --pool isaac-lab-l40s-03 \
-  --set num_nodes=30 num_gpu=1 \
+  --set num_nodes=40 num_gpu=1 \
   --set-string \
     platform=ovx-l40s \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \

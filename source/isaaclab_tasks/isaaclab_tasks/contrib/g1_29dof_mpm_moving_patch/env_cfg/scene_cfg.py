@@ -38,7 +38,7 @@ FLOOR_CONTACT_MARGIN = 0.004
 """Rigid catch-floor contact margin [m]."""
 FLOOR_CONTACT_GAP = 0.002
 """Rigid catch-floor contact detection gap [m]."""
-VOXEL_SIZE = 0.04
+VOXEL_SIZE = 0.02
 """MPM voxel size [m]."""
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
@@ -64,6 +64,19 @@ MATERIAL_PRESETS = {
     "sand": StripMaterialPreset(1600.0, 1.0e15, 0.48, 1.0e15, 0.0, 0.0, 0.0, 0.0, 0.0),
     "snow": StripMaterialPreset(250.0, 1.0e15, 0.30, 2.0e6, 0.05, 0.0, 1.0, 1.0, 0.0),
     "clay": StripMaterialPreset(1500.0, 1.0e15, 0.0, 1.0e15, 1.0, 200.0, 0.0, 0.1, 100.0),
+    # Synthetic stiff, cohesive material for rigid-ground policy comparisons, not a sand calibration.
+    # Finite elasticity and high compressive, tensile, and shear yield limits resist rearrangement.
+    "rigid": StripMaterialPreset(
+        density=1600.0,
+        young_modulus=1.0e8,
+        friction=0.48,
+        yield_pressure=1.0e9,
+        tensile_yield_ratio=1.0,
+        yield_stress=1.0e9,
+        hardening=0.0,
+        dilatancy=0.0,
+        viscosity=0.0,
+    ),
 }
 
 @configclass
@@ -108,8 +121,10 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             voxel_size=VOXEL_SIZE,
             particles_per_cell=1.25,
             jitter=0.05,
+            # jitter=0.004,
             material=MPMParticleMaterialCfg(
-                **{name: value for name, value in MATERIAL_PRESETS["sand"]._asdict().items()}
+                # **MATERIAL_PRESETS["rigid"]._asdict()
+                **MATERIAL_PRESETS["sand"]._asdict()
                 # **{name: value for name, value in MATERIAL_PRESETS["snow"]._asdict().items()}
                 # **{name: value for name, value in MATERIAL_PRESETS["clay"]._asdict().items()}
             ),

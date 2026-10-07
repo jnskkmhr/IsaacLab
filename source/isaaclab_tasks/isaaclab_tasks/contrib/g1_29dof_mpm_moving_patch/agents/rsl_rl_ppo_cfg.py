@@ -49,8 +49,9 @@ class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         ),
     )
     logger = "wandb"
-    # wandb_project = "g1_29dof_rigid_flat"
-    # experiment_name = "g1_29dof_rigid_flat"
+
+    # wandb_project = "g1_29dof_rigid_flat_ppo"
+    # experiment_name = "g1_29dof_rigid_flat_ppo"
 
     wandb_project = "g1_29dof_soft_flat_ppo"
     experiment_name = "g1_29dof_soft_flat_ppo"

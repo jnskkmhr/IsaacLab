@@ -72,8 +72,9 @@ class MovingPatchParticles:
         """Allocate patch centers, reference positions, and reusable reset buffers."""
         model = self.model
         particle_env_ids = model.particle_world.numpy()
-        if np.any(particle_env_ids < 0) or not np.all(np.bincount(particle_env_ids, minlength=model.world_count)):
-            raise ValueError("Each environment must contain sand; global particles are unsupported")
+        # Mixed-contact tasks may leave some worlds particle-free.
+        if np.any(particle_env_ids < 0) or np.any(particle_env_ids >= model.world_count):
+            raise ValueError("Moving-patch particles must belong to valid simulation worlds")
         origins = self.background_mesh.env_origins
         if origins.shape != (model.world_count, 3):  # type: ignore
             raise ValueError("Shared terrain origins must match the number of Newton worlds")

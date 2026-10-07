@@ -83,7 +83,7 @@ class G1RewardsCfg:
     base_height = RewTerm(
         func=mdp.base_height_l2,
         weight=-10,
-        params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
+        params={"target_height": 0.78, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
@@ -227,7 +227,7 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", body_names=[".*ankle_roll.*"], preserve_order=True),
             "height_sensor_cfg": SceneEntityCfg("height_scanner"),
             # "angle_tolerance": math.radians(4.0),
-            "angle_tolerance": math.radians(1.0),
+            "angle_tolerance": math.radians(0.0),
         },
     )
 
@@ -252,7 +252,7 @@ class G1RewardsCfg:
         weight=-2.0,
         params={
             "command_name": "base_velocity",
-            "velocity_threshold": 1.0,
+            "velocity_threshold": 0.1,
         },
     )
 

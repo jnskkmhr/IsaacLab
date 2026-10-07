@@ -21,7 +21,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers.manager_base import ManagerTermBase
 from isaaclab.managers.manager_term_cfg import RewardTermCfg
 from isaaclab.sensors import ContactSensor
-from isaaclab.utils.math import euler_xyz_from_quat, quat_apply_inverse, yaw_quat
+from isaaclab.utils.math import euler_xyz_from_quat, quat_apply, quat_apply_inverse, yaw_quat
 from isaaclab.utils.string import resolve_matching_names_values
 
 if TYPE_CHECKING:
@@ -377,6 +377,67 @@ def reward_feet_pitch_contact(
 
     # penalize pitch² only on the landing step
     return torch.sum(torch.square(feet_pitch) * first_contact.float(), dim=-1)
+
+
+class foot_touch_down_angle_penalty(ManagerTermBase):
+    """Penalize foot pitch relative to the scanned terrain at first contact.
+
+    Fit one plane to the height scanner's world-space hits and project its slope along
+    each foot's horizontal forward direction. Both feet use the same scanned terrain
+    plane; this reward performs no additional raycasts and adds no policy observations.
+    The penalty is the squared angular error [rad²] outside ``angle_tolerance``, summed
+    over feet that have just touched down. Both toe-first and heel-first landings count.
+
+    The foot body's +X axis must point toward the toes, with the sole parallel to its XY
+    plane. ``sensor_cfg`` and ``asset_cfg`` must select matching feet in the same order.
+    The contact sensor must track air time. Non-finite hits are ignored; an invalid
+    plane estimate or non-finite foot orientation contributes zero.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        self._asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
+        self._forward = torch.tensor([1.0, 0.0, 0.0], device=env.device)
+        if cfg.params["angle_tolerance"] < 0.0:
+            raise ValueError("angle_tolerance must be non-negative.")
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        sensor_cfg: SceneEntityCfg,
+        asset_cfg: SceneEntityCfg,
+        height_sensor_cfg: SceneEntityCfg,
+        angle_tolerance: float,
+    ) -> torch.Tensor:
+        """Compare foot elevation with the scanner's fitted terrain slope at touchdown."""
+        sensor = env.scene[height_sensor_cfg.name]
+        hits = sensor.data.ray_hits_w.torch
+        valid_hits = torch.isfinite(hits).all(dim=-1, keepdim=True)
+        num_hits = valid_hits.sum(dim=1, keepdim=True)
+        points = torch.where(valid_hits, hits, 0.0)
+        mean = points.sum(dim=1, keepdim=True) / num_hits.clamp_min(1)
+        centered = torch.where(valid_hits, points - mean, 0.0)
+        covariance = centered.transpose(1, 2) @ centered
+        # Least-squares fit z = a*x + b*y + c, after removing the centroid.
+        xx, xy, xz = covariance[:, 0].unbind(dim=-1)
+        yy, yz = covariance[:, 1, 1], covariance[:, 1, 2]
+        determinant = xx * yy - xy.square()
+        valid_plane = (num_hits[:, 0, 0] >= 3) & (determinant > (1.0e-6 * xx * yy).clamp_min(1.0e-12))
+        denominator = determinant.clamp_min(1.0e-12)
+        slope = torch.stack(((yy * xz - xy * yz) / denominator, (xx * yz - xy * xz) / denominator), dim=-1)
+
+        foot_quat = self._asset.data.body_quat_w.torch[:, asset_cfg.body_ids]
+        forward = quat_apply(foot_quat, self._forward.expand_as(foot_quat[..., :3]))
+        horizontal_length = torch.linalg.vector_norm(forward[..., :2], dim=-1)
+        heading = forward[..., :2] / horizontal_length.clamp_min(1.0e-6).unsqueeze(-1)
+        terrain_angle = torch.atan((slope.unsqueeze(1) * heading).sum(dim=-1))
+        foot_angle = torch.atan2(forward[..., 2], horizontal_length)
+        error = (foot_angle - terrain_angle).abs()
+        valid = valid_plane.unsqueeze(-1) & torch.isfinite(error)
+        contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+        touchdown = contact_sensor.compute_first_contact(env.step_dt).torch[:, sensor_cfg.body_ids] > 0.0
+        penalty = (error - angle_tolerance).clamp_min(0.0).square()
+        return torch.where(valid & touchdown, penalty, 0.0).sum(dim=-1)
 
 
 def reward_feet_pitch_diff(

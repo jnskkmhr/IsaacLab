@@ -41,7 +41,11 @@ class MovingPatchTerrainCfg:
     particles_per_cell: float = MISSING
     """Particle samples along each voxel dimension (IsaacLab MPMGridCfg convention)."""
     jitter: float = MISSING
-    """MPMGridCfg jitter as a fraction of lattice spacing, not Newton's jitter distance."""
+    """Total width of the initial particle-position jitter interval [m].
+
+    Each X, Y, and Z coordinate receives an independent uniform offset in
+    ``[-jitter / 2, jitter / 2]``, matching :class:`MPMGridCfg`.
+    """
     material: MPMParticleMaterialCfg = MISSING
     """Particle density and constitutive parameters, shared by initial and recycled particles."""
     floor_thickness: float = MISSING
@@ -77,8 +81,8 @@ class MovingPatchTerrainCfg:
         )
         if not all(math.isfinite(dimension) and dimension > 0 for dimension in positive_dimensions):
             raise ValueError("Terrain dimensions, sampling and patch_discretization_step must be positive and finite")
-        if not 0 <= self.jitter <= 1:
-            raise ValueError("Use jitter in [0, 1]")
+        if not math.isfinite(self.jitter) or self.jitter < 0.0:
+            raise ValueError("Particle jitter width must be finite and non-negative [m]")
         if not self.tracked_body or self.patch_discretization_step > self.boundary_terrain_size:
             raise ValueError("Set tracked_body and keep patch_discretization_step <= boundary_terrain_size")
         if self.boundary_terrain_size < 2 * self.voxel_size:
