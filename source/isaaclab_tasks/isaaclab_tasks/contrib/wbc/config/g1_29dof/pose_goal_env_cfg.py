@@ -6,7 +6,10 @@
 
 """Standalone G1 terminal-goal navigation and whole-body posture environment."""
 
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+
 from isaaclab.envs import ManagerBasedRLEnvCfg, mdp
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.managers import EventTermCfg, SceneEntityCfg, TerminationTermCfg
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import RewardTermCfg as RewTerm
@@ -164,6 +167,14 @@ class G1PoseGoalEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physics_material = self.scene.terrain.physics_material
         self.sim.visualizer_cfgs = []
 
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8), headless=True),
+            NewtonRTXVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8), headless=True),
+        ]
+        self.video_recorders = [
+            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000)
+        ]
+
 
 @configclass
 class G1PoseGoalEnvCfgPlay(G1PoseGoalEnvCfg):
@@ -173,3 +184,11 @@ class G1PoseGoalEnvCfgPlay(G1PoseGoalEnvCfg):
         super().__post_init__()
         self.commands.pose_goal.curriculum_steps = 0
         self.commands.pose_goal.debug_vis = True
+
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8), headless=True),
+            NewtonRTXVisualizerCfg(eye=(1.5, 0.0, 1.0), lookat=(0.0, 0.0, 0.8), headless=True),
+        ]
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000)
+        ]
