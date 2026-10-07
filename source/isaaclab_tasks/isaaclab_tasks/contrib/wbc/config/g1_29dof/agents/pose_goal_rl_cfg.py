@@ -18,16 +18,16 @@ class G1PoseGoalRunnerCfg(RslRlOnPolicyRunnerCfg):
     """Train direct goal reaching; privileged forces are restricted to the critic."""
 
     num_steps_per_env = 24
-    max_iterations = 15000
+    max_iterations = 30_000
     save_interval = 250
     obs_groups = {"actor": ["policy"], "critic": ["critic"]}
     actor = RslRlMLPModelCfg(
         hidden_dims=[512, 256, 128],
         activation="elu",
-        obs_normalization=True,
+        obs_normalization=False,
         distribution_cfg=RslRlMLPModelCfg.GaussianDistributionCfg(init_std=0.5),
     )
-    critic = RslRlMLPModelCfg(hidden_dims=[512, 256, 128], activation="elu", obs_normalization=True)
+    critic = RslRlMLPModelCfg(hidden_dims=[512, 256, 128], activation="elu", obs_normalization=False)
     algorithm = RslRlPpoAlgorithmCfg(
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
@@ -48,5 +48,7 @@ class G1PoseGoalRunnerCfg(RslRlOnPolicyRunnerCfg):
             mirror_loss_coeff=0.1,
         ),
     )
+
     experiment_name = "g1_29dof_wbc_pose_goal"
-    logger = "tensorboard"
+    logger = "wandb"
+    wandb_project = "g1_29dof_wbc_pose_goal"
