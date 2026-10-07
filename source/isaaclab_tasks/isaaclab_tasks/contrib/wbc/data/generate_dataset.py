@@ -25,7 +25,14 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from scipy.spatial.transform import Rotation
 
-BODY_NAMES = ("pelvis", "left_ankle_roll_link", "right_ankle_roll_link", "left_wrist_yaw_link", "right_wrist_yaw_link")
+BODY_NAMES = (
+    "pelvis",
+    "left_ankle_roll_link",
+    "right_ankle_roll_link",
+    "left_wrist_yaw_link",
+    "right_wrist_yaw_link",
+    "torso_link",
+)
 
 
 def load_robot(urdf_path: Path) -> mujoco.MjModel:

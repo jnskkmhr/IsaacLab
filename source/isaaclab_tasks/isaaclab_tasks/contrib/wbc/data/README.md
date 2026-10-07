@@ -133,3 +133,15 @@ The first 20 environment targets are displayed by default. Configure
 `'env.scene.ghost.spawn.color=[1.0,0.85,0.1]'` selects yellow. Disable the overlay
 with `env.scene.ghost.enabled=false`. Training disables it by default; set
 `env.scene.ghost.enabled=true` to include the overlay in training videos.
+
+## WBC 2.0 endpoint reuse
+
+The pose-goal task reuses this dataset without same-stance neighbor lookup. Initial and goal
+endpoints are sampled independently. Goals consist of pelvis height, pelvis-relative torso
+orientation, and torso-relative wrist poses; world x/y destinations and heading offsets are
+sampled at runtime. There are no per-time foot references or desired contact labels.
+
+New outputs of `generate_dataset.py` include the named `torso_link` pose alongside the existing
+five bodies. Schema version 1 remains valid because loaders resolve bodies by name. Legacy
+five-body datasets remain supported: WBC 2.0 evaluates missing torso FK from endpoint joints
+and pelvis poses using the simulation USD. Geometric endpoint checks remain unchanged.

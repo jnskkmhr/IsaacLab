@@ -77,7 +77,7 @@ class G1WholeBodyEnvCfgPlay(G1WholeBodyEnvCfg):
             ]
         self.video_recorders = [
             VideoRecorderCfg(
-                source="visualizer:newton_rtx",
+                source="visualizer:newton_gl",
                 output_dir=None,
                 video_length=200,
                 video_interval=2000
