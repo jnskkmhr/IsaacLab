@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Sequence
 
@@ -14,9 +15,11 @@ import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
+from isaaclab_newton.physics.newton_manager_cfg import NewtonBuilderCfg
 from newton.solvers.experimental.coupled import SolverCoupledADMM
 
 from isaaclab.envs import ManagerBasedRLEnv
+from isaaclab.physics import PhysicsEvent
 
 from isaaclab_contrib.custom_coupling.coupled_mjwarp_mpm_manager import DirectSolverCoupler
 
@@ -38,7 +41,38 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def __init__(self, cfg, render_mode=None, **kwargs):
         self.moving_patch_particle: MovingPatchParticles | None = None
-        super().__init__(cfg, render_mode, **kwargs)
+        margin_callback = None
+        if cfg.foot_contact_margin_range is not None:
+            lower, upper = cfg.foot_contact_margin_range
+            if not (math.isfinite(lower) and math.isfinite(upper) and 0.0 <= lower <= upper):
+                raise ValueError("foot_contact_margin_range must contain finite, nonnegative, ordered bounds.")
+            margin_callback = NewtonManager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
+        try:
+            super().__init__(cfg, render_mode, **kwargs)
+        finally:
+            if margin_callback is not None:
+                margin_callback.deregister()
+
+    def _set_contact_margin(self, payload=None):
+        """Assign random sampled contact margins before model finalization."""
+        builder = self.sim.get_or_create_backend(NewtonBuilderCfg(physics_cfg=self.cfg.sim.physics))
+        lower, upper = self.cfg.foot_contact_margin_range
+        ratios = torch.linspace(0.0, 1.0, self.num_envs)
+        ratios = ratios[torch.randperm(self.num_envs)]
+        margins = (lower + ratios * (upper - lower)).tolist()
+
+        matched_envs = set()
+        for shape_index, body_index in enumerate(builder.shape_body):
+            if body_index < 0 or not re.fullmatch(
+                self.cfg.foot_body_expr, builder.body_label[body_index].rsplit("/", 1)[-1]
+            ):
+                continue
+            env_id = builder.body_world[body_index]
+            if 0 <= env_id < self.num_envs:
+                builder.shape_margin[shape_index] = margins[env_id]
+                matched_envs.add(env_id)
+        if len(matched_envs) != self.num_envs:
+            raise ValueError("Could not find foot shapes in every environment for foot_contact_margin_range.")
 
     def step(self, action: torch.Tensor):
         obs, reward, terminated, truncated, extras = super().step(action)

@@ -24,6 +24,27 @@ if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
 
 
+def reward_soft_landing(
+    env: G1MovingPatchEnv,
+    command_name: str | None = "base_velocity",
+    command_threshold: float = 0.05,
+) -> torch.Tensor:
+    """Penalize foot force magnitude at touchdown using the combined terrain contact forces.
+
+    The cost is in newtons, not impulse. Persistent contacts incur no cost.
+    A zero motion command disables the penalty, matching the soft-contact task.
+    """
+    first_contact = env.foot_first_contact
+    landing_force = torch.linalg.vector_norm(env.foot_contact_force, dim=-1) * first_contact
+    cost = landing_force.sum(dim=-1)
+    env.extras["log"]["Metrics/landing_force_mean"] = landing_force.sum() / first_contact.sum().clamp(min=1)
+    if command_name is not None:
+        command = env.command_manager.get_command(command_name)
+        active = torch.linalg.vector_norm(command[:, :2], dim=-1) + command[:, 2].abs() > command_threshold
+        cost = cost * active
+    return cost
+
+
 def feet_air_time_positive_biped(
     env: G1MovingPatchEnv,
     command_name: str,

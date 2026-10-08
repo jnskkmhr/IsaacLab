@@ -18,4 +18,5 @@ from .terrain_cfg import (
     ROUGH_TERRAINS_CFG,
     SLOPE_TERRAINS_CFG,
     WAVE_TERRAINS_CFG,
+    ROUGH_TERRAINS_DIFFICULT_CFG,
 )

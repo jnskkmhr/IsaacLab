@@ -55,3 +55,12 @@ class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 
     wandb_project = "g1_29dof_soft_flat_ppo"
     experiment_name = "g1_29dof_soft_flat_ppo"
+
+
+@configclass
+class G1MixedTerrainPPORunnerCfg(G1MovingPatchPPORunnerCfg):
+    """Keep the existing actor/critic contract and separate mixed-terrain training logs."""
+
+    # experiment_name = "g1_29dof_mpm_mixed_terrain"
+    # wandb_project = "g1_29dof_mpm_mixed_terrain"
+    pass

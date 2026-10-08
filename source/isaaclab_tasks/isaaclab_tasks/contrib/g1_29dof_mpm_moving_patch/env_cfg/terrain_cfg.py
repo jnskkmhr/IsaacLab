@@ -82,3 +82,33 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
         "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.2),
     },
 )
+
+
+ROUGH_TERRAINS_DIFFICULT_CFG = TerrainGeneratorCfg(
+    seed=42,
+    size=(20.0, 20.0),
+    border_width=5.0,
+    num_rows=1,
+    num_cols=4,
+    horizontal_scale=0.1,
+    vertical_scale=0.005,
+    slope_threshold=0.75,
+    use_cache=False,
+    sub_terrains={
+        "wave": terrain_gen.HfWaveTerrainCfg(
+            proportion=0.2,
+            amplitude_range=(0.4, 0.4),
+            num_waves=4,
+            border_width=0.25,
+        ),
+        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+            proportion=0.2, noise_range=(0.1, 0.10), noise_step=0.02, border_width=0.25
+        ),
+        "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
+            proportion=0.2, slope_range=(0.4, 0.4), platform_width=2.0, border_width=0.25
+        ),
+        "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
+            proportion=0.2, slope_range=(0.4, 0.4), platform_width=2.0, border_width=0.25
+        ),
+    },
+)

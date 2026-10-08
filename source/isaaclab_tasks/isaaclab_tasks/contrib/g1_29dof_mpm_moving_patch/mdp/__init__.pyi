@@ -5,6 +5,7 @@
 
 __all__ = [
     "randomize_mpm_material",
+    "reward_soft_landing",
     "feet_air_time_positive_biped",
     "feet_pitch_contact",
     "foot_air_time",
@@ -38,5 +39,6 @@ from .rewards import (
     foot_touch_down_angle_penalty,
     metric_sliderbar,
     no_fly,
+    reward_soft_landing,
 )
 from .terminations import root_outside_workspace, root_state_infinite

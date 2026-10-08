@@ -7,8 +7,8 @@
 
 Cloned from the soft-contact task. A granular bed exerts no force on a rigid contact sensor, so
 the gait terms are rebuilt on the contact state that the coupler feeds back from the MPM entry to
-the proxy feet, and ``undesired_contacts``, ``feet_slide`` and ``contact_impulse``, which need
-per-shape impulses, are dropped.
+the proxy feet. The contact impulse term penalizes touchdown force magnitude using this same
+contact state. Terms requiring per-shape contact data, ``undesired_contacts`` and ``feet_slide``, are dropped.
 """
 
 import math
@@ -29,21 +29,21 @@ from .scene_cfg import SAND_DEPTH
 class G1RewardsCfg:
     """Reward terms for the MDP."""
 
-    metric_sliderbar = RewTerm(
-        func=mpm_mdp.metric_sliderbar,
-        weight=1.0,  # Zero-valued diagnostic; a zero weight would skip evaluation.
-        params={
-            "obs_group_name": "privileged",
-            "obs_term_names": [
-                # "base_lin_vel",
-                "foot_height",
-                "foot_contact",
-                "foot_contact_force",
-                "foot_air_time",
-                # "terrain_material_parameters",
-            ],
-        },
-    )
+    # metric_sliderbar = RewTerm(
+    #     func=mpm_mdp.metric_sliderbar,
+    #     weight=1.0,  # Zero-valued diagnostic; a zero weight would skip evaluation.
+    #     params={
+    #         "obs_group_name": "privileged",
+    #         "obs_term_names": [
+    #             # "base_lin_vel",
+    #             "foot_height",
+    #             "foot_contact",
+    #             "foot_contact_force",
+    #             "foot_air_time",
+    #             # "terrain_material_parameters",
+    #         ],
+    #     },
+    # )
 
     """
     task rewards
@@ -83,7 +83,7 @@ class G1RewardsCfg:
     base_height = RewTerm(
         func=mdp.base_height_l2,
         weight=-10,
-        params={"target_height": 0.78, "sensor_cfg": SceneEntityCfg("height_scanner")},
+        params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
@@ -252,7 +252,7 @@ class G1RewardsCfg:
         weight=-2.0,
         params={
             "command_name": "base_velocity",
-            "velocity_threshold": 0.1,
+            "velocity_threshold": 1.0,
         },
     )
 
@@ -271,6 +271,12 @@ class G1RewardsCfg:
                 preserve_order=True,
             ),
         },
+    )
+
+    contact_impulse = RewTerm(
+        func=mpm_mdp.reward_soft_landing,
+        weight=-5e-3,
+        params={"command_name": "base_velocity", "command_threshold": 0.05},
     )
 
     """

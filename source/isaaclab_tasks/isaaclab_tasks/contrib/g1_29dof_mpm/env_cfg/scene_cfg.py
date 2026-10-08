@@ -31,7 +31,7 @@ from isaaclab.utils.configclass import configclass
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import UNITREE_G1_29DOF_CFG, UNITREE_G1_29DOF_BOX_FOOT_CFG
+from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG, UNITREE_G1_29DOF_CFG
 
 ##
 # Granular bed geometry. All values are expressed in the environment frame.

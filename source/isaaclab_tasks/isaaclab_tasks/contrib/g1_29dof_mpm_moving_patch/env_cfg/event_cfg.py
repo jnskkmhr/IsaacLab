@@ -9,6 +9,8 @@ Robot-side randomization follows the soft-contact task. MPM material ranges can 
 configured through the reset-time ``mpm_material`` term.
 """
 
+import math
+
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
@@ -54,7 +56,7 @@ class G1EventCfg:
         func=mpm_mdp.reset_root_state_on_terrain,  # type: ignore
         mode="reset",
         params={
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-0.3, 0.3)},
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-math.pi, math.pi)},
             "velocity_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.5, 0.5),
@@ -113,7 +115,7 @@ class G1EventCfg:
                 "young_modulus": (1.0e7, 1.0e9),
                 "yield_pressure": (1.0e8, 1.0e9),
                 # "tensile_yield_ratio": (1.0e-9, 1.0), # TODO: investigate instability in this parameters
-                "yield_stress": (1.0, 1.0e9),
+                # "yield_stress": (1.0, 1.0e9), # TODO: ablate
             },
             "distribution": "log_uniform",
         },

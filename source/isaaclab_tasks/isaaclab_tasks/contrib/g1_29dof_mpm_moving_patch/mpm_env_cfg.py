@@ -17,6 +17,7 @@ from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
     FLAT_TERRAINS_CFG,
     ROUGH_TERRAINS_CFG,
+    ROUGH_TERRAINS_DIFFICULT_CFG,
     SLOPE_TERRAINS_CFG,
     WAVE_TERRAINS_CFG,
     G1ActionsCfg,
@@ -60,6 +61,14 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
     foot_contact_force_threshold: float = 5.0
     """Granular reaction magnitude above which a foot counts as in contact [N]."""
 
+    foot_contact_margin_range: tuple[float, float] | None = (0.018, 0.018)
+    """Optional foot collider margins [m], evenly spaced and randomly assigned without replacement.
+
+    Applied before solver construction to both rigid and MPM contact. None preserves asset margins.
+    Mixed terrain samples the full range independently within each terrain group. A group with one
+    environment uses the lower bound. Margins remain fixed across resets. Contact gaps are unchanged.
+    """
+
     reset_particle_jitter: float = 0.0
     """Half-width of the uniform position jitter applied when the bed is reset [m]."""
 
@@ -86,7 +95,6 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         use_terrain_curriculum = getattr(self.curriculum, "terrain_levels", None) is not None
         if self.scene.terrain.terrain_generator is not None:
             self.scene.terrain.terrain_generator.curriculum = use_terrain_curriculum
-            self.scene.visual_terrain.terrain_generator.curriculum = use_terrain_curriculum # type: ignore
         if use_terrain_curriculum:
             self.scene.terrain.use_terrain_origins = True
         self.scene.configure_terrain()
@@ -99,7 +107,7 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
 
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
+            MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0), show_particles=True),
             # MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
@@ -120,14 +128,13 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
 
-        generator = SLOPE_TERRAINS_CFG
+        generator = ROUGH_TERRAINS_DIFFICULT_CFG
+        # generator = SLOPE_TERRAINS_CFG
         # generator = WAVE_TERRAINS_CFG
         # generator = FLAT_TERRAINS_CFG
 
         self.scene.terrain.terrain_generator = generator
         self.scene.terrain.moving_patch_terrain.particle_depth = 0.35
-        self.scene.visual_terrain.terrain_generator = generator
-        self.scene.visual_terrain.mesh_origin_offset = (0.0, 0.0, -0.35)
 
         for name in ("add_base_mass", "push_robot", "physics_material", "scale_actuator_gains"):
             setattr(self.events, name, None)
@@ -144,7 +151,7 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         for name in ("track_lin_vel", "track_ang_vel", "track_heading", "track_lin_vel_weight"):
             setattr(self.curriculum, name, None)
 
-        self.commands.base_velocity.ranges.lin_vel_x = (-1, 2)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1, 1)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.rel_standing_envs = 0.0

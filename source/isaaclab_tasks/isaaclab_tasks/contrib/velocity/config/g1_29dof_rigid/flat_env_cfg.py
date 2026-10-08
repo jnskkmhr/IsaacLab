@@ -25,9 +25,9 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.decimation = 4  # 50Hz
         self.sim.render_interval = self.decimation
 
-        # change terrain to flat
-        self.scene.terrain.terrain_type = "plane"
-        self.scene.terrain.terrain_generator = None
+        # # change terrain to flat
+        # self.scene.terrain.terrain_type = "plane"
+        # self.scene.terrain.terrain_generator = None
 
         # curriculum settings
         self.curriculum.terrain_levels = None  # type: ignore

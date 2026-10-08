@@ -19,6 +19,24 @@ from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import metric_
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mpm_env import G1MovingPatchEnv
 
 
+def test_soft_landing_penalizes_only_commanded_touchdowns():
+    """Persistent support is free; new foot contacts pay force magnitude, including turning in place."""
+    cfg = G1RewardsCfg().contact_impulse
+    env = SimpleNamespace(
+        foot_contact_force=torch.tensor([[[3.0, 4.0, 0.0], [0.0, 0.0, 12.0]]] * 3),
+        foot_first_contact=torch.tensor([[1.0, 0.0], [1.0, 1.0], [1.0, 1.0]]),
+        command_manager=SimpleNamespace(
+            get_command=lambda _: torch.tensor([[1.0, 0.0, 0.0], [0.0, 0.0, 0.5], [0.0, 0.0, 0.0]])
+        ),
+        extras={"log": {}},
+    )
+    torch.testing.assert_close(cfg.func(env, **cfg.params), torch.tensor([5.0, 17.0, 0.0]))
+    torch.testing.assert_close(env.extras["log"]["Metrics/landing_force_mean"], torch.tensor(39.0 / 5))
+    env.foot_first_contact.zero_()
+    torch.testing.assert_close(cfg.func(env, **cfg.params), torch.zeros(3))
+    assert env.extras["log"]["Metrics/landing_force_mean"] == 0
+
+
 def test_touchdown_pitch_follows_scanner_slope_and_contact_order():
     """Fit current scanner hits in world coordinates and penalize only new contacts."""
     # Flat, toe-down, heel-down, swing, uphill, cross-slope, downhill, diagonal,

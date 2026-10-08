@@ -19,7 +19,8 @@ from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
 
 from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
 
-from ..g1_29dof_mpm_moving_patch.mpm_env import G1MovingPatchEnv
+from .mdp.terminations import root_outside_workspace
+from .mpm_env import G1MovingPatchEnv
 
 
 @wp.kernel
@@ -96,14 +97,33 @@ class randomize_mpm_material(RandomizeMPMMaterial):
             env.moving_patch_particle.set_dynamic_particle_density(self.material_parameters["density"][ids], ids)
 
 
-def outside_terrain_tile(env: G1MixedTerrainEnv, margin: float = 1.0) -> torch.Tensor:
-    """Reset before a robot can enter another environment's terrain tile."""
-    displacement = env.scene["robot"].data.root_pos_w.torch[:, :2] - env.scene.env_origins[:, :2]
-    return (displacement.abs() > env.cfg.scene.env_spacing / 2 - margin).any(dim=-1)
+def outside_contact_region(
+    env: G1MixedTerrainEnv, margin: float = 0.5, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Keep robots in their contact region without restricting movement between difficulty rows."""
+    outside = root_outside_workspace(env, margin=margin, asset_cfg=asset_cfg)
+    generator = env.cfg.scene.terrain.terrain_generator
+    split_y = (generator.num_cols // 2 - generator.num_cols / 2) * generator.size[1]
+    half_patch_width = env.cfg.scene.terrain.moving_patch_terrain.total_patch_size[1] / 2
+    y = env.scene[asset_cfg.name].data.root_pos_w.torch[:, 1]
+    num_mpm_envs = env.num_envs // 2
+    outside[:num_mpm_envs] |= y[:num_mpm_envs] > split_y - half_patch_width - margin
+    outside[num_mpm_envs:] |= y[num_mpm_envs:] < split_y + margin
+    return outside
 
 
 class G1MixedTerrainEnv(G1MovingPatchEnv):
     """Advance all robots with MJWarp and only the soft-ground worlds with MPM."""
+
+    def _sample_foot_contact_margins(self, num_envs: int) -> torch.Tensor:
+        """Give the MPM and rigid environment groups independently shuffled copies of the full margin range."""
+        num_mpm_envs = num_envs // 2
+        return torch.cat(
+            (
+                super()._sample_foot_contact_margins(num_mpm_envs),
+                super()._sample_foot_contact_margins(num_envs - num_mpm_envs),
+            )
+        )
 
     def _setup_contact_state(self) -> None:
         entry = NewtonManager._solver._entries["robot"]

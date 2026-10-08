@@ -69,6 +69,7 @@ class PolicyCfg(ObsGroup):
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINTS},
         noise=Unoise(n_min=-0.01, n_max=0.01),
         params={
             "asset_cfg": SceneEntityCfg(
@@ -78,10 +79,10 @@ class PolicyCfg(ObsGroup):
             ),
         },
     )
-
     joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
         mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINTS},
         noise=Unoise(n_min=-1.5, n_max=1.5),
         params={
             "asset_cfg": SceneEntityCfg(
@@ -92,12 +93,10 @@ class PolicyCfg(ObsGroup):
         },
         scale=0.05,
     )
-    joint_pos.mirror_params = {"joint_names": joint_pos.params["asset_cfg"].joint_names}
-    joint_vel.mirror_params = {"joint_names": joint_vel.params["asset_cfg"].joint_names}
     actions = ObsTerm(
         func=mdp.last_action,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": G1ActionsCfg().joint_pos.joint_names},
+        mirror_params={"joint_names": ACTIVE_JOINTS},
     )
     # height_scan = ObsTerm(
     #     func=mdp.height_scan,
@@ -133,6 +132,8 @@ class CriticCfg(ObsGroup):
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINTS},
+        noise=Unoise(n_min=-0.01, n_max=0.01),
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -144,6 +145,8 @@ class CriticCfg(ObsGroup):
     joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
         mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINTS},
+        noise=Unoise(n_min=-1.5, n_max=1.5),
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -153,12 +156,10 @@ class CriticCfg(ObsGroup):
         },
         scale=0.05,
     )
-    joint_pos.mirror_params = {"joint_names": joint_pos.params["asset_cfg"].joint_names}
-    joint_vel.mirror_params = {"joint_names": joint_vel.params["asset_cfg"].joint_names}
     actions = ObsTerm(
         func=mdp.last_action,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": G1ActionsCfg().joint_pos.joint_names},
+        mirror_params={"joint_names": ACTIVE_JOINTS},
     )
     height_scan = ObsTerm(
         func=mdp.height_scan,

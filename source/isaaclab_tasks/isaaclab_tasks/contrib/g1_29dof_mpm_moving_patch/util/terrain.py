@@ -2,7 +2,7 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-"""One generated background surface and global support geometry shared by all MPM environments."""
+"""Textured scene terrain and generated support geometry shared by moving-patch environments."""
 
 from __future__ import annotations
 
@@ -10,14 +10,92 @@ import math
 from dataclasses import MISSING
 
 import numpy as np
+import torch
 import trimesh
 import warp as wp
 from isaaclab_newton.sim.spawners.mpm import MPMParticleMaterialCfg
 
-from isaaclab.terrains import TerrainImporter, TerrainImporterCfg
+from pxr import Sdf, UsdGeom, UsdShade, Vt
+
+import isaaclab.sim as sim_utils
+from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporter, TerrainImporterCfg
 from isaaclab.utils import configclass
 
+from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
+
 from .kernel import sample_heights
+
+
+class TexturedTerrainImporter(TerrainImporter):
+    """Add UV coordinates and a USD preview texture alongside the configured MDL material."""
+
+    def import_mesh(self, name: str, mesh: trimesh.Trimesh) -> None:
+        """Import scene geometry with planar UVs and an MDL-compatible preview material."""
+        if any(self.cfg.mesh_origin_offset):
+            mesh = mesh.copy()
+            mesh.apply_translation(self.cfg.mesh_origin_offset)
+        super().import_mesh(name, mesh)
+        if self.cfg.disable_visual:
+            return
+        stage = sim_utils.get_current_stage()
+        path = f"{self.cfg.prim_path}/{name}"
+        usd_mesh = UsdGeom.Mesh(stage.GetPrimAtPath(f"{path}/mesh"))
+        cfg = self.cfg
+        uvs = np.asarray((mesh.vertices[:, :2] - mesh.bounds[0, :2]) * cfg.texture_repeat_per_meter, dtype=np.float32)
+        UsdGeom.PrimvarsAPI(usd_mesh).CreatePrimvar(
+            "st", Sdf.ValueTypeNames.TexCoord2fArray, UsdGeom.Tokens.vertex
+        ).Set(Vt.Vec2fArray.FromNumpy(uvs))
+
+        # Preserve MDL for RTX and provide the standard USD texture network for GL.
+        material_path = f"{path}/visualMaterial"
+        material = UsdShade.Material.Define(stage, material_path)
+        preview = UsdShade.Shader.Define(stage, f"{material_path}/PreviewSurface")
+        preview.CreateIdAttr("UsdPreviewSurface")
+        diffuse = preview.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
+        if cfg.color_texture:
+            reader = UsdShade.Shader.Define(stage, f"{material_path}/TextureCoordinates")
+            reader.CreateIdAttr("UsdPrimvarReader_float2")
+            reader.CreateInput("varname", Sdf.ValueTypeNames.Token).Set("st")
+            reader.CreateOutput("result", Sdf.ValueTypeNames.Float2)
+            texture = UsdShade.Shader.Define(stage, f"{material_path}/ColorTexture")
+            texture.CreateIdAttr("UsdUVTexture")
+            texture.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(Sdf.AssetPath(cfg.color_texture))
+            texture.CreateInput("sourceColorSpace", Sdf.ValueTypeNames.Token).Set("sRGB")
+            texture.CreateInput("wrapS", Sdf.ValueTypeNames.Token).Set("repeat")
+            texture.CreateInput("wrapT", Sdf.ValueTypeNames.Token).Set("repeat")
+            texture.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(reader.ConnectableAPI(), "result")
+            texture.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
+            diffuse.ConnectToSource(texture.ConnectableAPI(), "rgb")
+        else:
+            diffuse.Set(cfg.color)
+        preview.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(1.0)
+        preview.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+        material.CreateSurfaceOutput().ConnectToSource(preview.ConnectableAPI(), "surface")
+        UsdShade.MaterialBindingAPI.Apply(usd_mesh.GetPrim()).Bind(material)
+
+
+@configclass
+class TexturedTerrainImporterCfg(TerrainImporterCfg):
+    """Standard terrain import with a portable color texture for GL and RTX."""
+
+    class_type: type = TexturedTerrainImporter
+
+    mesh_origin_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """Translation of imported mesh vertices along the terrain's local axes [m].
+
+    Does not shift environment origins or the source mesh. Only applies to mesh imports.
+    """
+    visual_material: sim_utils.MdlFileCfg = sim_utils.MdlFileCfg(
+        mdl_path=f"{ISAACLAB_ASSETS_DATA_DIR}/texture/Ground_080/Ground080_4K.mdl",
+        project_uvw=False,
+        texture_scale=(1.0, 1.0),
+    )
+    color_texture: str | None = f"{ISAACLAB_ASSETS_DATA_DIR}/texture/Ground_080/Ground080_4K-PNG_Color.png"
+    """Color texture for the USD preview material; None uses color."""
+    texture_repeat_per_meter: float = 0.125
+    """Number of texture repeats per world-space distance [1/m]."""
+    color: tuple[float, float, float] = (0.72, 0.55, 0.34)
+    """Untextured preview material RGB color."""
 
 
 @configclass
@@ -129,7 +207,7 @@ class WarpTerrainMesh:
             raise ValueError("Shared terrain height query missed the surface; check terrain coverage and spawn spacing")
 
 
-class BackgroundTerrainImporter(TerrainImporter):
+class BackgroundTerrainImporter(TexturedTerrainImporter):
     """Use one IsaacLab terrain with a global support collider for each subsolver."""
 
     def __init__(self, cfg: BackgroundTerrainImporterCfg):
@@ -147,6 +225,10 @@ class BackgroundTerrainImporter(TerrainImporter):
         # The coupler does not allow one collider to belong to both solvers.
         super().import_mesh(name, support_mesh)
         super().import_mesh("mpm_ground", support_mesh)
+        # Both solvers need a collider, but only one copy of the surface should be drawn.
+        UsdGeom.Imageable(
+            sim_utils.get_current_stage().GetPrimAtPath(f"{self.cfg.prim_path}/mpm_ground")
+        ).MakeInvisible()
 
     def _is_heightfield_collider_requested(self, cfg):
         # The installed implicit MPM collision path consumes triangle meshes.
@@ -172,17 +254,11 @@ class BackgroundTerrainImporter(TerrainImporter):
 
 
 @configclass
-class BackgroundTerrainImporterCfg(TerrainImporterCfg):
+class BackgroundTerrainImporterCfg(TexturedTerrainImporterCfg):
     """Standard generated-terrain settings plus the depth of its shared support surface."""
 
     class_type: type = BackgroundTerrainImporter
     use_terrain_origins: bool = False
-    mpm_contact_margin: float = MISSING
-    """MPM support collision margin [m], supplied by scene configuration."""
-    rigid_contact_margin: float = MISSING
-    """Rigid support collision margin [m], supplied by scene configuration."""
-    rigid_contact_gap: float = MISSING
-    """Rigid support contact detection gap [m], supplied by scene configuration."""
 
     moving_patch_terrain: MovingPatchTerrainCfg = MISSING
     """Particle sampling, material, simulated terrain and boundary settings."""
@@ -210,3 +286,50 @@ class BackgroundTerrainImporterCfg(TerrainImporterCfg):
             )
         ):
             raise ValueError("Generated background must contain simulated plus boundary terrain")
+
+
+def split_contact_surfaces(
+    mesh: trimesh.Trimesh, generator: TerrainGeneratorCfg, particle_depth: float
+) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
+    """Lower the support mesh under MPM columns; retain rigid columns at their generated height."""
+    split_y = (generator.num_cols // 2 - generator.num_cols / 2) * generator.size[1]
+    mpm_surface = mesh.slice_plane((0.0, split_y, 0.0), (0.0, -1.0, 0.0))
+    rigid_surface = mesh.slice_plane((0.0, split_y, 0.0), (0.0, 1.0, 0.0))
+    mpm_surface.apply_translation((0.0, 0.0, -particle_depth))
+    return mpm_surface, rigid_surface
+
+
+class MixedTerrainImporter(BackgroundTerrainImporter):
+    """Assign the first half of environments to MPM columns and the rest to rigid columns.
+
+    Difficulty levels and row progression use TerrainImporter. With an odd number
+    of columns, environments remain split equally between the two contact groups.
+    """
+
+    def import_mesh(self, name: str, mesh: trimesh.Trimesh) -> None:
+        self.background_mesh = WarpTerrainMesh(mesh.vertices, mesh.faces, self.device)
+        mpm_surface, rigid_surface = split_contact_surfaces(
+            mesh, self.cfg.terrain_generator, self.cfg.moving_patch_terrain.particle_depth
+        )
+        TexturedTerrainImporter.import_mesh(self, name, trimesh.util.concatenate((mpm_surface, rigid_surface)))
+        TexturedTerrainImporter.import_mesh(self, "mpm_ground", mpm_surface)
+        # Draw the textured MJWarp collider; the MPM solver's duplicate stays hidden.
+        UsdGeom.Imageable(
+            sim_utils.get_current_stage().GetPrimAtPath(f"{self.cfg.prim_path}/mpm_ground")
+        ).MakeInvisible()
+
+    def _compute_env_origins_curriculum(self, num_envs: int, origins: torch.Tensor) -> torch.Tensor:
+        super()._compute_env_origins_curriculum(num_envs, origins)
+        num_mpm_envs = num_envs // 2
+        num_mpm_columns = origins.shape[1] // 2
+        self.terrain_types[:num_mpm_envs] = torch.div(
+            torch.arange(num_mpm_envs, device=self.device) * num_mpm_columns,
+            num_mpm_envs,
+            rounding_mode="floor",
+        )
+        self.terrain_types[num_mpm_envs:] = num_mpm_columns + torch.div(
+            torch.arange(num_envs - num_mpm_envs, device=self.device) * (origins.shape[1] - num_mpm_columns),
+            num_envs - num_mpm_envs,
+            rounding_mode="floor",
+        )
+        return origins[self.terrain_levels, self.terrain_types].clone()

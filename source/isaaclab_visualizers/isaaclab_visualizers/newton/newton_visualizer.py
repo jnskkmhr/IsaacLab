@@ -1106,17 +1106,10 @@ class NewtonVisualizer(BaseVisualizer):
             )
         self._runtime_headless = runtime_headless
 
-        # Use pyglet's EGL headless backend when requested or when no Linux X display is available.
-        # NOTE: this call is only effective when ``DISPLAY`` is unset on Linux.  When a display
-        # is present, ``from newton.viewer import ViewerGL, ViewerRTX`` at module-import time
-        # already initialised pyglet (and resolved the ``Window`` class), so setting
-        # ``pyglet.options["headless"]`` here is a no-op.  In that situation ``cfg.headless=True``
-        # has no effect and a real windowed viewer is created.  To guarantee headless behaviour
-        # when a display is present, unset DISPLAY before importing this module.
-        if runtime_headless:
-            import pyglet
-
-            pyglet.options["headless"] = True
+        # Pyglet's display and GL backends must be selected together at import time.
+        # Without DISPLAY, the module-level setup selects EGL. With DISPLAY, Newton
+        # creates a hidden X11 window when runtime_headless=True. Switching Pyglet
+        # to EGL here would mix HeadlessConfig with an already-selected XlibCanvas.
 
         self._picking_enabled = self.cfg.enable_picking and picking_supported and not runtime_headless
         self._viewer = self._create_viewer(runtime_headless, metadata)

@@ -16,7 +16,7 @@ import isaaclab.sim as sim_utils
 import isaaclab.terrains as terrain_gen
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import CameraCfg, ContactSensorCfg, RayCasterCfg, patterns
+from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
@@ -26,22 +26,17 @@ from isaaclab_tasks.utils.presets import MultiBackendRendererCfg
 
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
-from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg
-from ..util.visual_terrain import TexturedTerrainImporterCfg
+from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg, TexturedTerrainImporterCfg
 from . import terrain_cfg
 
-MPM_COLLIDER_MARGIN = 0.0125
-"""Supporting-floor MPM contact margin [m]."""
-FOOT_CONTACT_MARGIN = 0.01875
-"""Sole contact margin [m], retained with the existing policy/physics settings."""
-FLOOR_CONTACT_MARGIN = 0.004
-"""Rigid catch-floor contact margin [m]."""
-FLOOR_CONTACT_GAP = 0.002
-"""Rigid catch-floor contact detection gap [m]."""
-VOXEL_SIZE = 0.02
+VOXEL_SIZE = 0.04
 """MPM voxel size [m]."""
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
+# FOOT_CONTACT_MARGIN = 0.01875
+# FOOT_CONTACT_MARGIN = VOXEL_SIZE * 0.5
+FOOT_CONTACT_MARGIN = 0.0
+"""Sole contact margin [m], retained with the existing policy/physics settings."""
 
 
 class StripMaterialPreset(NamedTuple):
@@ -83,28 +78,7 @@ MATERIAL_PRESETS = {
 class G1MovingPatchSceneCfg(InteractiveSceneCfg):
     """G1, shared terrain, particles and lights for the moving-patch task."""
 
-    # NOTE: do we need camera cfg???
-    # overview_camera: CameraCfg = CameraCfg(
-    #     prim_path="{ENV_REGEX_NS}/OverviewCamera",
-    #     width=320,
-    #     height=240,
-    #     data_types=["rgb"],
-    #     renderer_cfg=MultiBackendRendererCfg(),
-    #     spawn=sim_utils.PinholeCameraCfg(focal_length=24.0, horizontal_aperture=20.955, clipping_range=(0.1, 30.0)),
-    #     # Fixed view from (3, -4, 2.5) toward (0, 0, 0.6), relative to each environment.
-    #     offset=CameraCfg.OffsetCfg(
-    #         pos=(3.0, -4.0, 2.5),
-    #         rot=(0.538657606, 0.179552540, 0.260309190, 0.780927658),
-    #         convention="opengl",
-    #     ),
-    # )
-
     terrain: BackgroundTerrainImporterCfg = BackgroundTerrainImporterCfg(
-        disable_visual=True,
-        visual_material=None,
-        mpm_contact_margin=MPM_COLLIDER_MARGIN,
-        rigid_contact_margin=FLOOR_CONTACT_MARGIN,
-        rigid_contact_gap=FLOOR_CONTACT_GAP,
         prim_path="/World/ground",
         terrain_type="generator",
         collision_group=-1,
@@ -120,8 +94,8 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             particle_depth=SAND_DEPTH,
             voxel_size=VOXEL_SIZE,
             particles_per_cell=1.25,
-            jitter=0.05,
-            # jitter=0.004,
+            # jitter=0.05,
+            jitter=0.004,
             material=MPMParticleMaterialCfg(
                 # **MATERIAL_PRESETS["rigid"]._asdict()
                 **MATERIAL_PRESETS["sand"]._asdict()
@@ -133,29 +107,14 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             visual_color=(0.72, 0.55, 0.34),
         ),
     )
-    visual_terrain: TerrainImporterCfg = TexturedTerrainImporterCfg(
-        prim_path="/World/visual_terrain",
-        # disable_visual=True,
-        collision_group=-1,
-        terrain_type="generator",
-        disable_collider=True,
-        use_terrain_origins=False,
-        terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
-        mesh_origin_offset=(0.0, 0.0, -SAND_DEPTH),
-    )
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",
         spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
-            # Scoped to the sole colliders. Newton sums both shapes' margins, so applying this to
-            # the whole robot pushes every non-adjacent link pair apart by twice the margin; with
-            # self-collisions enabled the shin and the sole sit 0.02 m apart in the nominal stance
-            # and the legs lock up. Only the proxied ankle roll links are seen by the MPM solver,
-            # so only they need the inflation.
+            # inflate the contact margin for the ankle roll links
             collision_props={
                 r"/.*_ankle_roll_link/.*": [
                     NewtonCollisionCfg(
                         contact_margin=FOOT_CONTACT_MARGIN,
-                        # Implicit MPM consumes the shape margin; gap is a rigid-contact parameter.
                         contact_gap=0.0,
                     ),
                 ],
@@ -192,9 +151,6 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
     def configure_terrain(self) -> None:
         """Derive all authored geometry from the final terrain configuration."""
         self.terrain.validate_geometry()
-        # Generate identical visual and support geometry from one configured source.
-        if self.terrain.terrain_generator.seed is None:
-            raise ValueError("Set terrain_generator.seed so visual and support terrains match")
 
         terrain = self.terrain.moving_patch_terrain
         x, y = terrain.total_patch_size

@@ -239,6 +239,38 @@ def test_importing_newton_visualizer_lets_pyglet_resolve_a_screen_without_monito
     assert result.returncode == 0, result.stderr[-2000:]
 
 
+@pytest.mark.integration
+@pytest.mark.rendering
+@pytest.mark.skipif(not os.environ.get("DISPLAY") or not torch.cuda.is_available(), reason="Requires X11 and CUDA")
+def test_headless_gl_with_x11_display():
+    """Offscreen GL must keep a compatible display/context backend when X11 is available."""
+    code = textwrap.dedent(
+        """
+        import gymnasium as gym
+        from isaaclab.app import launch_simulation
+        from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
+        from isaaclab_tasks.core.cartpole.cartpole_manager_env_cfg import CartpoleEnvCfg
+        from isaaclab_tasks.utils.hydra import resolve_presets
+
+        cfg = resolve_presets(CartpoleEnvCfg(), selected={"newton_mjwarp"})
+        cfg.scene.num_envs = 1
+        cfg.sim.visualizer_cfgs = [NewtonGLVisualizerCfg(headless=True, window_width=128, window_height=128)]
+        with launch_simulation(cfg.sim, {"device": "cuda:0", "visualizer": ["newton_gl"]}):
+            env = gym.make("Isaac-Cartpole", cfg=cfg)
+            try:
+                env.reset()
+                visualizer = env.unwrapped.sim._visualizers[0]
+                frame = visualizer.render_rgb_array()
+                assert frame is not None and frame.shape[:2] == (128, 128)
+                assert not visualizer._viewer.renderer.window.visible
+            finally:
+                env.close()
+        """
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-4000:]
+
+
 def test_newton_visualizer_set_camera_view_updates_cfg_without_viewer():
     visualizer = NewtonGLVisualizer(NewtonGLVisualizerCfg())
 
