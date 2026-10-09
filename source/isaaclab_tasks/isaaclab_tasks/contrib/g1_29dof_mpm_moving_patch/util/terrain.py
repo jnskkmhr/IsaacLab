@@ -10,6 +10,7 @@ import math
 from dataclasses import MISSING
 
 import numpy as np
+import torch
 import trimesh
 import warp as wp
 from isaaclab_newton.sim.spawners.mpm import MPMParticleMaterialCfg
@@ -17,7 +18,7 @@ from isaaclab_newton.sim.spawners.mpm import MPMParticleMaterialCfg
 from pxr import Sdf, UsdGeom, UsdShade, Vt
 
 import isaaclab.sim as sim_utils
-from isaaclab.terrains import TerrainImporter, TerrainImporterCfg
+from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporter, TerrainImporterCfg
 from isaaclab.utils import configclass
 
 from .kernel import sample_heights
@@ -277,3 +278,50 @@ class BackgroundTerrainImporterCfg(TexturedTerrainImporterCfg):
             )
         ):
             raise ValueError("Generated background must contain simulated plus boundary terrain")
+
+
+def split_contact_surfaces(
+    mesh: trimesh.Trimesh, generator: TerrainGeneratorCfg, particle_depth: float
+) -> tuple[trimesh.Trimesh, trimesh.Trimesh]:
+    """Lower the support mesh under MPM columns; retain rigid columns at their generated height."""
+    split_y = (generator.num_cols // 2 - generator.num_cols / 2) * generator.size[1]
+    mpm_surface = mesh.slice_plane((0.0, split_y, 0.0), (0.0, -1.0, 0.0))
+    rigid_surface = mesh.slice_plane((0.0, split_y, 0.0), (0.0, 1.0, 0.0))
+    mpm_surface.apply_translation((0.0, 0.0, -particle_depth))
+    return mpm_surface, rigid_surface
+
+
+class MixedTerrainImporter(BackgroundTerrainImporter):
+    """Assign the first half of environments to MPM columns and the rest to rigid columns.
+
+    Difficulty levels and row progression use TerrainImporter. With an odd number
+    of columns, environments remain split equally between the two contact groups.
+    """
+
+    def import_mesh(self, name: str, mesh: trimesh.Trimesh) -> None:
+        self.background_mesh = WarpTerrainMesh(mesh.vertices, mesh.faces, self.device)
+        mpm_surface, rigid_surface = split_contact_surfaces(
+            mesh, self.cfg.terrain_generator, self.cfg.moving_patch_terrain.particle_depth
+        )
+        TexturedTerrainImporter.import_mesh(self, name, trimesh.util.concatenate((mpm_surface, rigid_surface)))
+        TexturedTerrainImporter.import_mesh(self, "mpm_ground", mpm_surface)
+        # Draw the textured MJWarp collider; the MPM solver's duplicate stays hidden.
+        UsdGeom.Imageable(
+            sim_utils.get_current_stage().GetPrimAtPath(f"{self.cfg.prim_path}/mpm_ground")
+        ).MakeInvisible()
+
+    def _compute_env_origins_curriculum(self, num_envs: int, origins: torch.Tensor) -> torch.Tensor:
+        super()._compute_env_origins_curriculum(num_envs, origins)
+        num_mpm_envs = num_envs // 2
+        num_mpm_columns = origins.shape[1] // 2
+        self.terrain_types[:num_mpm_envs] = torch.div(
+            torch.arange(num_mpm_envs, device=self.device) * num_mpm_columns,
+            num_mpm_envs,
+            rounding_mode="floor",
+        )
+        self.terrain_types[num_mpm_envs:] = num_mpm_columns + torch.div(
+            torch.arange(num_envs - num_mpm_envs, device=self.device) * (origins.shape[1] - num_mpm_columns),
+            num_envs - num_mpm_envs,
+            rounding_mode="floor",
+        )
+        return origins[self.terrain_levels, self.terrain_types].clone()

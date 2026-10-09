@@ -14,3 +14,16 @@ uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Veloci
 Task settings are in `mpm_env_cfg.py`. Particle dimensions, materials, and terrain configuration are in `env_cfg/scene_cfg.py`; sampling ranges are in `env_cfg/event_cfg.py`. This initial task uses proxy coupling. Mixed rigid/MPM environments are introduced separately.
 
 The robot asset is provided by `isaaclab_contrib.assets`. Ground texture assets are not included; the terrain uses its configured plain color. Coupled material updates require Newton's particle-material synchronization fix. Multi-environment MPM requires the Warp multi-environment cell-lookup fix; see the draft PR validation notes for tested dependency versions.
+
+## Mixed rigid and MPM terrain
+
+The mixed task uses one shared physics configuration and terrain generator. For an even number of environments, the first half receive MPM particles and terrain columns whose rigid supporting mesh is lowered by the sand depth. The second half contain no MPM particles and use rigid terrain columns at the generated surface height.
+
+The default generator has one difficulty row and two flat terrain columns. Other terrain generators can be selected through `env_cfg/mixed_scene_cfg.py`; environment assignment follows the terrain column convention. The mixed environment combines robot foot reaction forces from the MPM coupler and MJWarp rigid contacts. Material randomization is restricted to the MPM environments.
+
+`mpm_contact_margin` and `rigid_contact_margin` in `mixed_env_cfg.py` set fixed robot foot collider margins for the two environment groups. Rigid terrain uses zero foot collider margin by default. These values are not sampled during reset.
+
+```bash
+uv run isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 4
+uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain-Play --num_envs 4 --wandb_run <run-id> --viz newton_rtx
+```

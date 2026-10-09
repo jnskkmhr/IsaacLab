@@ -202,3 +202,32 @@ def test_observation_metrics_capture_invalid_values_without_advancing_history():
     env.sample = torch.full((2, 3), 7.0)
     after = env.observation_manager.compute(update_history=True)["privileged"]
     torch.testing.assert_close(after, torch.tensor([[1.0] * 6 + [7.0] * 3] * 2))
+
+
+def test_foot_clearance_offsets_only_sand_environments():
+    """Equal foot clearance above sand and rigid surfaces gives equal rewards."""
+    feet = torch.zeros(4, 2, 3)
+    feet[:, :, 2] = torch.tensor([[0.13539, 0.18539], [3.13539, 3.18539]] * 2)
+    velocity = torch.zeros_like(feet)
+    velocity[:, :, 0] = math.atanh(0.5) / 2.0
+    hits = torch.zeros(4, 2, 3)
+    # Sand scanners hit the supporting floor 25 cm below the initial sand surface.
+    # Rigid scanners hit the walking surface itself, including its world height.
+    hits[:, :, 2] = torch.tensor([[-0.35, -0.15], [2.65, 2.85], [-0.1, 0.1], [2.9, 3.1]])
+    env = SimpleNamespace(
+        num_envs=4,
+        device="cpu",
+        scene={
+            "robot": SimpleNamespace(
+                data=SimpleNamespace(
+                    body_pos_w=SimpleNamespace(torch=feet),
+                    body_lin_vel_w=SimpleNamespace(torch=velocity),
+                ),
+            ),
+            "sand": SimpleNamespace(num_instances=2),
+            "height_scanner": SimpleNamespace(data=SimpleNamespace(ray_hits_w=SimpleNamespace(torch=hits))),
+        },
+    )
+    cfg = G1RewardsCfg().foot_clearance
+    cfg.params["ground_height_offset"] = 0.25
+    torch.testing.assert_close(cfg.func(env, **cfg.params), torch.full((4,), math.exp(-0.025)))
