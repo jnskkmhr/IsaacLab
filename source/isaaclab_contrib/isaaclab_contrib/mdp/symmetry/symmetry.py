@@ -7,24 +7,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from dataclasses import MISSING
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import torch
 from tensordict import TensorDict
 
-from isaaclab.envs.mdp.actions import JointPositionActionCfg
 from isaaclab.managers import ActionTermCfg, ObservationTermCfg
-from isaaclab.utils.configclass import configclass
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 __all__ = [
-    "MirrorObservationTermCfg",
-    "MirrorActionTermCfg",
-    "MirrorJointPositionActionCfg",
     "MirrorAugmentation",
     "compute_mirrored_states",
     "mirror_identity",
@@ -103,44 +97,11 @@ def compute_mirrored_states(
     changing its observation or action configuration.
     """
     env = env.unwrapped
-    augmentation = getattr(env, "_velocity_mirror_augmentation", None)
+    augmentation = getattr(env, "_mirror_augmentation", None)
     if augmentation is None:
         augmentation = MirrorAugmentation(env)
-        env._velocity_mirror_augmentation = augmentation
+        env._mirror_augmentation = augmentation
     return augmentation(obs, actions)
-
-
-@configclass
-class MirrorObservationTermCfg(ObservationTermCfg):
-    """An observation term with an explicit reflection rule."""
-
-    mirror: Callable[..., torch.Tensor] = MISSING
-    """Callable ``mirror(data, **mirror_params)``. Use :func:`mirror_identity` for invariant terms.
-
-    The input contains the recorded, scaled observation, not live simulation data.
-    Flattened histories are reshaped to ``(*batch, history, features)`` before calling
-    the function. Other term shapes are preserved. The result must preserve shape,
-    dtype, and device. Custom functions must handle arbitrary leading batch dimensions.
-    """
-
-    mirror_params: dict[str, Any] = {}
-    """Keyword arguments passed to :attr:`mirror`, independent of observation parameters."""
-
-
-@configclass
-class MirrorActionTermCfg(ActionTermCfg):
-    """Action configuration base that adds a reflection rule to concrete action configs."""
-
-    mirror: Callable[..., torch.Tensor] = MISSING
-    """Callable ``mirror(data, **mirror_params)`` acting on raw policy actions."""
-
-    mirror_params: dict[str, Any] = {}
-    """Keyword arguments passed to :attr:`mirror`."""
-
-
-@configclass
-class MirrorJointPositionActionCfg(JointPositionActionCfg, MirrorActionTermCfg):
-    """Joint position actions with a configurable reflection of raw policy actions."""
 
 
 class MirrorAugmentation:

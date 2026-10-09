@@ -18,7 +18,6 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
-import isaaclab_tasks.contrib.velocity.config.vel_mdp as vel_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 
 from .. import mdp as mpm_mdp
@@ -159,29 +158,29 @@ class G1RewardsCfg:
     # foot orientation
     # """
 
-    # feet_roll = RewTerm(
-    #     func=g1_mdp.reward_feet_roll,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
+    feet_roll = RewTerm(
+        func=g1_mdp.reward_feet_roll,
+        weight=-1.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=[".*ankle_roll.*"],
+                preserve_order=True,
+            ),
+        },
+    )
 
-    # feet_roll_diff = RewTerm(
-    #     func=g1_mdp.reward_feet_roll_diff,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
+    feet_roll_diff = RewTerm(
+        func=g1_mdp.reward_feet_roll_diff,
+        weight=-1.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=[".*ankle_roll.*"],
+                preserve_order=True,
+            ),
+        },
+    )
 
     # feet_pitch = RewTerm(
     #     func=g1_mdp.reward_feet_pitch,
@@ -219,8 +218,8 @@ class G1RewardsCfg:
     #     },
     # )
 
-    foot_touch_down_angle_penalty = RewTerm(
-        func=mpm_mdp.foot_touch_down_angle_penalty,  # type: ignore
+    stance_foot_angle_penalty = RewTerm(
+        func=mpm_mdp.stance_foot_angle_penalty,  # type: ignore
         # weight=-4.0,
         weight=-8.0,
         params={
@@ -284,7 +283,7 @@ class G1RewardsCfg:
     """
 
     foot_clearance = RewTerm(
-        func=vel_mdp.foot_clearance_reward,
+        func=mpm_mdp.foot_clearance_reward,
         weight=5.0,
         params={
             "target_height": 0.1,

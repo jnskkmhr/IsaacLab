@@ -61,8 +61,12 @@ workflow:
           cp -a "{{input:1}}" /tmp/isaaclab/source/isaaclab_assets/data
           cd /tmp/isaaclab
           ln -s "{{output}}/logs" logs
+{% if warp_wheel_url %}
           uv sync --locked {{ uv_args }} --no-install-package warp-lang
           uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" --no-deps "{{input:2}}"/*.whl
+{% else %}
+          uv sync --locked {{ uv_args }}
+{% endif %}
           uv run --no-sync isaaclab train_multigpu \
             --rl_library {{ rl_library }} --num_gpus {{ num_gpu }} \
             --nnodes {{ num_nodes }} --node_rank {{ rank }} \
@@ -71,7 +75,9 @@ workflow:
       inputs:
       - url: "{{ source_url }}"
       - url: "{{ assets_url }}"
+{% if warp_wheel_url %}
       - url: "{{ warp_wheel_url }}"
+{% endif %}
       outputs:
       - url: "{{ output_url }}/{{workflow_id}}/rank-{{ rank }}"
 {% if rank == 0 %}

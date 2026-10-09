@@ -41,6 +41,7 @@ class MovingPatchParticles:
         self._setup_tracked_bodies()
         self._setup_particle_storage()
         self.update(state)
+        self.check_terrain_queries()
 
     def _setup_solver(self, coupled_solver: SolverCoupled, entry_name: str) -> None:
         """Resolve the MPM entry and its particle material state."""
@@ -59,9 +60,7 @@ class MovingPatchParticles:
             matches = [
                 i
                 for i, label in enumerate(self.model.body_label)
-                if body_worlds[i] == world
-                and label
-                and label.rsplit("/", 1)[-1] == self.terrain.tracked_body
+                if body_worlds[i] == world and label and label.rsplit("/", 1)[-1] == self.terrain.tracked_body
             ]
             if len(matches) != 1:
                 raise ValueError(f"Expected one {self.terrain.tracked_body!r} in world {world}, got {matches}")
@@ -92,7 +91,7 @@ class MovingPatchParticles:
         self.initial_particle_plastic_volume_ratio = wp.clone(self.material_state.mpm.particle_Jp)
         self.env_reset_requested = wp.ones(model.world_count, dtype=int, device=model.device)
         self._update_counts = wp.zeros(2, dtype=int, device=model.device)
-        # Named views share storage so both counters require only one CPU readback.
+        # Mass changes control a GPU branch; query failures accumulate until the control-step check.
         self.mass_change_count = self._update_counts[:1]
         self.terrain_query_miss_count = self._update_counts[1:]
 
@@ -137,7 +136,7 @@ class MovingPatchParticles:
             outputs=[self.patch_centers],  # patch_center
             device=model.device,
         )
-        self._update_counts.zero_()
+        self.mass_change_count.zero_()
         material = self.material_state.mpm
         wp.launch(
             update_particles,
@@ -173,26 +172,35 @@ class MovingPatchParticles:
             device=model.device,
         )
         self.env_reset_requested.zero_()
-        mass_change_count, terrain_query_miss_count = self._update_counts.numpy()
-        if terrain_query_miss_count:
+        wp.capture_if(self.mass_change_count, self._refresh_particle_mass)
+
+    def check_terrain_queries(self) -> None:
+        """Report failed terrain queries outside CUDA capture, once per control step."""
+        if self.terrain_query_miss_count.numpy()[0]:
             raise ValueError("Recycled particles left the generated terrain surface")
-        if mass_change_count:
-            for name in ("particle_mass", "particle_inv_mass"):
-                wp.copy(getattr(self.solver.model, name), getattr(model, name))
-            # Mass is the only changing material property. Radius, volume, ACTIVE flags,
-            # collider membership and constitutive parameters stay fixed.
-            derived = self.solver._mpm_model
-            wp.launch(
-                refresh_density,
-                dim=model.particle_count,
-                inputs=[
-                    self.solver.model.particle_mass,  # particle_mass
-                    derived.particle_volume,  # particle_volume
-                    derived.particle_density,  # particle_density
-                ],
-                device=model.device,
-            )
-            self.solver.reset(self.material_state, flags=0)
+        self.terrain_query_miss_count.zero_()
+
+    def _refresh_particle_mass(self) -> None:
+        """Synchronize changed masses and invalidate warm starts inside the GPU branch."""
+        for name in ("particle_mass", "particle_inv_mass"):
+            wp.copy(getattr(self.solver.model, name), getattr(self.model, name))
+        # Radius, volume, collider membership and constitutive parameters are unchanged.
+        derived = self.solver._mpm_model
+        wp.launch(
+            refresh_density,
+            dim=self.model.particle_count,
+            inputs=[self.solver.model.particle_mass, derived.particle_volume],
+            outputs=[derived.particle_density],
+            device=self.model.device,
+        )
+        # A full solver reset also clears sparse-grid error status and is forbidden
+        # during capture. Recycling only invalidates warm starts and collider history.
+        self.solver._clear_reset_warmstarts(None, (None, None))
+        self.solver._last_step_data.save_collider_current_position(
+            self.material_state.body_q,
+            body_world=self.solver.model.body_world,
+            world_count=self.solver.model.world_count,
+        )
 
     def restore_boundary_particles(self, state: newton.State) -> None:
         """Remove numerical boundary drift after MPM advection."""

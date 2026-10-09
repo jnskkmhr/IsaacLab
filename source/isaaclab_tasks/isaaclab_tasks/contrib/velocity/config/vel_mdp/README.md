@@ -1,6 +1,6 @@
 # Term-driven mirror augmentation
 
-`vel_mdp.symmetry` reflects locomotion observations and raw actions across the XZ
+`isaaclab_contrib.mdp.symmetry` reflects locomotion observations and raw actions across the XZ
 plane (left/right). It reads active term names, dimensions, concatenation settings,
 and history lengths from initialized managers. It does not assume a `policy` group,
 a fixed joint count, a clock term, or a particular observation order.
@@ -11,20 +11,20 @@ Use `MirrorObservationTermCfg` wherever you would use `ObservationTermCfg`:
 
 ```python
 from isaaclab.envs import mdp
-from isaaclab_tasks.contrib.velocity.config import vel_mdp
+from isaaclab_contrib import mdp as symmetry_mdp
 
-base_velocity = vel_mdp.MirrorObservationTermCfg(
+base_velocity = symmetry_mdp.MirrorObservationTermCfg(
     func=mdp.base_lin_vel,
-    mirror=vel_mdp.mirror_vec3,
+    mirror=symmetry_mdp.mirror_vec3,
 )
-angular_velocity = vel_mdp.MirrorObservationTermCfg(
+angular_velocity = symmetry_mdp.MirrorObservationTermCfg(
     func=mdp.base_ang_vel,
-    mirror=vel_mdp.mirror_vec3,
+    mirror=symmetry_mdp.mirror_vec3,
     mirror_params={"axial": True},
 )
-orientation = vel_mdp.MirrorObservationTermCfg(
+orientation = symmetry_mdp.MirrorObservationTermCfg(
     func=mdp.root_quat_w,
-    mirror=vel_mdp.mirror_quat,
+    mirror=symmetry_mdp.mirror_quat,
 )
 ```
 
@@ -57,12 +57,12 @@ is augmented, rather than silently producing an inconsistent sample.
 For joint position actions, use `MirrorJointPositionActionCfg`:
 
 ```python
-joint_pos = vel_mdp.MirrorJointPositionActionCfg(
+joint_pos = symmetry_mdp.MirrorJointPositionActionCfg(
     asset_name="robot",
     joint_names=["left_joint", "right_joint"],
     preserve_order=True,
     scale=0.25,
-    mirror=vel_mdp.mirror_joints,
+    mirror=symmetry_mdp.mirror_joints,
     mirror_params={"permutation": [1, 0], "signs": [-1, -1]},
 )
 ```
@@ -78,7 +78,7 @@ For other action types, combine the concrete action config with
 from isaaclab.utils.configclass import configclass
 
 @configclass
-class MirroredCustomActionCfg(CustomActionCfg, vel_mdp.MirrorActionTermCfg):
+class MirroredCustomActionCfg(CustomActionCfg, symmetry_mdp.MirrorActionTermCfg):
     pass
 ```
 
@@ -94,7 +94,7 @@ from isaaclab_rl.rsl_rl import RslRlSymmetryCfg
 
 symmetry_cfg = RslRlSymmetryCfg(
     use_data_augmentation=True,
-    data_augmentation_func=vel_mdp.compute_mirrored_states,
+    data_augmentation_func=symmetry_mdp.compute_mirrored_states,
 )
 ```
 

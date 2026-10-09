@@ -11,13 +11,16 @@ to the proxy feet, and the terrain-material term keeps the soft-contact layout a
 """
 
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
-from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
+from isaaclab_contrib.mdp import MirrorObservationTermCfg as ObsTerm
+from isaaclab_contrib.mdp import mirror_identity, mirror_quat, mirror_vec3
+
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 
 from .. import mdp as mpm_mdp
 from .action_cfg import ACTIVE_JOINT
@@ -30,15 +33,20 @@ class PolicyCfg(ObsGroup):
     # observation terms (order preserved)
     base_ang_vel = ObsTerm(
         func=mdp.base_ang_vel,
+        mirror=mirror_vec3,
+        mirror_params={"axial": True},
         noise=Unoise(n_min=-0.2, n_max=0.2),
         scale=0.25,
     )
     projected_gravity = ObsTerm(
         func=mdp.projected_gravity,
+        mirror=mirror_vec3,
         noise=Unoise(n_min=-0.05, n_max=0.05),
     )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
         noise=Unoise(n_min=-0.01, n_max=0.01),
         params={
             "asset_cfg": SceneEntityCfg(
@@ -50,6 +58,8 @@ class PolicyCfg(ObsGroup):
     )
     joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
         noise=Unoise(n_min=-1.5, n_max=1.5),
         params={
             "asset_cfg": SceneEntityCfg(
@@ -60,7 +70,9 @@ class PolicyCfg(ObsGroup):
         },
         scale=0.05,
     )
-    actions = ObsTerm(func=mdp.last_action)
+    actions = ObsTerm(
+        func=mdp.last_action, mirror=symmetry.mirror_g1_joints, mirror_params={"joint_names": ACTIVE_JOINT}
+    )
 
     def __post_init__(self):
         self.enable_corruption = True
@@ -75,14 +87,19 @@ class CriticCfg(ObsGroup):
     # observation terms (order preserved)
     base_ang_vel = ObsTerm(
         func=mdp.base_ang_vel,
+        mirror=mirror_vec3,
+        mirror_params={"axial": True},
         scale=0.25,
     )
     base_quat = ObsTerm(
         func=mdp.root_quat_w,
+        mirror=mirror_quat,
         params={"make_quat_unique": True},
     )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -93,6 +110,8 @@ class CriticCfg(ObsGroup):
     )
     joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -102,7 +121,9 @@ class CriticCfg(ObsGroup):
         },
         scale=0.05,
     )
-    actions = ObsTerm(func=mdp.last_action)
+    actions = ObsTerm(
+        func=mdp.last_action, mirror=symmetry.mirror_g1_joints, mirror_params={"joint_names": ACTIVE_JOINT}
+    )
 
     def __post_init__(self):
         self.enable_corruption = False
@@ -121,14 +142,16 @@ class CriticHistoryCfg(CriticCfg):
     def __post_init__(self):
         self.history_length = 10
 
+
 @configclass
 class CommandCfg(ObsGroup):
     """Command observations for the actor and critic."""
 
     velocity_commands = ObsTerm(
-        func=mdp.generated_commands, 
+        func=mdp.generated_commands,
+        mirror=symmetry.mirror_velocity_heading,
         params={"command_name": "base_velocity"},
-        )
+    )
 
     def __post_init__(self):
         self.enable_corruption = False
@@ -140,15 +163,20 @@ class CommandCfg(ObsGroup):
 class PrivilegedObsCfg(ObsGroup):
     """Granular-terrain information available to the critic only."""
 
-    base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel, mirror=mirror_vec3)
     foot_height = ObsTerm(
         func=g1_mdp.foot_height,
+        mirror=symmetry.mirror_foot_scalars,
         params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},
     )
-    foot_contact = ObsTerm(func=mpm_mdp.foot_contact)
-    foot_contact_force = ObsTerm(func=mpm_mdp.foot_contact_force, params={"force_filter_threshold": 5.0})
-    foot_air_time = ObsTerm(func=mpm_mdp.foot_air_time)
-    terrain_material_parameters = ObsTerm(func=mpm_mdp.terrain_material_parameters)
+    foot_contact = ObsTerm(func=mpm_mdp.foot_contact, mirror=symmetry.mirror_foot_scalars)
+    foot_contact_force = ObsTerm(
+        func=mpm_mdp.foot_contact_force,
+        mirror=symmetry.mirror_foot_forces,
+        params={"force_filter_threshold": 5.0},
+    )
+    foot_air_time = ObsTerm(func=mpm_mdp.foot_air_time, mirror=symmetry.mirror_foot_scalars)
+    terrain_material_parameters = ObsTerm(func=mpm_mdp.terrain_material_parameters, mirror=mirror_identity)
 
     def __post_init__(self):
         self.enable_corruption = False
@@ -166,15 +194,20 @@ class PrivilegedHistoryCfg(PrivilegedObsCfg):
 class LoggingObsCfg(ObsGroup):
     """Quantities recorded for analysis; not consumed by the learning algorithm."""
 
-    base_pos = ObsTerm(func=mdp.root_pos_w)
-    base_quat = ObsTerm(func=mdp.root_quat_w)
-    base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-    base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+    base_pos = ObsTerm(func=mdp.root_pos_w, mirror=mirror_vec3)
+    base_quat = ObsTerm(func=mdp.root_quat_w, mirror=mirror_quat)
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel, mirror=mirror_vec3)
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel, mirror=mirror_vec3, mirror_params={"axial": True})
     commands = ObsTerm(
         func=mdp.generated_commands,
+        mirror=symmetry.mirror_velocity_heading,
         params={"command_name": "base_velocity"},
     )
-    contact_forces = ObsTerm(func=mpm_mdp.foot_contact_force_raw, params={"force_filter_threshold": 5.0})
+    contact_forces = ObsTerm(
+        func=mpm_mdp.foot_contact_force_raw,
+        mirror=symmetry.mirror_foot_forces,
+        params={"force_filter_threshold": 5.0},
+    )
 
     def __post_init__(self):
         self.enable_corruption = False

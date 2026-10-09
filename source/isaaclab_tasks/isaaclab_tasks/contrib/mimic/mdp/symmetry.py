@@ -9,7 +9,7 @@ from functools import lru_cache
 
 import torch
 
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import mirror_vec3
+from isaaclab_contrib.mdp import mirror_vec3
 
 
 def mirror_rotation_6d(data: torch.Tensor) -> torch.Tensor:

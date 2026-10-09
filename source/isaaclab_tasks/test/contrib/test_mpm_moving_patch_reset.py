@@ -8,10 +8,14 @@
 import gymnasium as gym
 import pytest
 import torch
+import warp as wp
+from isaaclab_newton.physics import NewtonManager
 
 from isaaclab.app import launch_simulation
 from isaaclab.test.utils import DeviceScope, test_devices
 
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.env_cfg.terrain_cfg import FLAT_TERRAINS_CFG
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mixed_env_cfg import G1MixedTerrainEnvCfg_PLAY
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mpm_env_cfg import G1MovingPatchEnvCfg_PLAY
 from isaaclab_tasks.utils.hydra import resolve_presets
 
@@ -21,10 +25,11 @@ def test_g1_terrain_reset_uses_current_ranges(device):
     """Full and partial resets sample current bounds before a finite simulation step."""
     cfg = resolve_presets(G1MovingPatchEnvCfg_PLAY(), selected={"mjwarp_mpm_proxy"})
     cfg.scene.num_envs = 2
+    cfg.scene.terrain.terrain_generator = FLAT_TERRAINS_CFG.copy()
     cfg.sim.device = device
     cfg.sim.visualizer_cfgs = []
     cfg.sim.default_visualizer_cfg = None
-    cfg.sim.physics.use_cuda_graph = False
+    cfg.sim.physics.use_cuda_graph = True
     cfg.video_recorders = []
     cfg.events.reset_base.params["pose_range"] = {"x": (0.1, 0.1)}
     cfg.events.reset_base.params["velocity_range"] = {}
@@ -59,6 +64,71 @@ def test_g1_terrain_reset_uses_current_ranges(device):
                 observations, rewards, _, _, _ = env.step(actions)
                 assert torch.isfinite(rewards).all()
                 assert all(torch.isfinite(value).all() for value in observations.values())
-                assert torch.isfinite(robot.data.root_state_w.torch).all()
+            assert torch.isfinite(robot.data.root_state_w.torch).all()
+
+            # Shift one patch after graph replay has started, then replay again.
+            patch = raw.moving_patch_particle
+            before_centers = wp.to_torch(patch.patch_centers).clone()
+            term.params["pose_range"] = {"x": (1.1, 1.1)}
+            raw.reset(env_ids=torch.tensor([1], device=device))
+            observations, rewards, _, _, _ = env.step(actions)
+            assert wp.to_torch(patch.patch_centers)[1, 0] > before_centers[1, 0] + 0.4
+            assert torch.isfinite(rewards).all()
+            assert all(torch.isfinite(value).all() for value in observations.values())
+            torch.testing.assert_close(
+                wp.to_torch(patch.model.particle_mass), wp.to_torch(patch.solver.model.particle_mass)
+            )
+            torch.testing.assert_close(
+                wp.to_torch(patch.solver._mpm_model.particle_density),
+                wp.to_torch(patch.model.particle_mass) / wp.to_torch(patch.solver._mpm_model.particle_volume),
+            )
+
+            # Graph replay must not discard a terrain-query error between substeps.
+            patch.terrain_query_miss_count.fill_(1)
+            with pytest.raises(ValueError, match="Recycled particles left"):
+                env.step(actions)
+        finally:
+            env.close()
+
+
+@pytest.mark.parametrize("device", test_devices(DeviceScope.CUDA))
+def test_mixed_terrain_fixed_foot_margins(device):
+    """Both solver models use constant per-terrain foot margins across resets."""
+    cfg = resolve_presets(G1MixedTerrainEnvCfg_PLAY(), [])
+    cfg.scene.num_envs = 4
+    cfg.mpm_contact_margin = 0.02
+    cfg.rigid_contact_margin = 0.0
+    cfg.sim.device = device
+    cfg.sim.visualizer_cfgs = []
+    cfg.sim.default_visualizer_cfg = None
+    cfg.video_recorders = []
+    with launch_simulation(cfg, {"headless": True, "device": device}):
+        env = gym.make("IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain-Play", cfg=cfg)
+        try:
+            env.reset()
+            models = [NewtonManager.get_model()]
+            models.extend(entry.solver.model for entry in NewtonManager._solver._entries.values())
+            expected = torch.tensor([0.02, 0.02, 0.0, 0.0], device=device)
+            saved_margins = []
+            for model in models:
+                shape_bodies = model.shape_body.numpy()
+                foot_shapes = [
+                    i
+                    for i, body in enumerate(shape_bodies)
+                    if body >= 0 and model.body_label[body].endswith("_ankle_roll_link")
+                ]
+                world_ids = wp.to_torch(model.body_world)[shape_bodies[foot_shapes]].long()
+                assert set(world_ids.tolist()) == {0, 1, 2, 3}
+                margins = wp.to_torch(model.shape_margin)
+                torch.testing.assert_close(margins[foot_shapes], expected[world_ids])
+                saved_margins.append(margins.clone())
+
+            actions = torch.zeros((4, env.unwrapped.action_manager.total_action_dim), device=device)
+            observations, rewards, _, _, _ = env.step(actions)
+            assert torch.isfinite(rewards).all()
+            assert all(torch.isfinite(value).all() for value in observations.values())
+            env.unwrapped.reset(env_ids=torch.tensor([0, 2], device=device))
+            for model, previous in zip(models, saved_margins):
+                torch.testing.assert_close(wp.to_torch(model.shape_margin), previous)
         finally:
             env.close()

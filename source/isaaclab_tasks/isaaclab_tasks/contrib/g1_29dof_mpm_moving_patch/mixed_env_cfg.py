@@ -4,10 +4,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 """Equal-sized rigid-ground and MPM-ground groups for one G1 policy."""
 
+import math
+
 from isaaclab.utils import configclass
 
 from .env_cfg.mixed_scene_cfg import G1MixedTerrainSceneCfg
 from .env_cfg.physics_cfg import MPM_ENTRY, G1PhysicsProxyCfg
+from .env_cfg.scene_cfg import FOOT_CONTACT_MARGIN
 from .mdp.curriculums import terrain_levels_vel
 from .mixed_env import outside_contact_region, randomize_mpm_material
 from .mpm_env_cfg import G1MovingPatchEnvCfg
@@ -23,6 +26,15 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
 
     scene: G1MixedTerrainSceneCfg = G1MixedTerrainSceneCfg(num_envs=64, env_spacing=4.0)
 
+    mpm_contact_margin: float = FOOT_CONTACT_MARGIN
+    """Fixed robot foot collider margin in MPM environments [m]."""
+
+    rigid_contact_margin: float = 0.0
+    """Fixed robot foot collider margin in rigid-only environments [m]."""
+
+    foot_contact_margin_range: tuple[float, float] | None = None
+    """Disabled for mixed terrain; use the fixed per-terrain margins above."""
+
     def __post_init__(self) -> None:
         super().__post_init__()
         self.scene.num_envs = 64
@@ -35,6 +47,14 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
                 term.func = randomize_mpm_material
 
     def validate_config(self) -> None:
+        if self.foot_contact_margin_range is not None:
+            raise ValueError(
+                "Mixed terrain uses mpm_contact_margin and rigid_contact_margin, not a sampled margin range."
+            )
+        for name in ("mpm_contact_margin", "rigid_contact_margin"):
+            margin = getattr(self, name)
+            if not math.isfinite(margin) or margin < 0.0:
+                raise ValueError(f"{name} must be finite and nonnegative.")
         if self.scene.num_envs < 2 or self.scene.num_envs % 2:
             raise ValueError("Mixed terrain requires an even num_envs >= 2 (half MPM, half rigid).")
         super().validate_config()

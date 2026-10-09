@@ -5,8 +5,9 @@
 
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_contrib.mdp import MirrorJointPositionActionCfg
+
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorJointPositionActionCfg
 
 CONTROLLED_JOINTS = [
     "left_hip_pitch_joint",

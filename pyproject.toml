@@ -48,7 +48,7 @@ dependencies = [
     "pyglet>=2.1.6,<3",
     "transformers==5.10.4",
     "einops",
-    "warp-lang==1.19.0.dev0",
+    "warp-lang==1.19.0.dev20261008",
     "matplotlib>=3.10.3",
     # pillow: floor, not exact — an exact pin below Isaac Sim's prebundled version forces a
     # downgrade that deletes the prebundled copy other extensions symlink into (nvbugs 6410989).
@@ -373,6 +373,7 @@ markers = [
 # Add pypi.nvidia.com so that `uv pip install isaaclab[isaacsim]` works without --extra-index-url.
 # Pip still needs "--extra-index-url https://pypi.nvidia.com".
 [[tool.uv.index]]
+name = "nvidia"
 url = "https://pypi.nvidia.com"
 explicit = false
 
@@ -428,8 +429,9 @@ package = false
 egl-probe = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 
 [tool.uv.sources]
-# Forks containing multi-environment lookup, OpenGL texture reuse, and coupler parameter synchronization fixes.
-warp-lang = { git = "https://github.com/jnskkmhr/warp.git", branch = "jnskkmhr/fix-multi-env-cell-lookup" }
+# Official Warp nightly includes the multi-environment cell lookup fix.
+warp-lang = { index = "nvidia" }
+# Newton fork contains OpenGL texture reuse and coupler parameter synchronization fixes.
 newton = { git = "https://github.com/jnskkmhr/newton.git", branch = "jnskkmhr/fix-coupler-solver-param-sync" }
 omniverseclient = { index = "pypi-public" }
 ovphysx = { index = "pypi-public" }

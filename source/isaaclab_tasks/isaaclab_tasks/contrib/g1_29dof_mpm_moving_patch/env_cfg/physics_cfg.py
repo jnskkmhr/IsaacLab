@@ -115,8 +115,7 @@ class G1PhysicsProxyCfg(NewtonCfg):
     collision_cfg: NewtonCollisionPipelineCfg = NewtonCollisionPipelineCfg(soft_contact_max=0)
     default_shape_cfg: NewtonShapeCfg = NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0)
     num_substeps: int = 1
-    # num_substeps: int = 2 # Coupled timestep: 2.5 ms
-    use_cuda_graph: bool = False
+    use_cuda_graph: bool = True
 
     def configure_terrain(self, moving_patch_terrain: MovingPatchTerrainCfg, proxy_mass_scale: float) -> None:
         """Apply final terrain settings without replacing user-configured solvers."""
@@ -132,6 +131,8 @@ class G1PhysicsProxyCfg(NewtonCfg):
 class G1PhysicsADMMCfg(G1PhysicsProxyCfg):
     """Experimental ADMM rigid-particle coupling with the same MJWarp and MPM settings."""
 
+    use_cuda_graph: bool = False
+
     solver_cfg: CouplerAdmmCfg = CouplerAdmmCfg(
         entries=G1PhysicsProxyCfg().solver_cfg.entries,
         contact_pairs=[(RIGID_ENTRY, MPM_ENTRY)],
@@ -145,6 +146,8 @@ class G1PhysicsADMMCfg(G1PhysicsProxyCfg):
 @configclass
 class G1PhysicsDirectCfg(G1PhysicsProxyCfg):
     """Direct lagged MPM wrench exchange with the same rigid and particle solver settings."""
+
+    use_cuda_graph: bool = False
 
     solver_cfg: CoupledMJWarpMPMSolverCfg = CoupledMJWarpMPMSolverCfg(
         entries=G1PhysicsProxyCfg().solver_cfg.entries,

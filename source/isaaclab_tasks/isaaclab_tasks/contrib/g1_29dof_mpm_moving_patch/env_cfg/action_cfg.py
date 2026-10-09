@@ -11,8 +11,9 @@ here ground reaction is produced by the MPM solver through the coupled foot prox
 
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_contrib.mdp import MirrorJointPositionActionCfg
+
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorJointPositionActionCfg
 
 ACTIVE_JOINT = [
     "left_hip_pitch_joint",

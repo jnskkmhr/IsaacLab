@@ -10,14 +10,13 @@ dropped: the granular properties live in the MPM material, and randomizing them 
 require rebuilding the particle material. The bed itself is restored on reset instead.
 """
 
+from isaaclab_newton.envs.mdp import randomize_mpm_material
+
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
-import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
-
-from .. import mdp as mpm_mdp
 
 
 @configclass
@@ -52,18 +51,14 @@ class G1EventCfg:
     """
 
     # restore the flat bed before the robot is placed on it
-    reset_sand_bed = EventTerm(
-        func=mpm_mdp.reset_sand_bed,
-        mode="reset",
-    )
 
     # The robot starts on the rigid approach platform, so the yaw spread is narrow enough that a
     # forward command carries it onto the bed rather than off the side of the platform.
     reset_base = EventTerm(
-        func=g1_mdp.reset_root_state_uniform_on_ground,
+        func=mdp.reset_root_state_uniform,
         mode="reset",
         params={
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-0.3, 0.3)},
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-0.6, 0.6)},
             "velocity_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.5, 0.5),
@@ -105,4 +100,24 @@ class G1EventCfg:
         mode="interval",
         interval_range_s=(10.0, 15.0),
         params={"velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)}},
+    )
+
+    # Sample each material property once per environment at reset.
+    mpm_material = EventTerm(
+        func=randomize_mpm_material,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("sand"),
+            "parameter_ranges": {"friction": (0.3, 0.9), "density": (1000.0, 3000.0), "poisson_ratio": (0.3, 0.3)},
+            "distribution": "uniform",
+        },
+    )
+    mpm_material_log = EventTerm(
+        func=randomize_mpm_material,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("sand"),
+            "parameter_ranges": {"young_modulus": (1.0e7, 1.0e9), "yield_pressure": (1.0e8, 1.0e9)},
+            "distribution": "log_uniform",
+        },
     )

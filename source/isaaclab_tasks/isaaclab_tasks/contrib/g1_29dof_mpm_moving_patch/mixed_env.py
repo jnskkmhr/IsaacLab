@@ -115,15 +115,12 @@ def outside_contact_region(
 class G1MixedTerrainEnv(G1MovingPatchEnv):
     """Advance all robots with MJWarp and only the soft-ground worlds with MPM."""
 
-    def _sample_foot_contact_margins(self, num_envs: int) -> torch.Tensor:
-        """Give the MPM and rigid environment groups independently shuffled copies of the full margin range."""
-        num_mpm_envs = num_envs // 2
-        return torch.cat(
-            (
-                super()._sample_foot_contact_margins(num_mpm_envs),
-                super()._sample_foot_contact_margins(num_envs - num_mpm_envs),
-            )
-        )
+    def _set_contact_margin(self, payload=None):
+        """Use a fixed foot margin for each terrain group before solver construction."""
+        num_mpm_envs = self.num_envs // 2
+        margins = [self.cfg.mpm_contact_margin] * num_mpm_envs
+        margins += [self.cfg.rigid_contact_margin] * (self.num_envs - num_mpm_envs)
+        self._set_foot_contact_margins(margins)
 
     def _setup_contact_state(self) -> None:
         entry = NewtonManager._solver._entries["robot"]
@@ -147,11 +144,12 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
         self._rigid_contact_wrench = wp.zeros(capacity, dtype=wp.spatial_vector, device=self.device)
         self._rigid_foot_force = wp.zeros(len(foot_bodies), dtype=wp.vec3, device=self.device)
         self._rigid_contact_valid = torch.zeros((self.num_envs, 1, 1), dtype=torch.bool, device=self.device)
+        self._rigid_contact_valid_wp = wp.from_torch(self._rigid_contact_valid)
         super()._setup_contact_state()
 
     def _restore_boundary_particles(self) -> None:
         super()._restore_boundary_particles()
-        self._rigid_contact_valid.fill_(True)
+        self._rigid_contact_valid_wp.fill_(True)
 
     def _refresh_contact_forces(self) -> None:
         super()._refresh_contact_forces()

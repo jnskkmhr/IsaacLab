@@ -61,12 +61,11 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
     foot_contact_force_threshold: float = 5.0
     """Granular reaction magnitude above which a foot counts as in contact [N]."""
 
-    foot_contact_margin_range: tuple[float, float] | None = (0.018, 0.018)
-    """Optional foot collider margins [m], evenly spaced and randomly assigned without replacement.
-
-    Applied before solver construction to both rigid and MPM contact. None preserves asset margins.
-    Mixed terrain samples the full range independently within each terrain group. A group with one
-    environment uses the lower bound. Margins remain fixed across resets. Contact gaps are unchanged.
+    foot_contact_margin_range: tuple[float, float] | None = None
+    """Optional foot collider margins [m], evenly spaced and randomly assigned per environment.
+    Applied before solver construction to both rigid and MPM contact. None preserves
+    asset margins. Mixed terrain uses its fixed per-terrain margin settings instead.
+    A single environment receives the lower bound. Margins remain fixed across resets.
     """
 
     reset_particle_jitter: float = 0.0
@@ -89,8 +88,6 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         IsaacLab calls this through ``cfg.validate()`` after CLI/Hydra overrides.
         Repeated validation recomputes derived settings without replacing the solvers.
         """
-        if self.sim.physics.use_cuda_graph: # type: ignore
-            raise ValueError("Moving-patch particle updates require sim.physics.use_cuda_graph=False")
 
         use_terrain_curriculum = getattr(self.curriculum, "terrain_levels", None) is not None
         if self.scene.terrain.terrain_generator is not None:
@@ -108,7 +105,9 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0), show_particles=True),
-            # MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True),
+            MovingPatchRTXVisualizerCfg(
+                eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, headless=True
+            ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [
@@ -128,10 +127,10 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
 
-        generator = ROUGH_TERRAINS_DIFFICULT_CFG
+        # generator = ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = SLOPE_TERRAINS_CFG
         # generator = WAVE_TERRAINS_CFG
-        # generator = FLAT_TERRAINS_CFG
+        generator = FLAT_TERRAINS_CFG
 
         self.scene.terrain.terrain_generator = generator
         self.scene.terrain.moving_patch_terrain.particle_depth = 0.35
@@ -139,7 +138,7 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         for name in ("add_base_mass", "push_robot", "physics_material", "scale_actuator_gains"):
             setattr(self.events, name, None)
         self.events.reset_base.params = {
-            "pose_range": {"x": (0.0, 0.0), "y": (0.0, 0.0), "yaw": (-math.pi, math.pi)},
+            "pose_range": {"x": (-5.0, 5.0), "y": (-5.0, 5.0), "yaw": (-math.pi, math.pi)},
             "velocity_range": {key: (0.0, 0.0) for key in ("x", "y", "z", "roll", "pitch", "yaw")},
         }
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
@@ -168,7 +167,7 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
             MovingPatchRTXVisualizerCfg(
                 eye=(-2.0, -0.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                # follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]

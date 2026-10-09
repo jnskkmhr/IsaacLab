@@ -10,7 +10,9 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+import mujoco_warp as mjw
 import newton
+import numpy as np
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
@@ -19,6 +21,33 @@ from isaaclab.envs import ManagerBasedRLEnv
 
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY, configure_sparse_mpm_capacities
 from .g1_mpm_env_cfg import G1MPMEnvCfg
+
+
+@wp.kernel
+def sum_rigid_foot_forces(
+    contact_count: wp.array[int],
+    contact_world: wp.array[int],
+    contact_geom: wp.array[wp.vec2i],
+    geom_to_shape: wp.array2d[int],
+    shape_to_foot: wp.array[int],
+    shape_is_ground: wp.array[wp.bool],
+    contact_wrench: wp.array[wp.spatial_vector],
+    foot_force: wp.array[wp.vec3],
+):
+    """Sum the world-frame forces applied to each foot across its MJWarp contacts."""
+    contact = wp.tid()
+    if contact < contact_count[0]:
+        world = contact_world[contact]
+        geoms = contact_geom[contact]
+        force = wp.spatial_top(contact_wrench[contact])
+        for side in range(2):
+            shape = geom_to_shape[world, geoms[side]]
+            other_shape = geom_to_shape[world, geoms[1 - side]]
+            if shape >= 0 and other_shape >= 0 and shape_is_ground[other_shape]:
+                foot = shape_to_foot[shape]
+                if foot >= 0:
+                    sign = float(2 * side - 1)
+                    wp.atomic_add(foot_force, foot, sign * force)
 
 
 class G1MPMEnv(ManagerBasedRLEnv):
@@ -41,6 +70,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
     def step(self, action: torch.Tensor):
+        self._rigid_contact_valid.fill_(True)
         obs, reward, terminated, truncated, extras = super().step(action)
         # Rewards are computed from the pre-reset state, so the step on which a world diverges
         # carries a NaN reward even though `solver_diverged` already reset it. One NaN sample is
@@ -62,28 +92,33 @@ class G1MPMEnv(ManagerBasedRLEnv):
     Contact state accessors used by the MDP terms.
     """
 
+    @property
     def foot_contact_force(self) -> torch.Tensor:
         """Granular reaction force on each foot in world frame [N], shape ``(num_envs, foot_count, 3)``."""
         self.update_contact_state()
         return self._foot_contact_force
 
+    @property
     def foot_contact(self) -> torch.Tensor:
         """Contact flag per foot as ``float``, shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_contact.float()
 
+    @property
     def foot_first_contact(self) -> torch.Tensor:
         """Whether a foot touched down this step as ``float``, shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_first_contact.float()
 
+    @property
     def foot_air_time(self) -> torch.Tensor:
-        """Time since each foot last left the bed [s], shape ``(num_envs, foot_count)``."""
+        """Time since each foot last left the supporting surface [s], shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_air_time
 
+    @property
     def foot_contact_time(self) -> torch.Tensor:
-        """Time since each foot last touched the bed [s], shape ``(num_envs, foot_count)``."""
+        """Time since each foot last touched the supporting surface [s], shape ``(num_envs, foot_count)``."""
         self.update_contact_state()
         return self._foot_contact_time
 
@@ -109,13 +144,13 @@ class G1MPMEnv(ManagerBasedRLEnv):
         )
         self._gait_timer_step = self.common_step_counter
 
-    def reset_sand_bed(self, env_ids: Sequence[int] | torch.Tensor) -> None:
+    def reset_sand_bed(self, env_ids: Sequence[int] | torch.Tensor | slice | None) -> None:
         """Restore the bed and clear the solver history of the selected environments.
 
         Args:
             env_ids: Indices of the environments to reset.
         """
-        env_ids = torch.as_tensor(env_ids, dtype=torch.long, device=self.device)
+        env_ids = self._env_ids[slice(None) if env_ids is None else env_ids]
         if env_ids.numel() == 0:
             return
 
@@ -140,6 +175,9 @@ class G1MPMEnv(ManagerBasedRLEnv):
         self._foot_air_time[env_ids] = 0.0
         self._foot_contact_time[env_ids] = 0.0
         self._foot_first_contact[env_ids] = False
+        self._foot_contact[env_ids] = False
+        self._foot_contact_force[env_ids] = 0.0
+        self._rigid_contact_valid[env_ids] = False
         # the cleared feedback is not visible in the solver buffers until the next solver step
         self._contact_state_step = -1
 
@@ -152,6 +190,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
         NewtonMPMManager.get_model().particle_max_velocity = self.cfg.particle_max_velocity
         self._robot = self.scene["robot"]
         self._sand = self.scene["sand"]
+        self._env_ids = torch.arange(self.num_envs, device=self.device)
 
         _, foot_names = self._robot.find_bodies(self.cfg.foot_body_expr, preserve_order=True)
         self._foot_body_ids = self._resolve_newton_body_ids(foot_names)
@@ -166,6 +205,29 @@ class G1MPMEnv(ManagerBasedRLEnv):
 
         self._contact_state_step = -1
         self._gait_timer_step = -1
+        entry = NewtonManager._solver._entries[RIGID_ENTRY]
+        self._rigid_solver = entry.solver
+        foot_bodies = self._foot_body_ids.cpu().numpy().flatten()
+        body_to_foot = {int(body): i for i, body in enumerate(foot_bodies)}
+        local_to_global = entry.body_local_to_global.numpy()
+        shape_to_foot = np.full(entry.solver.model.shape_count, -1, dtype=np.int32)
+        for shape, body in enumerate(entry.solver.model.shape_body.numpy()):
+            if body >= 0:
+                shape_to_foot[shape] = body_to_foot.get(int(local_to_global[body]), -1)
+        self._shape_to_foot = wp.array(shape_to_foot, device=self.device)
+        self._shape_is_ground = wp.array(
+            [
+                bool(re.match(r"^/World/envs/env_\d+/(ApproachPlatform|RigidBedFloor)(/|$)", label))
+                for label in entry.solver.model.shape_label
+            ],
+            dtype=wp.bool,
+            device=self.device,
+        )
+        capacity = self._rigid_solver.mjw_data.contact.geom.shape[0]
+        self._contact_indices = wp.array(np.arange(capacity, dtype=np.int32), device=self.device)
+        self._rigid_contact_wrench = wp.zeros(capacity, dtype=wp.spatial_vector, device=self.device)
+        self._rigid_foot_force = wp.zeros(len(foot_bodies), dtype=wp.vec3, device=self.device)
+        self._rigid_contact_valid = torch.zeros((self.num_envs, 1, 1), dtype=torch.bool, device=self.device)
         self._contact_state_ready = True
         self._refresh_contact_forces()
 
@@ -181,7 +243,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
         Returns:
             The Newton body indices, shape ``(num_envs, len(foot_names))``.
         """
-        pattern = re.compile(r"^/World/envs/env_(\d+)/Robot/.*/([^/]+)$")
+        pattern = re.compile(r"^/World/envs/env_(\d+)/Robot/(?:.*/)?([^/]+)$")
         body_ids = torch.full((self.num_envs, len(foot_names)), -1, dtype=torch.long, device=self.device)
         name_to_column = {name: column for column, name in enumerate(foot_names)}
         for body_id, label in enumerate(NewtonManager.get_model().body_label):
@@ -212,18 +274,36 @@ class G1MPMEnv(ManagerBasedRLEnv):
         )
 
     def _refresh_contact_forces(self) -> None:
-        """Read the proxy feedback wrench and rebuild the contact flag from it."""
+        """Combine MPM and rigid-ground reaction forces and update foot contact flags."""
         # the coupler stores the feedback as (force, torque); only the linear part is a contact force
         forces = wp.to_torch(self._coupling_forces, requires_grad=False)[:, :3]
         self._foot_contact_force = forces[self._foot_body_ids].to(self.device)
+        # Add support forces from the rigid approach platform and the floor beneath the sand.
+        solver = self._rigid_solver
+        mjw.contact_force(solver.mjw_model, solver.mjw_data, self._contact_indices, True, self._rigid_contact_wrench)
+        self._rigid_foot_force.zero_()
+        wp.launch(
+            sum_rigid_foot_forces,
+            dim=self._contact_indices.shape[0],
+            inputs=[
+                solver.mjw_data.nacon,
+                solver.mjw_data.contact.worldid,
+                solver.mjw_data.contact.geom,
+                solver.mjc_geom_to_newton_shape,
+                self._shape_to_foot,
+                self._shape_is_ground,
+                self._rigid_contact_wrench,
+            ],
+            outputs=[self._rigid_foot_force],
+            device=self.device,
+        )
+        rigid_force = wp.to_torch(self._rigid_foot_force).reshape(self.num_envs, self.foot_count, 3)
+        self._foot_contact_force += torch.where(self._rigid_contact_valid, rigid_force, 0.0)
+        torch.nan_to_num_(self._foot_contact_force, nan=0.0, posinf=0.0, neginf=0.0)
         force_magnitude = torch.norm(self._foot_contact_force, dim=-1)
         self._foot_contact = force_magnitude > self.cfg.foot_contact_force_threshold
 
-    def _reset_idx(self, env_ids: Sequence[int]) -> None:
+    def _reset_idx(self, env_ids: Sequence[int] | torch.Tensor | slice) -> None:
         super()._reset_idx(env_ids)
-        if not self._contact_state_ready:
-            return
-        self._foot_air_time[env_ids] = 0.0
-        self._foot_contact_time[env_ids] = 0.0
-        self._foot_first_contact[env_ids] = False
-        self._contact_state_step = -1
+        if self._contact_state_ready:
+            self.reset_sand_bed(env_ids)

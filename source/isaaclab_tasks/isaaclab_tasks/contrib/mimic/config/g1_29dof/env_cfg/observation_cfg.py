@@ -9,6 +9,9 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
+from isaaclab_contrib.mdp import MirrorObservationTermCfg as ObsTerm
+from isaaclab_contrib.mdp import mirror_identity, mirror_vec3
+
 import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
 from isaaclab_tasks.contrib.mimic.mdp.symmetry import (
     mirror_body_orientations,
@@ -16,8 +19,6 @@ from isaaclab_tasks.contrib.mimic.mdp.symmetry import (
     mirror_rotation_6d,
 )
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorObservationTermCfg as ObsTerm
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import mirror_identity, mirror_vec3
 
 from .action_cfg import G1ActionsCfg
 from .commands_cfg import BODY_NAMES, JOINT_NAMES

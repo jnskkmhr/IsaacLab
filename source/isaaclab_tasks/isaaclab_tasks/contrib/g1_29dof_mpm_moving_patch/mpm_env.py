@@ -41,26 +41,28 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def __init__(self, cfg, render_mode=None, **kwargs):
         self.moving_patch_particle: MovingPatchParticles | None = None
-        margin_callback = None
         if cfg.foot_contact_margin_range is not None:
             lower, upper = cfg.foot_contact_margin_range
             if not (math.isfinite(lower) and math.isfinite(upper) and 0.0 <= lower <= upper):
                 raise ValueError("foot_contact_margin_range must contain finite, nonnegative, ordered bounds.")
-            margin_callback = NewtonManager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
+        margin_callback = NewtonManager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
         try:
             super().__init__(cfg, render_mode, **kwargs)
         finally:
-            if margin_callback is not None:
-                margin_callback.deregister()
+            margin_callback.deregister()
 
     def _set_contact_margin(self, payload=None):
-        """Assign random sampled contact margins before model finalization."""
-        builder = self.sim.get_or_create_backend(NewtonBuilderCfg(physics_cfg=self.cfg.sim.physics))
+        """Assign sampled margins before model finalization when configured."""
+        if self.cfg.foot_contact_margin_range is None:
+            return
         lower, upper = self.cfg.foot_contact_margin_range
         ratios = torch.linspace(0.0, 1.0, self.num_envs)
         ratios = ratios[torch.randperm(self.num_envs)]
-        margins = (lower + ratios * (upper - lower)).tolist()
+        self._set_foot_contact_margins((lower + ratios * (upper - lower)).tolist())
 
+    def _set_foot_contact_margins(self, margins: Sequence[float]) -> None:
+        """Set each environment's foot shape margins before the solvers copy them."""
+        builder = self.sim.get_or_create_backend(NewtonBuilderCfg(physics_cfg=self.cfg.sim.physics))
         matched_envs = set()
         for shape_index, body_index in enumerate(builder.shape_body):
             if body_index < 0 or not re.fullmatch(
@@ -72,10 +74,11 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
                 builder.shape_margin[shape_index] = margins[env_id]
                 matched_envs.add(env_id)
         if len(matched_envs) != self.num_envs:
-            raise ValueError("Could not find foot shapes in every environment for foot_contact_margin_range.")
+            raise ValueError("Could not find foot shapes in every environment when setting contact margins.")
 
     def step(self, action: torch.Tensor):
         obs, reward, terminated, truncated, extras = super().step(action)
+        self.moving_patch_particle.check_terrain_queries()
         # Rewards are computed from the pre-reset state, so the step on which a world diverges
         # carries a NaN reward even though `solver_diverged` already reset it. One NaN sample is
         # enough to destroy a policy update, so it is scrubbed here.

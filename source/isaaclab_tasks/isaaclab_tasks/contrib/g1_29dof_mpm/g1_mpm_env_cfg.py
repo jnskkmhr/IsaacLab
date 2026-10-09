@@ -32,17 +32,6 @@ from .env_cfg.scene_cfg import APPROACH_LENGTH, MPM_VISUAL_COLOR
 VISUALIZER = "newton_rtx"
 # VISUALIZER = "kit"
 
-CHASE_CAM_EYE = (-2.0, -4.0, 1.5)
-"""Eye offset of the follow camera relative to the robot root [m].
-
-Behind and to the side, so the approach platform, the robot and the bed edge stay in frame while
-the robot walks in ``+x``. The free-fly viewport camera (:attr:`VisualizerCfg.eye`) is static; the
-tracking view is the streaming panel, which is what the video recorders capture.
-"""
-
-CHASE_CAM_TARGET = "/World/envs/*/Robot"
-"""Prim the follow camera tracks; resolved per environment by ``env_path_from_template``."""
-
 
 @configclass
 class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
@@ -90,13 +79,13 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
 
     def __post_init__(self) -> None:
         # general settings
-        self.decimation = 8  # 50 Hz control
+        self.decimation = 4  # 50 Hz control
         # The approach has to be crossed before the granular part of the episode even begins.
         self.episode_length_s = 10.0 + APPROACH_LENGTH
         self.is_finite_horizon = False
 
         # simulation settings
-        self.sim = SimulationCfg(dt=1 / 400, render_interval=self.decimation)  # 200 Hz physics
+        self.sim = SimulationCfg(dt=1 / 200, render_interval=self.decimation)  # 200 Hz physics
         self.sim.physics = g1_mpm_physics_cfg(self.proxy_mass_scale)
         self.sim.use_newton_actuators = True
 
@@ -110,50 +99,27 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
-        if VISUALIZER == "newton_gl":
-            self.sim.visualizer_cfgs = [
-                NewtonGLVisualizerCfg(
-                    eye=(0.0, -6.0, 1.5),
-                    headless=True,
-                    show_particles=True,
-                    particle_color=MPM_VISUAL_COLOR,
-                    streaming_view=True,
-                    streaming_cam_target_prim_path=CHASE_CAM_TARGET,
-                    streaming_cam_eye=CHASE_CAM_EYE,
-                    streaming_envs=1,
-                ),
-            ]
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(
+                eye=(0.0, -6.0, 1.5),
+                headless=True,
+                show_particles=True,
+                particle_color=MPM_VISUAL_COLOR,
+            ),
+            NewtonRTXVisualizerCfg(
+                eye=(0.0, -6.0, 1.5),
+                headless=True,
+                show_particles=True,
+                particle_color=MPM_VISUAL_COLOR,
+            ),
+            # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
+        ]
 
-            self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
-            ]
-
-        elif VISUALIZER == "newton_rtx":
-            self.sim.visualizer_cfgs = [
-                NewtonRTXVisualizerCfg(
-                    eye=(0.0, -6.0, 1.5),
-                    headless=True,
-                    show_particles=True,
-                    particle_color=MPM_VISUAL_COLOR,
-                    streaming_view=True,
-                    streaming_cam_target_prim_path=CHASE_CAM_TARGET,
-                    streaming_cam_eye=CHASE_CAM_EYE,
-                    streaming_envs=1,
-                ),
-            ]
-
-            # self.video_recorders = [
-            #     VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
-            # ]
-
-        elif VISUALIZER == "kit":
-            self.sim.visualizer_cfgs = [
-                KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
-            ]
-
-            self.video_recorders = [
-                VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
-            ]
+        self.video_recorders = [
+            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
+        ]
 
         configure_sparse_mpm_capacities(self)
 
@@ -165,9 +131,6 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-        # make a smaller scene for play
-        self.scene.num_envs = 4
-
         # disable curriculum and observation corruption
         self.curriculum.track_lin_vel = None  # type: ignore
         self.curriculum.track_ang_vel = None  # type: ignore
@@ -176,12 +139,14 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.observations.policy.enable_corruption = False
 
         # remove random events
+        self.events.mpm_material = None # type: ignore
+        self.events.mpm_material_log = None # type: ignore
         self.events.add_base_mass = None  # type: ignore
         self.events.push_robot = None  # type: ignore
         self.events.physics_material = None  # type: ignore
         self.events.scale_actuator_gains = None  # type: ignore
         self.events.reset_base.params = {
-            "pose_range": {"x": (-0.25, 0.25), "y": (-0.25, 0.25), "yaw": (0.0, 0.0)},
+            "pose_range": {"x": (-0.25, 0.25), "y": (-0.25, 0.25), "yaw": (-0.4, 0.4)},
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -205,53 +170,19 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
                 eye=(0.0, -6.0, 1.5),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
-                streaming_view=True,
-                streaming_cam_target_prim_path=CHASE_CAM_TARGET,
-                streaming_cam_eye=CHASE_CAM_EYE,
-                streaming_envs=1,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(0.0, -6.0, 1.5),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
-                streaming_view=True,
-                streaming_cam_target_prim_path=CHASE_CAM_TARGET,
-                streaming_cam_eye=CHASE_CAM_EYE,
-                streaming_envs=1,
             ),
-            # KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
+            # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
         ]
 
-        # self.video_recorders = [
-        #     VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
-        #     VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
-        # ]
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
+        ]
 
-        # if VISUALIZER == "newton_gl":
-        #     self.sim.visualizer_cfgs = [
-        #         NewtonGLVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
-        #     ]
-
-        #     self.video_recorders = [
-        #         VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
-        #     ]
-
-        # elif VISUALIZER == "newton_rtx":
-        #     self.sim.visualizer_cfgs = [
-        #         NewtonRTXVisualizerCfg(eye=(0.0, -6.0, 1.5), show_particles=True, particle_color=MPM_VISUAL_COLOR),
-        #     ]
-
-        #     self.video_recorders = [
-        #         VideoRecorderCfg(source="visualizer:newton_rtx", output_dir="videos/"),
-        #     ]
-
-        # elif VISUALIZER == "kit":
-        #     self.sim.visualizer_cfgs = [
-        #         KitVisualizerCfg(eye=(0.0, -6.0, 1.5)),
-        #     ]
-
-        #     self.video_recorders = [
-        #         VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
-        #     ]
-
-        configure_sparse_mpm_capacities(self)
+        # configure_sparse_mpm_capacities(self)

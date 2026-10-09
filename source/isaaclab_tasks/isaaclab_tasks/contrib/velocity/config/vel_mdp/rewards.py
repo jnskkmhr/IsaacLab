@@ -25,7 +25,7 @@ def foot_clearance_reward(
     asset_cfg: SceneEntityCfg,
     standing_position_foot_z: float = 0.039,
     height_sensor_cfg: SceneEntityCfg | None = None,
-    ground_height_offset: float = 0.0,
+    ground_height_offset: float | torch.Tensor = 0.0,
 ) -> torch.Tensor:
     """Reward foot clearance relative to the mean scanned ground height.
 
@@ -38,8 +38,8 @@ def foot_clearance_reward(
         standing_position_foot_z: Standing foot body-origin height above the ground [m].
         height_sensor_cfg: Ray caster providing world-space ground hits. Without a sensor,
             the ground reference is world Z = 0, matching the existing reward.
-        ground_height_offset: Optional offset to the ground height [m]. This is useful for accounting for additional layers
-            such as sand or other terrain features above the base ground level.
+        ground_height_offset: Offset added to the scanned ground height [m], as a scalar or a tensor
+            of shape ``(num_envs, 1)``. For example, the sand depth above a scanned supporting floor.
 
     Returns:
         Velocity-weighted clearance reward, shape ``(num_envs,)``.

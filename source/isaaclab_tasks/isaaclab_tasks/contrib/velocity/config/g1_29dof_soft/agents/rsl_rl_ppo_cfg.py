@@ -5,6 +5,8 @@
 
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_contrib.mdp import compute_mirrored_states
+
 from isaaclab_rl.rsl_rl import (
     RslRlMLPModelCfg,
     RslRlOnPolicyRunnerCfg,
@@ -12,8 +14,6 @@ from isaaclab_rl.rsl_rl import (
     # RslRlRNNModelCfg,
     RslRlSymmetryCfg,
 )
-
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import compute_mirrored_states
 
 
 @configclass

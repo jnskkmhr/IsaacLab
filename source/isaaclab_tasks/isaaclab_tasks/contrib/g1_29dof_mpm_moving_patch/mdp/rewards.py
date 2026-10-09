@@ -20,8 +20,41 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import ManagerTermBase, RewardTermCfg, SceneEntityCfg
 from isaaclab.utils.math import euler_xyz_from_quat, quat_apply
 
+from isaaclab_tasks.contrib.velocity.config import vel_mdp
+
 if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
+
+
+def foot_clearance_reward(
+    env: G1MovingPatchEnv,
+    target_height: float,
+    std: float,
+    tanh_mult: float,
+    asset_cfg: SceneEntityCfg,
+    standing_position_foot_z: float = 0.039,
+    height_sensor_cfg: SceneEntityCfg | None = None,
+    ground_height_offset: float = 0.0,
+) -> torch.Tensor:
+    """Reward foot clearance with the sand-depth correction only in MPM environments.
+
+    Arguments match :func:`vel_mdp.foot_clearance_reward`. The scanner sees the
+    supporting floor in sand environments and the walking surface in rigid ones.
+    The particle asset occupies the first ``sand.num_instances`` environments;
+    in the sand-only task this includes every environment.
+    """
+    offset = torch.zeros((env.num_envs, 1), device=env.device)
+    offset[: env.scene["sand"].num_instances] = ground_height_offset
+    return vel_mdp.foot_clearance_reward(
+        env,
+        target_height=target_height,
+        std=std,
+        tanh_mult=tanh_mult,
+        asset_cfg=asset_cfg,
+        standing_position_foot_z=standing_position_foot_z,
+        height_sensor_cfg=height_sensor_cfg,
+        ground_height_offset=offset,
+    )
 
 
 def reward_soft_landing(
@@ -117,19 +150,20 @@ def feet_pitch_contact(
     return torch.sum(torch.square(pitch) * env.foot_first_contact, dim=-1)
 
 
-class foot_touch_down_angle_penalty(ManagerTermBase):
-    """Penalize foot pitch relative to the local terrain at first contact.
+class stance_foot_angle_penalty(ManagerTermBase):
+    """Penalize foot pitch relative to the local terrain throughout contact.
 
-    Fit a plane to the existing height scanner's world-space hits, then project its slope
-    along each foot's horizontal forward direction. Both feet use the terrain estimate from
-    the scanner footprint; the reward performs no additional raycasts.
-    The penalty is the squared angular error [rad²] outside ``angle_tolerance``, summed over
-    feet that have just touched down. Both toe-first and heel-first landings are penalized.
-    Terrain samples are used only by this reward; policy observations are unchanged.
+    Fit a plane to the existing height scanner's world-space hits and project its
+    slope along each foot's horizontal forward direction. Both feet use the same
+    terrain estimate; this reward performs no additional raycasts.
 
-    The foot body's +X axis must point toward the toes, with the sole parallel to its XY plane.
-    Ignore non-finite hits. Fewer than three non-collinear hits or a non-finite foot
-    orientation contribute zero instead of a NaN reward.
+    Sum squared angular error [rad²] outside ``angle_tolerance`` over contacting
+    feet, including touchdown and continued stance. Swing feet contribute zero.
+    The foot body's +X axis must point toward its toes, with its sole parallel to
+    its XY plane. Policy observations are unchanged.
+
+    Ignore non-finite hits. Fewer than three non-collinear hits or a non-finite
+    foot orientation contribute zero instead of a NaN reward.
     """
 
     def __init__(self, cfg: RewardTermCfg, env: G1MovingPatchEnv):
@@ -156,7 +190,19 @@ class foot_touch_down_angle_penalty(ManagerTermBase):
         height_sensor_cfg: SceneEntityCfg,
         angle_tolerance: float,
     ) -> torch.Tensor:
-        """Compare foot elevation with the scanner's fitted terrain slope at touchdown."""
+        """Penalize every contacting foot, including continued stance."""
+        penalty = self._compute_penalty(env, asset_cfg, height_sensor_cfg, angle_tolerance)
+        contact = env.foot_contact[:, self._contact_ids] > 0.0
+        return torch.where(contact, penalty, 0.0).sum(dim=-1)
+
+    def _compute_penalty(
+        self,
+        env: G1MovingPatchEnv,
+        asset_cfg: SceneEntityCfg,
+        height_sensor_cfg: SceneEntityCfg,
+        angle_tolerance: float,
+    ) -> torch.Tensor:
+        """Compute squared terrain-relative pitch errors for the selected feet."""
         sensor = env.scene[height_sensor_cfg.name]
         hits = sensor.data.ray_hits_w.torch
         valid_hits = torch.isfinite(hits).all(dim=-1, keepdim=True)
@@ -181,9 +227,24 @@ class foot_touch_down_angle_penalty(ManagerTermBase):
         foot_angle = torch.atan2(forward[..., 2], horizontal_length)
         error = (foot_angle - terrain_angle).abs()
         valid = valid_plane.unsqueeze(-1) & torch.isfinite(error)
-        touchdown = env.foot_first_contact[:, self._contact_ids] > 0.0
         penalty = (error - angle_tolerance).clamp_min(0.0).square()
-        return torch.where(valid & touchdown, penalty, 0.0).sum(dim=-1)
+        return torch.where(valid, penalty, 0.0)
+
+
+class foot_touch_down_angle_penalty(stance_foot_angle_penalty):
+    """Apply the terrain-relative foot pitch penalty only at first contact."""
+
+    def __call__(
+        self,
+        env: G1MovingPatchEnv,
+        asset_cfg: SceneEntityCfg,
+        height_sensor_cfg: SceneEntityCfg,
+        angle_tolerance: float,
+    ) -> torch.Tensor:
+        """Penalize touchdown; exclude continued stance and swing."""
+        penalty = self._compute_penalty(env, asset_cfg, height_sensor_cfg, angle_tolerance)
+        touchdown = env.foot_first_contact[:, self._contact_ids] > 0.0
+        return torch.where(touchdown, penalty, 0.0).sum(dim=-1)
 
 
 def metric_sliderbar(

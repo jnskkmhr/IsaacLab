@@ -40,12 +40,7 @@ FOOT_PROXY_BODIES = [r"/World/envs/env_.*/Robot/.*ankle_roll_link"]
 """Rigid bodies handed to the MPM solver as colliders."""
 
 DEFAULT_PROXY_MASS_SCALE = 1.0
-"""Effective-mass scale applied to the proxied feet.
-
-Mirrors ``coupling_relaxation`` of the standalone Newton G1 sand example: the G1 weighs about
-32.3 kg while a single ankle roll link weighs 0.608 kg, so the two feet must present the whole
-body mass to the granular solver for the robot to be supported rather than sink.
-"""
+"""Scale applied to the foot proxy masses in the MPM solver."""
 
 SPARSE_MPM_MIN_LOWER_NODES_PER_WORLD = 1 << 6
 SPARSE_MPM_MIN_UPPER_NODES_PER_WORLD = 1
@@ -71,10 +66,9 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
                         integrator="implicitfast",
                         cone="pyramidal",
                         impratio=1.0,
-                        njmax=1000,
                         nconmax=300,
-                        # njmax=90,
-                        # nconmax=10,
+                        njmax=1000,
+                        iterations=100,
                     ),
                     bodies=[r"/World/envs/env_.*/Robot"],
                     # picks up the hidden static pan floor, which has no rigid body to name
@@ -87,28 +81,16 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE) -> Ne
                     solver_cfg=MPMSolverCfg(
                         voxel_size=MPM_VOXEL_SIZE,
                         grid_type="sparse",
-                        # A sparse grid stays rebuildable, and therefore CUDA-graph capturable,
-                        # only while it is unpadded. The standalone Newton examples pad by 50
-                        # voxels, but only on a fixed grid; padding a sparse grid here costs an
-                        # order of magnitude in step time and overruns the node capacity.
                         grid_padding=0,
                         strain_basis="P0",
                         transfer_scheme="apic",
                         max_iterations=25,
-                        # tolerance=1.0e-5,
-                        # warmstart_mode="auto",
-                        # velocity_basis="Q1",
-                        # collider_basis="S2",
                         tolerance=1.0e-4,
                         warmstart_mode="auto",
                         velocity_basis="Q1",
                         collider_basis="pic27",
                         collider_velocity_mode="forward",
                         solver="auto",
-                        # Voxel fill fraction below which the yield surface collapses. The bed is
-                        # sampled at a spacing that does not divide the voxel size, so its cells
-                        # straddle the 0.5 the standalone G1 example uses and half the bed loses
-                        # its shear strength; keep the Newton default so the bed stays granular.
                         critical_fraction=0.0,
                         separate_worlds=True,
                         project_outside_colliders=False,

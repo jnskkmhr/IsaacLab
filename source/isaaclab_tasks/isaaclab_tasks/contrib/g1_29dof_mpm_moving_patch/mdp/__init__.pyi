@@ -9,10 +9,12 @@ __all__ = [
     "feet_air_time_positive_biped",
     "feet_pitch_contact",
     "foot_air_time",
+    "foot_clearance_reward",
     "foot_contact",
     "foot_contact_force",
     "foot_contact_force_raw",
     "foot_touch_down_angle_penalty",
+    "stance_foot_angle_penalty",
     "no_fly",
     "metric_sliderbar",
     "reset_root_state_on_terrain",
@@ -36,9 +38,11 @@ from .observations import (
 from .rewards import (
     feet_air_time_positive_biped,
     feet_pitch_contact,
+    foot_clearance_reward,
     foot_touch_down_angle_penalty,
     metric_sliderbar,
     no_fly,
     reward_soft_landing,
+    stance_foot_angle_penalty,
 )
 from .terminations import root_outside_workspace, root_state_infinite

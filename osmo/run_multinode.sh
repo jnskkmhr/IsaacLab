@@ -75,6 +75,9 @@ from pathlib import Path
 snapshot, cache = map(Path, sys.argv[1:])
 with (snapshot / "source/uv.lock").open("rb") as stream:
     package = next(p for p in tomllib.load(stream)["package"] if p["name"] == "warp-lang")
+if "registry" in package["source"]:
+    # Registry releases include native libraries and are installed by uv sync on each trainer.
+    sys.exit(0)
 revision = package["source"]["git"].rsplit("#", 1)[1]
 wheels = list(cache.glob(f"sdists-v*/git/*/{revision[:16]}/warp_lang-{package['version']}-*.whl"))
 if len(wheels) != 1:
@@ -93,7 +96,11 @@ with wheel.open("rb") as stream:
     print(hashlib.file_digest(stream, "sha256").hexdigest())
 PYTHON
 )
-warp_wheel_url="${output_url%/}/wheels/$warp_wheel_version"
+warp_wheel_url=""
+if [[ -n "$warp_wheel_version" ]]; then
+    warp_wheel_url="${output_url%/}/wheels/$warp_wheel_version"
+fi
+warp_wheel_input="${warp_wheel_url:+$warp_wheel_url/wheels/}"
 asset_url="${output_url%/}/assets/$asset_version"
 snapshot_url="${output_url%/}/snapshots/$(date -u +%Y%m%dT%H%M%SZ)-${snapshot##*.}"
 # OSMO replaces repeated --set-string groups; insert into the existing group.
@@ -102,12 +109,12 @@ has_set_string=false
 for arg in "$@"; do
     submit_args+=("$arg")
     if [[ "$arg" == --set-string ]]; then
-        submit_args+=("assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_url/wheels/")
+        submit_args+=("assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_input")
         has_set_string=true
     fi
 done
 if ! "$has_set_string"; then
-    submit_args+=(--set-string "assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_url/wheels/")
+    submit_args+=(--set-string "assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_input")
 fi
 if "$dry_run"; then
     osmo workflow submit "$workflow" "${submit_args[@]}"
@@ -135,7 +142,9 @@ upload_cached() {
     fi
 }
 upload_cached "$snapshot/assets/data" "$asset_url"
-upload_cached "$snapshot/wheels" "$warp_wheel_url"
+if [[ -n "$warp_wheel_url" ]]; then
+    upload_cached "$snapshot/wheels" "$warp_wheel_url"
+fi
 echo "Uploading code snapshot ($(du -sh --apparent-size "$snapshot/source" | cut -f1)) to $snapshot_url..."
 osmo data upload "$snapshot_url/" "$snapshot/source"
 osmo workflow submit "$workflow" "${submit_args[@]}" --format-type json

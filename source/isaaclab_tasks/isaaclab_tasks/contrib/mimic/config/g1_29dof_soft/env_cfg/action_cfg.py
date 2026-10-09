@@ -5,14 +5,15 @@
 
 from isaaclab.utils import configclass
 
-from isaaclab_tasks.contrib.mimic.config.g1_29dof.env_cfg.action_cfg import CONTROLLED_JOINTS
-from isaaclab_tasks.contrib.soft_contact import BoxColliderCfg, PhysicsCallbackActionCfg
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import (
+from isaaclab_contrib.mdp import (
     MirrorActionTermCfg,
     MirrorJointPositionActionCfg,
     mirror_identity,
 )
+
+from isaaclab_tasks.contrib.mimic.config.g1_29dof.env_cfg.action_cfg import CONTROLLED_JOINTS
+from isaaclab_tasks.contrib.soft_contact import BoxColliderCfg, PhysicsCallbackActionCfg
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints
 
 from ..mdp.actions import AnklePitchPerturbationCfg
 
@@ -62,6 +63,7 @@ class G1ActionsCfg:
         history_logging_decimation=10,
         contact_vis_force_threshold=40.0,
     )
+
 
 @configclass
 class G1ActionsFinetuneCfg(G1ActionsCfg):

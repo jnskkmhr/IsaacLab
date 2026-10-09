@@ -3,10 +3,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-__all__ = [
-    "ExtremeJointPositionAction",
-    "foot_clearance_reward",
-]
 
-from .rewards import foot_clearance_reward
-from .terminations import ExtremeJointPositionAction
+"""Reusable reflection rules and augmentation for manager-based tasks."""
+
+from isaaclab.utils.module import lazy_export
+
+lazy_export()

@@ -15,7 +15,7 @@ from isaaclab.managers import ObservationGroupCfg, ObservationManager, Observati
 from isaaclab.utils.math import quat_from_euler_xyz
 
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.env_cfg.reward_cfg import G1RewardsCfg
-from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import metric_sliderbar
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import foot_touch_down_angle_penalty, metric_sliderbar
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mpm_env import G1MovingPatchEnv
 
 
@@ -37,8 +37,8 @@ def test_soft_landing_penalizes_only_commanded_touchdowns():
     assert env.extras["log"]["Metrics/landing_force_mean"] == 0
 
 
-def test_touchdown_pitch_follows_scanner_slope_and_contact_order():
-    """Fit current scanner hits in world coordinates and penalize only new contacts."""
+def test_stance_pitch_follows_scanner_slope_and_contact_order():
+    """Fit current terrain slopes and penalize contacting feet throughout stance."""
     # Flat, toe-down, heel-down, swing, uphill, cross-slope, downhill, diagonal,
     # all missed, too few hits, and collinear hits.
     slopes = torch.tensor([[0.0, 0.0]] * 4 + [[0.25, 0.0], [0.25, -0.3], [0.25, 0.0], [0.25, 0.1]] + [[0.0, 0.0]] * 3)
@@ -90,14 +90,32 @@ def test_touchdown_pitch_follows_scanner_slope_and_contact_order():
             "height_scanner": SimpleNamespace(data=SimpleNamespace(ray_hits_w=SimpleNamespace(torch=hits))),
         },
         cfg=SimpleNamespace(foot_body_expr=".*_ankle_roll_link"),
-        foot_first_contact=contact,
+        foot_contact=contact,
+        foot_first_contact=torch.zeros_like(contact),
     )
-    cfg = G1RewardsCfg().foot_touch_down_angle_penalty
+    cfg = G1RewardsCfg().stance_foot_angle_penalty
     cfg.params["asset_cfg"].body_ids = [1, 0]  # Reward selection can differ from contact storage order.
     term = cfg.func(cfg, env)
     expected = torch.zeros(num_envs)
     expected[1:3] = (0.35 - cfg.params["angle_tolerance"]) ** 2
     torch.testing.assert_close(term(env, **cfg.params), expected, atol=1.0e-6, rtol=1.0e-5)
+    # The original term remains touchdown-only; stance continues after that flag clears.
+    touchdown_cfg = cfg.copy()
+    touchdown_cfg.func = foot_touch_down_angle_penalty
+    touchdown_term = touchdown_cfg.func(touchdown_cfg, env)
+    torch.testing.assert_close(touchdown_term(env, **touchdown_cfg.params), torch.zeros(num_envs))
+    env.foot_first_contact.copy_(contact)
+    torch.testing.assert_close(touchdown_term(env, **touchdown_cfg.params), expected, atol=1.0e-6, rtol=1.0e-5)
+    env.foot_first_contact.zero_()
+    torch.testing.assert_close(term(env, **cfg.params), expected, atol=1.0e-6, rtol=1.0e-5)
+
+    # Both feet can contribute during double support.
+    contact[0, 1] = 1.0
+    double_support = expected.clone()
+    double_support[0] = (0.8 - cfg.params["angle_tolerance"]) ** 2
+    torch.testing.assert_close(term(env, **cfg.params), double_support, atol=1.0e-6, rtol=1.0e-5)
+    contact[0, 1] = 0.0
+
     # Use the scanner's latest values, not a cached slope from the first call.
     hits[0, :, 2] = 0.3 * hits[0, :, 0]
     expected[0] = (math.atan(0.3) - cfg.params["angle_tolerance"]) ** 2
@@ -108,13 +126,9 @@ def test_touchdown_pitch_follows_scanner_slope_and_contact_order():
     torch.testing.assert_close(term(env, **cfg.params), torch.zeros(num_envs))
 
 
-def test_height_rewards_use_supporting_floor():
+def test_base_height_uses_supporting_floor():
     """Translating both terrain and robot preserves rewards, with no sand-depth correction."""
     root_pos = torch.tensor([[0.0, 0.0, 0.8], [0.0, 0.0, 3.8]])
-    feet = torch.zeros(2, 2, 3)
-    feet[:, :, 2] = torch.tensor([[0.13539, 0.18539], [3.13539, 3.18539]])
-    velocity = torch.zeros_like(feet)
-    velocity[:, :, 0] = math.atanh(0.5) / 2.0
     hits = torch.zeros(2, 2, 3)
     hits[:, :, 2] = torch.tensor([[-0.1, 0.1], [2.9, 3.1]])
     env = SimpleNamespace(
@@ -122,8 +136,6 @@ def test_height_rewards_use_supporting_floor():
             "robot": SimpleNamespace(
                 data=SimpleNamespace(
                     root_pos_w=SimpleNamespace(torch=root_pos),
-                    body_pos_w=SimpleNamespace(torch=feet),
-                    body_lin_vel_w=SimpleNamespace(torch=velocity),
                 )
             ),
             "height_scanner": SimpleNamespace(data=SimpleNamespace(ray_hits_w=SimpleNamespace(torch=hits))),
@@ -131,9 +143,35 @@ def test_height_rewards_use_supporting_floor():
     )
     rewards = G1RewardsCfg()
     torch.testing.assert_close(rewards.base_height.func(env, **rewards.base_height.params), torch.full((2,), 0.0025))
-    torch.testing.assert_close(
-        rewards.foot_clearance.func(env, **rewards.foot_clearance.params), torch.full((2,), math.exp(-0.025))
+
+
+def test_foot_clearance_offsets_only_sand_environments():
+    """Equal foot clearance above sand and rigid surfaces gives equal rewards."""
+    feet = torch.zeros(4, 2, 3)
+    feet[:, :, 2] = torch.tensor([[0.13539, 0.18539], [3.13539, 3.18539]] * 2)
+    velocity = torch.zeros_like(feet)
+    velocity[:, :, 0] = math.atanh(0.5) / 2.0
+    hits = torch.zeros(4, 2, 3)
+    # Sand scanners hit the supporting floor 25 cm below the initial sand surface.
+    # Rigid scanners hit the walking surface itself, including its world height.
+    hits[:, :, 2] = torch.tensor([[-0.35, -0.15], [2.65, 2.85], [-0.1, 0.1], [2.9, 3.1]])
+    env = SimpleNamespace(
+        num_envs=4,
+        device="cpu",
+        scene={
+            "robot": SimpleNamespace(
+                data=SimpleNamespace(
+                    body_pos_w=SimpleNamespace(torch=feet),
+                    body_lin_vel_w=SimpleNamespace(torch=velocity),
+                ),
+            ),
+            "sand": SimpleNamespace(num_instances=2),
+            "height_scanner": SimpleNamespace(data=SimpleNamespace(ray_hits_w=SimpleNamespace(torch=hits))),
+        },
     )
+    cfg = G1RewardsCfg().foot_clearance
+    cfg.params["ground_height_offset"] = 0.25
+    torch.testing.assert_close(cfg.func(env, **cfg.params), torch.full((4,), math.exp(-0.025)))
 
 
 def _sample(env):

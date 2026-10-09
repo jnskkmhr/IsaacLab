@@ -3,10 +3,13 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import math
+
 from isaaclab.managers import SceneEntityCfg, TerminationTermCfg
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.vel_mdp as vel_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 
 from .. import mdp as mpm_mdp
@@ -24,7 +27,7 @@ class G1TerminationsCfg:
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
         },
     )
-    bad_orientation = TerminationTermCfg(func=mdp.bad_orientation, params={"limit_angle": 0.8})
+    bad_orientation = TerminationTermCfg(func=mdp.bad_orientation, params={"limit_angle": math.pi / 4})
     # a diverged granular solve leaves the world NaN, where every thresholded term stays false
     solver_diverged = TerminationTermCfg(
         func=mpm_mdp.root_state_not_finite,
@@ -34,4 +37,9 @@ class G1TerminationsCfg:
     outside_workspace = TerminationTermCfg(
         func=mpm_mdp.root_outside_workspace,
         params={"margin": 0.3, "asset_cfg": SceneEntityCfg("robot")},
+    )
+
+    extreme_action = TerminationTermCfg(
+        func=vel_mdp.ExtremeJointPositionAction,
+        params={"action_name": "joint_pos", "torque_fraction": 5.0, "asset_cfg": SceneEntityCfg("robot")},
     )

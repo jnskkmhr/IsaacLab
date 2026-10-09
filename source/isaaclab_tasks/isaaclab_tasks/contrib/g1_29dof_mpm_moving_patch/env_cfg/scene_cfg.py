@@ -34,8 +34,7 @@ VOXEL_SIZE = 0.04
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
 # FOOT_CONTACT_MARGIN = 0.01875
-# FOOT_CONTACT_MARGIN = VOXEL_SIZE * 0.5
-FOOT_CONTACT_MARGIN = 0.0
+FOOT_CONTACT_MARGIN = VOXEL_SIZE * 0.5
 """Sole contact margin [m], retained with the existing policy/physics settings."""
 
 
@@ -74,6 +73,8 @@ MATERIAL_PRESETS = {
     ),
 }
 
+MATERIAL_NAME = "sand"
+
 @configclass
 class G1MovingPatchSceneCfg(InteractiveSceneCfg):
     """G1, shared terrain, particles and lights for the moving-patch task."""
@@ -94,13 +95,10 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             particle_depth=SAND_DEPTH,
             voxel_size=VOXEL_SIZE,
             particles_per_cell=1.25,
-            # jitter=0.05,
-            jitter=0.004,
+            jitter=0.05,
+            # jitter=0.004,
             material=MPMParticleMaterialCfg(
-                # **MATERIAL_PRESETS["rigid"]._asdict()
-                **MATERIAL_PRESETS["sand"]._asdict()
-                # **{name: value for name, value in MATERIAL_PRESETS["snow"]._asdict().items()}
-                # **{name: value for name, value in MATERIAL_PRESETS["clay"]._asdict().items()}
+                **MATERIAL_PRESETS[MATERIAL_NAME]._asdict()
             ),
             floor_thickness=0.1,
             show_boundary_particles=False,
@@ -130,7 +128,6 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(0.2, 0.2)),
         mesh_prim_paths=["/World/ground"],
         global_world_only=True,
-        debug_vis=True,
     )
 
     sand: MPMObjectCfg | None = None

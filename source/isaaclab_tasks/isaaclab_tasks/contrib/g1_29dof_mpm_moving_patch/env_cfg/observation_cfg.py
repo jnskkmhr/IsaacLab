@@ -15,11 +15,12 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
+from isaaclab_contrib.mdp import MirrorObservationTermCfg as ObsTerm
+from isaaclab_contrib.mdp import mirror_identity, mirror_quat, mirror_vec3
+
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorObservationTermCfg as ObsTerm
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import mirror_identity, mirror_quat, mirror_vec3
 
 from .. import mdp as mpm_mdp
 from .action_cfg import ACTIVE_JOINT

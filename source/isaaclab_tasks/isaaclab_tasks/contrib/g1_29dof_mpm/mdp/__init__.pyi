@@ -6,6 +6,8 @@
 __all__ = [
     "feet_air_time_positive_biped",
     "feet_pitch_contact",
+    "foot_touch_down_angle_penalty",
+    "reward_soft_landing",
     "foot_air_time",
     "foot_contact",
     "foot_contact_force",
@@ -25,6 +27,6 @@ from .observations import (
     foot_contact_force_raw,
     terrain_material_parameters,
 )
-from .rewards import feet_air_time_positive_biped, feet_pitch_contact, no_fly
+from .rewards import feet_air_time_positive_biped, feet_pitch_contact, foot_touch_down_angle_penalty, no_fly, reward_soft_landing
 from .terminations import root_outside_workspace, root_state_not_finite
 from isaaclab.envs.mdp import *
