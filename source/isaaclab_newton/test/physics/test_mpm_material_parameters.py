@@ -78,3 +78,34 @@ def test_invalid_material_batch_does_not_partially_write(material_model):
     after = NewtonMPMManager.get_particle_material_parameters()
     for name in before:
         torch.testing.assert_close(after[name].torch, before[name].torch)
+
+
+@pytest.mark.parametrize("distribution", ["uniform", "log_uniform"])
+def test_material_event_only_updates_selected_environments(material_model, distribution):
+    """Event sampling routes environment IDs to the corresponding particles without changing other objects."""
+    from isaaclab_newton.assets import MPMObject
+    from isaaclab_newton.envs.mdp.events import randomize_mpm_material
+
+    from isaaclab.managers import EventTermCfg, SceneEntityCfg
+
+    # The event needs only the asset's particle layout; the material model is real.
+    asset = object.__new__(MPMObject)
+    asset._num_instances = 2
+    asset._particles_per_object = 2
+    asset._particle_offsets = wp.array([0, 2], dtype=wp.int32, device="cpu")
+    env = SimpleNamespace(num_envs=2, device="cpu", scene={"sand": asset})
+    asset_cfg = SceneEntityCfg("sand")
+    cfg = EventTermCfg(func=randomize_mpm_material, mode="reset", params={"asset_cfg": asset_cfg})
+    term = randomize_mpm_material(cfg, env)
+    before = NewtonMPMManager.get_particle_material_parameters(parameters=["friction"])["friction"].torch
+    term(env, torch.tensor([1]), asset_cfg, {"friction": (0.3, 0.8)}, distribution)
+    after = NewtonMPMManager.get_particle_material_parameters(parameters=["friction"])["friction"].torch
+    torch.testing.assert_close(after[:2], before[:2])
+    assert 0.3 <= float(after[2]) <= 0.8
+    torch.testing.assert_close(after[2], after[3])
+    torch.testing.assert_close(term.material_parameters["friction"][1], after[2])
+    with pytest.raises(ValueError, match="Invalid"):
+        term(env, slice(None), asset_cfg, {"friction": (0.0, 0.8)}, "log_uniform")
+    torch.testing.assert_close(
+        NewtonMPMManager.get_particle_material_parameters(parameters=["friction"])["friction"].torch, after
+    )
