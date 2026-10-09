@@ -5,8 +5,8 @@
 
 """Convert G1 LAFAN1 robot CSV with the repo loader and Newton FK. No training.
 
-For the reviewed IsaacLab commits 2719be98c and e1f1d6d2a.
-No repository source files are modified. The original converter's MotionLoader
+Run this script from a Newton-enabled source checkout.
+Input is a 30 Hz G1 CSV; output is a named 60 Hz NPZ. The original converter's MotionLoader
 and G1 joint list are reused, without executing its Isaac Sim AppLauncher.
 The Newton adapter evaluates FK without stepping physics, and differentiates
 the resulting body link poses to obtain world-space reference velocities.
@@ -20,67 +20,30 @@ import hashlib
 import json
 import os
 import subprocess
-import sys
-from datetime import datetime
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-COMMIT = "2719be98c15d2e2e50f996588c78161635f64aaf"
-SUPPORTED_COMMITS = {
-    COMMIT,
-    "e1f1d6d2a805d88f37b38ea418462ab5a2766808",
-}
+import numpy as np
+
 TASK = "IsaacContrib-Mimic-G1-29dof-v0"
 CONVERTER = "source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/csv/convert_csv_to_npz.py"
 
 
-def original_loader_parts(source):
-    """Extract only the original loader class and its explicit G1 joint order."""
-    tree = ast.parse(source)
-    classes = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "MotionLoader"]
-    runs = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run_simulator"]
-    if len(classes) != 1 or len(runs) != 1:
-        raise ValueError("Unexpected original converter structure")
-    assignments = [
-        n
-        for n in runs[0].body
-        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "joint_names" for t in n.targets)
-    ]
-    if len(assignments) != 1:
-        raise ValueError("Expected one explicit joint_names list")
-    names = ast.literal_eval(assignments[0].value)
-    if len(names) != 29 or len(set(names)) != 29:
-        raise ValueError("Expected 29 unique source joint names")
-    return ast.get_source_segment(source, classes[0]), names
+def validate_motion_arrays(data: Mapping[str, np.ndarray], tracked_bodies: Sequence[str] = ()) -> int:
+    """Validate named G1 motion arrays before training or prescribed playback.
 
+    Args:
+        data: NPZ arrays with 29 joints, 60 Hz timing and xyzw orientations.
+            Positions and linear velocities use [m] and [m/s]; joint positions
+            and angular velocities use [rad] and [rad/s].
+        tracked_bodies: Body names required by the consuming task.
 
-def world_angular_velocity(quat, dt):
-    """Differentiate xyzw orientations into world angular velocities [rad/s]."""
-    import numpy as np
+    Returns:
+        Number of reference frames.
 
-    q = quat / np.linalg.norm(quat, axis=-1, keepdims=True)
-
-    def difference(nxt, prev, spacing):
-        vector = -nxt[..., 3:] * prev[..., :3] + prev[..., 3:] * nxt[..., :3]
-        vector -= np.cross(nxt[..., :3], prev[..., :3])
-        scalar = nxt[..., 3:] * prev[..., 3:] + np.sum(nxt[..., :3] * prev[..., :3], axis=-1, keepdims=True)
-        sign = np.where(scalar < 0, -1, 1)
-        vector, scalar = vector * sign, scalar * sign
-        length = np.linalg.norm(vector, axis=-1, keepdims=True)
-        angle = 2 * np.arctan2(length, scalar)
-        scale = np.divide(angle, length, out=np.full_like(length, 2), where=length > 1e-12)
-        return vector * scale / spacing
-
-    omega = np.empty((*q.shape[:-1], 3), dtype=np.float64)
-    omega[1:-1] = difference(q[2:], q[:-2], 2 * dt)
-    omega[:1] = difference(q[1:2], q[:1], dt)
-    omega[-1:] = difference(q[-1:], q[-2:-1], dt)
-    return omega
-
-
-def validate_arrays(data, tracked_bodies=()):
-    """Reject malformed export data before handing it to training."""
-    import numpy as np
-
+    Raises:
+        ValueError: Motion dimensions, names, timing or orientations are invalid.
+    """
     names = data["joint_names"].tolist()
     bodies = data["body_names"].tolist()
     frames = data["joint_pos"].shape[0]
@@ -110,32 +73,82 @@ def validate_arrays(data, tracked_bodies=()):
     return frames
 
 
-def preflight(opts):
-    repo = opts.repo.expanduser().resolve()
-    opts.repo = repo
+def main():
+    """Parse conversion paths and write a validated NPZ and provenance report."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--csv", type=Path, required=True, help="G1 robot CSV at 30 Hz")
+    parser.add_argument("--output_dir", type=Path, required=True, help="New directory for the NPZ and report")
+    parser.add_argument(
+        "--frame_range",
+        nargs=2,
+        type=int,
+        metavar=("START", "END"),
+        help="Optional 1-based inclusive source CSV frame range",
+    )
+    opts = parser.parse_args()
+    opts.repo = Path(__file__).resolve().parents[6]
     opts.csv = opts.csv.expanduser().resolve()
-    head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
-    if head not in SUPPORTED_COMMITS:
-        raise RuntimeError(f"Unreviewed commit: {head}; supported: {sorted(SUPPORTED_COMMITS)}")
-    opts.source_commit = head
-    executable = Path(sys.executable).absolute()
-    if executable.parent != repo / ".venv" / "bin":
-        raise RuntimeError(f"Use this checkout's .venv/bin/python, found {executable}")
-    dirty = subprocess.check_output(["git", "-C", str(repo), "diff", "HEAD", "--", "source", "scripts"], text=True)
-    if dirty.strip():
-        raise RuntimeError("Tracked source changes exist; review them before using this version-specific adapter")
+    opts.output_dir = opts.output_dir.expanduser().resolve()
     if not opts.csv.is_file():
         raise FileNotFoundError(opts.csv)
-    os.chdir(repo)
+    opts.source_commit = subprocess.check_output(["git", "-C", str(opts.repo), "rev-parse", "HEAD"], text=True).strip()
+    os.chdir(opts.repo)
+    opts.output_dir.mkdir(parents=True, exist_ok=False)
+    print("LAFAN_OUTPUT_DIR:", opts.output_dir, flush=True)
+    _convert_motion(opts)
+    print("CONVERSION_ONLY_FINISHED: no training started; visual review still required", flush=True)
 
 
-def convert(opts):
-    # Set Warp's import-time setting exactly as the repository training entry point does.
+def _original_loader_parts(source: str) -> tuple[str, list[str]]:
+    """Extract only the original loader class and its explicit G1 joint order."""
+    tree = ast.parse(source)
+    classes = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "MotionLoader"]
+    runs = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run_simulator"]
+    if len(classes) != 1 or len(runs) != 1:
+        raise ValueError("Unexpected original converter structure")
+    assignments = [
+        n
+        for n in runs[0].body
+        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "joint_names" for t in n.targets)
+    ]
+    if len(assignments) != 1:
+        raise ValueError("Expected one explicit joint_names list")
+    names = ast.literal_eval(assignments[0].value)
+    if len(names) != 29 or len(set(names)) != 29:
+        raise ValueError("Expected 29 unique source joint names")
+    return ast.get_source_segment(source, classes[0]), names
+
+
+def _world_angular_velocity(quat: np.ndarray, dt: float) -> np.ndarray:
+    """Differentiate xyzw orientations into world angular velocities [rad/s]."""
+    q = quat / np.linalg.norm(quat, axis=-1, keepdims=True)
+
+    def difference(nxt: np.ndarray, prev: np.ndarray, spacing: float) -> np.ndarray:
+        vector = -nxt[..., 3:] * prev[..., :3] + prev[..., 3:] * nxt[..., :3]
+        vector -= np.cross(nxt[..., :3], prev[..., :3])
+        scalar = nxt[..., 3:] * prev[..., 3:] + np.sum(nxt[..., :3] * prev[..., :3], axis=-1, keepdims=True)
+        sign = np.where(scalar < 0, -1, 1)
+        vector, scalar = vector * sign, scalar * sign
+        length = np.linalg.norm(vector, axis=-1, keepdims=True)
+        angle = 2 * np.arctan2(length, scalar)
+        scale = np.divide(angle, length, out=np.full_like(length, 2), where=length > 1e-12)
+        return vector * scale / spacing
+
+    omega = np.empty((*q.shape[:-1], 3), dtype=np.float64)
+    omega[1:-1] = difference(q[2:], q[:-2], 2 * dt)
+    omega[:1] = difference(q[1:2], q[:1], dt)
+    omega[-1:] = difference(q[-1:], q[-2:-1], dt)
+    return omega
+
+
+def _convert_motion(opts: argparse.Namespace):
+    """Convert the selected CSV interval using the task robot and Newton FK."""
+    # Delay simulator imports until after CLI parsing so --help needs no GPU runtime.
+    # Set Warp configuration before importing the task packages, as the training CLI does.
     print("LAFAN_STAGE: importing Newton dependencies", flush=True)
     import warp as wp
 
     wp.config.enable_backward = False
-    import numpy as np
     import torch
 
     import isaaclab.sim
@@ -153,7 +166,7 @@ def convert(opts):
             raise RuntimeError(f"Wrong editable installation: {module.__file__}")
 
     source = (opts.repo / CONVERTER).read_text(encoding="utf-8-sig")
-    loader_source, source_names = original_loader_parts(source)
+    loader_source, source_names = _original_loader_parts(source)
     namespace = dict(
         np=np,
         torch=torch,
@@ -289,9 +302,9 @@ def convert(opts):
         body_pos_w=pos.astype(np.float32),
         body_quat_w=quat.astype(np.float32),
         body_lin_vel_w=np.gradient(pos, 1 / 60, axis=0).astype(np.float32),
-        body_ang_vel_w=world_angular_velocity(quat, 1 / 60).astype(np.float32),
+        body_ang_vel_w=_world_angular_velocity(quat, 1 / 60).astype(np.float32),
     )
-    validate_arrays(arrays, cfg.commands.motion.body_names)
+    validate_motion_arrays(arrays, cfg.commands.motion.body_names)
     destination = opts.output_dir / "motion_60fps.pending.npz"
     np.savez(destination, source_csv_sha256=np.array(digest), **arrays)
     # Exercise the actual training loader, including a deliberately reversed joint order.
@@ -323,30 +336,6 @@ def convert(opts):
     )
     (opts.output_dir / "conversion.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print("LAFAN_CONVERSION_AND_LOADER_CHECKS_OK", str(destination), flush=True)
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, default=Path.home() / "IsaacLab")
-    parser.add_argument(
-        "--csv", type=Path, default=Path.home() / "datasets/LAFAN1_Retargeting_Dataset/g1/walk1_subject1.csv"
-    )
-    parser.add_argument("--output-root", type=Path, default=Path.home() / "lafan1_newton_conversions")
-    parser.add_argument(
-        "--frame-range",
-        nargs=2,
-        type=int,
-        metavar=("START", "END"),
-        help="Optional 1-based inclusive source CSV frame range",
-    )
-    opts = parser.parse_args()
-    preflight(opts)
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    opts.output_dir = opts.output_root.expanduser().resolve() / f"{opts.csv.stem}_{stamp}"
-    opts.output_dir.mkdir(parents=True, exist_ok=False)
-    print("LAFAN_OUTPUT_DIR:", opts.output_dir, flush=True)
-    convert(opts)
-    print("CONVERSION_ONLY_FINISHED: no training started; visual review still required", flush=True)
 
 
 if __name__ == "__main__":

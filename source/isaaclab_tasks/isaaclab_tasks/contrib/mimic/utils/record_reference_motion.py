@@ -5,8 +5,7 @@
 
 """Record prescribed NPZ motion in Newton, with no policy or physics steps.
 
-Keep this file beside convert_lafan_newton.py. Checks FK consistency against
-the saved NPZ; this is not an independent validation of the source retargeting.
+Checks FK consistency against the saved NPZ; this is not an independent validation of the source retargeting.
 """
 
 from __future__ import annotations
@@ -16,19 +15,16 @@ import hashlib
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
-
-from convert_lafan_newton import SUPPORTED_COMMITS, TASK, validate_arrays
 
 
 def main():
+    """Record every other 60 Hz reference frame as a 30 fps MP4."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, default=Path.home() / "IsaacLab")
     parser.add_argument("--motion", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     opts = parser.parse_args()
-    repo = opts.repo.expanduser().resolve()
+    repo = Path(__file__).resolve().parents[6]
     motion_path = opts.motion.expanduser().resolve()
     video = opts.output.expanduser().resolve()
     if video.suffix.lower() != ".mp4":
@@ -38,13 +34,6 @@ def main():
     if video.with_suffix(".partial.mp4").exists():
         raise FileExistsError("A partial video exists; choose a new --output filename")
     head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
-    if head not in SUPPORTED_COMMITS:
-        raise RuntimeError(f"Unreviewed commit: {head}; supported: {sorted(SUPPORTED_COMMITS)}")
-    if Path(sys.executable).absolute().parent != repo / ".venv/bin":
-        raise RuntimeError("Run with uv run --frozen --no-sync python in this checkout")
-    dirty = subprocess.check_output(["git", "-C", str(repo), "diff", "HEAD", "--", "source", "scripts"], text=True)
-    if dirty.strip():
-        raise RuntimeError("Review tracked code changes before using this version-specific player")
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg is None:
         try:
@@ -54,6 +43,7 @@ def main():
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
     print("REFERENCE_STAGE: importing Newton dependencies", flush=True)
+    # Delay simulator imports for --help and configure Warp before task registration.
     import warp as wp
 
     wp.config.enable_backward = False
@@ -66,6 +56,7 @@ def main():
     from isaaclab.sim import build_simulation_context
 
     import isaaclab_tasks
+    from isaaclab_tasks.contrib.mimic.utils.convert_lafan_csv_to_npz import TASK, validate_motion_arrays
     from isaaclab_tasks.utils import resolve_task_config
 
     if not Path(isaaclab_tasks.__file__).resolve().is_relative_to(repo):
@@ -73,7 +64,7 @@ def main():
     digest = hashlib.sha256(motion_path.read_bytes()).hexdigest()
     with np.load(motion_path, allow_pickle=False) as data:
         arrays = {key: data[key].copy() for key in data.files}
-    frames = validate_arrays(arrays)
+    frames = validate_motion_arrays(arrays)
     fps = 60
     source_joints = arrays["joint_names"].tolist()
     source_bodies = arrays["body_names"].tolist()
