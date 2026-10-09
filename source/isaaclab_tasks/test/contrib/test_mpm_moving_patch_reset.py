@@ -9,12 +9,17 @@ import gymnasium as gym
 import pytest
 import torch
 import warp as wp
+from isaaclab_newton.physics import NewtonManager
 
 from isaaclab.app import launch_simulation
 from isaaclab.test.utils import DeviceScope, test_devices
 
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.env_cfg.event_cfg import G1EventCfg
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.env_cfg.terrain_cfg import FLAT_TERRAINS_CFG
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mixed_env_cfg import (
+    G1MixedTerrainEnvCfg,
+    G1MixedTerrainEnvCfg_PLAY,
+)
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mpm_env_cfg import G1MovingPatchEnvCfg_PLAY
 from isaaclab_tasks.utils.hydra import resolve_presets
 
@@ -95,5 +100,67 @@ def test_g1_terrain_reset_uses_current_ranges(device):
             patch.terrain_query_miss_count.fill_(1)
             with pytest.raises(ValueError, match="Recycled particles left"):
                 env.step(actions)
+        finally:
+            env.close()
+
+
+@pytest.mark.parametrize("device", test_devices(DeviceScope.CUDA))
+def test_mixed_terrain_fixed_foot_margins(device):
+    """Both solver models use constant per-terrain foot margins across resets."""
+    cfg = resolve_presets(G1MixedTerrainEnvCfg_PLAY(), [])
+    cfg.scene.num_envs = 4
+    cfg.mpm_contact_margin = 0.02
+    cfg.rigid_contact_margin = 0.0
+    cfg.sim.device = device
+    cfg.sim.visualizer_cfgs = []
+    cfg.sim.default_visualizer_cfg = None
+    cfg.video_recorders = []
+    cfg.events.mpm_material = G1MixedTerrainEnvCfg().events.mpm_material.copy()
+    cfg.events.mpm_material.params["parameter_ranges"] = {"density": (2000.0, 2000.0)}
+    with launch_simulation(cfg, {"headless": True, "device": device}):
+        env = gym.make("IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain-Play", cfg=cfg)
+        try:
+            env.reset()
+            models = [NewtonManager.get_model()]
+            models.extend(entry.solver.model for entry in NewtonManager._solver._entries.values())
+            expected = torch.tensor([0.02, 0.02, 0.0, 0.0], device=device)
+            saved_margins = []
+            for model in models:
+                shape_bodies = model.shape_body.numpy()
+                foot_shapes = [
+                    i
+                    for i, body in enumerate(shape_bodies)
+                    if body >= 0 and model.body_label[body].endswith("_ankle_roll_link")
+                ]
+                world_ids = wp.to_torch(model.body_world)[shape_bodies[foot_shapes]].long()
+                assert set(world_ids.tolist()) == {0, 1, 2, 3}
+                margins = wp.to_torch(model.shape_margin)
+                torch.testing.assert_close(margins[foot_shapes], expected[world_ids])
+                saved_margins.append(margins.clone())
+
+            actions = torch.zeros((4, env.unwrapped.action_manager.total_action_dim), device=device)
+            raw = env.unwrapped
+            assert set(wp.to_torch(NewtonManager.get_model().particle_world).tolist()) == {0, 1}
+            material = raw.event_manager.get_term_cfg("mpm_material").func
+            torch.testing.assert_close(material.material_parameters["density"], torch.full((2,), 2000.0, device=device))
+            peak_force = torch.zeros(4, device=device)
+            peak_mpm_force = torch.zeros(4, device=device)
+            for _ in range(24):
+                observations, rewards, _, _, _ = env.step(actions)
+                assert torch.isfinite(rewards).all()
+                assert all(torch.isfinite(value).all() for value in observations.values())
+                peak_force = torch.maximum(peak_force, raw.foot_contact_force[..., 2].sum(dim=1))
+                mpm_force = wp.to_torch(raw._coupling_forces)[raw._coupling_force_body_ids, 2].sum(dim=1)
+                peak_mpm_force = torch.maximum(peak_mpm_force, mpm_force)
+            assert (peak_force > 20.0).all()
+            assert (peak_mpm_force[:2] > 20.0).all()
+            torch.testing.assert_close(peak_mpm_force[2:], torch.zeros(2, device=device))
+            raw.event_manager.get_term_cfg("mpm_material").params["parameter_ranges"] = {"density": (2400.0, 2400.0)}
+            raw.reset(env_ids=torch.tensor([0, 2], device=device))
+            torch.testing.assert_close(
+                material.material_parameters["density"], torch.tensor([2400.0, 2000.0], device=device)
+            )
+            for model, previous in zip(models, saved_margins):
+                torch.testing.assert_close(wp.to_torch(model.shape_margin), previous)
         finally:
             env.close()
