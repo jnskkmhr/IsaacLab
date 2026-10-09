@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Utilities for converting and recording mimic reference motions.
+"""Utilities for converting mimic reference motions.
 
 CLI modules are deliberately not imported during task registration.
 """

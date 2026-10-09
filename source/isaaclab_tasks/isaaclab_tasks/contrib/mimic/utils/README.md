@@ -1,8 +1,8 @@
-# G1 LAFAN motion conversion and reference recording
+# G1 LAFAN motion conversion
 
-These utilities convert retargeted G1 robot CSVs into named motion NPZ files and
-record prescribed kinematic motion in Newton. They do not retarget human motion
-or train a policy. Run them from the repository root in its configured Newton
+This utility converts retargeted G1 robot CSVs into named motion NPZ files.
+Use the existing NPZ player for reference playback and recording. These tools do
+not retarget human motion or train a policy. Run them from the repository root in its configured Newton
 environment; do not copy them into a separate home directory.
 
 The input format is the 30 Hz, 36-column G1 CSV from the
@@ -49,17 +49,23 @@ Review each new reference visually before starting training.
 
 ```bash
 env -u DISPLAY uv run --frozen --no-sync python \
-  source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/utils/record_reference_motion.py \
-  --motion "$output/motion_60fps.npz" --output "$output/reference.mp4"
+  source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/play_motion_file.py \
+  --motion_file "$output/motion_60fps.npz" --video --headless \
+  --video_folder "$output/reference_video"
 ```
 
-This records a 30 fps MP4 from the 60 Hz reference and writes a JSON report
-beside it. It needs `ffmpeg` on PATH or the installed `imageio-ffmpeg` package.
-Newton GL uses offscreen rendering; Linux SSH sessions need a working EGL setup.
-The camera follows the reference root. Root and joint poses are prescribed on
-every frame, body poses are checked against the NPZ, and no physics steps or
-policy inference are performed. This is a reference video, not learned behavior.
-An existing output video is never overwritten.
+The existing player records one full pass at the NPZ frame rate (60 fps here)
+to `reference_video/motion_60fps.mp4`. Choose a new video folder to avoid
+overwriting an earlier recording. It already supports a following camera,
+offscreen Newton GL recording, joint-name mapping, and quaternion-order metadata.
+Linux SSH sessions need a working EGL setup and the configured environment's
+imageio/FFmpeg video support. This is prescribed reference playback, not learned
+policy behavior.
+
+The player uses `UNITREE_G1_29DOF_CFG`; the converter resolves the robot from the
+training task. Visual playback does not establish FK consistency with that task's
+robot asset. Unlike the removed PR helper, the existing player does not produce
+an FK-error JSON report. Conversion checks remain in `conversion.json`.
 
 ## Train with the existing CLI
 
@@ -94,16 +100,20 @@ video alone is not a success-rate evaluation under training conditions.
 | Previous helper under `tools/lafan_reproduction` | Replacement |
 | --- | --- |
 | `convert_lafan_newton.py` | `utils/convert_lafan_csv_to_npz.py` |
-| `record_lafan_reference.py` | `utils/record_reference_motion.py` |
+| `record_lafan_reference.py` | Existing `data/motions/npz/play_motion_file.py --video --headless` |
 | `train_lafan_walk_3000.py` | `isaaclab train` with explicit arguments above |
 | `check_lafan_training.py` | Inspect the selected run's logs/checkpoints and use `isaaclab play` |
 
 The conversion CLI replaces `--output-root` with `--output_dir` (the exact new
 destination, without an automatically generated timestamp), and `--frame-range`
-with `--frame_range`. Both utilities derive the source checkout from their own
+with `--frame_range`. The converter derives the source checkout from its own
 package location; `--repo` and the old commit allowlist are removed. Keep old
 standalone helpers with their original experiments if those runs still need them.
 
-The previous conversion and reference recording were exercised on the lab's
-RTX PRO 2000. This reorganization preserves their numerical implementation;
-GPU conversion and rendering must still be rechecked on the target checkout.
+The intermediate PR's `utils/record_reference_motion.py` was removed in favor of
+the existing NPZ player. Use `--motion_file` instead of `--motion`, and
+`--video_folder` instead of `--output`; the player derives the MP4 name from the NPZ.
+
+The previous converter was exercised on the lab's RTX PRO 2000. Its numerical
+implementation is unchanged here. GPU conversion and the documented existing
+player command must still be checked together on the target checkout.
