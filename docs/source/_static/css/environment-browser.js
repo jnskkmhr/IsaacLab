@@ -148,6 +148,8 @@
             ["IsaacContrib-Velocity-Rough-Digit", "rsl_rl", "isaacsim_physx,newton_mjwarp", "", "", "tasks/locomotion/agility_digit_rough.jpg"],
             ["IsaacContrib-Velocity-Rough-UnitreeA1", "rsl_rl,skrl,sb3", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/a1_rough.jpg"],
             ["IsaacContrib-Velocity-Rough-UnitreeGo1", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/go1_rough.jpg"],
+            ["IsaacContrib-Velocity-Sand-G1-29dof-MPM", "rsl_rl", "", "", ""],
+            ["IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play", "rsl_rl", "", "", ""],
         ];
         // END-AUTO-GENERATED: environment-browser-task-rows
 
