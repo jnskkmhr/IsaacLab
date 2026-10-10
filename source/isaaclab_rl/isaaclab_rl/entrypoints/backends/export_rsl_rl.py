@@ -30,7 +30,7 @@ from isaaclab.utils.assets import retrieve_file_path
 import isaaclab_tasks  # noqa: F401
 
 from ...rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper
-from ..common import resolve_published_checkpoint, resolve_seed
+from ..common import download_wandb_checkpoint, resolve_published_checkpoint, resolve_seed
 from .export_common import (
     add_common_export_args,
     finalize_export_args,
@@ -50,7 +50,28 @@ def parse_export_args(argv: list[str] | None = None) -> tuple[argparse.Namespace
     parser.add_argument(
         "--experiment_name", type=str, default=None, help="Name of the experiment folder used to locate checkpoints."
     )
-    return finalize_export_args(parser, argv)
+    parser.add_argument(
+        "--wandb_run",
+        type=str,
+        default=None,
+        help="Weights & Biases run id to download a checkpoint from for export. Cannot be combined with --checkpoint.",
+    )
+    parser.add_argument(
+        "--wandb_entity",
+        type=str,
+        default=None,
+        help="Weights & Biases entity owning --wandb_run. Defaults to the entity from your local W&B login.",
+    )
+    parser.add_argument(
+        "--wandb_project",
+        type=str,
+        default=None,
+        help="Weights & Biases project holding --wandb_run. Defaults to the agent configuration's 'wandb_project'.",
+    )
+    args_cli, hydra_args = finalize_export_args(parser, argv)
+    if args_cli.wandb_run is not None and args_cli.checkpoint:
+        raise ValueError("--wandb_run cannot be combined with --checkpoint.")
+    return args_cli, hydra_args
 
 
 def get_actor_memory_module(policy: Any) -> Any | None:
@@ -115,6 +136,14 @@ def _resolve_checkpoint(
     args_cli: argparse.Namespace, agent_cfg: RslRlBaseRunnerCfg, env_cfg: Any, log_root_path: str
 ) -> str | None:
     """Resolve the checkpoint to export, or None when no published checkpoint exists."""
+    if args_cli.wandb_run is not None:
+        return download_wandb_checkpoint(
+            log_root_path,
+            args_cli.wandb_project if args_cli.wandb_project is not None else agent_cfg.wandb_project,
+            args_cli.wandb_run,
+            args_cli.wandb_entity,
+            agent_cfg.load_checkpoint,
+        )
     if args_cli.checkpoint == "pretrained":
         return resolve_published_checkpoint("rsl_rl", args_cli.task, env_cfg)
     if args_cli.checkpoint and os.path.isdir(args_cli.checkpoint):

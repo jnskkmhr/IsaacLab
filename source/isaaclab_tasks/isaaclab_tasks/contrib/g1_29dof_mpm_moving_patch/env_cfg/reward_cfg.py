@@ -225,7 +225,6 @@ class G1RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=[".*ankle_roll.*"], preserve_order=True),
             "height_sensor_cfg": SceneEntityCfg("height_scanner"),
-            # "angle_tolerance": math.radians(4.0),
             "angle_tolerance": math.radians(0.0),
         },
     )
@@ -236,7 +235,6 @@ class G1RewardsCfg:
 
     feet_air_time = RewTerm(
         func=mpm_mdp.feet_air_time_positive_biped,
-        # weight=0.5,
         weight=2.0,
         params={
             "command_name": "base_velocity",
@@ -247,7 +245,6 @@ class G1RewardsCfg:
 
     no_fly = RewTerm(
         func=mpm_mdp.no_fly,
-        # weight=-1.0,
         weight=-2.0,
         params={
             "command_name": "base_velocity",

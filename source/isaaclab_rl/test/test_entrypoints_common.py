@@ -425,6 +425,30 @@ def _install_fake_wandb(monkeypatch: pytest.MonkeyPatch, run: _FakeWandbRun, run
     monkeypatch.setitem(sys.modules, "wandb", SimpleNamespace(Api=api))
 
 
+@pytest.mark.parametrize("project_override", [None, "export-project"])
+def test_rsl_export_resolves_wandb_checkpoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project_override: str | None
+) -> None:
+    """Export uses the agent's checkpoint pattern and project unless the CLI overrides the project."""
+    from isaaclab_rl.entrypoints.backends import export_rsl_rl
+
+    run_paths: list[str] = []
+    run = _FakeWandbRun(["model_9.pt", "model_10.pt"], [])
+    _install_fake_wandb(monkeypatch, run, run_paths)
+    argv = ["--task", "Isaac-Cartpole", "--wandb_run", "abc123", "--wandb_entity", "some-team"]
+    if project_override is not None:
+        argv.extend(["--wandb_project", project_override])
+    args, _ = export_rsl_rl.parse_export_args(argv)
+    agent_cfg = SimpleNamespace(wandb_project="training-project", load_checkpoint=r"model_9\.pt")
+
+    checkpoint = export_rsl_rl._resolve_checkpoint(args, agent_cfg, SimpleNamespace(), str(tmp_path))
+
+    expected_project = project_override or "training-project"
+    assert run_paths == [f"some-team/{expected_project}/abc123"]
+    assert run.downloaded == ["model_9.pt"]
+    assert checkpoint == str(tmp_path / "wandb" / "brisk-sweep_abc123" / "model_9.pt")
+
+
 def test_download_wandb_checkpoint_selects_the_highest_iteration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

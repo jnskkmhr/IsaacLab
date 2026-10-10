@@ -722,11 +722,12 @@ def test_failed_rsl_training_restores_torch_backend_state(monkeypatch) -> None:
     assert _torch_backend_state() == caller_state
 
 
-@pytest.mark.parametrize("backend_name", ["train_rsl_rl", "play_rsl_rl"])
+@pytest.mark.parametrize("backend_name", ["train_rsl_rl", "play_rsl_rl", "export_rsl_rl"])
 @pytest.mark.parametrize("checkpoint", [None, "latest"])
 def test_rsl_parses_wandb_checkpoint_source(backend_name, checkpoint, monkeypatch) -> None:
-    """W&B source options match playback and reject competing local checkpoints."""
+    """Train, play, and export accept W&B sources and reject competing local checkpoints."""
     backend = importlib.import_module(f"isaaclab_rl.entrypoints.backends.{backend_name}")
+    parse_args = backend.parse_export_args if backend_name == "export_rsl_rl" else backend._parse_args
 
     argv = [
         "--task",
@@ -743,9 +744,10 @@ def test_rsl_parses_wandb_checkpoint_source(backend_name, checkpoint, monkeypatc
     monkeypatch.setattr(sys, "argv", ["train.py", *argv])
     if checkpoint is not None:
         with pytest.raises(ValueError, match="cannot be combined with --checkpoint"):
-            backend._parse_args(argv)
+            parse_args(argv)
     else:
-        args = backend._parse_args(argv)
+        parsed = parse_args(argv)
+        args = parsed[0] if backend_name == "export_rsl_rl" else parsed
         assert args.wandb_run == "abc123"
         assert args.wandb_entity == "team"
         assert args.wandb_project == "teachers"

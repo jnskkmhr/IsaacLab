@@ -18,7 +18,7 @@ from isaaclab_newton.sim.spawners.mpm import MPMParticleMaterialCfg
 from pxr import Sdf, UsdGeom, UsdShade, Vt
 
 import isaaclab.sim as sim_utils
-from isaaclab.terrains import TerrainGeneratorCfg, TerrainImporter, TerrainImporterCfg
+from isaaclab.terrains import TerrainGenerator, TerrainGeneratorCfg, TerrainImporter, TerrainImporterCfg
 from isaaclab.utils import configclass
 
 from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
@@ -297,6 +297,48 @@ def split_contact_surfaces(
     rigid_surface = mesh.slice_plane((0.0, split_y, 0.0), (0.0, 1.0, 0.0))
     mpm_surface.apply_translation((0.0, 0.0, -particle_depth))
     return mpm_surface, rigid_surface
+
+
+class PairedTerrainGenerator(TerrainGenerator):
+    """Generate matching MPM and rigid terrain columns from the same sampled meshes.
+
+    ``num_cols`` is the total column count and must be even. The second half of
+    the columns copies the first half, including terrain origins and flat patches.
+    The standard generator adds the surrounding border and centers the full grid.
+    """
+
+    def _generate_random_terrains(self) -> None:
+        self._generate_paired_terrains()
+
+    def _generate_curriculum_terrains(self) -> None:
+        self._generate_paired_terrains()
+
+    def _generate_paired_terrains(self) -> None:
+        cfg = self.cfg
+        if cfg.num_cols < 2 or cfg.num_cols % 2:
+            raise ValueError("Paired terrain generation requires an even num_cols of at least two.")
+        num_columns_per_group = cfg.num_cols // 2
+        # Reuse standard sampling for one group without changing the caller's config.
+        self.cfg = cfg.replace(num_cols=num_columns_per_group)
+        try:
+            if cfg.curriculum:
+                super()._generate_curriculum_terrains()
+            else:
+                super()._generate_random_terrains()
+        finally:
+            self.cfg = cfg
+
+        rigid_terrain_translation = np.array((0.0, num_columns_per_group * cfg.size[1], 0.0))
+        for mesh in list(self.terrain_meshes):
+            rigid_mesh = mesh.copy()
+            rigid_mesh.apply_translation(rigid_terrain_translation)
+            self.terrain_meshes.append(rigid_mesh)
+        self.terrain_origins[:, num_columns_per_group:] = (
+            self.terrain_origins[:, :num_columns_per_group] + rigid_terrain_translation
+        )
+        # Flat patches remain relative to each tile's terrain origin until the parent constructor finishes.
+        for name, patches in self.flat_patches.items():
+            self.flat_patches[name] = torch.cat((patches, patches), dim=1)
 
 
 class MixedTerrainImporter(BackgroundTerrainImporter):
