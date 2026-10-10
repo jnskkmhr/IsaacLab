@@ -1,0 +1,77 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: Sync fork branches
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Daily at 00:00 UTC.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-fork-branches
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'jnskkmhr/IsaacLab'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      GIT_LFS_SKIP_SMUDGE: "1"
+
+    steps:
+      - name: Require sync token
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::error::Set SYNC_TOKEN with Contents and Workflows read/write access to this fork."
+            exit 1
+          fi
+
+      - name: Check out fork develop
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6.1.0
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Merge upstream develop into fork develop
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/isaac-sim/IsaacLab.git
+          git fetch --no-tags upstream refs/heads/develop:refs/remotes/upstream/develop
+
+          if ! git merge --no-edit refs/remotes/upstream/develop; then
+            echo "::error::Upstream merge failed. Resolve the merge into fork develop manually, then rerun."
+            git status --short
+            git merge --abort
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/develop
+          echo "Synced upstream develop into fork develop at $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Merge fork develop into stable
+        run: |
+          git fetch --no-tags origin \
+            refs/heads/junnosuke/code_stable:refs/remotes/origin/junnosuke/code_stable
+          git switch --create sync-stable refs/remotes/origin/junnosuke/code_stable
+
+          if ! git merge --no-edit develop; then
+            echo "::error::Stable merge failed. Fork develop is synced; resolve the merge into junnosuke/code_stable manually, then rerun."
+            git status --short
+            git merge --abort
+            exit 1
+          fi
+          git push origin HEAD:refs/heads/junnosuke/code_stable
+          echo "Merged fork develop into junnosuke/code_stable at $(git rev-parse HEAD)." >> "$GITHUB_STEP_SUMMARY"
