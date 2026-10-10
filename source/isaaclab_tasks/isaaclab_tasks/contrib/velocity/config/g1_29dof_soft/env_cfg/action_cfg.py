@@ -5,6 +5,12 @@
 
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_contrib.mdp import (
+    MirrorActionTermCfg,
+    MirrorJointPositionActionCfg,
+    mirror_identity,
+)
+
 from isaaclab_tasks.contrib.soft_contact import (
     BoxColliderCfg,
     PhysicsCallbackActionCfg,
@@ -12,11 +18,6 @@ from isaaclab_tasks.contrib.soft_contact import (
     SphereColliderCfg,
 )
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import (
-    MirrorActionTermCfg,
-    MirrorJointPositionActionCfg,
-    mirror_identity,
-)
 
 """
 collider geometry

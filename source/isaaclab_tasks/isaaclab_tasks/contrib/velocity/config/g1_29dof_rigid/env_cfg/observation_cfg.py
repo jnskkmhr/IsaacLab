@@ -8,15 +8,15 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
+from isaaclab_contrib.mdp import MirrorObservationTermCfg as ObsTerm
+from isaaclab_contrib.mdp import mirror_identity, mirror_quat, mirror_vec3
+
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.env_cfg.action_cfg import G1ActionsCfg
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.env_cfg.scene_cfg import G1SceneCfg
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorObservationTermCfg as ObsTerm
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import mirror_identity, mirror_quat, mirror_vec3
 
-ACTIVE_JOINTS=[
+ACTIVE_JOINTS = [
     "left_hip_pitch_joint",
     "left_hip_roll_joint",
     "left_hip_yaw_joint",
@@ -185,6 +185,7 @@ class CriticHistoryCfg(CriticCfg):
     def __post_init__(self):
         self.history_length = 10
 
+
 @configclass
 class CommandCfg(ObsGroup):
     """Observations for command group."""
@@ -227,7 +228,7 @@ class PrivilegedObsCfg(ObsGroup):
         mirror=symmetry.mirror_foot_scalars,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")},
     )
-    terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
+    # terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
 
     def __post_init__(self):
         self.enable_corruption = False

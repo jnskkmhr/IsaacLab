@@ -8,13 +8,14 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.noise import UniformNoiseCfg as Unoise
 
+from isaaclab_contrib.mdp import MirrorObservationTermCfg as ObsTerm
+from isaaclab_contrib.mdp import mirror_identity, mirror_quat, mirror_vec3
+
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_soft.mdp as g1_soft_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_soft.env_cfg.scene_cfg import G1SceneCfg
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorObservationTermCfg as ObsTerm
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import mirror_identity, mirror_quat, mirror_vec3
 
 SOFT_CONTACT_THRESHOLD = 40.0
 ACTIVE_JOINT = [
@@ -189,17 +190,21 @@ class PolicyHistoryCfg(PolicyCfg):
     def __post_init__(self):
         self.history_length = 10
 
+
 @configclass
 class CriticHistoryCfg(CriticCfg):
     def __post_init__(self):
         self.history_length = 10
 
+
 @configclass
 class CommandObsCfg(ObsGroup):
     """Observations for command group."""
+
     velocity_commands = ObsTerm(
         func=mdp.generated_commands, params={"command_name": "base_velocity"}, mirror=symmetry.mirror_velocity_heading
     )
+
 
 @configclass
 class PrivilegedObsCfg(ObsGroup):

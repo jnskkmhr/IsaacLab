@@ -156,58 +156,36 @@ class G1RewardsCfg:
     #     },
     # )
 
-    # feet_roll = RewTerm(
-    #     func=g1_mdp.reward_feet_roll,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    # feet_roll_diff = RewTerm(
-    #     func=g1_mdp.reward_feet_roll_diff,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    # feet_pitch = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    # feet_pitch_diff = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch_diff,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    feet_pitch_contact = RewTerm(
-        func=g1_mdp.reward_feet_pitch_contact,
-        weight=-4.0,
+    feet_roll = RewTerm(
+        func=g1_mdp.reward_feet_roll,
+        weight=-1.0,
         params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=[".*ankle_roll.*"],
+                preserve_order=True,
+            ),
+        },
+    )
+
+    feet_roll_diff = RewTerm(
+        func=g1_mdp.reward_feet_roll_diff,
+        weight=-1.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                body_names=[".*ankle_roll.*"],
+                preserve_order=True,
+            ),
+        },
+    )
+
+    stance_foot_angle_penalty = RewTerm(
+        func=g1_mdp.stance_foot_angle_penalty,
+        weight=-8.0,
+        params={
+            "height_sensor_cfg": None,
+            "angle_tolerance": 0.0,
             "sensor_cfg": SceneEntityCfg(
                 "contact_forces",
                 body_names=[".*ankle_roll.*"],
@@ -229,7 +207,7 @@ class G1RewardsCfg:
     # this is sparse reward as agent receives reward equivalent to swing time only during single stance mode.
     feet_air_time = RewTerm(
         func=g1_mdp.feet_air_time_positive_biped,
-        weight=0.5,
+        weight=2.0,
         params={
             "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
@@ -240,7 +218,7 @@ class G1RewardsCfg:
 
     no_fly = RewTerm(
         func=g1_mdp.fly,
-        weight=-1.0,
+        weight=-2.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
             "threshold": 5.0,
@@ -474,10 +452,17 @@ class G1RewardsRoughCfg:
         },
     )
 
-    # feet_pitch = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch,
-    #     weight=-1.0,
+    # foot_touch_down_angle_penalty = RewTerm(
+    #     func=g1_mdp.foot_touch_down_angle_penalty,
+    #     weight=-8.0,
     #     params={
+    #         "height_sensor_cfg": SceneEntityCfg("height_scanner"),
+    #         "angle_tolerance": 0.0,
+    #         "sensor_cfg": SceneEntityCfg(
+    #             "contact_forces",
+    #             body_names=[".*ankle_roll.*"],
+    #             preserve_order=True,
+    #         ),
     #         "asset_cfg": SceneEntityCfg(
     #             "robot",
     #             body_names=[".*ankle_roll.*"],
@@ -486,20 +471,8 @@ class G1RewardsRoughCfg:
     #     },
     # )
 
-    # feet_pitch_diff = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch_diff,
-    #     weight=-1.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    foot_touch_down_angle_penalty = RewTerm(
-        func=g1_mdp.foot_touch_down_angle_penalty,
+    stance_foot_angle_penalty = RewTerm(
+        func=g1_mdp.stance_foot_angle_penalty,
         weight=-8.0,
         params={
             "height_sensor_cfg": SceneEntityCfg("height_scanner"),
@@ -525,7 +498,7 @@ class G1RewardsRoughCfg:
     # this is sparse reward as agent receives reward equivalent to swing time only during single stance mode.
     feet_air_time = RewTerm(
         func=g1_mdp.feet_air_time_positive_biped,
-        weight=0.5,
+        weight=2.0,
         params={
             "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
@@ -536,7 +509,7 @@ class G1RewardsRoughCfg:
 
     no_fly = RewTerm(
         func=g1_mdp.fly,
-        weight=-1.0,
+        weight=-2.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
             "threshold": 5.0,
