@@ -88,3 +88,25 @@ class G1CurriculumCfg:
             "step_1": 15000 * 24,
         },
     )
+
+    feet_air_time_weight = CurrTerm(
+        func=g1_mdp.ramp_reward_weight,
+        params={
+            "term_name": "feet_air_time",
+            "weight_0": 2.0,
+            "weight_1": 5.0,
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        }
+    )
+
+    foot_clearance_weight = CurrTerm(
+        func=g1_mdp.ramp_reward_weight,
+        params={
+            "term_name": "foot_clearance",
+            "weight_0": 5.0,
+            "weight_1": 10.0,
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        }
+    )

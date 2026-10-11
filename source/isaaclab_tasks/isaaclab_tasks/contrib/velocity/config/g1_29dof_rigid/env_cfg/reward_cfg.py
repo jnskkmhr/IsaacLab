@@ -505,8 +505,8 @@ class G1RewardsRoughCfg:
     # this is sparse reward as agent receives reward equivalent to swing time only during single stance mode.
     feet_air_time = RewTerm(
         func=g1_mdp.feet_air_time_positive_biped,
-        # weight=2.0,
-        weight=5.0,
+        weight=2.0,
+        # weight=5.0,
         params={
             "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
