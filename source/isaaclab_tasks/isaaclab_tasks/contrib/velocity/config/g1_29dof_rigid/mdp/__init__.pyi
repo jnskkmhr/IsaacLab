@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "break_contact_penalty",
     "commands_vel",
     "reset_root_state_uniform_on_ground",
     "modify_reward_param",
@@ -62,6 +63,7 @@ from .observations import (
     terrain_material_parameters,
 )
 from .rewards import (
+    break_contact_penalty,
     action_rate_l2,
     energy,
     feet_air_time,

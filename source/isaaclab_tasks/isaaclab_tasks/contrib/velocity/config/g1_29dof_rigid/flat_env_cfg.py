@@ -94,7 +94,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.rel_standing_envs = 1.0
+        # self.commands.base_velocity.rel_standing_envs = 1.0
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s / 4, self.episode_length_s / 4)
         # self.commands.base_velocity.debug_vis = False
 
@@ -120,4 +120,4 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        # self.video_recorders = []
+        self.video_recorders = []

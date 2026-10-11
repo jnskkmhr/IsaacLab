@@ -78,7 +78,6 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
                 video_length=200,
                 video_interval=2000
             ),
-            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]
 
@@ -93,6 +92,9 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
         self.scene.num_envs = 50
         self.scene.env_spacing = 2.5
         self.episode_length_s = 40.0
+
+        self.scene.terrain.terrain_generator.difficulty_range = (1.0, 1.0)
+
         # spawn the robot randomly in the grid (instead of their terrain levels)
         self.scene.terrain.max_init_terrain_level = None
         # reduce the number of terrains to save memory
@@ -116,4 +118,11 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
             NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.video_recorders = []
+        self.video_recorders = [
+            # VideoRecorderCfg(
+            #     source="visualizer:newton_rtx",
+            #     output_dir=None,
+            #     video_length=200,
+            #     video_interval=2000
+            #     ),
+        ]

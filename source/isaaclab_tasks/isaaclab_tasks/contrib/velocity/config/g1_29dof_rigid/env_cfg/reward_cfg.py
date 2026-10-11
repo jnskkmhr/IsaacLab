@@ -74,7 +74,7 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 0.5,
+                ".*": 1.0,
             },
             "weight_walking": {
                 # leg
@@ -342,14 +342,21 @@ class G1RewardsRoughCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 0.5,
+                # Allow the legs to adapt to the terrain while retaining upper-body posture.
+                ".*hip_pitch.*": 0.02,
+                ".*hip_roll.*": 0.3,
+                ".*hip_yaw.*": 0.08,
+                ".*knee.*": 0.02,
+                ".*ankle_pitch.*": 0.02,
+                ".*ankle_roll.*": 0.02,
+                ".*(waist|shoulder|elbow|wrist).*": 1.0,
             },
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02,
                 # ".*hip_roll.*": 0.15,
                 ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.15,
+                ".*hip_yaw.*": 0.08,
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,
                 ".*ankle_roll.*": 0.02,
@@ -369,7 +376,7 @@ class G1RewardsRoughCfg:
                 ".*hip_pitch.*": 0.005,
                 # ".*hip_roll.*": 0.15,
                 ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.15,
+                ".*hip_yaw.*": 0.08,
                 ".*knee.*": 0.005,
                 ".*ankle_pitch.*": 0.01,
                 ".*ankle_roll.*": 0.01,
@@ -397,7 +404,7 @@ class G1RewardsRoughCfg:
     base_height = RewTerm(
         func=mdp.base_height_l2,
         weight=-10.0,
-        params={"target_height": 0.78, "sensor_cfg": SceneEntityCfg("height_scanner")},
+        params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
@@ -498,12 +505,26 @@ class G1RewardsRoughCfg:
     # this is sparse reward as agent receives reward equivalent to swing time only during single stance mode.
     feet_air_time = RewTerm(
         func=g1_mdp.feet_air_time_positive_biped,
-        weight=2.0,
+        # weight=2.0,
+        weight=5.0,
         params={
             "command_name": "base_velocity",
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
             "threshold": 0.5,
             "velocity_threshold": 0.05,
+        },
+    )
+
+    break_contact = RewTerm(
+        func=g1_mdp.break_contact_penalty,
+        weight=-0.5,
+        params={
+            "command_name": "base_velocity",
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
+            "command_threshold": 0.05,
+            "recovery_linear_velocity": 0.2,
+            "recovery_angular_velocity": 0.5,
+            "recovery_tilt": 0.2,
         },
     )
 

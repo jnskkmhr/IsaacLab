@@ -24,6 +24,8 @@ from isaaclab.sensors import ContactSensor
 from isaaclab.utils.math import euler_xyz_from_quat, quat_apply, quat_apply_inverse, yaw_quat
 from isaaclab.utils.string import resolve_matching_names_values
 
+from isaaclab_tasks.contrib.velocity.config import vel_mdp
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
@@ -80,6 +82,33 @@ def feet_air_time_positive_biped(
     total_norm = linear_norm + angular_norm
     reward *= total_norm > velocity_threshold
     return reward
+
+
+def break_contact_penalty(
+    env: ManagerBasedRLEnv,
+    sensor_cfg: SceneEntityCfg,
+    command_name: str,
+    command_threshold: float = 0.05,
+    recovery_linear_velocity: float = 0.2,
+    recovery_angular_velocity: float = 0.5,
+    recovery_tilt: float = 0.2,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize rigid feet leaving contact while standing, with reduced cost during recovery."""
+    sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    foot_contact = sensor.data.current_contact_time.torch[:, sensor_cfg.body_ids] > 0.0
+    asset = env.scene[asset_cfg.name]
+    return vel_mdp.compute_standing_contact_penalty(
+        foot_contact=foot_contact,
+        velocity_command=env.command_manager.get_command(command_name),
+        base_lin_vel_b=asset.data.root_lin_vel_b.torch,
+        base_ang_vel_b=asset.data.root_ang_vel_b.torch,
+        projected_gravity_b=asset.data.projected_gravity_b.torch,
+        command_threshold=command_threshold,
+        recovery_linear_velocity=recovery_linear_velocity,
+        recovery_angular_velocity=recovery_angular_velocity,
+        recovery_tilt=recovery_tilt,
+    )
 
 
 def fly(
