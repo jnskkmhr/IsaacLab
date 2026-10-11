@@ -18,6 +18,8 @@ from isaaclab.utils.configclass import configclass
 ##
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG, UNITREE_G1_29DOF_CFG
 
+from . import terrain_cfg
+
 
 @configclass
 class G1SceneCfg(InteractiveSceneCfg):
@@ -27,7 +29,8 @@ class G1SceneCfg(InteractiveSceneCfg):
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="generator",
-        terrain_generator=ROUGH_TERRAINS_CFG,
+        # terrain_generator=ROUGH_TERRAINS_CFG,
+        terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
         max_init_terrain_level=5,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
@@ -44,18 +47,19 @@ class G1SceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
     # robots
-    # robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
 
     # sensors
     height_scanner = RayCasterCfg(
         # the URDF importer nests bodies along the kinematic tree, so match the leaf name anywhere
+        # prim_path="{ENV_REGEX_NS}/Robot/.*pelvis",
         prim_path="{ENV_REGEX_NS}/Robot/.*torso_link",
-        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0)),
         ray_alignment="yaw",
-        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(1.6, 1.0)),
-        debug_vis=False,
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(0.2, 0.2)),
         mesh_prim_paths=["/World/ground"],
+        global_world_only=True,
+        debug_vis=True,
     )
     # multi-body contact reporting
     contact_forces = ContactSensorCfg(
@@ -63,20 +67,6 @@ class G1SceneCfg(InteractiveSceneCfg):
         history_length=3,
         track_air_time=True,
     )
-
-    # # detailed single foot contact reporting
-    # contact_forces_LF = ContactSensorCfg(
-    #     prim_path="{ENV_REGEX_NS}/Robot/left_ankle_roll_link",
-    #     filter_prim_paths_expr=["/World/ground/terrain/mesh"],
-    #     history_length=3,
-    #     track_air_time=True,
-    #     )
-    # contact_forces_RF = ContactSensorCfg(
-    #     prim_path="{ENV_REGEX_NS}/Robot/right_ankle_roll_link",
-    #     filter_prim_paths_expr=["/World/ground/terrain/mesh"],
-    #     history_length=3,
-    #     track_air_time=True,
-    #     )
 
     # lights
     sky_light = AssetBaseCfg(

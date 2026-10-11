@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "compute_standing_contact_penalty",
     "ExtremeJointPositionAction",
     "foot_clearance_reward",
     "MirrorActionTermCfg",
@@ -17,7 +18,7 @@ __all__ = [
     "mirror_vec3",
 ]
 
-from .rewards import foot_clearance_reward
+from .rewards import compute_standing_contact_penalty, foot_clearance_reward
 from .symmetry import (
     MirrorActionTermCfg,
     MirrorAugmentation,

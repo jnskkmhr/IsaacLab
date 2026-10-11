@@ -5,8 +5,9 @@
 
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_contrib.mdp import MirrorJointPositionActionCfg
+
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import MirrorJointPositionActionCfg
 
 
 @configclass
@@ -48,7 +49,6 @@ class G1ActionsCfg:
             "right_wrist_yaw_joint",
         ],
         scale=0.25,
-        # scale=0.5,
         use_default_offset=True,
         preserve_order=True,
     )

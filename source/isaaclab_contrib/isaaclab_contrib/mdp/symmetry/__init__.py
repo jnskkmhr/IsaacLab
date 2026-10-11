@@ -3,7 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""This sub-module contains the functions that are specific to the Spot locomotion task."""
+
+"""Reusable reflection rules and augmentation for manager-based tasks."""
 
 from isaaclab.utils.module import lazy_export
 
