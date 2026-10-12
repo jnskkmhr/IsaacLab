@@ -110,6 +110,26 @@ def break_contact_penalty(
         recovery_tilt=recovery_tilt,
     )
 
+def standing_foot_motion(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    command_threshold: float = 0.05,
+) -> torch.Tensor:
+    """Penalize squared world-frame foot speed when linear and yaw commands are near zero.
+
+    All three velocity components contribute, including vertical motion during steps in place.
+    The heading quaternion in the G1 command is ignored. Unlike a joint-position penalty, this
+    term allows the robot to settle into different standing poses on uneven terrain.
+    """
+    command = env.command_manager.get_command(command_name)
+    standing = (torch.linalg.vector_norm(command[:, :2], dim=-1) < command_threshold) & (
+        command[:, 2].abs() < command_threshold
+    )
+    asset: Articulation = env.scene[asset_cfg.name]
+    foot_velocity = asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids]
+    return foot_velocity.square().sum(dim=(1, 2)) * standing
+
 
 def fly(
     env: ManagerBasedRLEnv,
