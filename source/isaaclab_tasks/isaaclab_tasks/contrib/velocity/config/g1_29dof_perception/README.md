@@ -9,7 +9,7 @@ The standard IsaacLab RSL-RL training, playback, checkpoint, and export entry po
 From the IsaacLab checkout, install the sibling library into the existing environment:
 
 ```bash
-uv pip install --python .venv/bin/python -e ../rsl_rl/compositional_rl
+uv pip install --python .venv/bin/python -e ../compositional_rsl_rl
 
 uv run --no-sync isaaclab train --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Rough-G1-29dof-Perception --num_envs 128
@@ -17,7 +17,7 @@ uv run --no-sync isaaclab train --rl_library rsl_rl \
 
 The library depends on `rsl-rl-lib==5.5.1`; it extends that package rather than replacing
 its Python namespace. The task registry selects `agents/compositional_ppo_cfg.py`, whose
-algorithm class is `compositional_rl:CompositionalPPO`. No script modifications are needed.
+algorithm class is `compositional_rsl_rl:CompositionalPPO`. No script modifications are needed.
 Use `--no-sync` to preserve the locally installed extension if you otherwise synchronize
 the IsaacLab environment from its lockfile.
 
