@@ -349,7 +349,7 @@ class G1RewardsRoughCfg:
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,
                 ".*ankle_roll.*": 0.02,
-                ".*(waist|shoulder|elbow|wrist).*": 1.0,
+                ".*(waist|shoulder|elbow|wrist).*": 0.5,
             },
             "weight_walking": {
                 # leg
@@ -378,8 +378,8 @@ class G1RewardsRoughCfg:
                 ".*hip_roll.*": 0.3,
                 ".*hip_yaw.*": 0.08,
                 ".*knee.*": 0.005,
-                ".*ankle_pitch.*": 0.01,
-                ".*ankle_roll.*": 0.01,
+                ".*ankle_pitch.*": 0.02,
+                ".*ankle_roll.*": 0.02,
                 # waist
                 ".*waist_yaw.*": 0.15,
                 ".*waist_roll.*": 2.0,
@@ -572,6 +572,17 @@ class G1RewardsRoughCfg:
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
             "command_name": "base_velocity",
+            "command_threshold": 0.05,
+        },
+    )
+
+    # Discourage stepping in place without prescribing a fixed standing joint pose.
+    standing_foot_motion = RewTerm(
+        func=g1_mdp.standing_foot_motion,
+        weight=-5.0,
+        params={
+            "command_name": "base_velocity",
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*ankle_roll.*"),
             "command_threshold": 0.05,
         },
     )
