@@ -59,6 +59,15 @@ from .kernels import (
 )
 
 
+def _resolve_env_ids(env_ids: torch.Tensor | slice | None, num_envs: int, device: torch.device | str) -> torch.Tensor:
+    """Convert environment selectors to contiguous int64 indices for Warp kernels."""
+    if env_ids is None:
+        env_ids = slice(None)
+    if isinstance(env_ids, slice):
+        env_ids = torch.arange(num_envs, device=device, dtype=torch.int64)[env_ids]
+    return torch.as_tensor(env_ids, device=device, dtype=torch.int64).contiguous()
+
+
 class RFT_3D:
     def __init__(
         self,
@@ -359,16 +368,17 @@ class RFT_3D:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
 
-    def randomize_ground_stiffness(self, env_ids: torch.Tensor, mu_int: torch.Tensor) -> None:
+    def randomize_ground_stiffness(self, env_ids: torch.Tensor | slice, mu_int: torch.Tensor) -> None:
         """
         Update ground stiffness (N/m) for each env.
         Implementation is similar to terrain curriculum used in terrain importer class.
         This can be triggered by curriculum manager.
 
         Args:
-            env_ids: tensor of env ids to update
+            env_ids: Tensor of environment indices or a slice selecting environments.
             mu_int: tensor of mu_int values (len(env_ids), )
         """
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -376,16 +386,19 @@ class RFT_3D:
             device=self.device,
         )
 
-    def update_material_density(self, env_ids: torch.Tensor, packing_density: torch.Tensor, bulk_density: torch.Tensor) -> None:
+    def update_material_density(
+        self, env_ids: torch.Tensor | slice, packing_density: torch.Tensor, bulk_density: torch.Tensor
+    ) -> None:
         """
         Update material density for each env.
         This can be triggered by event manager.
 
         Args:
-            env_ids: tensor of env ids to update
+            env_ids: Tensor of environment indices or a slice selecting environments.
             packing_density: tensor of packing densities (len(env_ids), )
             bulk_density: tensor of bulk densities (len(env_ids), )
         """
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         rho_c = bulk_density * packing_density
         wp.launch(
             kernel=update_array_with_index,
@@ -395,17 +408,18 @@ class RFT_3D:
         )
 
     def update_friction_params(
-        self, env_ids: torch.Tensor, static_friction_coef: torch.Tensor, dynamic_friction_coef: torch.Tensor
+        self, env_ids: torch.Tensor | slice, static_friction_coef: torch.Tensor, dynamic_friction_coef: torch.Tensor
     ) -> None:
         """
         Update friction coefficients for each env.
         This can be triggered by event manager.
 
         Args:
-            env_ids: tensor of env ids to update
+            env_ids: Tensor of environment indices or a slice selecting environments.
             static_friction_coef: tensor of static friction coefficients (len(env_ids), )
             dynamic_friction_coef: tensor of dynamic friction coefficients (len(env_ids), )
         """
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -728,11 +742,8 @@ class RFT_3D:
     reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
-        if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
-        # the managers hand out int32 indices, while the kernels below index with int64
-        env_ids = env_ids.to(torch.int64)
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
 
         wp.launch(
             kernel=reset,
@@ -1038,15 +1049,16 @@ class RFT_2D:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
 
-    def randomize_ground_stiffness(self, env_ids: torch.Tensor, mu_int: torch.Tensor) -> None:
+    def randomize_ground_stiffness(self, env_ids: torch.Tensor | slice, mu_int: torch.Tensor) -> None:
         """
         Update per-env internal friction coefficient (controls quasistatic stiffness xi).
         Same API as 3D RFT.
 
         Args:
-            env_ids: (n,) env indices to update
+            env_ids: Tensor of environment indices or a slice selecting environments.
             mu_int: (n,) new internal friction coefficient values
         """
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -1055,17 +1067,18 @@ class RFT_2D:
         )
 
     def update_material_density(
-        self, env_ids: torch.Tensor, packing_density: torch.Tensor, bulk_density: torch.Tensor
+        self, env_ids: torch.Tensor | slice, packing_density: torch.Tensor, bulk_density: torch.Tensor
     ) -> None:
         """
         Update per-env critical media density (rho_c = bulk_density * packing_density).
         Same API as 3D RFT.
 
         Args:
-            env_ids: (n,) env indices to update
+            env_ids: Tensor of environment indices or a slice selecting environments.
             packing_density: (n,) packing fraction
             bulk_density: (n,) bulk density (kg/m^3)
         """
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         rho_c = bulk_density * packing_density
         wp.launch(
             kernel=update_array_with_index,
@@ -1076,7 +1089,7 @@ class RFT_2D:
 
     def update_friction_params(
         self,
-        env_ids: torch.Tensor,
+        env_ids: torch.Tensor | slice,
         static_friction_coef: torch.Tensor,
         dynamic_friction_coef: torch.Tensor,
     ) -> None:
@@ -1084,10 +1097,11 @@ class RFT_2D:
         Update per-env friction coefficients.
 
         Args:
-            env_ids: (n,) env indices to update
+            env_ids: Tensor of environment indices or a slice selecting environments.
             static_friction_coef: (n,) static friction (unused in force model, kept for API consistency)
             dynamic_friction_coef: (n,) dynamic friction
         """
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -1307,11 +1321,8 @@ class RFT_2D:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
-        if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
-        # the managers hand out int32 indices, while the kernels below index with int64
-        env_ids = env_ids.to(torch.int64)
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
 
         wp.launch(
             kernel=reset_2d,
@@ -1551,8 +1562,9 @@ class SpringDamper:
         self._update_data(torch.arange(self.num_envs, device=self.device))
         self._timestamp_last_update[:] = self._timestamp[:]
 
-    def randomize_ground_stiffness(self, env_ids: torch.Tensor, k: torch.Tensor) -> None:
+    def randomize_ground_stiffness(self, env_ids: torch.Tensor | slice, k: torch.Tensor) -> None:
         """Update per-env spring stiffness (N/m^3)."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -1561,9 +1573,10 @@ class SpringDamper:
         )
 
     def update_material_density(
-        self, env_ids: torch.Tensor, packing_density: torch.Tensor, bulk_density: torch.Tensor
+        self, env_ids: torch.Tensor | slice, packing_density: torch.Tensor, bulk_density: torch.Tensor
     ) -> None:
         """Update per-env damping coefficient (b = bulk_density * packing_density, N*s/m^3)."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         b_new = bulk_density * packing_density
         wp.launch(
             kernel=update_array_with_index,
@@ -1574,11 +1587,12 @@ class SpringDamper:
 
     def update_friction_params(
         self,
-        env_ids: torch.Tensor,
+        env_ids: torch.Tensor | slice,
         static_friction_coef: torch.Tensor,
         dynamic_friction_coef: torch.Tensor,
     ) -> None:
         """Update per-env friction coefficients."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -1990,9 +2004,10 @@ class ConeDRFT:
         self._timestamp_last_update[:] = self._timestamp[:]
 
     def randomize_ground_stiffness(
-        self, env_ids: torch.Tensor, sigma_flat: torch.Tensor, sigma_cone: torch.Tensor | None = None
+        self, env_ids: torch.Tensor | slice, sigma_flat: torch.Tensor, sigma_cone: torch.Tensor | None = None
     ) -> None:
         """Update per-env depth-dependent stiffness stresses (N/m^3)."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         env_ids_wp = wp.from_torch(env_ids.to(torch.int64), dtype=wp.int64)
         wp.launch(
             kernel=update_array_with_index,
@@ -2009,9 +2024,10 @@ class ConeDRFT:
             )
 
     def update_material_density(
-        self, env_ids: torch.Tensor, packing_density: torch.Tensor, bulk_density: torch.Tensor
+        self, env_ids: torch.Tensor | slice, packing_density: torch.Tensor, bulk_density: torch.Tensor
     ) -> None:
         """Update per-env material density parameters (phi = packing_density, rho = bulk_density)."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         # phi (packing fraction) = packing_density
         wp.launch(
             kernel=update_array_with_index,
@@ -2037,11 +2053,12 @@ class ConeDRFT:
 
     def update_friction_params(
         self,
-        env_ids: torch.Tensor,
+        env_ids: torch.Tensor | slice,
         static_friction_coef: torch.Tensor,
         dynamic_friction_coef: torch.Tensor,
     ) -> None:
         """Update per-env friction coefficients."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -2214,11 +2231,8 @@ class ConeDRFT:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
-        if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
-        # the managers hand out int32 indices, while the kernels below index with int64
-        env_ids = env_ids.to(torch.int64)
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=reset_cone,
             dim=(len(env_ids), self.num_bodies),
@@ -2488,9 +2502,10 @@ class ConeDRFTMultiPoint:
         self._timestamp_last_update[:] = self._timestamp[:]
 
     def randomize_ground_stiffness(
-        self, env_ids: torch.Tensor, sigma_flat: torch.Tensor, sigma_cone: torch.Tensor | None = None
+        self, env_ids: torch.Tensor | slice, sigma_flat: torch.Tensor, sigma_cone: torch.Tensor | None = None
     ) -> None:
         """Update per-env depth-dependent stiffness stresses (N/m^3)."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         env_ids_wp = wp.from_torch(env_ids.to(torch.int64), dtype=wp.int64)
         wp.launch(
             kernel=update_array_with_index,
@@ -2507,9 +2522,10 @@ class ConeDRFTMultiPoint:
             )
 
     def update_material_density(
-        self, env_ids: torch.Tensor, packing_density: torch.Tensor, bulk_density: torch.Tensor
+        self, env_ids: torch.Tensor | slice, packing_density: torch.Tensor, bulk_density: torch.Tensor
     ) -> None:
         """Update per-env material density parameters (phi = packing_density, rho = bulk_density)."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         # phi (packing fraction) = packing_density
         wp.launch(
             kernel=update_array_with_index,
@@ -2535,11 +2551,12 @@ class ConeDRFTMultiPoint:
 
     def update_friction_params(
         self,
-        env_ids: torch.Tensor,
+        env_ids: torch.Tensor | slice,
         static_friction_coef: torch.Tensor,
         dynamic_friction_coef: torch.Tensor,
     ) -> None:
         """Update per-env friction coefficients."""
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=update_array_with_index,
             dim=len(env_ids),
@@ -2712,11 +2729,8 @@ class ConeDRFTMultiPoint:
     Reset.
     """
 
-    def reset(self, env_ids: torch.Tensor | None = None) -> None:
-        if env_ids is None:
-            env_ids = torch.arange(self.num_envs, device=self.device)
-        # the managers hand out int32 indices, while the kernels below index with int64
-        env_ids = env_ids.to(torch.int64)
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+        env_ids = _resolve_env_ids(env_ids, self.num_envs, self.device)
         wp.launch(
             kernel=reset_cone,
             dim=(len(env_ids), self.num_bodies * self.num_contact_points),
