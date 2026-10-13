@@ -102,7 +102,7 @@ Install ``uv``, clone Isaac Lab, and start a workflow:
             --task Isaac-Cartpole-Direct physics=isaacsim_physx
 
          # Play a policy
-         uv run isaaclab play --rl_library rsl_rl --task Isaac-Cartpole-Direct --viz newton
+         uv run isaaclab play --rl_library rsl_rl --task Isaac-Cartpole-Direct --viz newton_gl
 
    .. tab-item:: :icon:`fa-brands fa-linux` Linux aarch64 (DGX Spark)
       :sync: linux-aarch64
@@ -128,7 +128,7 @@ Install ``uv``, clone Isaac Lab, and start a workflow:
             --task Isaac-Cartpole-Direct physics=isaacsim_physx
 
          # Play a policy
-         uv run isaaclab play --rl_library rsl_rl --task Isaac-Cartpole-Direct --viz newton
+         uv run isaaclab play --rl_library rsl_rl --task Isaac-Cartpole-Direct --viz newton_gl
 
       .. note::
 
@@ -167,7 +167,7 @@ Install ``uv``, clone Isaac Lab, and start a workflow:
             --task Isaac-Cartpole-Direct physics=isaacsim_physx
 
          :: Play a policy
-         uv run isaaclab play --rl_library rsl_rl --task Isaac-Cartpole-Direct --viz newton
+         uv run isaaclab play --rl_library rsl_rl --task Isaac-Cartpole-Direct --viz newton_gl
 
 ``uv run`` installs the core dependencies automatically. The ``--extra <name>``
 option includes the selected optional integration in the command's environment. Place it
@@ -175,7 +175,7 @@ before ``isaaclab``; for example, ``--extra ov`` installs both ovphysx and ovrtx
 backends. Pass a comma-separated list or repeat ``--extra``. No extras conflict, so
 any combination resolves into one environment. The ``--extra all`` shortcut installs the
 curated ``ov``, ``rl-games``, ``sb3``, ``skrl``, ``rsl-rl``, ``rerun``, and ``viser`` extras.
-It does not include Isaac Sim or the specialized ``rlinf``, ``mimic``, ``teleop``,
+It does not include Isaac Sim or the specialized ``skrl-jax``, ``rlinf``, ``mimic``, ``teleop``,
 ``tetrahedralization``, ``video``, and ``leapp`` extras; request them by name:
 
 .. code-block:: bash
@@ -337,6 +337,8 @@ have dedicated commands below.
      - OV PhysX only / OV RTX only.
    * - ``sb3`` / ``skrl`` / ``rsl-rl`` / ``rlinf`` / ``torchrl``
      - The corresponding RL framework.
+   * - ``skrl-jax``
+     - skrl with CUDA-enabled JAX.
    * - ``rerun`` / ``viser``
      - The corresponding visualizer.
    * - ``mimic`` / ``teleop``
@@ -354,8 +356,8 @@ have dedicated commands below.
      - Developer test and documentation tooling.
 
 Use ``all`` for the curated list above. Isaac Sim, standalone importers, specialized extras
-(``rlinf``, ``mimic``, ``teleop``, ``tetrahedralization``, ``video``, ``leapp``), and the
-developer ``test`` tooling remain opt-in.
+(``skrl-jax``, ``rlinf``, ``mimic``, ``teleop``, ``tetrahedralization``, ``video``, ``leapp``), and
+the developer ``test`` tooling remain opt-in.
 
 .. note::
 
