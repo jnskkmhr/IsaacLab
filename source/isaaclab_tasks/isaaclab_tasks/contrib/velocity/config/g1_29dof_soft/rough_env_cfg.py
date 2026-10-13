@@ -6,6 +6,7 @@
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+from isaaclab.managers import EventTermCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
@@ -14,6 +15,7 @@ from isaaclab_tasks.core.velocity.velocity_env_cfg import LocomotionVelocityRoug
 ##
 # Pre-defined configs
 ##
+from . import mdp
 from .env_cfg import (
     G1ActionsCfg,
     G1CommandsCfg,
@@ -21,7 +23,7 @@ from .env_cfg import (
     G1EventCfg,
     G1ObservationsCfg,
     G1PhysicsCfg,
-    G1RewardsCfg,
+    G1RewardsRoughCfg,
     G1SceneCfg,
     G1TerminationsCfg,
 )
@@ -29,8 +31,10 @@ from .env_cfg import (
 
 @configclass
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
-    rewards: G1RewardsCfg = G1RewardsCfg()
+    # Keep the non-colliding terrain mesh available to Newton ray queries without a viewer.
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg().newton_mjwarp)
+    sim.physics.load_visual_shapes = True  # type: ignore
+    rewards: G1RewardsRoughCfg = G1RewardsRoughCfg()
     actions: G1ActionsCfg = G1ActionsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
@@ -43,6 +47,15 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
+
+        self.actions.physics_callback.terrain_name = "terrain"
+        self.scene.terrain.disable_collider = True
+        self.scene.height_scanner.global_world_only = True
+        self.events.reset_base.func = mdp.reset_root_state_uniform # type: ignore
+
+        # no height scan observation
+        self.observations.policy.height_scan = None  # type: ignore
+        self.observations.critic.height_scan = None  # type: ignore
 
         # Randomization
         self.events.reset_base.params = {
@@ -64,12 +77,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         ]
 
         self.video_recorders = [
-            VideoRecorderCfg(
-                source="visualizer:newton_gl",
-                output_dir=None,
-                video_length=200,
-                video_interval=2000
-            ),
+            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir="videos/"),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]
@@ -102,3 +110,17 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
         # remove random pushing
         # self.events.base_external_force_torque = None
         self.events.push_robot = None  # type: ignore
+
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
+            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
+            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+        ]
+        self.events.follow_robot_camera = EventTermCfg(  # type: ignore
+            func=mdp.follow_robot_camera,
+            mode="interval",
+            interval_range_s=(0.0, 0.0),
+            is_global_time=True,
+            params={"eye_offset": (0.0, -2.0, 0.5)},
+        )
+        self.video_recorders = []

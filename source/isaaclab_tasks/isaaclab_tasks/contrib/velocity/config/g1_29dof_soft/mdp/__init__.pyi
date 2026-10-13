@@ -4,6 +4,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "break_contact_penalty_hybrid",
+    "stance_foot_angle_penalty_hybrid",
+    "follow_robot_camera",
     "terrain_density_levels",
     "terrain_friction_levels",
     "terrain_stiffness_levels",
@@ -32,6 +35,7 @@ __all__ = [
 
 from .curriculums import terrain_density_levels, terrain_friction_levels, terrain_stiffness_levels
 from .events import (
+    follow_robot_camera,
     randomize_cone_model_terrain_stiffness,
     randomize_material_density,
     randomize_terrain_friction,
@@ -48,6 +52,8 @@ from .observations import (
     terrain_material_parameters_hybrid,
 )
 from .rewards import (
+    break_contact_penalty_hybrid,
+    stance_foot_angle_penalty_hybrid,
     feet_air_time_positive_biped_hybrid,
     feet_slide_hybrid,
     no_fly_hybrid,

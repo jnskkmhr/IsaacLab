@@ -5,20 +5,25 @@
 
 import math
 
-from isaaclab_visualizers.kit import KitVisualizerCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 # from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.managers import EventTermCfg
+from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.events import reset_root_state_uniform_on_ground
+
 from . import mdp
-from .mdp.events import follow_robot_camera
+from .env_cfg import G1PhysicsCfg, G1RewardsCfg
 from .rough_env_cfg import G1RoughEnvCfg
 
 
 @configclass
 class G1FlatEnvCfg(G1RoughEnvCfg):
+    rewards: G1RewardsCfg = G1RewardsCfg()
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
+
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -29,9 +34,13 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.sim.render_interval = self.decimation
 
         # physics
-        newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
+        newton_mjwarp = self.sim.physics.newton_mjwarp  # type: ignore
         newton_mjwarp.solver_cfg.njmax = 95
         newton_mjwarp.solver_cfg.nconmax = 10
+
+        # Preserve the original flat RFT surface and reset height.
+        self.actions.physics_callback.terrain_name = None
+        self.events.reset_base.func = reset_root_state_uniform_on_ground
 
         # make curriculum soft terrain
         self.scene.terrain = mdp.CurriculumSoftTerrain
@@ -139,11 +148,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.events.follow_robot_camera = EventTermCfg(
-            func=follow_robot_camera,
+        self.events.follow_robot_camera = EventTermCfg(  # type: ignore
+            func=mdp.follow_robot_camera,
             mode="interval",
             interval_range_s=(0.0, 0.0),
             is_global_time=True,
-            params={"eye_offset":(0.0, -2.0, 0.5)},
+            params={"eye_offset": (0.0, -2.0, 0.5)},
         )
         self.video_recorders = []

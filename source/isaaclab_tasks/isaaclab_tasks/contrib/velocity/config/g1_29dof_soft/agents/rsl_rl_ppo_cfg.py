@@ -19,7 +19,7 @@ from isaaclab_rl.rsl_rl import (
 @configclass
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 1500
+    max_iterations = 20_000
     save_interval = 500
     obs_groups = {"actor": ["policy", "command"], "critic": ["critic", "command", "privileged"]}
     actor = RslRlMLPModelCfg(
