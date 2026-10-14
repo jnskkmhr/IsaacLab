@@ -78,6 +78,11 @@ def configure_x11(statefile: StateFile) -> dict[str, str]:
         statefile.set_variable("__ISAACLAB_TMP_XAUTH", str(tmp_xauth_value))
     else:
         tmp_dir = Path(tmp_xauth_value).parent
+    # the container user (uid 1000) is usually not the host user, so it must be able to enter
+    # the directory (it still cannot list it) and read the cookie; a file kept from an
+    # earlier start predates this
+    Path(tmp_dir).chmod(0o711)
+    Path(tmp_xauth_value).chmod(0o644)
 
     # mktemp creates the directory owner-only, which stops the container's runtime user from
     # traversing it to reach the cookie. Applied to directories carried over from an earlier run
@@ -206,6 +211,8 @@ def create_x11_tmpfile(tmpfile: Path | None = None, tmpdir: Path | None = None) 
 
     # Merge the new cookie into the create .tmp file
     subprocess.run(["xauth", "-f", tmp_xauth, "nmerge", "-"], input=xauth_cookie, text=True, check=True)
+    # readable by the container user, which is usually not the host user
+    tmp_xauth.chmod(0o644)
 
     # The container runs as a uid that the host cannot know, so an owner-only cookie leaves it
     # unable to authenticate against the display. Both mktemp and xauth default to mode 600.
