@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "break_contact_penalty",
     "randomize_mpm_material",
     "reward_soft_landing",
     "feet_air_time_positive_biped",
@@ -36,6 +37,7 @@ from .observations import (
     terrain_material_parameters,
 )
 from .rewards import (
+    break_contact_penalty,
     feet_air_time_positive_biped,
     feet_pitch_contact,
     foot_clearance_reward,

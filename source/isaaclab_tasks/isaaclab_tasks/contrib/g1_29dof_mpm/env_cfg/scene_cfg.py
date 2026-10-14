@@ -17,6 +17,8 @@ from isaaclab_newton.sim.schemas import NewtonCollisionCfg, NewtonCollisionPrope
 from isaaclab_newton.sim.spawners.mpm import MPMGridCfg, MPMParticleMaterialCfg
 
 import isaaclab.sim as sim_utils
+import isaaclab.terrains as terrain_gen
+from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim.schemas import UsdPhysicsRigidBodyCfg
@@ -25,6 +27,9 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.configclass import configclass
 
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
+
+from ..terrain import MeshXSlopeTerrainCfg, TerrainMPMGridCfg
+from ..tilting_testbed import TiltingTestbedSpawnerCfg
 
 # Particle/material settings match the moving-patch sand configuration.
 MPM_VOXEL_SIZE = 0.04
@@ -38,7 +43,7 @@ MPM_VISUAL_COLOR = (0.32, 0.24, 0.21)
 SAND_BED_SIZE = (5.0, 2.0, 0.3)
 SAND_SURFACE_Z = 0.0
 BED_WALL_THICKNESS = 0.1
-BED_WALL_HEIGHT = 0.3
+BED_WALL_HEIGHT = 0.2
 BED_FLOOR_THICKNESS = 0.1
 _BED_FLOOR_TOP_Z = SAND_SURFACE_Z - SAND_BED_SIZE[2]
 _BED_FLOOR_CENTER_Z = _BED_FLOOR_TOP_Z - 0.5 * BED_FLOOR_THICKNESS
@@ -229,4 +234,88 @@ class G1MPMSceneCfg(InteractiveSceneCfg):
             intensity=750.0,
             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
         ),
+    )
+
+
+@configclass
+class G1RoughMPMSceneCfg(G1MPMSceneCfg):
+    """A fixed terrain-conforming sand layer beyond the existing approach platform."""
+
+    bed_floor = None
+    rigid_bed_floor = None
+    bed_wall_front = None
+    bed_wall_left = None
+    bed_wall_right = None
+    approach_bank = None
+    sand = MPMObjectCfg(
+        prim_path="{ENV_REGEX_NS}/Sand",
+        spawn=TerrainMPMGridCfg(
+            lower=SAND_LOCAL_LOWER,
+            upper=SAND_LOCAL_UPPER,
+            voxel_size=MPM_VOXEL_SIZE,
+            particles_per_cell=MPM_PARTICLES_PER_CELL,
+            particle_placement="cell_center",
+            jitter=0.016,
+            material=SAND_MATERIAL_CFG,
+            visual_color=MPM_VISUAL_COLOR,
+            entrance_height=APPROACH_SURFACE_Z,
+            terrain_generator=terrain_gen.TerrainGeneratorCfg(
+                seed=42,
+                size=SAND_BED_SIZE[:2],
+                num_rows=1,
+                num_cols=1,
+                border_width=0.0,
+                horizontal_scale=0.1,
+                vertical_scale=0.005,
+                use_cache=False,
+                sub_terrains={
+                    "slope": MeshXSlopeTerrainCfg(proportion=1.0, slope_range=(0.4, 0.4)),
+                    # "wave": terrain_gen.HfWaveTerrainCfg(
+                    #     proportion=1.0, amplitude_range=(0.3, 0.3), num_waves=1, border_width=0.2
+                    # ),
+                    # "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
+                    #     proportion=0.2, noise_range=(0.1, 0.10), noise_step=0.02, border_width=0.25
+                    # ),
+                    # "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
+                    #     proportion=0.2, slope_range=(0.4, 0.4), platform_width=0.5, border_width=0.25
+                    # ),
+                    # "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
+                    #     proportion=0.2, slope_range=(0.4, 0.4), platform_width=0.5, border_width=0.25
+                    # ),
+                },
+            ),
+        ),
+    )
+
+
+@configclass
+class G1TiltingMPMSceneCfg(G1MPMSceneCfg):
+    """G1 and sand inside a powered tray, with no stationary approach platform."""
+
+    bed_floor = None
+    bed_wall_front = None
+    approach_bank = None
+    bed_wall_left = None
+    bed_wall_right = None
+    rigid_bed_floor = None
+    approach_platform = None
+    approach_platform_visual = None
+    testbed: ArticulationCfg = ArticulationCfg(
+        prim_path="{ENV_REGEX_NS}/Testbed",
+        spawn=TiltingTestbedSpawnerCfg(
+            sand_bed_size=SAND_BED_SIZE,
+            wall_thickness=BED_WALL_THICKNESS,
+            floor_thickness=BED_FLOOR_THICKNESS,
+        ),
+        init_state=ArticulationCfg.InitialStateCfg(pos=(0.0, 0.0, -SAND_BED_SIZE[2]), joint_pos={".*": 0.0}),
+        actuators={
+            "tilt": ImplicitActuatorCfg(
+                joint_names_expr=["roll", "pitch"],
+                stiffness=1.0e7,
+                damping=2.0e5,
+                effort_limit_sim=1.0e6,
+                velocity_limit_sim=0.5,
+                armature=1000.0,
+            ),
+        },
     )

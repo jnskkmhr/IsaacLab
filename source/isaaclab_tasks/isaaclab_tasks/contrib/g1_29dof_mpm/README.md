@@ -47,6 +47,44 @@ uv run --with wandb --extra ovrtx isaaclab play --rl_library rsl_rl --task Isaac
 
 ## Tuning notes
 
+### Tilting testbed
+
+`IsaacContrib-Balance-Sand-G1-29dof-MPM-Tilting` starts G1 in the sand with a zero
+velocity command. Its `-Play` variant disables randomization. The stationary
+approach platform is replaced by a closed tray attached to roll and pitch joints.
+
+```bash
+uv run --extra rsl-rl isaaclab train --rl_library rsl_rl \
+  --task IsaacContrib-Balance-Sand-G1-29dof-MPM-Tilting --num_envs 4 --viz none
+
+uv run --extra rsl-rl isaaclab play --rl_library rsl_rl \
+  --task IsaacContrib-Balance-Sand-G1-29dof-MPM-Tilting-Play --num_envs 1 \
+  --viz newton_gl --checkpoint /path/to/model.pt
+```
+
+Configure `testbed_motion` in `G1TiltingMPMEnvCfg`: roll/pitch ranges are in radians,
+defaulting to ±10°, with 12 s and 17 s periods. The tray holds level for 2 s after
+reset, then ramps into the oscillation over 3 s. Mechanical joint limits are ±45°.
+For example, `roll_range=(math.radians(-5), math.radians(10))` sets the roll target
+range to −5° through +10°. Each target range must include zero and lie strictly
+inside the mechanical limits (`scene.testbed.spawn.joint_limit_deg`).
+
+`testbed_motion.debug_vis=True` draws two arrows at a tray corner: blue follows
+the actual tray normal; green points opposite gravity (world-up with default gravity).
+The angle between them shows the tray's tilt. Set it to `False` to hide
+the arrows. The tray geometry and actuator configuration live in
+`env_cfg/scene_cfg.py:G1TiltingMPMSceneCfg`.
+
+Targets update at 50 Hz; MJWarp integrates the driven joints at 400 Hz and MPM
+updates at 200 Hz with the default settings. The tray is a dynamic proxy collider
+in MPM. Its actual angle can differ from its target under load. No particle or
+tray poses are overwritten during stepping; episode resets restore the tray,
+robot, particles, and coupling history together. Bounds and base-height rewards
+use the rotating tray frame; the height reference is the nominal sand surface,
+not the instantaneous deformed particle surface.
+
+### Fixed-bed settings
+
 * `FOOT_CONTACT_MARGIN` (default three quarters of an MPM voxel) inflates the *sole* collision
   surfaces for the granular solver. It is scoped to the proxied ankle roll links through the
   spawner's per-pattern `collision_props`, never applied to the whole robot: Newton sums both

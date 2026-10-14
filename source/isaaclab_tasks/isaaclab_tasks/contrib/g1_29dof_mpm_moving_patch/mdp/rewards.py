@@ -110,6 +110,30 @@ def feet_air_time_positive_biped(
     return reward * commanded
 
 
+def break_contact_penalty(
+    env: G1MovingPatchEnv,
+    command_name: str,
+    command_threshold: float = 0.05,
+    recovery_linear_velocity: float = 0.2,
+    recovery_angular_velocity: float = 0.5,
+    recovery_tilt: float = 0.2,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize unsupported feet while standing on sand or rigid ground, allowing recovery."""
+    asset = env.scene[asset_cfg.name]
+    return vel_mdp.compute_standing_contact_penalty(
+        foot_contact=env.foot_contact,
+        velocity_command=env.command_manager.get_command(command_name),
+        base_lin_vel_b=asset.data.root_lin_vel_b.torch,
+        base_ang_vel_b=asset.data.root_ang_vel_b.torch,
+        projected_gravity_b=asset.data.projected_gravity_b.torch,
+        command_threshold=command_threshold,
+        recovery_linear_velocity=recovery_linear_velocity,
+        recovery_angular_velocity=recovery_angular_velocity,
+        recovery_tilt=recovery_tilt,
+    )
+
+
 def no_fly(
     env: G1MovingPatchEnv,
     command_name: str,

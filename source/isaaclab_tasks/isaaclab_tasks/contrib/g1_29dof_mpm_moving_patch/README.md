@@ -27,10 +27,22 @@ uv pip install --python .venv/bin/python --no-deps ../warp-local/dist/*.whl
 
 ## Train
 
-```bash
+```bash 
+# train scratch
 uv run --no-sync --with wandb isaaclab train --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch \
   --num_envs 64 --viz newton_gl --video --video_length 200
+
+# finetune
+uv run --with wandb isaaclab train --rl_library rsl_rl \
+  --task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch \
+  --num_envs 64 \
+  --viz newton_gl --video --video_length 200 \
+  --wandb_run xxx \
+  --wandb_project g1_29dof_soft_flat_ppo \
+  --logger wandb \
+  --log_project_name g1_29dof_mpm_rough_ppo \
+  --experiment_name g1_29dof_mpm_rough_ppo 
 ```
 
 ## Play 

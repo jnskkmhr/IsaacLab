@@ -19,7 +19,7 @@ class G1MixedTerrainSceneCfg(G1MovingPatchSceneCfg):
 
     def __post_init__(self) -> None:
         # Replace this generator with ROUGH_TERRAINS_CFG.copy(), as in the MPM task.
-        # self.terrain.terrain_generator = FLAT_TERRAINS_CFG.replace(num_rows=1, num_cols=2)
+        # self.terrain.terrain_generator = FLAT_TERRAINS_CFG.copy()
         self.terrain.terrain_generator = ROUGH_TERRAINS_CFG.copy()
         self.terrain.class_type = MixedTerrainImporter
         self.terrain.use_terrain_origins = True
@@ -27,9 +27,7 @@ class G1MixedTerrainSceneCfg(G1MovingPatchSceneCfg):
         super().__post_init__()
 
     def configure_terrain(self) -> None:
-        # Round up to an even total so both contact regions have matching columns.
-        generator = self.terrain.terrain_generator
-        generator.num_cols = max(2, 2 * ((generator.num_cols + 1) // 2))
-        generator.class_type = PairedTerrainGenerator
+        # Preserve the configured grid; the generator creates one copy per contact model.
+        self.terrain.terrain_generator.class_type = PairedTerrainGenerator
         super().configure_terrain()
         self.sand.class_type = MixedMPMObject

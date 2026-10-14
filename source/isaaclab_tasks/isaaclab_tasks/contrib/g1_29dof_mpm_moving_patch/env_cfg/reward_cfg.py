@@ -109,7 +109,14 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 0.5,
+                # Allow the legs to adapt to the terrain while retaining upper-body posture.
+                ".*hip_pitch.*": 0.02,
+                ".*hip_roll.*": 0.3,
+                ".*hip_yaw.*": 0.08,
+                ".*knee.*": 0.02,
+                ".*ankle_pitch.*": 0.02,
+                ".*ankle_roll.*": 0.02,
+                ".*(waist|shoulder|elbow|wrist).*": 0.5,
             },
             "weight_walking": {
                 # leg
@@ -240,6 +247,18 @@ class G1RewardsCfg:
             "command_name": "base_velocity",
             "threshold": 0.5,
             "velocity_threshold": 0.05,
+        },
+    )
+
+    break_contact = RewTerm(
+        func=mpm_mdp.break_contact_penalty,
+        weight=-0.5,
+        params={
+            "command_name": "base_velocity",
+            "command_threshold": 0.05,
+            "recovery_linear_velocity": 0.2,
+            "recovery_angular_velocity": 0.5,
+            "recovery_tilt": 0.2,
         },
     )
 

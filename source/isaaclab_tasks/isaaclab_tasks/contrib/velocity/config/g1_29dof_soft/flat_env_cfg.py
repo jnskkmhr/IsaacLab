@@ -106,6 +106,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.push_robot = None  # type: ignore
         self.events.physics_material = None  # type: ignore
         self.events.scale_actuator_gains = None  # type: ignore
+        self.events.randomize_stiffness.params["stiffness_range"] = (0.5, 0.5)
+        self.events.randomize_material_density.params["bulk_density_range"] = (2000, 2000)
 
         # Commands
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
@@ -122,7 +124,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             "pose_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.5, 0.5),
-                "yaw": (-math.pi, math.pi),
+                # "yaw": (-math.pi, math.pi),
+                "yaw": (0.0, 0.0),
             },
             "velocity_range": {
                 "x": (0.0, 0.0),

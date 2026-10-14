@@ -15,8 +15,30 @@ from isaaclab.managers import ObservationGroupCfg, ObservationManager, Observati
 from isaaclab.utils.math import quat_from_euler_xyz
 
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.env_cfg.reward_cfg import G1RewardsCfg
-from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import foot_touch_down_angle_penalty, metric_sliderbar
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import (
+    break_contact_penalty,
+    foot_touch_down_angle_penalty,
+    metric_sliderbar,
+)
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mpm_env import G1MovingPatchEnv
+
+
+def test_standing_penalty_uses_environment_foot_contacts():
+    """The moving-patch term uses the merged MPM/rigid contact state for every environment."""
+    env = SimpleNamespace(
+        foot_contact=torch.tensor([[1.0, 0.0], [1.0, 1.0]]),
+        scene={
+            "robot": SimpleNamespace(
+                data=SimpleNamespace(
+                    root_lin_vel_b=SimpleNamespace(torch=torch.zeros(2, 3)),
+                    root_ang_vel_b=SimpleNamespace(torch=torch.zeros(2, 3)),
+                    projected_gravity_b=SimpleNamespace(torch=torch.tensor([[0.0, 0.0, -1.0]]).repeat(2, 1)),
+                )
+            )
+        },
+        command_manager=SimpleNamespace(get_command=lambda _: torch.zeros(2, 7)),
+    )
+    torch.testing.assert_close(break_contact_penalty(env, "base_velocity"), torch.tensor([1.0, 0.0]))
 
 
 def test_soft_landing_penalizes_only_commanded_touchdowns():

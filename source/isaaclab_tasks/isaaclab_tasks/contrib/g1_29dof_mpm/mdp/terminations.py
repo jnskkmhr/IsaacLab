@@ -13,8 +13,9 @@ import torch
 
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.utils.math import quat_apply_inverse
 
-from ..env_cfg.scene_cfg import WALKABLE_XY_BOUNDS
+from ..env_cfg.scene_cfg import SAND_BED_SIZE, WALKABLE_XY_BOUNDS
 
 if TYPE_CHECKING:
     from ..g1_mpm_env import G1MPMEnv
@@ -64,3 +65,16 @@ def root_state_not_finite(env: G1MPMEnv, asset_cfg: SceneEntityCfg = SceneEntity
     """
     asset: Articulation = env.scene[asset_cfg.name]
     return ~torch.isfinite(asset.data.root_state_w.torch).all(dim=-1)
+
+
+def root_outside_testbed(env: G1MPMEnv, margin: float = 0.3) -> torch.Tensor:
+    """Terminate outside the sand tray's interior, measured in the moving tray frame."""
+    tray = env.scene["testbed"]
+    tray_id = env.testbed_tray_body_id
+    position = quat_apply_inverse(
+        tray.data.body_quat_w.torch[:, tray_id],
+        env.scene["robot"].data.root_pos_w.torch - tray.data.body_pos_w.torch[:, tray_id],
+    )
+    return (position[:, 0].abs() > SAND_BED_SIZE[0] / 2 - margin) | (
+        position[:, 1].abs() > SAND_BED_SIZE[1] / 2 - margin
+    )
