@@ -3,6 +3,53 @@
 uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Flat-G1-29dof-Soft --num_envs 4096 --viz newton_gl --video
 ```
 
+## Training with Isaac Sim PhysX
+
+Run from the repository root. The **flat** task supports `physics=isaacsim_physx`;
+`--extra isaacsim` installs the Isaac Sim dependencies. Select this preset explicitly
+for comparison with `IsaacLab_GT`: `physics=physx` auto-selects an available PhysX
+backend and may select standalone OV PhysX instead.
+
+First run a small training smoke check with local TensorBoard logging:
+
+```bash
+uv run --extra isaacsim isaaclab train --rl_library rsl_rl \
+    --task IsaacContrib-Velocity-Flat-G1-29dof-Soft \
+    physics=isaacsim_physx --num_envs 64 --max_iterations 2 --seed 42 \
+    --logger tensorboard --experiment_name g1_29dof_soft_flat_physx_smoke \
+    --viz newton_gl --video
+```
+
+Then train with a separate W&B project and local experiment directory:
+
+```bash
+uv run --extra isaacsim --with wandb isaaclab train --rl_library rsl_rl \
+    --task IsaacContrib-Velocity-Flat-G1-29dof-Soft \
+    physics=isaacsim_physx --num_envs 4096 --seed 42 \
+    --logger wandb --log_project_name g1_29dof_soft_flat_physx_ppo \
+    --experiment_name g1_29dof_soft_flat_physx_ppo \
+    --viz newton_gl --video
+```
+
+These commands keep the same Newton GL visualizer and video recorder used for
+Newton training. `newton_gl` can visualize PhysX through the scene-data provider;
+selecting PhysX does not require switching to Kit visualization.
+`--log_project_name` selects the destination
+W&B project; `--wandb_project` selects the source project when loading a checkpoint
+with `--wandb_run`.
+
+The PhysX preset already sets `enable_external_forces_every_iteration=True` so the
+soft-contact wrench on each robot foot is applied throughout the PhysX solver
+iterations. The RFT model remains enabled, with its flat contact surface at world
+z=0. Switching physics does not switch the robot USD or disable symmetry
+augmentation. For a backend comparison, keep the robot asset, RFT model, material
+randomization, rewards, observations, PPO settings, and seed matched; use
+`physics=newton_mjwarp` for the Newton run. This does not reproduce all of the older
+`IsaacLab_GT` task settings automatically.
+
+The **rough** task is currently Newton-only because its RFT terrain queries use
+Newton raycasting. These PhysX instructions apply only to the flat task.
+
 ## Inference
 ```bash
 uv run --with wandb isaaclab play --rl_library rsl_rl --task IsaacContrib-Velocity-Flat-G1-29dof-Soft-Play --num_envs 4 --viz newton_gl --wandb_run 4blqnxbi
