@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from dataclasses import fields
 from types import SimpleNamespace
 
 import isaaclab_newton.physics.newton_manager as newton_manager_module
@@ -423,6 +424,23 @@ _MPM_FIELD_VALUES = [
     ("velocity_basis", "B2"),
 ]
 
+if hasattr(SolverImplicitMPM.Config, "check_particle_grid_mapping"):
+    _MPM_FIELD_VALUES.append(("check_particle_grid_mapping", True))
+
+
+def test_mpm_solver_cfg_covers_native_config():
+    """Every upstream solver setting must be exposed, default-aligned, and tested."""
+    native = SolverImplicitMPM.Config()
+    native_fields = {field.name for field in fields(native)}
+    exposed_fields = {field.name for field in fields(MPMSolverCfg)}
+    assert native_fields <= exposed_fields, f"Unexposed Newton MPM fields: {native_fields - exposed_fields}"
+    assert native_fields == {name for name, _ in _MPM_FIELD_VALUES}, "Update the forwarding cases for Newton's fields"
+    exposed = MPMSolverCfg()
+    mapped = _make_solver_config(exposed)
+    for name in native_fields:
+        assert getattr(exposed, name) == getattr(native, name), name
+        assert getattr(mapped, name) == getattr(native, name), name
+
 
 def test_mpm_solver_cfg_forwards_every_solver_field():
     """Every tunable MPM cfg field round-trips into ``SolverImplicitMPM.Config``.
@@ -430,13 +448,6 @@ def test_mpm_solver_cfg_forwards_every_solver_field():
     Guards against MPM manager construction dropping or mis-naming a field if
     Newton's config surface changes.
     """
-    defaults = MPMSolverCfg()
-    mapped_defaults = _make_solver_config(defaults)
-    native_defaults = SolverImplicitMPM.Config()
-    for field_name, _ in _MPM_FIELD_VALUES:
-        assert getattr(defaults, field_name) == getattr(native_defaults, field_name), field_name
-        assert getattr(mapped_defaults, field_name) == getattr(native_defaults, field_name), field_name
-
     solver_cfg = MPMSolverCfg(**dict(_MPM_FIELD_VALUES))
     newton_cfg = _make_solver_config(solver_cfg)
     for field_name, value in _MPM_FIELD_VALUES:
@@ -857,6 +868,8 @@ def test_mpm_project_outside_colliders_gates_projection(project_outside):
     [
         pytest.param({"grid_type": "fixed"}, True, id="bounded_fixed"),
         pytest.param({"grid_type": "fixed", "max_active_cell_count": -1}, False, id="unbounded_fixed"),
+        pytest.param({"check_particle_grid_mapping": True}, False, id="diagnostic_sparse"),
+        pytest.param({"grid_type": "fixed", "check_particle_grid_mapping": True}, False, id="diagnostic_fixed"),
         pytest.param({}, True, id="bounded_sparse"),
         pytest.param({"max_active_cell_count": -1}, False, id="unbounded_sparse"),
         pytest.param({"grid_type": "dense"}, False, id="dense"),
@@ -869,6 +882,7 @@ def test_mpm_project_outside_colliders_gates_projection(project_outside):
 def test_mpm_cuda_graph_capture_supports_static_topology(monkeypatch, overrides, expected):
     """Only fixed and capacity-bounded rebuildable sparse grids support outer capture."""
     values = {
+        "check_particle_grid_mapping": False,
         "grid_type": "sparse",
         "max_active_cell_count": 1024,
         "grid_padding": 0,
@@ -1588,6 +1602,34 @@ def test_graph_capture_preserves_first_step_and_recapture(monkeypatch, solver_cf
             assert NewtonManager._graph is not None
             np.testing.assert_allclose(NewtonManager.get_state_0().joint_qd.numpy(), 0.0, atol=1e-6)
             assert counter.numpy()[0] == step + 1
+
+
+@pytest.mark.parametrize(
+    ("solver_cfg", "num_substeps", "decimation"),
+    [(MJWarpSolverCfg(use_mujoco_contacts=True), 2, 1), (KaminoPADMMSolverCfg(), 3, 2)],
+    ids=["single_state_substeps", "double_state_folded_decimation"],
+)
+def test_staged_body_force_acts_on_every_solver_substep(solver_cfg, num_substeps, decimation):
+    """A body force written before a step acts on every solver substep of every physics step in that step."""
+    sim_cfg = SimulationCfg(
+        dt=0.005,
+        device="cuda:0",
+        gravity=(0.0, 0.0, -9.81),
+        physics=NewtonCfg(solver_cfg=solver_cfg, num_substeps=num_substeps),
+    )
+    with build_simulation_context(sim_cfg=sim_cfg) as sim:
+        builder = sim.get_or_create_backend(NewtonBuilderCfg(physics_cfg=sim.cfg.physics))
+        builder.add_body(mass=1.0)
+        sim.reset()
+        if decimation > 1:
+            # Newton runs the whole decimation loop inside one step() call.
+            NewtonManager.activate_newton_actuator_path()
+            NewtonManager.set_decimation(decimation)
+        NewtonManager.get_state_0().body_f.assign(
+            wp.array([[0.0, 0.0, 9.81, 0.0, 0.0, 0.0]], dtype=wp.spatial_vector, device="cuda:0")
+        )
+        sim.step(render=False)
+        np.testing.assert_allclose(NewtonManager.get_state_0().joint_qd.numpy(), 0.0, atol=1e-6)
 
 
 def test_stateful_actuator_graph_matches_eager_across_decimation_changes(monkeypatch):

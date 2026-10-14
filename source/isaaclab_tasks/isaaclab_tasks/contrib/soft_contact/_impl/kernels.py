@@ -831,8 +831,36 @@ def _transform_force_rtz_to_xyz(
 """
 
 
+@wp.kernel(enable_backward=False)
+def prepare_terrain_rays(
+    points: wp.array(dtype=wp.vec3f),
+    ray_height: float,
+    origins: wp.array(dtype=wp.vec3f),
+):
+    i = wp.tid()
+    origins[i] = points[i] + wp.vec3f(0.0, 0.0, ray_height)
+
+
+@wp.kernel(enable_backward=False)
+def resolve_terrain_heights(
+    origins: wp.array(dtype=wp.vec3f),
+    distances: wp.array(dtype=float),
+    shape_ids: wp.array(dtype=int),
+    terrain_shapes: wp.array(dtype=wp.bool),
+    heights: wp.array(dtype=float),
+):
+    i = wp.tid()
+    height = -wp.inf
+    shape = shape_ids[i]
+    if shape >= 0:
+        if terrain_shapes[shape] and distances[i] >= 0.0:
+            height = origins[i][2] - distances[i]
+    heights[i] = height
+
+
 @wp.kernel
 def compute_contact_force(
+    terrain_height: wp.array2d(dtype=wp.float32),
     foot_pos_w: wp.array2d(dtype=wp.vec3f),  # (N, M, 3)
     foot_velocity_w: wp.array2d(dtype=wp.vec3f),  # (N, M, 3)
     foot_velocity_prev_w: wp.array2d(dtype=wp.vec3f),  # (N, M, 3)
@@ -891,7 +919,7 @@ def compute_contact_force(
     gamma_element = gamma[env_id, body_id]
     psi_element = psi[env_id, body_id]
 
-    depth = -foot_pos_w[env_id, body_id][2]
+    depth = terrain_height[env_id, body_id] - foot_pos_w[env_id, body_id][2]
     is_contact = depth > 0.0
 
     v_dir = foot_velocity_element / (wp.norm_l2(foot_velocity_element) + 1e-6)

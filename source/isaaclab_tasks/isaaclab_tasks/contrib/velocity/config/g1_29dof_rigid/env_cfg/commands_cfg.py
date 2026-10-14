@@ -40,9 +40,3 @@ class G1CommandsCfg:
             ang_vel_z=(-1.0, 1.0),
         ),
     )
-
-    # foot_height = g1_mdp.SwingCommandCfg(
-    #     # foot_height=(0.08, 0.15),
-    #     foot_height=(0.1, 0.1),
-    #     resampling_time_range=(1e10, 1e10),  # resample on command resample
-    # )

@@ -54,12 +54,10 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
             ),
     )
     logger = "wandb"
-    # wandb_project = "g1_29dof_rigid_rough_ppo"
-    # experiment_name = "g1_29dof_rigid_rough_ppo"
-
-    wandb_project = "g1_29dof_soft_flat_ppo"
-    experiment_name = "g1_29dof_soft_flat_ppo"
-
+    wandb_project = "g1_29dof_rigid_rough_ppo"
+    experiment_name = "g1_29dof_rigid_rough_ppo"
+    # wandb_project = "g1_29dof_soft_flat_ppo"
+    # experiment_name = "g1_29dof_soft_flat_ppo"
 
 @configclass
 class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
@@ -67,11 +65,8 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         super().__post_init__() # pyright: ignore[reportAttributeAccessIssue]
 
         self.max_iterations = 30_000
-        # self.wandb_project = "g1_29dof_rigid_flat_ppo"
-        # self.experiment_name = "g1_29dof_rigid_flat_ppo"
-
-        self.wandb_project = "g1_29dof_soft_flat_ppo"
-        self.experiment_name = "g1_29dof_soft_flat_ppo"
+        self.wandb_project = "g1_29dof_rigid_flat_ppo"
+        self.experiment_name = "g1_29dof_rigid_flat_ppo"
 
 
 

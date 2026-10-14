@@ -29,6 +29,9 @@ NON_FOOT_CFG = SceneEntityCfg("robot", body_names="(?!.*ankle.*).*")
 class G1TreeRewardsCfg(G1RewardsCfg):
     """Reward terms for the MDP."""
 
+    # Tree contacts use foot kinematics rather than the rigid task's contact sensor.
+    stance_foot_angle_penalty = None
+
     undesired_contacts = RewTerm(
         func=tree_mdp.undesired_ground_proximity,
         weight=-1.0,

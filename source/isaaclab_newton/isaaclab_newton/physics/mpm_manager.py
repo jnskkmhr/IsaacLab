@@ -82,6 +82,10 @@ def _make_solver_config(solver_cfg: MPMSolverCfg, scene_prim: Usd.Prim | None = 
         "strain_basis": solver_cfg.strain_basis,
         "velocity_basis": solver_cfg.velocity_basis,
     }
+    if hasattr(SolverImplicitMPM.Config, "check_particle_grid_mapping"):
+        values["check_particle_grid_mapping"] = solver_cfg.check_particle_grid_mapping
+    elif solver_cfg.check_particle_grid_mapping:
+        raise NotImplementedError("The installed Newton version does not support check_particle_grid_mapping.")
     if scene_prim is None:
         return SolverImplicitMPM.Config(**values)
 
@@ -377,6 +381,8 @@ class NewtonMPMManager(NewtonManager):
     @staticmethod
     def _solver_supports_cuda_graph_capture(solver: SolverImplicitMPM) -> bool:
         """Return whether an implicit-MPM solver satisfies Newton's capture contract."""
+        if getattr(solver, "check_particle_grid_mapping", False):
+            return False
         if solver.grid_type == "fixed":
             # An unbounded active partition reads its cell count back to the CPU on every step.
             return solver.max_active_cell_count > 0

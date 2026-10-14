@@ -33,7 +33,7 @@
             ["Isaac-Open-Drawer-Franka-Direct", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/franka_open_drawer.jpg"],
             ["Isaac-Open-Drawer-Franka", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/franka_open_drawer.jpg"],
             ["Isaac-Pendulum-MARL-Direct", "rl_games,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "environment-previews/cart_double_pendulum.jpg", false, {}, {"skrl": "MAPPO"}],
-            ["Isaac-Reach-Franka", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "diffik,diffik_abs,joint_pos,minimal,newton_ik", "environment-previews/franka_reach.jpg", true, {"*": ["joint_pos"]}],
+            ["Isaac-Reach-Franka", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "diffik,diffik_abs,hold,joint_pos,minimal,newton_ik", "environment-previews/franka_reach.jpg", true, {"*": ["joint_pos"]}, {}, "", ["joint_pos", "minimal"]],
             ["Isaac-Reach-Franka-OSC", "rsl_rl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "diffik_abs,minimal", "environment-previews/franka_reach.jpg", false, {"*": ["diffik_abs"]}],
             ["Isaac-Reach-UR10", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/ur10_reach.jpg", true],
             ["Isaac-Reorient-Cube-Allegro-Direct", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/allegro_cube.jpg", true],
@@ -52,7 +52,7 @@
             ["Isaac-Velocity-Flat-H1", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "environment-previews/h1_flat.jpg", true],
             ["Isaac-Velocity-Flat-UnitreeGo2", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "environment-previews/go2_flat.jpg", true],
             ["Isaac-Velocity-Rough-AnymalD", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/anymal_d_rough.jpg"],
-            ["Isaac-Velocity-Rough-Cassie", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/anymal_d_rough.jpg"],
+            ["Isaac-Velocity-Rough-Cassie", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/cassie_rough.jpg"],
             ["Isaac-Velocity-Rough-G1", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/g1_rough.jpg"],
             ["Isaac-Velocity-Rough-H1", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/h1_rough.jpg"],
             ["Isaac-Velocity-Rough-UnitreeGo2", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/go2_rough.jpg"],
@@ -108,6 +108,7 @@
             ["IsaacContrib-Reach-OpenArmBi", "rl_games,rsl_rl", "", "", "", "environment-previews/openarm_bi_reach.jpg"],
             ["IsaacContrib-Reorient-Cube-Shadow-OpenAI-FF-Direct", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/shadow_cube.jpg"],
             ["IsaacContrib-Reorient-Cube-Shadow-OpenAI-LSTM-Direct", "rl_games,rsl_rl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/shadow_cube.jpg"],
+            ["IsaacContrib-Shoelace-DualFranka", "rsl_rl", "", "", "", "environment-previews/shoelace_dual_franka.jpg"],
             ["IsaacContrib-Stack-Cube-Bin-Franka-IK-Rel-Mimic", "", "isaacsim_physx", "", "", "environment-previews/franka_bin_stack.jpg"],
             ["IsaacContrib-Stack-Cube-BlueGreen-Franka-IK-Rel", "", "isaacsim_physx", "", "", "environment-previews/franka_stack.jpg"],
             ["IsaacContrib-Stack-Cube-BlueGreenRed-Franka-IK-Rel", "", "isaacsim_physx", "", "", "environment-previews/franka_stack.jpg"],
@@ -157,6 +158,7 @@
         pretrainedCheckpointPresetCompatibility = {},
         defaultAlgorithms = {},
         requiredExtras = "",
+        warpPresets = null,
     ]) => ({
         task,
         scope: task.startsWith("IsaacContrib-") ? "contrib" : "core",
@@ -169,6 +171,7 @@
         pretrainedCheckpointPresetCompatibility,
         defaultAlgorithms,
         requiredExtras: splitValues(requiredExtras),
+        warpPresets,
     }));
 
     const builder = document.querySelector("[data-environment-browser]");
@@ -199,7 +202,7 @@
         scope: "core",
         task: "Isaac-Cartpole",
         benchmarkWorkload: "collection",
-        benchmarkChannel: "release",
+        benchmarkChannel: "develop",
     };
     const rlLibraryExtras = {rl_games: "rl-games", sb3: "sb3", skrl: "skrl", rlinf: "rlinf", torchrl: "torchrl"};
     let benchmarkRows = [];
@@ -339,7 +342,7 @@
             [/AnymalB/, "tasks/locomotion/anymal_b_flat.jpg"],
             [/AnymalC/, "tasks/locomotion/anymal_c_flat.jpg"],
             [/AnymalD/, "tasks/locomotion/anymal_d_flat.jpg"],
-            [/Cassie/, "tasks/locomotion/agility_digit_flat.jpg"],
+            [/Cassie/, "tasks/cassie_flat.jpg"],
             [/Digit/, "tasks/locomotion/agility_digit_flat.jpg"],
             [/Velocity-Flat-G1/, "tasks/locomotion/g1_flat.jpg"],
             [/Velocity-Rough-G1/, "tasks/locomotion/g1_rough.jpg"],
@@ -353,13 +356,8 @@
         return imageRules.find(([pattern]) => pattern.test(taskName))?.[1] || "tasks/classic/cartpole.jpg";
     };
 
-    const previewVideos = {
-        "Isaac-Cartpole": "cartpole-newton-mjwarp-rsl-rl.mp4",
-        "Isaac-Ant": "ant-newton-mjwarp-rsl-rl.mp4",
-        "Isaac-Velocity-Rough-G1": "velocity-rough-g1-newton-mjwarp-rsl-rl.mp4",
-        "Isaac-Lift-KukaAllegro": "lift-kuka-allegro-newton-mjwarp-rsl-rl.mp4",
-    };
     const previewImageBaseUrl = "https://download.isaacsim.omniverse.nvidia.com/isaaclab/images/";
+    const previewVideoBaseUrl = "https://download.isaacsim.omniverse.nvidia.com/isaaclab/videos/tasks/";
     const failedPreviewVideos = new Set();
 
     const previewImageUrl = (task) => {
@@ -369,6 +367,11 @@
             : new URL(`../../_static/${imagePath}`, window.location.href).href;
     };
 
+    // Each preview video shares its image's file name, so tasks without an uploaded clip fall back to the image.
+    const previewVideoUrl = (task) => (
+        new URL(previewImageFor(task).split("/").pop().replace(/\.[^.]+$/, ".mp4"), previewVideoBaseUrl).href
+    );
+
     const updateTaskControls = () => {
         const task = selectedTask();
         populateSelect(fields.rl, task.rl, [fields.rl.value, "rsl_rl", "rl_games", "skrl", "sb3"]);
@@ -376,7 +379,8 @@
         populateSelect(fields.physics, physics, [fields.physics.value, "newton_mjwarp", "isaacsim_physx", "ovphysx", "newton_kamino"]);
         const preferredRenderer = fields.physics.value.startsWith("newton") ? "newton_renderer" : "isaacsim_rtx";
         populateSelect(fields.renderer, task.renderer, [fields.renderer.value, preferredRenderer, "ovrtx"]);
-        populateSelect(fields.presets, task.presets, [fields.presets.value, "joint", "ik", "rgb", "cube", "single_camera"]);
+        const presets = state.scope === "warp" ? (task.warpPresets ?? task.presets) : task.presets;
+        populateSelect(fields.presets, presets, [fields.presets.value, "joint", "ik", "rgb", "cube", "single_camera"]);
     };
 
     const updateModeControls = () => {
@@ -470,15 +474,18 @@
     const updatePreview = () => {
         const previewImage = preview.querySelector("[data-preview-image]");
         const previewVideo = preview.querySelector("[data-preview-video]");
-        const videoName = fields.rl.value === "rsl_rl" && fields.physics.value === "newton_mjwarp"
-            ? previewVideos[state.task]
-            : undefined;
-        const videoUrl = videoName
-            ? new URL(`../../_static/tasks/previews/${videoName}`, window.location.href).href
-            : undefined;
+        const videoUrl = previewVideoUrl(selectedTask());
         previewImage.src = previewImageUrl(selectedTask());
         previewImage.alt = `${state.task} preview`;
-        if (videoUrl && !failedPreviewVideos.has(videoUrl)) {
+        // Keep the image up until the clip has a frame; tasks without a clip keep their image.
+        const showVideo = () => {
+            if (previewVideo.src === videoUrl) {
+                previewVideo.hidden = false;
+                previewImage.hidden = true;
+                previewVideo.play().catch(() => {});
+            }
+        };
+        if (!failedPreviewVideos.has(videoUrl)) {
             previewVideo.onerror = () => {
                 if (previewVideo.src === videoUrl) {
                     failedPreviewVideos.add(videoUrl);
@@ -486,15 +493,18 @@
                     previewImage.hidden = false;
                 }
             };
-            if (previewVideo.src !== videoUrl) {
-                previewVideo.src = videoUrl;
-            }
+            previewVideo.onloadeddata = showVideo;
             previewVideo.setAttribute("aria-label", `${state.task} preview`);
-            previewVideo.hidden = false;
-            previewImage.hidden = true;
-            previewVideo.play().catch(() => {});
+            if (previewVideo.src !== videoUrl) {
+                previewVideo.hidden = true;
+                previewImage.hidden = false;
+                previewVideo.src = videoUrl;
+            } else if (previewVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                showVideo();
+            }
         } else {
             previewVideo.onerror = null;
+            previewVideo.onloadeddata = null;
             previewVideo.pause();
             previewVideo.hidden = true;
             previewImage.hidden = false;
@@ -703,7 +713,6 @@
     };
 
     const benchmarkDate = (row) => (row.snapshot_date_utc || row.benchmark_date_utc).slice(0, 10);
-    const benchmarkDates = () => benchmarks.getAttribute(`data-benchmark-${state.benchmarkChannel}-dates`).split(",");
     const benchmarkFps = (row) => Number(row[state.benchmarkWorkload === "collection"
         ? "collection_fps_mean" : "total_fps_mean"]);
     const benchmarkMetricLabel = () => state.benchmarkWorkload === "collection" ? "Collection FPS" : "Training FPS";
@@ -725,7 +734,9 @@
         const margins = {top: 38, right: 50, bottom: 60, left: 65};
         const plotWidth = width - margins.left - margins.right;
         const plotHeight = height - margins.top - margins.bottom;
-        const dateKeys = benchmarkDates();
+        const snapshots = benchmarks.getAttribute(`data-benchmark-${state.benchmarkChannel}-dates`)
+            .split(",").map((entry) => entry.split(":"));
+        const dateKeys = snapshots.map(([date]) => date);
         const latestBySeriesAndDate = new Map();
         for (const row of rows) {
             const key = `${seriesKey(row)}:${benchmarkDate(row)}`;
@@ -766,9 +777,10 @@
             const label = createSvgElement("text", {
                 x: xPosition(date), y: height - 15, class: "environment-chart-axis-label", "text-anchor": "middle",
             });
-            label.textContent = state.benchmarkChannel === "release" ? "EA 3.0" : new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
-                month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
-            });
+            label.textContent = snapshots[index][1]
+                || new Date(`${date}T00:00:00Z`).toLocaleDateString(undefined, {
+                    month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
+                });
             svg.appendChild(label);
         }
 

@@ -30,8 +30,7 @@ class G1SceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="generator",
         # terrain_generator=ROUGH_TERRAINS_CFG,
-        # terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
-        terrain_generator=terrain_cfg.FLAT_TERRAINS_CFG,
+        terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
         max_init_terrain_level=5,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
@@ -68,20 +67,6 @@ class G1SceneCfg(InteractiveSceneCfg):
         history_length=3,
         track_air_time=True,
     )
-
-    # # detailed single foot contact reporting
-    # contact_forces_LF = ContactSensorCfg(
-    #     prim_path="{ENV_REGEX_NS}/Robot/left_ankle_roll_link",
-    #     filter_prim_paths_expr=["/World/ground/terrain/mesh"],
-    #     history_length=3,
-    #     track_air_time=True,
-    #     )
-    # contact_forces_RF = ContactSensorCfg(
-    #     prim_path="{ENV_REGEX_NS}/Robot/right_ankle_roll_link",
-    #     filter_prim_paths_expr=["/World/ground/terrain/mesh"],
-    #     history_length=3,
-    #     track_air_time=True,
-    #     )
 
     # lights
     sky_light = AssetBaseCfg(

@@ -52,6 +52,9 @@ class PhysicsCallbackAction(ActionTerm):
         # initialize the action term
         super().__init__(cfg, env)
 
+        if cfg.terrain_name is not None and cfg.backend != "3D-warp":
+            raise ValueError("Terrain raycasting is supported by the 3D-warp RFT model.")
+
         # process body ids
         body_ids, body_names = self._asset.find_bodies(self.cfg.body_names)
         self._body_ids = body_ids
@@ -99,7 +102,24 @@ class PhysicsCallbackAction(ActionTerm):
         elif self.cfg.backend == "3D-warp":
             material_cfg = Material3DRFTCfg()
             num_bodies = len(body_ids)
+            terrain_kwargs = {}
+            if cfg.terrain_name is not None:
+                from isaaclab_newton.physics import NewtonCfg
+
+                if not isinstance(env.sim.cfg.physics, NewtonCfg):
+                    raise ValueError("Rough RFT contact requires Newton physics.")
+                terrain = env.scene[cfg.terrain_name]
+                if not terrain.cfg.disable_collider:
+                    raise ValueError(
+                        "RFT terrain must set disable_collider=True to avoid duplicate rigid contact forces."
+                    )
+                terrain_kwargs = {
+                    "terrain_model": env.sim.physics_manager.get_model(),
+                    "terrain_prim_path": terrain.cfg.prim_path,
+                    "terrain_ray_height": cfg.terrain_ray_height,
+                }
             self.contact_solver = RFT_3D_WARP(
+                **terrain_kwargs,
                 material_cfg=material_cfg,
                 num_envs=self.num_envs,
                 num_bodies=num_bodies,
@@ -239,14 +259,17 @@ class PhysicsCallbackAction(ActionTerm):
     def apply_actions(self):
         if self.cfg.disable:
             return
-        body_pos = self.body_pos.clone()
-        body_quat = self.body_quat.clone()[:, :, [3, 0, 1, 2]]  # convert to [w, x, y, z]
-        body_lin_vel = self.body_lin_vel.clone()
-        body_ang_vel = self.body_ang_vel.clone()
-        self.contact_solver.update(body_pos, body_quat, body_lin_vel, body_ang_vel)
+        body_pos = self.body_pos
+        body_quat = self.body_quat
+        body_lin_vel = self.body_lin_vel
+        body_ang_vel = self.body_ang_vel
+        if self.backend == "3D-warp":
+            self.contact_solver.update(body_pos, body_quat, body_lin_vel, body_ang_vel, quat_xyzw=True)
+        else:
+            self.contact_solver.update(body_pos, body_quat[:, :, [3, 0, 1, 2]], body_lin_vel, body_ang_vel)
 
-        self.contact_wrench = self.contact_solver.contact_wrench.clone()  # global wrench (num_envs, num_bodies, 6)
-        self.contact_wrench_b = self.contact_solver.contact_wrench_b.clone()  # body wrench (num_envs, num_bodies, 6)
+        self.contact_wrench = self.contact_solver.contact_wrench
+        self.contact_wrench_b = self.contact_solver.contact_wrench_b
 
         self._asset.permanent_wrench_composer.set_forces_and_torques_index(
             forces=self.contact_wrench_b[:, :, :3],
@@ -327,7 +350,7 @@ class PhysicsCallbackAction(ActionTerm):
             scale,  # <-- length proportional to magnitude
         )
 
-    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+    def reset(self, env_ids: torch.Tensor):
         self.contact_wrench_b[env_ids] = 0.0
         self.contact_solver.reset(env_ids)
 

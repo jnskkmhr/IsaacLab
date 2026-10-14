@@ -13,7 +13,7 @@ from isaaclab_contrib.mdp import mirror_identity, mirror_quat, mirror_vec3
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.env_cfg.scene_cfg import G1SceneCfg
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.env_cfg.action_cfg import G1ActionsCfg
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 
 ACTIVE_JOINTS = [
@@ -69,7 +69,6 @@ class PolicyCfg(ObsGroup):
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": ACTIVE_JOINTS},
         noise=Unoise(n_min=-0.01, n_max=0.01),
         params={
             "asset_cfg": SceneEntityCfg(
@@ -79,10 +78,10 @@ class PolicyCfg(ObsGroup):
             ),
         },
     )
+
     joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": ACTIVE_JOINTS},
         noise=Unoise(n_min=-1.5, n_max=1.5),
         params={
             "asset_cfg": SceneEntityCfg(
@@ -93,10 +92,12 @@ class PolicyCfg(ObsGroup):
         },
         scale=0.05,
     )
+    joint_pos.mirror_params = {"joint_names": joint_pos.params["asset_cfg"].joint_names}
+    joint_vel.mirror_params = {"joint_names": joint_vel.params["asset_cfg"].joint_names}
     actions = ObsTerm(
         func=mdp.last_action,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": ACTIVE_JOINTS},
+        mirror_params={"joint_names": G1ActionsCfg().joint_pos.joint_names},
     )
     # height_scan = ObsTerm(
     #     func=mdp.height_scan,
@@ -132,8 +133,6 @@ class CriticCfg(ObsGroup):
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": ACTIVE_JOINTS},
-        noise=Unoise(n_min=-0.01, n_max=0.01),
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -145,8 +144,6 @@ class CriticCfg(ObsGroup):
     joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": ACTIVE_JOINTS},
-        noise=Unoise(n_min=-1.5, n_max=1.5),
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -156,18 +153,20 @@ class CriticCfg(ObsGroup):
         },
         scale=0.05,
     )
+    joint_pos.mirror_params = {"joint_names": joint_pos.params["asset_cfg"].joint_names}
+    joint_vel.mirror_params = {"joint_names": joint_vel.params["asset_cfg"].joint_names}
     actions = ObsTerm(
         func=mdp.last_action,
         mirror=symmetry.mirror_g1_joints,
-        mirror_params={"joint_names": ACTIVE_JOINTS},
+        mirror_params={"joint_names": G1ActionsCfg().joint_pos.joint_names},
     )
-    height_scan = ObsTerm(
-        func=mdp.height_scan,
-        mirror=symmetry.mirror_height_scan,
-        mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
-        params={"sensor_cfg": SceneEntityCfg("height_scanner")},
-        clip=(-1.0, 1.0),
-    )
+    # height_scan = ObsTerm(
+    #     func=mdp.height_scan,
+    #     mirror=symmetry.mirror_height_scan,
+    #     mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
+    #     params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+    #     clip=(-1.0, 1.0),
+    # )
 
     def __post_init__(self):
         self.enable_corruption = False
@@ -229,7 +228,7 @@ class PrivilegedObsCfg(ObsGroup):
         mirror=symmetry.mirror_foot_scalars,
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link")},
     )
-    terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
+    # terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
 
     def __post_init__(self):
         self.enable_corruption = False

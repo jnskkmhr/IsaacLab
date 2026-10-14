@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from isaaclab.utils import configclass
-from isaaclab.visualizers.visualizer_cfg import VisualizerCfg
+from isaaclab.visualizers.visualizer_cfg import VisualizerCfg, WindowCfg
 
 if TYPE_CHECKING:
     from .kit_visualizer import KitVisualizer
@@ -40,9 +40,6 @@ class KitVisualizerCfg(VisualizerCfg):
     create_viewport: bool = False
     """If ``True``, create a new viewport window; if ``False``, use the active viewport window."""
 
-    headless: bool = False
-    """Run without creating viewport windows when supported by the app."""
-
     dock_position: str = "SAME"
     """Dock position for the streaming image panel and any new viewport window.
 
@@ -55,37 +52,5 @@ class KitVisualizerCfg(VisualizerCfg):
         side-by-side.
     """
 
-    window_width: int = 1280
-    """Viewport width in pixels (when :attr:`create_viewport` is ``True``)."""
-
-    window_height: int = 720
-    """Viewport height in pixels (when :attr:`create_viewport` is ``True``)."""
-
-    origin_type: str = "world"
-    """Frame in which :attr:`~isaaclab.visualizers.VisualizerCfg.eye` and
-    :attr:`~isaaclab.visualizers.VisualizerCfg.lookat` are interpreted.
-
-    Options:
-
-    * ``"world"``: global origin.
-    * ``"env"``: origin of the environment at :attr:`origin_env_index`.
-    * ``"asset"``: a scene asset (or body) specified by :attr:`origin_track_path`.
-    """
-
-    origin_env_index: int = 0
-    """Index of the environment used as the viewport camera origin.
-
-    Only meaningful when :attr:`origin_type` is ``"env"`` or ``"asset"``.
-    """
-
-    origin_track_path: str | None = None
-    """Asset tracking path for the viewport camera origin.
-
-    Format: ``"<asset_name>"`` to track the asset root, or ``"<asset_name>/<body_name>"``
-    to track a specific body on the asset.  Required when :attr:`origin_type` is ``"asset"``.
-
-    Examples::
-
-        origin_track_path = "robot"             # track robot root
-        origin_track_path = "robot/panda_hand"  # track panda_hand body on robot
-    """
+    window: WindowCfg = WindowCfg(size=(1280, 720))
+    """Viewport and capture dimensions. Kit owns the application update cadence."""

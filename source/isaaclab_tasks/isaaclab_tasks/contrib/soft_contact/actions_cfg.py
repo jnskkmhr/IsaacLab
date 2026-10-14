@@ -60,6 +60,10 @@ class PhysicsCallbackActionCfg(ActionTermCfg):
     """Threshold for contact detection (N)."""
     intruder_geometry_cfg: ColliderCfg = MISSING
     """Configuration for the intruder geometry used in soft contact modeling."""
+    terrain_name: str | None = None
+    """Scene terrain queried by the 3D Warp model. None retains the flat surface at world z=0."""
+    terrain_ray_height: float = 20.0
+    """Vertical ray start offset above each contact point [m]. Must exceed the terrain relief and penetration."""
     contact_data_history_length: int = 3
     """Length of the contact data history."""
     history_logging_decimation: int = 1
