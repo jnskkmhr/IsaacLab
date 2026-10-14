@@ -72,12 +72,14 @@ action slice `mirror_identity`; augmentation does not execute or modify the
 contact solver. Its derived contact observations are mirrored separately because
 they are visible to the critic.
 
-Hybrid force observations now threshold the magnitude of each force component,
-retaining both positive and negative components before signed-log compression.
-This is necessary for reflected observations to match observations computed from
-reflected forces. Observation/action dimensions are unchanged, but resuming an
-existing run uses corrected force inputs and enables augmented training samples.
-Set `algorithm.symmetry_cfg=None` in the runner config to disable augmentation.
+Critic contact-force observations match `IsaacLab_GT`: each force component is
+retained only when `force > threshold`, then passed through signed-log compression.
+Negative components are discarded. This changes critic preprocessing only, not the
+physical contact wrench applied to the robot or the raw force logging observation.
+Observation/action dimensions are unchanged. With this GT-compatible filter,
+mirroring a filtered force observation is not equivalent to filtering a reflected
+force. Symmetry settings remain unchanged; set `algorithm.symmetry_cfg=None` in
+the runner config to disable augmentation and mirror loss.
 
 ## Rough terrain
 
