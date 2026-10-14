@@ -7,6 +7,8 @@ import math
 
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+
 # from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.managers import EventTermCfg
 from isaaclab.sim import SimulationCfg
@@ -156,4 +158,8 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             is_global_time=True,
             params={"eye_offset": (0.0, -2.0, 0.5)},
         )
-        self.video_recorders = []
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+        ]
