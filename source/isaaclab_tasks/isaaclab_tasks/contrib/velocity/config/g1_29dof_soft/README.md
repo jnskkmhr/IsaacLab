@@ -1,26 +1,11 @@
 ## Training
 ```bash
-uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Flat-G1-29dof-Soft --num_envs 4096 --viz newton_gl --video
+uv run --with wandb isaaclab train --rl_library rsl_rl \
+--task IsaacContrib-Velocity-Flat-G1-29dof-Soft --num_envs 4096 \
+--viz newton_gl --video
 ```
 
 ## Training with Isaac Sim PhysX
-
-Run from the repository root. The **flat** task supports `physics=isaacsim_physx`;
-`--extra isaacsim` installs the Isaac Sim dependencies. Select this preset explicitly
-for comparison with `IsaacLab_GT`: `physics=physx` auto-selects an available PhysX
-backend and may select standalone OV PhysX instead.
-
-First run a small training smoke check with local TensorBoard logging:
-
-```bash
-uv run --extra isaacsim isaaclab train --rl_library rsl_rl \
-    --task IsaacContrib-Velocity-Flat-G1-29dof-Soft \
-    physics=isaacsim_physx --num_envs 64 --max_iterations 2 --seed 42 \
-    --logger tensorboard --experiment_name g1_29dof_soft_flat_physx_smoke \
-    --viz newton_gl --video
-```
-
-Then train with a separate W&B project and local experiment directory:
 
 ```bash
 uv run --extra isaacsim --with wandb isaaclab train --rl_library rsl_rl \
