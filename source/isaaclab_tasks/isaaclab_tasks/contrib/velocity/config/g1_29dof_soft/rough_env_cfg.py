@@ -6,7 +6,6 @@
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab.managers import EventTermCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
@@ -51,7 +50,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.actions.physics_callback.terrain_name = "terrain"
         self.scene.terrain.disable_collider = True
         self.scene.height_scanner.global_world_only = True
-        self.events.reset_base.func = mdp.reset_root_state_uniform # type: ignore
+        self.events.reset_base.func = mdp.reset_root_state_uniform  # type: ignore
 
         # no height scan observation
         self.observations.policy.height_scan = None  # type: ignore
@@ -112,15 +111,20 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
         self.events.push_robot = None  # type: ignore
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
-            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
+            NewtonGLVisualizerCfg(
+                eye=(0.0, -2.5, -0.1),
+                lookat=(0.0, 0.0, -0.1),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
+            NewtonRTXVisualizerCfg(
+                eye=(0.0, -2.5, -0.1),
+                lookat=(0.0, 0.0, -0.1),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.events.follow_robot_camera = EventTermCfg(  # type: ignore
-            func=mdp.follow_robot_camera,
-            mode="interval",
-            interval_range_s=(0.0, 0.0),
-            is_global_time=True,
-            params={"eye_offset": (0.0, -2.0, 0.5)},
-        )
         self.video_recorders = []

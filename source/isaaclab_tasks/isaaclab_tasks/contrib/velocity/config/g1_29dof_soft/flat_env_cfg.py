@@ -10,7 +10,6 @@ from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualiz
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 
 # from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab.managers import EventTermCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
@@ -147,17 +146,23 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         }
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
-            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0), streaming_view=False),
+            NewtonGLVisualizerCfg(
+                eye=(0.0, -2.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
+            NewtonRTXVisualizerCfg(
+                eye=(0.0, -2.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.events.follow_robot_camera = EventTermCfg(  # type: ignore
-            func=mdp.follow_robot_camera,
-            mode="interval",
-            interval_range_s=(0.0, 0.0),
-            is_global_time=True,
-            params={"eye_offset": (0.0, -2.0, 0.5)},
-        )
+
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
             VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
