@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import math
+from typing import TYPE_CHECKING
+
 import torch
 import warp as wp
 
@@ -49,14 +51,19 @@ from .kernels import (
     compute_twist_angle,
     compute_v_direction_w,
     expand_vec3_to_3d_vec3,
+    prepare_terrain_rays,
     reset,
     reset_2d,
     reset_cone,
+    resolve_terrain_heights,
     transform_global_wrench_to_body,
     update_array_with_index,
     update_prev_velocity,
     zero_wrench,
 )
+
+if TYPE_CHECKING:
+    import newton
 
 
 def _resolve_env_ids(env_ids: torch.Tensor | slice | None, num_envs: int, device: torch.device | str) -> torch.Tensor:
@@ -81,6 +88,9 @@ class RFT_3D:
         history_logging_decimation: int = 1,
         contact_threshold: float = 40.0,
         enable_ema_filter: bool = True,
+        terrain_model: "newton.Model | None" = None,
+        terrain_prim_path: str = "/World/ground",
+        terrain_ray_height: float = 20.0,
     ) -> None:
         """
         Soft contact model based on 3D RFT proposed in
@@ -115,7 +125,24 @@ class RFT_3D:
 
         self._data: SoftContactData = SoftContactData()
 
+        self.terrain_model = terrain_model
+        self.terrain_ray_height = terrain_ray_height
         self.create_buffers()
+        self.terrain_height = wp.zeros((num_envs, num_bodies * self.num_contact_points), dtype=wp.float32, device=device)
+        if terrain_model is not None:
+            if terrain_ray_height <= 0.0:
+                raise ValueError("terrain_ray_height must be positive.")
+            prefix = terrain_prim_path.rstrip("/") + "/"
+            terrain_shapes = [label.startswith(prefix) for label in terrain_model.shape_label]
+            if not any(terrain_shapes):
+                raise ValueError(f"No Newton terrain shapes found under {terrain_prim_path!r}.")
+            self._terrain_shapes = wp.array(terrain_shapes, dtype=wp.bool, device=device)
+            ray_count = num_envs * num_bodies * self.num_contact_points
+            self._ray_origins = wp.empty(ray_count, dtype=wp.vec3f, device=device)
+            self._ray_directions = wp.full(ray_count, wp.vec3f(0.0, 0.0, -1.0), dtype=wp.vec3f, device=device)
+            self._ray_worlds = wp.full(ray_count, -1, dtype=wp.int32, device=device)
+            self._ray_distances = wp.empty(ray_count, dtype=wp.float32, device=device)
+            self._ray_shape_ids = wp.empty(ray_count, dtype=wp.int32, device=device)
         self.initialize_data()
 
         print("-" * 40)
@@ -138,7 +165,7 @@ class RFT_3D:
     """
 
     def capture(self):
-        if wp.get_device().is_cuda:
+        if wp.get_device(self.device).is_cuda:
             with wp.ScopedCapture() as capture:
                 self._eval_contacts()
             self.graph = capture.graph
@@ -340,7 +367,13 @@ class RFT_3D:
     """
 
     def update(
-        self, body_pos: torch.Tensor, body_quat: torch.Tensor, body_lin_vel: torch.Tensor, body_ang_vel: torch.Tensor
+        self,
+        body_pos: torch.Tensor,
+        body_quat: torch.Tensor,
+        body_lin_vel: torch.Tensor,
+        body_ang_vel: torch.Tensor,
+        *,
+        quat_xyzw: bool = False,
     ):
         """
         Update soft contact model.
@@ -350,10 +383,11 @@ class RFT_3D:
             body_quat: intruder orientation in quaternion form. (num_envs, num_bodies, 4)
             body_lin_vel: intruder linear velocity wrt global frame. (num_envs, num_bodies, 3)
             body_ang_vel: intruder angular velocity wrt global frame. (num_envs, num_bodies, 3)
+            quat_xyzw: Whether body_quat already uses Warp/Isaac Lab XYZW ordering.
         """
         # copy to torch buffer
         self.body_pos_torch[:] = body_pos
-        self.body_quat_torch[:] = body_quat[:, :, [1, 2, 3, 0]]  # convert (w, x, y, z) to (x, y, z, w)
+        self.body_quat_torch[:] = body_quat if quat_xyzw else body_quat[:, :, [1, 2, 3, 0]]
         self.body_lin_vel_torch[:] = body_lin_vel
         self.body_ang_vel_torch[:] = body_ang_vel
 
@@ -365,7 +399,7 @@ class RFT_3D:
 
         # update timestamp and data
         self._timestamp += self.dt
-        self._update_data(torch.arange(self.num_envs, device=self.device))
+        self._update_data(slice(None))
         self._timestamp_last_update[:] = self._timestamp[:]
 
     def randomize_ground_stiffness(self, env_ids: torch.Tensor | slice, mu_int: torch.Tensor) -> None:
@@ -505,7 +539,7 @@ class RFT_3D:
         less_than_dt_detached = self._data.current_air_time < (dt + abs_tol)
         return currently_detached * less_than_dt_detached
 
-    def _update_data(self, env_ids: torch.Tensor) -> None:
+    def _update_data(self, env_ids: torch.Tensor | slice) -> None:
         """
         Update soft contact data.
         Majority of implementations are from IsaacLab's contact sensor class.
@@ -573,6 +607,39 @@ class RFT_3D:
             inputs=[self.body_pos, self.body_quat, self.contact_point_local, self.contact_point_pos],
             device=self.device,
         )
+
+        if self.terrain_model is not None:
+            import newton
+
+            ray_count = self._ray_origins.shape[0]
+            wp.launch(
+                prepare_terrain_rays,
+                dim=ray_count,
+                inputs=[self.contact_point_pos.flatten(), self.terrain_ray_height, self._ray_origins],
+                device=self.device,
+            )
+            # Generated terrain is static in Newton's global world; robot shapes are excluded.
+            newton.intersect_ray(
+                self.terrain_model,
+                ray_origins=self._ray_origins,
+                ray_directions=self._ray_directions,
+                ray_worlds=self._ray_worlds,
+                enable_global_world=False,
+                out_dist=self._ray_distances,
+                out_shape_id=self._ray_shape_ids,
+            )
+            wp.launch(
+                resolve_terrain_heights,
+                dim=ray_count,
+                inputs=[
+                    self._ray_origins,
+                    self._ray_distances,
+                    self._ray_shape_ids,
+                    self._terrain_shapes,
+                    self.terrain_height.flatten(),
+                ],
+                device=self.device,
+            )
 
         # compute contact point linear velocity in global frame
         wp.launch(
@@ -663,6 +730,7 @@ class RFT_3D:
             kernel=compute_contact_force,
             dim=(self.num_envs, self.num_bodies * self.num_contact_points),
             inputs=[
+                self.terrain_height,
                 self.contact_point_pos.reshape((self.num_envs, -1)),
                 self.contact_point_lin_vel.reshape((self.num_envs, -1)),
                 self.contact_point_lin_vel_prev.reshape((self.num_envs, -1)),

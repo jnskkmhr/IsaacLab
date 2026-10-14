@@ -116,7 +116,7 @@ class G1ActionsCfg:
         body_names=[".*_ankle_roll_link"],
         backend=contact_model,
         intruder_geometry_cfg=collider_cfg,
-        enable_ema_filter=False,
+        enable_ema_filter=True,
         contact_threshold=SOFT_CONTACT_THRESHOLD,
         debug_vis=False,
         contact_data_history_length=10,  # logging interval = 0.005*10 = 0.05s, 10 history -> 0.5s
