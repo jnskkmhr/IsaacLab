@@ -72,6 +72,7 @@ def rollout(
     sampled_sdf=False,
     particle_baseline=False,
     rigid_solver="free",
+    edge_chunk_size=0,
 ):
     e = episode
     body = e["moving_body"]
@@ -125,7 +126,9 @@ def rollout(
                 inputs = graph_inputs(
                     x, np.concatenate(history, axis=1), e, poses, velocities, device, model.config["radius"], sdf=sdf
                 )
-                next_x, next_v = model(*inputs)
+                next_x, next_v = (
+                    model.predict_chunked(*inputs, chunk_size=edge_chunk_size) if edge_chunk_size else model(*inputs)
+                )
                 next_x, next_v = next_x.cpu().numpy(), next_v.cpu().numpy()
             if projection != "none":
                 next_x, next_v = project_particles(next_x, x, poses, e, mode=projection)
@@ -183,6 +186,7 @@ def rollout(
         sampled_sdf=sampled_sdf,
         stationary_particle_baseline=particle_baseline,
         rigid_solver=rigid_solver,
+        edge_chunk_size=edge_chunk_size,
         direct_rigid_contact_steps=int(np.sum(np.linalg.norm(direct_forces, axis=-1) > 0.1)) if direct_forces else 0,
         body_shape=e["body_shapes"][body],
         body_mass_kg=float(e["body_mass"][body]),
@@ -230,6 +234,9 @@ def main():
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--projection", choices=("none", "static", "all"), default="none", nargs="?", const="all")
     parser.add_argument("--sampled-sdf", action="store_true")
+    parser.add_argument(
+        "--edge-chunk-size", type=int, default=0, help="Bound inference edge workspace; still update all particles."
+    )
     parser.add_argument("--rigid-solver", choices=("free", "newton"), default="free")
     parser.add_argument(
         "--stationary-particles",
@@ -276,6 +283,7 @@ def main():
                 args.sampled_sdf,
                 args.stationary_particles,
                 args.rigid_solver,
+                args.edge_chunk_size,
             )
             output["rollouts"].append(metrics)
             output["evaluation_complete"] = i + 1 == output["expected_episodes"] and mode == args.modes[-1]

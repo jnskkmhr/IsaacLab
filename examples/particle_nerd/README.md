@@ -425,6 +425,15 @@ settling on rigid ground. Direct rigid-contact forces are recorded separately
 from material reactions. Runtime
 measured during simultaneous GPU experiments is not a performance benchmark.
 
+For large graphs, `--edge-chunk-size 65536` uses the same trained network while
+limiting temporary edge-MLP storage. Every edge and every particle is updated in
+every layer; node updates begin after all edges have consumed the previous node
+states. This is not a region selector. A parity test covers cross-chunk messages
+and an isolated particle. Three reference-state queries on the 296,875-particle
+G1-sized bed used up to 3.1 GB of allocated GPU tensor memory with the 64-channel,
+three-layer model. This checks memory feasibility only, not rollout stability or
+speedup over MPM.
+
 The initial study uses 48 training, 6 validation, and 12 reserved test episodes.
 The expanded collection contains 156 training episodes in total.
 The expanded study adds training combinations; the split manifests in each run

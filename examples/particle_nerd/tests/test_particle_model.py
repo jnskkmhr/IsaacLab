@@ -105,3 +105,26 @@ def test_activation_checkpointing_preserves_predictions_and_parameter_gradients(
         gradients.append(torch.cat([p.grad.flatten() for p in network.parameters()]))
     torch.testing.assert_close(outputs[0], outputs[1])
     torch.testing.assert_close(gradients[0], gradients[1])
+
+
+def test_chunked_inference_preserves_edges_across_chunk_boundaries():
+    """Workspace limits must not turn the graph into disconnected subgraphs."""
+    torch.manual_seed(71)
+    model = ParticleGraph(hidden=16, passes=3).eval()
+    torch.nn.init.normal_(model.decoder[-1].weight, std=0.2)
+    # Asymmetric directed edges span every node chunk; the last particle is isolated.
+    edges = torch.tensor([[0, 4, 1, 5, 2, 6, 3, 0, 6], [4, 1, 5, 2, 6, 3, 0, 6, 0]])
+    inputs = (
+        torch.randn(8, 3) * 0.01,
+        torch.randn(8, 9),
+        torch.randn(8, 6),
+        torch.randn(8, 2, 9),
+        edges,
+        0.005,
+        torch.tensor([0.0, 0.0, -9.81]),
+    )
+    with torch.no_grad():
+        expected = model(*inputs)
+        actual = model.predict_chunked(*inputs, chunk_size=3)
+    for reference, prediction in zip(expected, actual, strict=True):
+        torch.testing.assert_close(prediction, reference, atol=2e-7, rtol=2e-6)

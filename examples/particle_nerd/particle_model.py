@@ -95,6 +95,69 @@ class ParticleGraph(nn.Module):
         velocity = history[:, -3:] + dt * gravity + self.config["velocity_scale"] * self.decoder(node)
         return position + dt * velocity, velocity
 
+    @torch.no_grad()
+    def predict_chunked(self, position, history, material, boundary, edges, dt, gravity, chunk_size=131072):
+        """Evaluate the same complete graph with bounded temporary edge storage.
+
+        All edges and all particles are updated in every message-passing layer.
+        Edge states persist globally; chunking only limits MLP workspace. This
+        inference path does not select a material region or alter graph topology.
+        """
+        if self.training or chunk_size < 1:
+            raise ValueError("Chunked inference requires model.eval() and a positive chunk size.")
+        source, destination = edges
+        degree = torch.bincount(destination, minlength=len(position)).to(position.dtype).clamp_min(1)
+        hidden = self.config["hidden"]
+        node = position.new_empty((len(position), hidden))
+        edge = position.new_empty((len(source), hidden))
+        scale = self.config["input_velocity_scale"]
+        for start in range(0, len(position), chunk_size):
+            selection = slice(start, start + chunk_size)
+            features = torch.cat(
+                (history[selection] / scale, material[selection], degree[selection, None] / 32), dim=-1
+            )
+            body_features = boundary[selection]
+            influence = (1 - body_features[..., :1].clamp_min(0)).clamp_min(0)
+            body_features = torch.cat(
+                (body_features[..., :4], body_features[..., 4:7] / scale, body_features[..., 7:]), dim=-1
+            )
+            node[selection] = self.node_encoder(features) + (self.boundary_encoder(body_features) * influence).sum(
+                dim=1
+            )
+        for start in range(0, len(source), chunk_size):
+            selection = slice(start, start + chunk_size)
+            src, dst = source[selection], destination[selection]
+            displacement = (position[src] - position[dst]) / self.config["radius"]
+            features = torch.cat(
+                (
+                    displacement,
+                    displacement.norm(dim=-1, keepdim=True),
+                    (history[src, -3:] - history[dst, -3:]) / scale,
+                ),
+                dim=-1,
+            )
+            edge[selection] = self.edge_encoder(features)
+        for edge_update, node_update in zip(self.edge_updates, self.node_updates, strict=True):
+            aggregate = torch.zeros_like(node)
+            for start in range(0, len(source), chunk_size):
+                selection = slice(start, start + chunk_size)
+                src, dst = source[selection], destination[selection]
+                edge[selection] += edge_update(torch.cat((node[src], node[dst], edge[selection]), dim=-1))
+                aggregate.index_add_(0, dst, edge[selection])
+            # Node updates start only after every edge has used the old nodes.
+            for start in range(0, len(position), chunk_size):
+                selection = slice(start, start + chunk_size)
+                node[selection] += node_update(
+                    torch.cat((node[selection], aggregate[selection] / degree[selection, None].sqrt()), dim=-1)
+                )
+        velocity = torch.empty_like(position)
+        for start in range(0, len(position), chunk_size):
+            selection = slice(start, start + chunk_size)
+            velocity[selection] = (
+                history[selection, -3:] + dt * gravity + self.config["velocity_scale"] * self.decoder(node[selection])
+            )
+        return position + dt * velocity, velocity
+
 
 def graph_inputs(position, velocity_history, episode, body_pose, body_velocity, device, radius=0.035, sdf=None):
     """Construct features from available particle and advanced rigid states.
