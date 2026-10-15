@@ -333,6 +333,7 @@ at reset. Body geometry is selected with `--body-shape` and `--body-size`.
 | --- | --- |
 | `collect_learning_data.py` | Collect separate training, validation, and test parameter combinations; optionally expand training with independently varied body mass. |
 | `geometry.py` | Query signed distance, outward normal, and closest surface point for analytic shapes or sampled distance fields. |
+| `mesh_sdf.py` | Precompute a local signed-distance volume from closed triangle-mesh vertices and faces using Warp. |
 | `learning_data.py` | Load complete episodes while preserving split boundaries and particle identity. |
 | `particle_model.py` | Encode particle/rigid geometry features, exchange graph messages, and predict every particle's next position. |
 | `train_particles.py` | Train on next positions, optionally backpropagating through several predicted steps. |
@@ -382,6 +383,20 @@ already includes contact. This composition does not enforce the complete
 particle momentum equations or uniquely recover material internal forces.
 Rigid momentum balance follows from applying the estimated wrench; agreement
 with reference motion and reference forces is a separate accuracy test.
+
+### Mesh-derived geometry
+
+`SampledSDF.from_mesh(vertices, triangles, spacing, padding, device)` samples a
+closed local triangle mesh with Warp closest-point and five-ray parity queries.
+It checks that each edge belongs to two nondegenerate triangles; callers must
+supply a non-self-intersecting surface. Mesh repair is outside this example.
+The sampled field subsequently supplies the same distance, normal, and surface
+point used by the particle model and analytical force estimator. Precomputation
+uses no MPM. Queries outside the sampled volume raise, so padding must cover the
+particle positions being queried. `evaluate_sdf.py --mesh` compares triangulated
+box, sphere, and cylinder shapes against their analytic geometry. A separate
+concave-prism check verifies that mesh sampling preserves a geometric notch.
+These checks do not establish learned-motion accuracy on unseen mesh shapes.
 
 ### Training and evaluation
 

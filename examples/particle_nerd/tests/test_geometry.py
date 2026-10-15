@@ -62,3 +62,19 @@ def test_differentiable_geometry_matches_independent_queries_and_gradients():
         for a, b in zip(actual, expected, strict=True):
             np.testing.assert_allclose(a.detach().numpy(), b, atol=1e-12)
         assert torch.autograd.gradcheck(lambda x: body_contacts_torch(x, pose, [0.6, 0.6, 0.8], shape), (position,))
+
+
+def test_mesh_sdf_preserves_a_concave_notch_and_interior_sign():
+    """A closed L-shaped prism must retain its notch, not become its convex hull."""
+    polygon = np.array([[-1, -1], [1, -1], [1, 0], [0, 0], [0, 1], [-1, 1]]) * 0.05
+    vertices = np.concatenate([np.c_[polygon, np.full(6, z)] for z in (-0.025, 0.025)])
+    cap = np.array([[0, 1, 3], [1, 2, 3], [0, 3, 5], [3, 4, 5]])
+    triangles = [*cap[:, ::-1], *(cap + 6)]
+    for i in range(6):
+        j = (i + 1) % 6
+        triangles.extend([[i, j, j + 6], [i, j + 6, i + 6]])
+    sdf = SampledSDF.from_mesh(vertices, np.array(triangles), spacing=0.005, padding=0.04)
+    points = np.array([[0.015, 0.03, 0], [0.02, -0.015, 0], [-0.03, 0.02, 0], [-0.075, 0.02, 0]])
+    distance, normal = sdf.query(points)
+    np.testing.assert_allclose(distance, [0.015, -0.015, -0.02, 0.025], atol=1e-7)
+    np.testing.assert_allclose(normal[[0, 3]], [[1, 0, 0], [-1, 0, 0]], atol=1e-5)

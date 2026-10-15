@@ -83,6 +83,13 @@ class SampledSDF:
         return distance, normal
 
     @classmethod
+    def from_mesh(cls, vertices, triangles, spacing=0.005, padding=0.1, device="cpu"):
+        """Sample a closed local triangle mesh once; reuse the field at inference."""
+        from mesh_sdf import sample_closed_mesh
+
+        return cls(*sample_closed_mesh(vertices, triangles, spacing, padding, device))
+
+    @classmethod
     def from_primitive(cls, shape, size, spacing=0.005, padding=0.5):
         """Sample an analytic shape; useful for independently checking interpolation error."""
         size = np.asarray(size)
