@@ -131,7 +131,32 @@ def _expose_newton_usd_schemas():
         os.environ["PXR_PLUGINPATH_NAME"] = os.pathsep.join(filter(None, (plugins, search_path)))
 
 
+def _preload_cuda_nvrtc_builtins():
+    """Load CUDA 13 compiler builtins without removing Isaac Sim's CUDA 12 libraries.
+
+    Torch's dependency search can select cuda_nvrtc/lib (CUDA 12) before cu13/lib
+    when both are installed. Its CUDA 13 runtime compiler then cannot locate its
+    matching builtins by basename. Load that library from its owning wheel before
+    TorchScript first compiles a CUDA kernel; no Torch import is needed here.
+    """
+    if sys.platform != "linux":
+        return
+    try:
+        if "+cu13" not in importlib.metadata.version("torch"):
+            return
+        distribution = importlib.metadata.distribution("nvidia-cuda-nvrtc")
+    except importlib.metadata.PackageNotFoundError:
+        return
+    import ctypes
+
+    for path in distribution.files or ():
+        if path.name.startswith("libnvrtc-builtins.so.13."):
+            ctypes.CDLL(str(distribution.locate_file(path)))
+            return
+
+
 _deprioritize_prebundle_paths()
+_preload_cuda_nvrtc_builtins()
 _expose_mujoco_usd_schemas()
 _expose_newton_usd_schemas()
 

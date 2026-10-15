@@ -174,15 +174,19 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(
                 eye=(2.0, -3.0, 0.5),
-                lookat=(2.0, 0.0, 0.0),
-                show_particles=True,
-                particle_color=MPM_VISUAL_COLOR,
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
-                eye=(-0.5, -4.0, 1.5),
-                lookat=(-0.5, 0.0, 0.0),
+                eye=(2.0, -3.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
-            # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
+            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
 
         self.video_recorders = [
@@ -219,11 +223,17 @@ class G1RoughMPMEnvCfg_PLAY(G1MPMEnvCfg_PLAY):
                 focal_length=12.000874,  # Vertical FOV 65 deg.
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(-4.4, 1.5, 3.5),
                 lookat=(-1.133547, -1.052032, 0.704035),  # Pitch -34 deg, yaw -38 deg.
                 focal_length=12.000874,  # Vertical FOV 65 deg.
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
         ]
@@ -300,10 +310,16 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
                 lookat=(0.0, 0.0, 0.0),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
+                # origin_type="asset",
+                # origin_track_path="robot",
+                streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
         ]

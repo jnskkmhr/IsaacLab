@@ -875,14 +875,13 @@ def test_yaw_quat(device):
     # Calculated output that the function should return (identity in xyzw)
     expected_output = torch.tensor([0.0, 0.0, 0.0, 1.0], device=device)
 
-    # Compute the result using the existing implementation
-    result = math_utils.yaw_quat(quat_input)
+    # Exercise both TorchScript profiling and the compiled CUDA execution path.
+    for _ in range(3):
+        result = math_utils.yaw_quat(quat_input)
+        torch.testing.assert_close(result, expected_output)
 
     # Verify original quat is not being modified
     torch.testing.assert_close(quat_input, cloned_quat_input)
-
-    # check that the output is equivalent to the expected output
-    torch.testing.assert_close(result, expected_output)
 
 
 @pytest.mark.parametrize("device", test_devices())

@@ -654,17 +654,18 @@ def _make_newton_visualizer(viewer, scene_data_provider=None, state=None, *, cfg
     view = ImageView(ImageViewCfg(source=PerspectiveCameraCfg()))
     view.render = visualizer._capture_perspective
     visualizer.current_image_view, visualizer._image_views = view, [view]
-    if viewer is not None and isinstance(visualizer, NewtonGLVisualizer):
+    if viewer is not None:
         visualizer._viewer_picking_binding.bind(viewer)
     return visualizer
 
 
-def test_newton_visualizer_forwards_and_neutralizes_picking():
+@pytest.mark.parametrize("cfg_type", [NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg])
+def test_newton_visualizer_forwards_and_neutralizes_picking(cfg_type):
     viewer = _Viewer()
     viewer.picking_enabled = True
     viewer.picking = SimpleNamespace(release=Mock())
     viewer.apply_forces = Mock()
-    visualizer = _make_newton_visualizer(viewer)
+    visualizer = _make_newton_visualizer(viewer, cfg=cfg_type(enable_markers=False))
     visualizer._picking_enabled = True
     callback = visualizer._viewer_picking_binding.apply
 
@@ -1272,11 +1273,12 @@ def test_newton_visualizer_cfg():
     assert NewtonGLVisualizerCfg().visualizer_type == "newton_gl"
     assert NewtonRTXVisualizerCfg().visualizer_type == "newton_rtx"
     assert not issubclass(NewtonRTXVisualizer, NewtonGLVisualizer)
-    for option in ("rtx_environment", "world_spacing", "enable_picking"):
+    for option in ("rtx_environment", "world_spacing"):
         with pytest.raises(TypeError, match=option):
             NewtonRTXVisualizerCfg(**{option: None})
     # Public viewer options are accepted as cfg fields.
     NewtonGLVisualizerCfg(enable_picking=False, show_particles=True, particle_color=(0.1, 0.2, 0.3))
+    NewtonRTXVisualizerCfg(enable_picking=False)
     cfg = NewtonRTXVisualizerCfg(cameras=[SceneCameraCfg(prim_path="/Camera")])
     validate(cfg)
 

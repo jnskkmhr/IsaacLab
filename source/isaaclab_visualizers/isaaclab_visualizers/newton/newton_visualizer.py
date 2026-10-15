@@ -283,10 +283,10 @@ class NewtonViewerUI:
                 imgui.text("Shift + WASD - Move camera 2x speed")
                 imgui.text("QE - Pan up/down")
                 imgui.text("Left Click - Look around")
-                if (
-                    isinstance(viewer, NewtonViewerGL)
-                    and viewer.picking_enabled
-                    and not viewer._fullscreen_image_active
+                if viewer.picking_enabled and not (
+                    viewer._fullscreen_image_active
+                    if isinstance(viewer, NewtonViewerGL)
+                    else viewer._last_frame_is_fullscreen
                 ):
                     imgui.text("Right Click - Pick and drag objects")
                 imgui.text("Middle Click - Orbit")
@@ -362,6 +362,53 @@ class NewtonViewerRTX(NewtonViewerUI, ViewerRTX):
         super()._init_window()
         self._patch_viewer_panel()
 
+    def _log_particles(self, state: newton.State) -> None:
+        """Avoid compacting and uploading a duplicate overlay for authored particle geometry."""
+        if self._borrowed_stage is None:
+            super()._log_particles(state)
+
+    def _accept_render(self, products) -> None:
+        """Present generated intermediate images and retain the latest RTX image.
+
+        Newton's single-image acceptance path returns after the first frame, dropping
+        the remaining DLSS frame-generation output. The final image is presented by
+        the native end-of-frame path; only intermediate images are presented here.
+        """
+        from ovrtx import Device
+
+        self._render_products = products
+        if not self._headless and (self._window is None or self._window.context is None):
+            return
+        render_vars = [
+            render_var
+            for product in products.values()
+            for frame in product.frames
+            if (render_var := self._get_ldr_color_render_var(frame)) is not None
+        ]
+        present_intermediate = not self._headless and self._image_logger._fullscreen_name is None
+        for index, render_var in enumerate(render_vars):
+            intermediate = index < len(render_vars) - 1
+            if intermediate and not present_intermediate:
+                continue
+            with render_var.map(device=Device.CUDA) as mapping:
+                pixels = wp.from_dlpack(mapping, dtype=wp.vec4ub)
+                if self._headless:
+                    if self._displayed_pixels is None or self._displayed_pixels.shape != pixels.shape:
+                        self._displayed_pixels = wp.empty_like(pixels)
+                    wp.copy(self._displayed_pixels, pixels)
+                else:
+                    self._blit_to_window(pixels)
+                mapping.unmap(stream=pixels.device.stream.cuda_stream)
+            if intermediate:
+                frame = self._displayed_frame
+                prepared = self.gui is not None and self.gui._frame_prepared
+                self._present(frame.texture or None, frame.width, frame.height)
+                if self.gui is not None:
+                    # Reuse the prepared UI without processing buttons again. The native
+                    # prepare_frame counts the final presentation; count this extra one.
+                    self.gui._frame_prepared = prepared
+                    self.gui._update_fps()
+
     def end_frame(self) -> None:
         super().end_frame()
         if self._close_requested:
@@ -377,7 +424,7 @@ class NewtonViewerRTX(NewtonViewerUI, ViewerRTX):
         if products is None:
             raise RuntimeError("Perspective capture requires a completed Newton RTX frame.")
         for product in products.values():
-            for frame in product.frames:
+            for frame in reversed(product.frames):
                 render_var = self._get_ldr_color_render_var(frame)
                 if render_var is None:
                     continue
@@ -512,8 +559,49 @@ class NewtonViewerGL(NewtonViewerUI, ViewerGL):
 class NewtonVisualizerBase(BaseVisualizer):
     """Own Newton resource bindings, frame cadence, and camera selection for both renderers."""
 
+    class _ViewerPickingBinding:
+        """Stable Newton-manager callback for viewer picking.
+
+        CUDA graphs record picking arrays by address, so closing the window
+        neutralizes and retains them until the captured graph is gone.
+        """
+
+        def __init__(self) -> None:
+            self._viewer: NewtonViewerGL | NewtonViewerRTX | None = None
+            self._retained_picking = None
+
+        def bind(self, viewer: NewtonViewerGL | NewtonViewerRTX) -> None:
+            """Bind picking to the current viewer model."""
+            self._viewer = viewer
+            self._retained_picking = None
+
+        def apply(self, state: newton.State) -> None:
+            """Apply picking while the viewer is active."""
+            if self._viewer is None:
+                # Host callbacks do not run during graph replay, so reaching
+                # this branch means captured inputs are no longer needed.
+                self._retained_picking = None
+                return
+            self._viewer.apply_forces(state)
+
+        def deactivate(self) -> None:
+            """Make captured picking inert while preserving its inputs."""
+            viewer = self._viewer
+            if viewer is None:
+                return
+
+            picking = viewer.picking
+            if picking is not None:
+                viewer.picking_enabled = False
+                picking.release()
+
+            self._retained_picking = picking
+            self._viewer = None
+
     def __init__(self, cfg):
         super().__init__(cfg)
+        self._viewer_picking_binding = self._ViewerPickingBinding()
+        self._picking_enabled = False
         self._viewer = None
         self.backend = None
         self._runtime_headless = cfg.headless
@@ -766,45 +854,6 @@ class NewtonGLVisualizer(NewtonVisualizerBase):
         """Return the shared Newton model color-writer factory."""
         return self.backend.create_visual_material_writer
 
-    class _ViewerPickingBinding:
-        """Stable Newton-manager callback for viewer picking.
-
-        CUDA graphs record picking arrays by address, so closing the window
-        neutralizes and retains them until the captured graph is gone.
-        """
-
-        def __init__(self) -> None:
-            self._viewer: NewtonViewerGL | None = None
-            self._retained_picking = None
-
-        def bind(self, viewer: NewtonViewerGL) -> None:
-            """Bind picking to the current viewer model."""
-            self._viewer = viewer
-            self._retained_picking = None
-
-        def apply(self, state: newton.State) -> None:
-            """Apply picking while the viewer is active."""
-            if self._viewer is None:
-                # Host callbacks do not run during graph replay, so reaching
-                # this branch means captured inputs are no longer needed.
-                self._retained_picking = None
-                return
-            self._viewer.apply_forces(state)
-
-        def deactivate(self) -> None:
-            """Make captured picking inert while preserving its inputs."""
-            viewer = self._viewer
-            if viewer is None:
-                return
-
-            picking = viewer.picking
-            if picking is not None:
-                viewer.picking_enabled = False
-                picking.release()
-
-            self._retained_picking = picking
-            self._viewer = None
-
     def __init__(self, cfg: NewtonGLVisualizerCfg):
         """Initialize the GL scene renderer and window.
 
@@ -812,8 +861,6 @@ class NewtonGLVisualizer(NewtonVisualizerBase):
             cfg: Newton visualizer configuration.
         """
         super().__init__(cfg)
-        self._viewer_picking_binding = self._ViewerPickingBinding()
-        self._picking_enabled = False
 
     # ------------------------------------------------------------------
     # GL lifecycle
@@ -1154,12 +1201,18 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
     Resizing the window scales the displayed image without resizing either source's buffers.
     """
 
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self._geometry_resources = contextlib.ExitStack()
+        self._geometry_query = None
+
     def _create_viewer(self, **kwargs) -> NewtonViewerRTX:
         """Create the native viewer, allowing task-specific rendering extensions."""
         return NewtonViewerRTX(**kwargs)
 
     def initialize(self, sim: SimulationContext, *, cameras: list[PerspectiveCameraCfg | Camera]) -> None:
         """Attach to the populated scene and bind the model used to publish body poses."""
+        import ovstage
         from isaaclab_ov.stage import OvstageBackendCfg
 
         if self._is_initialized:
@@ -1172,6 +1225,15 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
         scene_data_provider = self._sim.get_scene_data_provider()
         scene = self._sim.get_or_create_backend(OvstageBackendCfg(viewer_id=id(self)))
         scene.populate(self._sim.stage, sim.get_clone_plan())
+        self._render_stage = scene.stage
+        self._geometry_paths = list(scene_data_provider.get_geometry_points())
+        self._geometry_query = None
+        self._geometry_timestamp = -1
+        if self._geometry_paths:
+            paths = self._geometry_resources.enter_context(ovstage.PathDictionary(scene.stage))
+            path_list = paths.create_path_list_from_strings(self._geometry_paths)
+            self._geometry_resources.callback(paths.destroy_path_list, path_list)
+            self._geometry_query = self._geometry_resources.enter_context(scene.stage.query_from_path_list(path_list))
         cfg = self.cfg
         settings = dict(cfg.render_settings)
         if cfg.background_color is not None:
@@ -1194,14 +1256,73 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
         )
         self._viewer.set_model(self.backend.model)
         self._viewer.marker_groups = sim.vis_marker_registry.get_groups().values()
-        self._viewer.picking_enabled = False
+        picking_supported = self.physics_backend == "newton" and sim.physics_manager._supports_rigid_body_force_input
+        self._picking_enabled = self.cfg.enable_picking and picking_supported and not self._runtime_headless
+        self._viewer.picking_enabled = self._picking_enabled
+        if self._picking_enabled:
+            self._viewer.wind = None
+            self._viewer_picking_binding.bind(self._viewer)
+            NewtonManager.register_state_force_callback(self._viewer_picking_binding.apply)
         self._viewer.register_ui_callback(self._draw_streaming_view_controls, position="side")
         self._select_camera(0)
         self._is_initialized = True
 
+    def _update_geometry(self) -> None:
+        """Publish simulated world-space points to the authored geometry in the borrowed RTX stage."""
+        if self._geometry_query is None:
+            return
+        import ovstage
+        from isaaclab_ov.stage import points_tensor_from_warp, xform_tensor_from_numpy
+
+        provider = self._sim.get_scene_data_provider()
+        timestamp = provider.backend.geometry_timestamp
+        if timestamp == self._geometry_timestamp:
+            return
+        stage = self._render_stage
+        floor_query = stage.get_attribute_write_floor()
+        try:
+            ordinal = int(stage.fetch_ordinal(floor_query)) + 1
+        finally:
+            stage.release_ordinal_query(floor_query).wait()
+        if self._geometry_timestamp == -1:
+            # SDP supplies world-space points; inherited prim transforms would place them twice.
+            count = len(self._geometry_paths)
+            stage.write_attribute(
+                self._geometry_query,
+                "omni:resetXformStack",
+                ordinal=ordinal,
+                tensors=np.full(count, True, dtype=np.bool_),
+                is_array=False,
+            ).wait()
+            stage.write_attribute(
+                self._geometry_query,
+                "omni:xform",
+                ordinal=ordinal,
+                tensors=xform_tensor_from_numpy(np.tile(np.eye(4, dtype=np.float64), (count, 1, 1))),
+                is_array=False,
+                semantic=ovstage.AttributeSemantic.MATRIX,
+            ).wait()
+        points = provider.get_geometry_points()
+        stream = self.backend.model.device.stream
+        stage.write_attribute(
+            self._geometry_query,
+            "points",
+            ordinal=ordinal,
+            tensors=[points_tensor_from_warp(points[path]) for path in self._geometry_paths],
+            is_array=True,
+            semantic=ovstage.AttributeSemantic.POINT,
+            cuda_stream=stream.cuda_stream or 1,
+        ).wait()
+        stage.advance_write_floor(ordinal).wait()
+        self._geometry_timestamp = timestamp
+
     def _render_frame(self) -> None:
         """Update controls and publish GPU poses or sensor pixels to Newton once per frame."""
         viewer = self._viewer
+        # Sensor images do not share the perspective camera used for picking rays.
+        viewer.picking_enabled = self._picking_enabled and self.current_image_view.camera is None
+        if not viewer.is_paused():
+            self._update_geometry()
         viewer.begin_frame(self._sim_time)
         try:
             if self.current_image_view.camera is not None:
@@ -1224,7 +1345,10 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
         previous = self.backend
         super().reset(soft)
         if self.backend is not previous:
-            self._viewer.picking_enabled = False
+            self._viewer.picking_enabled = self._picking_enabled
+            if self._picking_enabled:
+                self._viewer.wind = None
+                self._viewer_picking_binding.bind(self._viewer)
             self._select_camera(self._image_views.index(self.current_image_view))
 
     def close(self) -> None:
@@ -1232,8 +1356,11 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
         if self._is_closed:
             return
         try:
+            if self._picking_enabled:
+                self._viewer_picking_binding.deactivate()
             if self._viewer is not None:
                 self._viewer.close()
         finally:
+            self._geometry_resources.close()
             self._viewer = self.backend = None
             super().close()
