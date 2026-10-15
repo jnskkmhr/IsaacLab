@@ -1,0 +1,426 @@
+# Particle NeRD: MPM reference data and force reconstruction
+
+This example implements the data collection and force reconstruction experiments
+for milestones 1 and 2. It uses IsaacLab's `junnosuke/mpm_rl_task` branch and the
+Newton version installed in that checkout's `.venv`.
+
+## Code organization
+
+| File | Responsibility |
+| --- | --- |
+| `scene_cfg.py` | Define the sand material, initial particle distribution, and rigid box geometry. |
+| `env_cfg.py` | Configure parallel environments, manager terms, and MJWarp–MPM two-way coupling. |
+| `terms/events.py` | Reset particle positions, velocities, body poses, and MPM solver history. |
+| `terms/recordings.py` | Record particle states, body states, actions, and reference contact impulses. |
+| `newton_access.py` | Map Newton indices to particle IDs and body `object_id`; aggregate contact impulses. |
+| `collect.py` | Generate independent trajectories and export episodes through IsaacLab's recorder manager. |
+| `dataset.py` | Check episode alignment, coordinates, identifiers, finite values, and momentum balance. |
+| `reconstruction.py` | Estimate body reactions from particle motion and an explicit internal-force assumption. |
+| `evaluate_forces.py` | Compare reconstructed forces and torques against recorded MPM measurements. |
+
+No IsaacLab framework changes are required. The trainer and inference adapter
+belong to subsequent milestones.
+
+## Milestone 1: collect reference motion
+
+The scene contains 500 material particles in a 32 cm by 32 cm by 16 cm sand bed.
+Six rigid boxes represent the ground beneath the sand, four retaining walls,
+and a moving box. The initial sand surface is at environment-relative `z = 0`.
+Every body has geometry, pose, velocity, friction, and an `object_id`.
+There are no ground/tool semantic labels in the data representation.
+
+The 2 kg box is dynamic. At reset, sample its center within x/y = ±2.5 cm
+and z = 13–20 cm above the initial sand surface, roll/pitch = ±0.35 rad, and
+yaw = ±pi. Sample initial linear velocity x/y = ±0.1 m/s, z = -0.2–0 m/s,
+and angular velocity = ±0.5 rad/s per axis. No actions are applied after reset.
+
+MJWarp integrates the rigid bodies. Newton implicit MPM integrates the sand.
+A lagged proxy coupler passes rigid geometry and motion to MPM and returns sand
+reactions to MJWarp. The ground and four retaining walls remain kinematic;
+the box responds to gravity, material contact, and any direct rigid contacts.
+
+MPM uses APIC transfer, a sparse grid, a 4 cm voxel size, 25 iterations maximum,
+and tolerance 1e-4. Physics and recording timesteps are 5 ms. Both subsolvers
+use one substep and the coupler uses one pass. Forward collider velocity follows
+the existing G1 coupled configuration. CUDA graph capture is disabled.
+
+**Earlier results used a prescribed box trajectory.** Those files remain
+schema version 1; they do not validate the response of a freely moving box.
+The corrected dynamic collector writes schema version 2.
+
+From the IsaacLab repository root, using its existing environment:
+
+```bash
+uv run --no-project --python .venv/bin/python python examples/particle_nerd/collect.py \
+  --output /tmp/particle_nerd/train.hdf5 \
+  --num_envs 4 --episodes_per_env 2 --steps 400 --seed 42 --split train
+
+uv run --no-project --python .venv/bin/python python examples/particle_nerd/collect.py \
+  --output /tmp/particle_nerd/validation.hdf5 \
+  --num_envs 2 --episodes_per_env 2 --steps 400 --seed 137 --split validation
+```
+
+The default launch has no viewer. Existing output files are rejected.
+Choose separate seeds and files for training, validation, and test trajectories;
+never split adjacent frames of the same episode between these sets. Collection
+buffers one episode per environment before export, so memory use grows with
+particle count, environment count, and episode length.
+
+### Dataset contract
+
+Each HDF5 episode lives under `data/demo_<id>`:
+
+| Dataset | Shape | Meaning |
+| --- | --- | --- |
+| `states/particle_position` | `(T+1, N, 3)` | Material particle positions [m]. |
+| `states/particle_velocity` | `(T+1, N, 3)` | Material particle velocities [m/s]. |
+| `states/body_pose` | `(T+1, B, 7)` | Body center and quaternion in `xyzw` order. |
+| `states/body_velocity` | `(T+1, B, 6)` | Body linear velocity followed by angular velocity. |
+| `actions` | `(T, 0)` | No actuator or trajectory commands. |
+| `reference/body_impulse` | `(T, B, 6)` | Material-on-body linear impulse [N s] and torque impulse [N m s]. |
+| `reference/applied_body_impulse` | `(T, B, 6)` | Previous MPM feedback applied during this rigid-body transition. |
+| `reference/next_body_impulse` | `(T, B, 6)` | New MPM feedback available for the next rigid-body transition. |
+| `reference/rigid_contact_impulse` | `(T, B, 6)` | Direct rigid contact impulses during this transition. |
+| `constants/*` | `(1, ...)` | Particle masses, radii, IDs; body sizes, friction, IDs, masses, inertia, COM offsets; environment origin and timestep. |
+
+Positions are relative to each environment's origin. Vector components use
+world-aligned axes. Torque is measured about each box's center, which is also its
+center of mass. `reference/body_impulse[t]` belongs to the transition from
+`states[t]` to `states[t+1]`. Divide the impulse by `dt` to obtain the average force
+or torque over that step. Reference impulses are evaluation targets, not inputs
+to reconstruction or future force-network labels.
+
+For the dynamic box, validate `mass * (v[t+1] - v[t])` against the sum of
+`mass * gravity * dt`, `applied_body_impulse[t]`, and `rigid_contact_impulse[t]`.
+Do not compare the box acceleration to the newly computed MPM reaction without
+accounting for the lag. Future body acceleration is an evaluation reference,
+not an input to forward force reconstruction. The direct rigid-contact recorder
+currently requires one rigid substep and zero local COM offsets, as configured.
+
+The file attribute `particle_nerd_manifest` records the split, seed, material
+parameters, solver settings, IsaacLab revision and dirty-file list, and installed
+Newton/Warp/PyTorch versions and available installation provenance. A missing
+completion manifest indicates an interrupted collection.
+
+## Milestone 2: original particle-force baseline
+
+For each recorded transition, the evaluator:
+
+1. Computes material particle acceleration from successive velocities.
+2. Connects nearby material particles with equal-and-opposite central forces.
+3. Finds candidate contacts with rigid boxes from their geometry.
+4. Solves particle force balance with compressive internal forces and contact
+   forces inside a four-sided approximation of the Coulomb friction cone.
+5. Sums the opposite contact forces and their moments on each body.
+6. Compares those body reactions with the MPM impulses divided by the timestep.
+
+The force balance is written in plain text as:
+
+```text
+sum(internal particle forces) + sum(body-on-particle contact forces)
+    = particle_mass * ((velocity_next - velocity_current) / dt - gravity)
+```
+
+A quadratic penalty selects smaller force coefficients when several solutions
+satisfy the same motion. This is an **experimental material-force assumption**.
+It is not Newton's granular material law, the cable method's rod law, or a full
+PBD solver. The contact distance is a candidate-contact shell; it is not an exact
+MPM contact reconstruction. The experiment does not enforce a sliding-friction
+law, evolve material stress history, or model APIC particle angular momentum.
+
+Particle motion does not uniquely determine the distribution of reaction forces
+among several bodies. A small force-balance residual is therefore insufficient:
+per-body force error and runtime must also be measured. The reference impulses
+are read only after reconstruction has produced its estimate.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python .venv/bin/python python examples/particle_nerd/evaluate_forces.py \
+  /tmp/particle_nerd/validation.hdf5 \
+  --output /tmp/particle_nerd/forces.json --start_step 99 --stride 100
+
+uv run --no-project --python .venv/bin/python python -m pytest \
+  examples/particle_nerd/tests/test_reconstruction.py -q
+```
+
+The JSON report contains per-body force and torque RMSE, force-balance residuals,
+solver convergence, reconstruction time, and the measured and estimated reactions.
+The inverse least-squares iteration limit is separate from Newton's 25 MPM
+iterations. This CPU evaluator is intended for mechanics experiments, not online
+coupling.
+
+## Dynamic-body contact reconstruction
+
+`body_contact_reconstruction.py` estimates a dynamic box reaction from current
+box state and predicted next material velocities. It does not run MPM and does
+not read future box acceleration. The present evaluations substitute recorded
+MPM particle motion for the future NeRD prediction. No motion network is trained.
+
+The calculation is:
+
+1. Advance the current box velocity under gravity and the gyroscopic term.
+2. Find particle contacts with the oriented box. Optionally estimate particle
+   velocity at the box surface using a local affine velocity fit.
+3. Solve unilateral contact conditions for the box velocity. A finite effective
+   material mass allows relative normal motion. A small penetration correction
+   requests a separating velocity when a particle lies inside the box.
+4. Add Coulomb friction through projected contact iterations, when enabled.
+5. Convert the box momentum correction into force and torque. Return the
+   opposite impulse on each contacting particle for momentum checks.
+
+The effective contact mass and penetration coefficient are calibrated scalar
+approximations. They are not individual grain masses or the MPM material law.
+The frictional solver minimizes tangential kinetic correction inside a circular
+Coulomb disk. Its sliding impulse opposes the final relative contact velocity,
+including for off-center contact with anisotropic body inertia.
+
+An optional history variant applies compliance to changes from the preceding
+contact impulse. It starts from zero estimated impulse, advances history at
+every step, and discards separated contacts. It never initializes from recorded
+forces. `history_weight=0` retains the memoryless baseline; experiments with
+nonzero history are reported separately.
+
+The implementation currently handles one dynamic box. Static ground and wall
+reactions are not required to advance those fixed bodies, but their forces are
+included when checking the complete material momentum equations. This is a
+physical distinction between dynamic and fixed geometry, not an object category
+such as shovel or foot. Material properties affect reference particle motion;
+this contact approximation does not independently reconstruct granular stress.
+
+### Files and evaluation protocol
+
+| File | Task |
+| --- | --- |
+| `body_contact_reconstruction.py` | Compute body reactions from material velocity and rigid-body contact conditions. |
+| `contact_iterations.py` | Solve normal contact and Coulomb friction with effective material compliance. |
+| `evaluate_body_contact.py` | Fit scalar contact parameters on four complete episodes, validate on four other episodes, then evaluate a separate file. |
+| `score_frozen_contacts.py` | Evaluate previously selected parameters without fitting; report episode-bootstrap intervals and direct rigid-contact subsets. |
+| `replay_body_motion.py` | Integrate box motion with estimated forces while retaining recorded particle trajectories. |
+| `check_particle_balance.py` | Check whether predicted box loads can coexist with particle force balance and static-body reactions. |
+| `check_contact_sensitivity.py` | Measure force changes under particle-position/velocity perturbations and contact-iteration limits. |
+| `network_contact_reconstruction.py` | Experimental joint velocity projection through normal particle-particle and particle-body contacts; also measures changes to particle motion. |
+| `pressure_reconstruction.py` | Experimental inverse isotropic-pressure closure; preliminary accuracy was inadequate. |
+
+`check_particle_balance.py` uses the original central-force approximation for
+internal forces. A compatible solution does not establish unique forces or
+validate that material law. Alternative box loads can also satisfy particle
+force balance by changing static-body reactions. Additional contact equations
+are therefore essential.
+
+### Numerical environment
+
+Use a separate Python 3.12 environment for offline analysis. The original
+simulation environment has a NumPy version incompatible with the installed
+Numba; do not modify that environment to run the contact iterations.
+
+```bash
+uv venv /tmp/particle_nerd_force/.venv --python 3.12
+uv pip install --python /tmp/particle_nerd_force/.venv/bin/python \
+  -r examples/particle_nerd/requirements-force.txt
+```
+
+Set `FORCE_PYTHON=/tmp/particle_nerd_force/.venv/bin/python` in the commands below.
+Collection continues to use the existing IsaacLab simulation environment.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python "$FORCE_PYTHON" python examples/particle_nerd/evaluate_body_contact.py \
+  /path/to/calibration.hdf5 /path/to/development_evaluation.hdf5 \
+  --frictional --affine --dense-fitting --geometry start \
+  --offsets 0 --mass-scales 3,10,30,100 --stabilization-grid 0,.002,.01,.05 \
+  --output /path/to/contact_fit.json
+
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python "$FORCE_PYTHON" python examples/particle_nerd/score_frozen_contacts.py \
+  --datasets /path/to/new_test.hdf5 --experiments /path/to/contact_fit.json \
+  --output /path/to/frozen_test.json
+
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python "$FORCE_PYTHON" python examples/particle_nerd/replay_body_motion.py \
+  /path/to/new_test.hdf5 /path/to/contact_fit.json --output /path/to/replay.json
+
+uv run --no-project --python "$FORCE_PYTHON" python -m pytest \
+  --confcutdir=examples/particle_nerd/tests examples/particle_nerd/tests -q
+```
+
+The replay uses the collector's one-step force delay. It compares against a
+reference-force replay to check integration. It rejects reference episodes with
+direct rigid contact and flags predicted box-ground or box-wall intersections.
+Recorded material cannot respond to box errors, so this is **not a fully coupled
+NeRD rollout**. Future body acceleration is never a force-estimator input.
+
+### Current dynamic measurements
+
+With a 2 kg box, zero contact offset, effective contact mass equal to ten
+particle masses, penetration coefficient 0.01, affine surface velocity, and
+Coulomb friction 0.6:
+
+- 32 new episodes, 12,800 transitions: force-vector RMSE **9.41 N**; force
+  component MSE **29.50 N²**; torque-vector RMSE **0.344 N m**.
+- Episode-bootstrap 95% interval for force-vector RMSE: **8.91–9.87 N**.
+- Rigid-box replay: mean episode position RMSE **0.72 cm**, orientation RMSE
+  **4.35 degrees**. No rigid-ground or rigid-wall intersections occurred.
+- Reference-force replay: mean position RMSE **1.25 micrometers**.
+- Parameters were selected before collecting these 32 episodes. A subsequently
+  corrected friction-direction bug changed force RMSE by less than 0.001 N;
+  reports preserve the original and corrected results separately.
+
+These measurements concern one material, one box geometry, and recorded particle
+motion. Force-vector error remains about 35% relative to the reference force
+norm. Heavier boxes and perturbed particle velocities expose additional errors.
+No general material model or real-time coupled performance has been established.
+
+The contact-iteration limit is distinct from the MPM iteration limit. On 320
+validation samples, 50 contact sweeps matched the converged result; 25 sweeps
+changed forces by only 0.0000165 N RMSE but did not always meet the strict
+1e-9 N s impulse-change tolerance. Reference MPM runs retain 25 iterations by
+default, with an explicit `--mpm-iterations 50` sensitivity option. Collection
+also accepts `--body-mass` for physical mass generalization experiments.
+
+## Historical prescribed-motion validation
+
+The collection experiment completed four two-second episodes in two parallel
+worlds, including resets: 1,600 transitions, 500 particles per world. All four
+trajectories contact the sand. Checks passed for action/state alignment, particle
+retention in the bed, finite values, episode resets, and settling after release.
+The recorded material/body linear momentum balance had relative residual
+`8.36e-6`, normalized by the larger of material weight and total body reaction.
+
+The initial mechanics tests covered: free fall, weight transmission through
+a two-particle column, sliding friction and torque, and rotated-box contact geometry.
+These establish implementation conventions, not force accuracy on MPM trajectories.
+The expanded numerical suite now contains 22 passing mechanics tests.
+
+Reconstruction results are recorded separately after comparison with MPM.
+
+The example-specific formatting and lint checks pass. The repository-wide
+changelog hook reports existing fragment errors and missing fragments in other
+packages; those files are outside this example's changes.
+
+
+## Historical DEM-inspired contact-force experiment
+
+The measurements in this section use the earlier prescribed-box dataset.
+
+`dem_reconstruction.py` adds a separate nonlearned estimator; the original
+`reconstruction.py` retains the central-force baseline. `evaluate_dem.py` compares both on the
+same recorded frames. No MPM solve, particle integration, or force network is
+used by the estimator.
+
+The normal force uses a linear spring and approach-only damping, following the
+structure of [Warp's DEM example](https://github.com/NVIDIA/warp/blob/main/warp/examples/core/example_dem.py).
+Unlike that cohesive example, this experiment gives separated contacts a zero
+force prior. Two friction models are compared: velocity-dependent damping and
+a tangential spring with contact history. Body contact velocity includes linear
+velocity and rotation about the body's center. Histories are advanced at every
+recorded frame, projected into the current tangent plane, corrected on sliding,
+and discarded after separation. Create a new `ContactHistory` at episode reset.
+
+The inverse objective is:
+
+```text
+0.5 * squared particle force-balance error
+  + 0.5 * law_weight * squared physical contact-force error relative to DEM
+```
+
+Four nonnegative rays represent each particle-particle and particle-body friction
+cone. Unlike the original baseline, internal pairs can transmit tangential force.
+The penalty acts on the physical 3D force, not ray coefficients. A zero-prior
+ablation uses identical geometry, rays, and penalty weight to isolate the effect
+of the constitutive target. The bound-constrained CPU solver reports its projected
+gradient residual, iterations, and convergence; low force loss alone is not enough.
+
+### Explicit approximations
+
+- Effective particle-pair rest distance is the sum of recorded radii times a
+  configurable scale. These material points are not individual physical grains.
+- The default body contact offset is zero: recorded MPM particle centers rest
+  approximately on rigid surfaces. The stored radius is not used as wall overlap.
+- The old 6.5 cm neighbor radius and 4 cm body candidate shell are retained to
+  isolate the constitutive experiment. A separated candidate has a zero DEM
+  prior, but **balance fitting may still assign it nonzero force**. This is a soft
+  contact-law constraint, not exact DEM contact activation.
+- Pair tangential forces omit physical grain rotation, rolling resistance, and
+  APIC angular momentum. Only translational particle balance is fitted. Body
+  torque is summed about each box center; angular consistency is not established.
+- Stiffness is an effective force/length parameter, not the MPM Young modulus.
+  All contacts currently share one stiffness and damping ratio. Friction uses
+  material friction for particle pairs and body friction for rigid contacts.
+- Current contact state gives instantaneous force estimates; targets are MPM
+  impulses divided by the 5 ms interval. Position noise tests isolate geometry
+  effects while leaving recorded velocities and accelerations unchanged.
+
+### Reproduce the measurement
+
+Use the existing uv-managed environment explicitly when this isolated worktree
+has no `.venv`. Set `PYTHON_BIN` to that environment's Python executable:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python "$PYTHON_BIN" python examples/particle_nerd/evaluate_dem.py \
+  /path/to/validation.hdf5 --output /path/to/dem_experiment.json
+
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python "$PYTHON_BIN" python examples/particle_nerd/evaluate_dem.py \
+  /path/to/validation.hdf5 --output /path/to/dem_original_baseline.json --baseline-only
+```
+
+The protocol selects stiffness (100, 1,000, 10,000 N/m) and prior weight (0.001,
+0.1) on `demo_0` and `demo_1`, then evaluates on `demo_2` and `demo_3`.
+The primary loss is squared force error averaged across frames, six bodies, and
+three force components, in N². Box force vector RMSE is also reported separately.
+The fixed evaluation schedule densely covers the impact interval, plus the
+reference peak frame for each episode as an explicit peak diagnostic. Direct
+contact-law estimates are additionally scored over all 800 evaluation transitions.
+The previously inspected validation file is reused; this is a preliminary
+comparison, not a pristine final test set or a NeRD rollout evaluation.
+
+Parameters are selected by force MSE among converged calibration trials with a
+mean particle-balance residual at most 5%. If none meet that gate, the report says
+so and retains the best converged candidate for diagnosis. MPM reactions are
+used for this scalar parameter calibration and scoring, never as inference inputs.
+The estimator is nonlearned but the selected effective parameters are calibrated.
+Position sensitivity uses persistent Gaussian offsets with standard deviations
+0.1 mm and 1 mm per coordinate, with fixed seeds and separately reset histories.
+
+
+### Measured result: first DEM-prior experiment
+
+On 52 matched frames from `demo_2` and `demo_3`:
+
+| Method | Force MSE [N²] | Box force-vector RMSE [N] | Mean balance residual | Converged frames |
+| --- | ---: | ---: | ---: | ---: |
+| Original baseline | 5290.03 | 214.85 | 0.039% | 0/52 |
+| Zero prior, new basis | 6876.50 | 225.21 | 14.78% | 52/52 |
+| DEM velocity friction | 6553.98 | 223.92 | 13.86% | 52/52 |
+| DEM contact history | 6523.56 | 224.01 | 13.92% | 52/52 |
+
+The history model increased force MSE by 23.3% versus the original baseline.
+At the exact reference force peaks (515.1 and 518.6 N upward on the moving box),
+it predicted -2.51 and -2.51 N. The original baseline predicted 10.88 and 13.01 N.
+Neither reconstructs the impact load accurately.
+
+Both DEM variants selected stiffness 100 N/m and prior weight 0.1. **No calibration
+candidate passed both convergence and the 5% particle-balance criterion.**
+These selected parameters are diagnostic fallbacks, not validated material parameters.
+The original solves reached their iteration limit; new solves met a normalized
+projected-gradient criterion of 1e-4. Their convergence flags use different criteria.
+The zero-prior ablation is a better controlled comparison of the added physical
+prior; that prior helps within the new basis but does not outperform the original.
+
+Median CPU assembly-plus-fit times were 0.521 s (velocity),
+0.611 s (history), and 6.695 s (original).
+These are indicative timings from concurrent jobs, not a controlled speed benchmark
+or evidence of an end-to-end simulation speedup. Histories evolve from the prescribed
+motion and constitutive friction cap, not from the adjusted inverse-solve forces.
+
+For persistent 0.1 mm and 1 mm position offsets, force-change RMSE versus clean
+estimates was 0.0778 and 0.3876 N per component on 12 matched evaluation frames.
+This isolates geometric sensitivity and does not establish accurate loads.
+
+Results and plots are retained in the sibling `particle_nerd/particle_nerd_plan/results/`
+and `assets/` directories: `dem_experiment.json`, `dem_original_baseline.json`,
+`dem_summary.json`, `dem-force-history.svg`, and `dem-force-loss.svg`.
+Eight mechanics tests pass. Scoped formatting/lint checks pass; the repository-wide
+changelog gate still fails on pre-existing unrelated fragments. No framework source
+was changed, and no MPM inference or GPU implementation was introduced.
