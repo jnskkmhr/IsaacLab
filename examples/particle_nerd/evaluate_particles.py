@@ -175,6 +175,7 @@ def rollout(
     force_error = np.asarray(forces).reshape(-1, 6) - e["force_reference"][:count, body]
     angles = (Rotation.from_quat(pose_all[:, body, 3:]) * Rotation.from_quat(reference_pose[:, 3:]).inv()).magnitude()
     body_error = np.linalg.norm(pose_all[:, body, :3] - reference_pose[:, :3], axis=-1)
+    peak_step = int(np.argmax(e["force_reference"][:count, body, 2])) if count else None
     metrics = dict(
         episode=e["name"],
         mode=mode,
@@ -195,6 +196,10 @@ def rollout(
         body_position_rmse_m=float(np.sqrt(np.mean(body_error**2))),
         body_orientation_rmse_deg=float(np.sqrt(np.mean(angles**2)) * 180 / np.pi),
         force_vector_rmse_N=float(np.sqrt(np.mean(np.sum(force_error[:, :3] ** 2, axis=-1)))) if count else None,
+        reference_peak_vertical_force_N=float(e["force_reference"][peak_step, body, 2]) if count else None,
+        predicted_peak_vertical_force_N=float(np.asarray(forces)[:, 2].max()) if count else None,
+        force_at_reference_peak_error_N=float(force_error[peak_step, 2]) if count else None,
+        reference_peak_time_s=(peak_step + 0.5) * dt if count else None,
         torque_vector_rmse_Nm=float(np.sqrt(np.mean(np.sum(force_error[:, 3:] ** 2, axis=-1)))) if count else None,
         force_solver_failures=failures,
         seconds_per_step=float(np.mean(elapsed)) if elapsed else None,
