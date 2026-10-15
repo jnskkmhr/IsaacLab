@@ -217,6 +217,7 @@ def main():
                 step=step,
                 elapsed_seconds=time.monotonic() - start,
                 training_loss=float(np.mean(losses[-100:])),
+                peak_gpu_tensor_memory_GB=torch.cuda.max_memory_allocated() / 1e9 if device == "cuda" else None,
                 validation=metrics,
                 updated_at=datetime.now(timezone.utc).isoformat(),
             )

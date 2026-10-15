@@ -396,7 +396,9 @@ uses no MPM. Queries outside the sampled volume raise, so padding must cover the
 particle positions being queried. `evaluate_sdf.py --mesh` compares triangulated
 box, sphere, and cylinder shapes against their analytic geometry. A separate
 concave-prism check verifies that mesh sampling preserves a geometric notch.
-These checks do not establish learned-motion accuracy on unseen mesh shapes.
+The collector and Newton rigid adapter still construct box, sphere, or cylinder
+bodies. General mesh import for rigid dynamics and learned-motion evaluation on
+unseen mesh shapes remain future work.
 
 ### Training and evaluation
 
