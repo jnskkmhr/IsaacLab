@@ -17,7 +17,7 @@ from pathlib import Path
 import h5py
 import torch
 from env_cfg import ParticleEnvCfg
-from scene_cfg import MOVING_BODY_ID, VOXEL_SIZE
+from scene_cfg import MOVING_BODY_ID, VOXEL_SIZE, configure_collection_scene
 
 from isaaclab.app import add_launcher_args, launch_simulation
 from isaaclab.envs import ManagerBasedEnv
@@ -32,6 +32,8 @@ def main():
         "--steps", type=int, default=400, help="400 steps records two seconds of free motion and contact."
     )
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--scene", choices=("small", "g1-testbed"), default="small")
+    parser.add_argument("--voxel-size", type=float, default=VOXEL_SIZE, help="MPM grid spacing [m].")
     parser.add_argument("--body-mass", type=float, default=2.0, help="Dynamic box mass [kg].")
     parser.add_argument("--mpm-iterations", type=int, choices=(25, 50), default=25)
     parser.add_argument("--material-friction", type=float, default=None)
@@ -48,6 +50,9 @@ def main():
         parser.error(f"Refusing to overwrite {output}")
     cfg = ParticleEnvCfg()
     cfg.scene.num_envs = args.num_envs
+    if not 0 < args.voxel_size < float("inf"):
+        parser.error("Voxel size must be finite and positive.")
+    scene_metadata = configure_collection_scene(cfg, args.scene, args.voxel_size)
     if not 0 < args.body_mass < float("inf"):
         parser.error("Body mass must be finite and positive.")
     cfg.seed = args.seed
@@ -83,7 +88,8 @@ def main():
         },
         "dt": cfg.sim.dt,
         "gravity": list(cfg.sim.gravity),
-        "voxel_size": VOXEL_SIZE,
+        "voxel_size": cfg.scene.sand.spawn.voxel_size,
+        **scene_metadata,
         "max_iterations": cfg.sim.physics.solver_cfg.entries[1].solver_cfg.max_iterations,
         "tolerance": cfg.sim.physics.solver_cfg.entries[1].solver_cfg.tolerance,
         "collider_velocity_mode": "forward",

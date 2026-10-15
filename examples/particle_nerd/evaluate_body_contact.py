@@ -69,6 +69,7 @@ def evaluate(episodes, names, parameters, *, body, gravity, dense=False):
                 contact_offset=parameters["contact_offset"],
                 effective_mass_scale=parameters["effective_mass_scale"],
                 extrapolate_velocity=parameters.get("affine", False),
+                velocity_gradient_device=parameters.get("velocity_gradient_device"),
                 stabilization=parameters.get("stabilization", 0),
                 previous_particle_impulse=previous_impulse,
                 history_weight=history_weight,

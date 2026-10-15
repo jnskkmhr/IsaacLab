@@ -88,3 +88,50 @@ class ParticleSceneCfg(InteractiveSceneCfg):
     body3 = body_cfg(3)
     body4 = body_cfg(4)
     body5 = body_cfg(5)
+
+
+def configure_collection_scene(cfg, scene: str, voxel_size: float):
+    """Set sampling and a level tray; the G1 preset uses its tilting testbed dimensions."""
+    if scene == "g1-testbed":
+        length, width, depth = 2.0, 2.0, 0.3
+        wall, floor = 0.1, 0.1
+        positions = (
+            (0, 0, -depth - floor / 2),
+            (-(length + wall) / 2, 0, -depth / 2),
+            ((length + wall) / 2, 0, -depth / 2),
+            (0, -(width + wall) / 2, -depth / 2),
+            (0, (width + wall) / 2, -depth / 2),
+        )
+        sizes = (
+            (length + 2 * wall, width + 2 * wall, floor),
+            (wall, width + 2 * wall, depth),
+            (wall, width + 2 * wall, depth),
+            (length, wall, depth),
+            (length, wall, depth),
+        )
+        for i, (position, size) in enumerate(zip(positions, sizes, strict=True)):
+            body = getattr(cfg.scene, f"body{i}")
+            body.init_state.pos = position
+            body.spawn.size = size
+        cfg.scene.env_spacing = 4.0
+    elif scene == "small":
+        length, width, depth = BED_SIZE
+    else:
+        raise ValueError(f"Unknown collection scene: {scene}")
+    sand = cfg.scene.sand.spawn
+    sand.lower = (-length / 2, -width / 2, -depth)
+    sand.upper = (length / 2, width / 2, 0.0)
+    sand.voxel_size = voxel_size
+    resolution = tuple(math.ceil(s * sand.particles_per_cell / voxel_size) for s in (length, width, depth))
+    sand.radius = 0.5 * (length * width * depth / math.prod(resolution)) ** (1.0 / 3.0)
+    cfg.sim.physics.solver_cfg.entries[1].solver_cfg.voxel_size = voxel_size
+    return {
+        "scene": scene,
+        "bed_size_m": [length, width, depth],
+        "lattice_resolution": list(resolution),
+        "expected_particles_per_environment": math.prod(resolution),
+        "particle_spacing_m": [s / n for s, n in zip((length, width, depth), resolution, strict=True)],
+        "particle_radius_m": sand.radius,
+        "particles_per_cell_axis": sand.particles_per_cell,
+        "tray_motion": "fixed level tray",
+    }

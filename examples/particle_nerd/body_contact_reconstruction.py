@@ -18,6 +18,7 @@ from time import perf_counter
 
 import numpy as np
 import osqp
+from numba import njit
 from reconstruction import box_contacts
 from scipy.sparse import block_diag, bmat, csc_matrix, diags, eye, vstack
 from scipy.spatial import cKDTree
@@ -37,28 +38,53 @@ class BodyContactResult:
     impulse_residual: float = 0.0
 
 
-def estimate_velocity_gradient(position, velocity, radius=0.065, regularization=0.01):
-    """Weighted affine fit to neighboring material velocities, using all particles.
+@njit(cache=True)
+def _fit_velocity_neighborhoods(position, velocity, offsets, neighbors, start, radius, regularization):
+    """Accumulate one neighborhood at a time to bound temporary storage."""
+    fitted = np.empty((len(offsets) - 1, 3, 3))
+    for local in range(len(fitted)):
+        i = start + local
+        lhs = np.zeros((3, 3))
+        rhs = np.zeros((3, 3))
+        for index in range(offsets[local], offsets[local + 1]):
+            j = neighbors[index]
+            dx = position[j] - position[i]
+            dv = velocity[j] - velocity[i]
+            q = np.sqrt(np.dot(dx, dx)) / radius
+            weight = (1 - q) ** 4 * (1 + 4 * q)
+            for row in range(3):
+                for col in range(3):
+                    lhs[row, col] += weight * dx[row] * dx[col]
+                    rhs[row, col] += weight * dx[row] * dv[col]
+        ridge = regularization * np.trace(lhs) / 3 + 1e-12
+        for axis in range(3):
+            lhs[axis, axis] += ridge
+        fitted[local] = np.linalg.solve(lhs, rhs)
+    return fitted
 
+
+def estimate_velocity_gradient(position, velocity, radius=0.065, regularization=0.01, device=None):
+    """Weighted affine velocity fit at every particle, with bounded temporary memory.
+
+    All neighbors within the radius enter the fit. Chunking changes storage only;
+    it does not select an active material region or remove distant particles.
     The returned matrix maps row-vector displacements to velocity differences.
-    A trace-scaled ridge stabilizes nearly planar neighborhoods. No boundary
-    velocity or force target enters this fit.
     """
-    pairs = cKDTree(position).query_pairs(radius, output_type="ndarray")
-    displacement = position[pairs[:, 1]] - position[pairs[:, 0]]
-    difference = velocity[pairs[:, 1]] - velocity[pairs[:, 0]]
-    q = np.linalg.norm(displacement, axis=1) / radius
-    weight = (1 - q) ** 4 * (1 + 4 * q)
-    covariance = weight[:, None, None] * displacement[:, :, None] * displacement[:, None, :]
-    cross = weight[:, None, None] * displacement[:, :, None] * difference[:, None, :]
-    lhs = np.zeros((len(position), 3, 3))
-    rhs = np.zeros_like(lhs)
-    for side in (0, 1):
-        np.add.at(lhs, pairs[:, side], covariance)
-        np.add.at(rhs, pairs[:, side], cross)
-    ridge = regularization * np.trace(lhs, axis1=1, axis2=2) / 3 + 1e-12
-    lhs += ridge[:, None, None] * np.eye(3)
-    return np.linalg.solve(lhs, rhs)
+    if device is not None:
+        from velocity_gradient_warp import estimate_velocity_gradient_warp
+
+        return estimate_velocity_gradient_warp(position, velocity, radius, regularization, device)
+    tree = cKDTree(position)
+    gradient = np.empty((len(position), 3, 3))
+    for start in range(0, len(position), 2048):
+        stop = min(start + 2048, len(position))
+        groups = tree.query_ball_point(position[start:stop], radius, return_sorted=True)
+        offsets = np.r_[0, np.cumsum([len(group) for group in groups])]
+        neighbors = np.concatenate(groups).astype(np.int64)
+        gradient[start:stop] = _fit_velocity_neighborhoods(
+            position, velocity, offsets, neighbors, start, radius, regularization
+        )
+    return gradient
 
 
 def reconstruct_body_contact(
@@ -78,6 +104,7 @@ def reconstruct_body_contact(
     max_iterations=10000,
     friction=None,
     extrapolate_velocity=False,
+    velocity_gradient_device=None,
     stabilization=0.0,
     previous_particle_impulse=None,
     history_weight=0.0,
@@ -123,7 +150,7 @@ def reconstruct_body_contact(
     free_velocity[3:] -= dt * np.linalg.solve(world_inertia, np.cross(velocity[3:], world_inertia @ velocity[3:]))
     distance, normals, points = box_contacts(x, pose, size)
     if extrapolate_velocity:
-        gradient = estimate_velocity_gradient(x, v)
+        gradient = estimate_velocity_gradient(x, v, device=velocity_gradient_device)
         v = v + np.einsum("ci,cij->cj", points - x, gradient)
     gap = distance - contact_offset
     gap_speed = (np.maximum(gap, 0) + stabilization * np.minimum(gap, 0)) / dt

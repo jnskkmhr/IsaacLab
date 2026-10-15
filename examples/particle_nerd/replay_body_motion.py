@@ -55,7 +55,13 @@ def replay(episode, parameters, body, gravity, *, reference=False):
         [[x, y, z] for x in (-half[0], half[0]) for y in (-half[1], half[1]) for z in (-half[2], half[2])]
     )
     ground_top = episode["body_pose"][0, 0, 2] + episode["body_size"][0, 2] / 2
-    wall_limits = np.array([0.16, 0.16])  # Inner faces of the fixed collection tray.
+    # Inner faces of the recorded axis-aligned fixed tray, in environment coordinates.
+    wall_lower = np.array(
+        [episode["body_pose"][0, i, axis] + episode["body_size"][i, axis] / 2 for i, axis in ((1, 0), (3, 1))]
+    )
+    wall_upper = np.array(
+        [episode["body_pose"][0, i, axis] - episode["body_size"][i, axis] / 2 for i, axis in ((2, 0), (4, 1))]
+    )
     for t in range(len(episode["reference"])):
         if reference:
             current = episode["reference"][t, body]
@@ -75,6 +81,7 @@ def replay(episode, parameters, body, gravity, *, reference=False):
                 effective_mass_scale=parameters["effective_mass_scale"],
                 friction=float(episode["body_friction"][body]) if parameters.get("frictional", False) else None,
                 extrapolate_velocity=parameters.get("affine", False),
+                velocity_gradient_device=parameters.get("velocity_gradient_device"),
                 stabilization=parameters.get("stabilization", 0),
                 previous_particle_impulse=previous_particle_impulse,
                 history_weight=parameters.get("history_weight", 0.0),
@@ -92,7 +99,8 @@ def replay(episode, parameters, body, gravity, *, reference=False):
         vertices = pose[:3] + corners @ Rotation.from_quat(pose[3:]).as_matrix().T
         minimum_ground_clearance = min(minimum_ground_clearance, float(vertices[:, 2].min() - ground_top))
         minimum_wall_clearance = min(
-            minimum_wall_clearance, float(np.min(wall_limits - np.max(np.abs(vertices[:, :2]), axis=0)))
+            minimum_wall_clearance,
+            float(min(np.min(vertices[:, :2] - wall_lower), np.min(wall_upper - vertices[:, :2]))),
         )
         if not np.isfinite(pose).all() or np.linalg.norm(velocity) > 100 or np.linalg.norm(pose[:3]) > 5:
             break

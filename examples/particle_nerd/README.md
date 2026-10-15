@@ -467,3 +467,33 @@ and `assets/` directories: `dem_experiment.json`, `dem_original_baseline.json`,
 Eight mechanics tests pass. Scoped formatting/lint checks pass; the repository-wide
 changelog gate still fails on pre-existing unrelated fragments. No framework source
 was changed, and no MPM inference or GPU implementation was introduced.
+
+### G1-sized level testbed and grid resolution
+
+Use the G1 tilting testbed's 2 × 2 × 0.3 m sand volume, with a level fixed tray:
+
+```bash
+uv run --no-project --python .venv/bin/python python examples/particle_nerd/collect.py \
+  --output /tmp/particle_nerd/g1_grid002.hdf5 --scene g1-testbed --voxel-size 0.02 \
+  --num_envs 1 --episodes_per_env 1 --steps 400 --seed 20261024 --split validation
+```
+
+This records 296,875 material points at approximately 0.016 m spacing. The
+0.12 × 0.12 × 0.08 m, 2 kg box remains freely dynamic. The tray uses 0.1 m
+floor/wall thickness; its walls reach the initial sand surface. The preset
+copies the testbed geometry, without its actuated roll/pitch joints or G1 robot.
+The manifest records actual grid spacing, lattice size, particle radius, and
+bed dimensions; collider sizes are recorded from the configured scene.
+
+For large recorded scenes, optional `velocity_gradient_device: "cuda:0"` in the
+contact parameter dictionary computes the same affine velocity fit with Warp.
+Install `warp-lang` in the force-analysis environment to use it. Every material
+point and its neighbors inside the fit radius remain included. This changes
+computation only; it introduces no material-region selection or force model.
+CPU evaluation uses bounded temporary storage. GPU/CPU numerical parity is
+checked independently of force calibration.
+
+Plot vertical **sand-on-box force** in newtons, positive upward. For a plot
+aligned with box motion, use `reference/applied_body_impulse / dt` and delay
+replay-produced forces by one step, matching the collector's lagged coupling.
+The 2 kg box's weight is 19.62 N. These are material sample spheres, not DEM grains.

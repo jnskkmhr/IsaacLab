@@ -65,7 +65,9 @@ class ReferenceRecorder(RecorderTerm):
             "body_inertia": wp.to_torch(model.body_inertia)[self.access.body_indices],
             "body_com": wp.to_torch(model.body_com)[self.access.body_indices],
             "body_object_id": torch.arange(count, device=device).expand(n, -1),
-            "body_size": torch.tensor(BODY_SIZES, device=device).expand(n, -1, -1),
+            "body_size": torch.tensor(
+                [getattr(self._env.cfg.scene, f"body{i}").spawn.size for i in range(count)], device=device
+            ).expand(n, -1, -1),
             "body_friction": torch.full((n, count), BODY_FRICTION, device=device),
             "environment_origin": self._env.scene.env_origins,
             "environment_id": torch.arange(n, device=device),

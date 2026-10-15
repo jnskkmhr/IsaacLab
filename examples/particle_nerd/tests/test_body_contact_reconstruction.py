@@ -213,3 +213,19 @@ def test_contact_impulse_history_recovers_static_support_and_clears_on_separatio
     )
     np.testing.assert_allclose(separated.body_wrench, 0.0, atol=1e-10)
     np.testing.assert_allclose(separated.particle_impulse, 0.0, atol=1e-10)
+
+
+def test_warp_gradient_preserves_irregular_neighborhood_fit():
+    """Acceleration must preserve the regularized CPU fit, including isolated samples."""
+    import pytest
+
+    wp = pytest.importorskip("warp")
+    from body_contact_reconstruction import estimate_velocity_gradient
+
+    rng = np.random.default_rng(182)
+    positions = np.r_[rng.uniform(-0.08, 0.08, (300, 3)), [[2.0, 1.0, 0.0]]]
+    velocities = rng.normal(size=positions.shape)
+    expected = estimate_velocity_gradient(positions, velocities)
+    actual = estimate_velocity_gradient(positions, velocities, device=str(wp.get_preferred_device()))
+    np.testing.assert_allclose(actual, expected, atol=1e-9, rtol=1e-8)
+    np.testing.assert_array_equal(actual[-1], np.zeros((3, 3)))
