@@ -18,8 +18,8 @@ Newton version installed in that checkout's `.venv`.
 | `reconstruction.py` | Estimate body reactions from particle motion and an explicit internal-force assumption. |
 | `evaluate_forces.py` | Compare reconstructed forces and torques against recorded MPM measurements. |
 
-No IsaacLab framework changes are required. The trainer and inference adapter
-belong to subsequent milestones.
+No IsaacLab framework changes are required. The experimental particle trainer and
+analytical-force rollout evaluator are described below; they are not yet a validated simulator.
 
 ## Milestone 1: collect reference motion
 
@@ -46,7 +46,8 @@ the existing G1 coupled configuration. CUDA graph capture is disabled.
 
 **Earlier results used a prescribed box trajectory.** Those files remain
 schema version 1; they do not validate the response of a freely moving box.
-The corrected dynamic collector writes schema version 2.
+The corrected dynamic collector introduced schema version 2. Version 3 additionally
+records box/sphere/cylinder geometry and static/dynamic physical roles.
 
 From the IsaacLab repository root, using its existing environment:
 
@@ -319,6 +320,114 @@ results panel, and its PDF in an existing slide repository. Raw recordings
 and detailed per-frame outputs remain local. The runner does not publish
 IsaacLab code. Collection also accepts `--material-friction` and
 `--material-density` for material sensitivity experiments.
+
+## Learned particle motion (experimental)
+
+The learning study uses a 0.02 m MPM grid and 4,000 particles in the small bed.
+Reference rigid bodies move dynamically under MJWarp–MPM coupling. Initial
+conditions are randomized; optional linear/angular launch velocities apply only
+at reset. Body geometry is selected with `--body-shape` and `--body-size`.
+
+| File | Task |
+| --- | --- |
+| `collect_learning_data.py` | Collect separate training, validation, and test parameter combinations; optionally expand training with independently varied body mass. |
+| `geometry.py` | Query signed distance, outward normal, and closest surface point for analytic shapes or sampled distance fields. |
+| `learning_data.py` | Load complete episodes while preserving split boundaries and particle identity. |
+| `particle_model.py` | Encode particle/rigid geometry features, exchange graph messages, and predict every particle's next position. |
+| `train_particles.py` | Train on next positions, optionally backpropagating through several predicted steps. |
+| `evaluate_particles.py` | Measure conditional particle rollouts and coupled particle/body rollouts. |
+| `evaluate_sdf.py` | Isolate sampled-distance-field error using recorded states and the analytical force estimator. |
+
+### Inputs, outputs, and timestep order
+
+The particle network receives current particle positions, recent particle
+velocities, particle mass/radius, material density/friction/Young modulus/Poisson
+ratio, and rigid geometry/state. Each rigid body contributes signed distance,
+outward normal, relative surface velocity, inverse mass, and friction. Its
+object ID associates these quantities; there is no learned object-category
+embedding. Static bodies have zero inverse mass. All material particles enter
+the graph; only graph edges and rigid influences have local distance cutoffs.
+
+The decoder predicts a correction to a gravity-only step. In plain notation:
+
+```text
+velocity_next = velocity_current + dt * gravity + velocity_scale * decoder_output
+position_next = position_current + dt * velocity_next
+```
+
+This parameterization predicts next position while making the velocity passed
+to force reconstruction explicit. Recorded MPM position differences and stored
+velocities agree to approximately 0.0000005 m/s RMS in a checked sphere episode.
+The force estimator has no neural output head and receives no force labels.
+
+The collector uses lagged coupling, reproduced by the deployment diagnostic:
+
+1. Advance the rigid body with the previous estimated contact wrench and gravity.
+2. Predict particle positions using current particles and the advanced rigid geometry.
+3. Reconstruct the current material-on-body wrench using current particle positions,
+   predicted next particle velocities, and the rigid state before step 1.
+4. Store that wrench for the next rigid transition.
+
+Training supplies the recorded advanced rigid state for step 2. Deployment
+computes it from its own previous wrench, so future reference body states are
+not required. Conditional evaluation keeps recorded rigid motion to isolate
+particle-model error. Coupled evaluation supplies only initial states and
+advances both particles and the dynamic body using predictions.
+
+The contact solver's auxiliary particle impulse is not applied again to the
+network's predicted particle velocity. The network was trained on motion that
+already includes contact. This composition does not enforce the complete
+particle momentum equations or uniquely recover material internal forces.
+Rigid momentum balance follows from applying the estimated wrench; agreement
+with reference motion and reference forces is a separate accuracy test.
+
+### Training and evaluation
+
+```bash
+# Use the simulation environment for collection and the analysis environment
+# (requirements-force.txt plus torch) for learning and reconstruction.
+uv run python examples/particle_nerd/collect_learning_data.py \
+  --output-dir /tmp/particle_learning --simulation-python /path/to/simulation/python
+
+uv run python examples/particle_nerd/train_particles.py /tmp/particle_learning \
+  --output /tmp/particle_model --steps 30000 --unroll 4
+
+uv run python examples/particle_nerd/evaluate_particles.py /tmp/particle_learning \
+  /tmp/particle_model/best.pt --output /tmp/particle_validation --split validation
+```
+
+One-step training starts from recorded states. With `--unroll 4`, the next three
+inputs use the model's predicted particle positions and velocities. Gradients
+pass through those predictions and analytic distance queries; neighbor indices
+are rebuilt discretely. A six-frame history and deeper message passing are
+configurable. Force labels do not enter training. Material parameters are inputs,
+but stress, plastic strain, and MPM grid state are absent.
+
+`--projection static` in evaluation projects particles outside static rigid
+geometry after each learned update. `--projection all` also projects against
+the moving body. Both are explicit ablations, disabled by default. Projection
+against the moving body is one-way and may change force inference substantially;
+it is not a jointly solved particle/body contact constraint.
+
+Report one-step error, 300-step particle error, rigid-body position/orientation
+error, contact-force error, and the number of completed rollouts. Do not rank
+an early-terminated rollout by its smaller partial-horizon RMSE. The free-body
+integrator stops if the moving body intersects the rigid tray; an actual Newton
+rigid-contact inference adapter remains necessary for those cases. Runtime
+measured during simultaneous GPU experiments is not a performance benchmark.
+
+The initial study uses 48 training, 6 validation, and 12 reserved test episodes.
+The expanded study adds training combinations; the split manifests in each run
+record exactly which episodes were used. All three shape families occur in
+training, so these tests do not establish generalization to unseen mesh shapes.
+
+The architecture follows the encoder/message-passing/decoder pattern in the
+[terrain manipulation paper](https://arxiv.org/abs/2503.23270) and its
+[public implementation](https://github.com/Chaoqi-LIU/lgbnd). The
+[PhysicsNeMo Lagrangian example](https://github.com/NVIDIA/physicsnemo/tree/main/examples/cfd/lagrangian_mgn)
+provides additional reference for velocity history, feature normalization, and
+training noise. This example is an independent PyTorch implementation and does
+not use the paper's region selector or its terrain/tool/wall category encoding.
 
 ## Historical prescribed-motion validation
 

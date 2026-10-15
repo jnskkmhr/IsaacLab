@@ -135,3 +135,36 @@ def configure_collection_scene(cfg, scene: str, voxel_size: float):
         "particles_per_cell_axis": sand.particles_per_cell,
         "tray_motion": "fixed level tray",
     }
+
+
+def configure_body_shape(cfg, shape: str, size):
+    """Set moving-body geometry; dimensions are full local extents in x/y/z."""
+    old = cfg.scene.body5.spawn
+    common = dict(
+        rigid_props=old.rigid_props,
+        mass_props=old.mass_props,
+        collision_props=old.collision_props,
+        physics_material=old.physics_material,
+    )
+    if shape == "box":
+        cfg.scene.body5.spawn = sim_utils.CuboidCfg(size=tuple(size), **common)
+    elif shape == "sphere":
+        cfg.scene.body5.spawn = sim_utils.SphereCfg(radius=size[0] / 2, **common)
+    elif shape == "cylinder":
+        cfg.scene.body5.spawn = sim_utils.CylinderCfg(radius=size[0] / 2, height=size[2], axis="Z", **common)
+    else:
+        raise ValueError(f"Unknown body shape: {shape}")
+    cfg.body_shape = shape
+
+
+def configured_body_sizes(cfg):
+    """Return recorded full extents for all six colliders."""
+    sizes = [getattr(cfg.scene, f"body{i}").spawn.size for i in range(5)]
+    body = cfg.scene.body5.spawn
+    if cfg.body_shape == "sphere":
+        sizes.append((2 * body.radius,) * 3)
+    elif cfg.body_shape == "cylinder":
+        sizes.append((2 * body.radius, 2 * body.radius, body.height))
+    else:
+        sizes.append(body.size)
+    return sizes

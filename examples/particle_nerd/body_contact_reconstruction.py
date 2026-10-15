@@ -18,8 +18,8 @@ from time import perf_counter
 
 import numpy as np
 import osqp
+from geometry import body_contacts
 from numba import njit
-from reconstruction import box_contacts
 from scipy.sparse import block_diag, bmat, csc_matrix, diags, eye, vstack
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation
@@ -99,6 +99,8 @@ def reconstruct_body_contact(
     *,
     dt,
     gravity=(0, 0, -9.81),
+    body_shape="box",
+    body_sdf=None,
     contact_offset=0.02,
     effective_mass_scale=10.0,
     max_iterations=10000,
@@ -148,7 +150,7 @@ def reconstruct_body_contact(
     free_velocity = velocity.copy()
     free_velocity[:3] += dt * np.asarray(gravity)
     free_velocity[3:] -= dt * np.linalg.solve(world_inertia, np.cross(velocity[3:], world_inertia @ velocity[3:]))
-    distance, normals, points = box_contacts(x, pose, size)
+    distance, normals, points = body_contacts(x, pose, size, body_shape, body_sdf)
     if extrapolate_velocity:
         gradient = estimate_velocity_gradient(x, v, device=velocity_gradient_device)
         v = v + np.einsum("ci,cij->cj", points - x, gradient)

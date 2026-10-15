@@ -18,7 +18,13 @@ from pathlib import Path
 import h5py
 import torch
 from env_cfg import ParticleEnvCfg
-from scene_cfg import MOVING_BODY_ID, VOXEL_SIZE, configure_collection_scene
+from scene_cfg import (
+    MOVING_BODY_ID,
+    VOXEL_SIZE,
+    configure_body_shape,
+    configure_collection_scene,
+    configured_body_sizes,
+)
 
 from isaaclab.app import add_launcher_args, launch_simulation
 from isaaclab.envs import ManagerBasedEnv
@@ -40,16 +46,25 @@ def main():
         type=float,
         nargs=3,
         metavar=("VX", "VY", "VZ"),
-        help="Fixed initial box linear velocity in world axes [m/s]; otherwise use randomized ranges.",
+        help="Fixed initial body linear velocity in world axes [m/s]; otherwise use randomized ranges.",
     )
     parser.add_argument(
         "--initial-angular-velocity",
         type=float,
         nargs=3,
         metavar=("WX", "WY", "WZ"),
-        help="Fixed initial box angular velocity about world x/y/z [rad/s]; otherwise randomize.",
+        help="Fixed initial body angular velocity about world x/y/z [rad/s]; otherwise randomize.",
     )
-    parser.add_argument("--body-mass", type=float, default=2.0, help="Dynamic box mass [kg].")
+    parser.add_argument("--body-shape", choices=("box", "sphere", "cylinder"), default="box")
+    parser.add_argument(
+        "--body-size",
+        type=float,
+        nargs=3,
+        default=(0.12, 0.12, 0.08),
+        help="Full local extents [m]; sphere/cylinder radius uses x/2.",
+    )
+    parser.add_argument("--young-modulus", type=float, default=None)
+    parser.add_argument("--body-mass", type=float, default=2.0, help="Dynamic body mass [kg].")
     parser.add_argument("--mpm-iterations", type=int, choices=(25, 50), default=25)
     parser.add_argument("--material-friction", type=float, default=None)
     parser.add_argument("--material-density", type=float, default=None, help="Material density [kg/m^3].")
@@ -68,6 +83,13 @@ def main():
     if not 0 < args.voxel_size < float("inf"):
         parser.error("Voxel size must be finite and positive.")
     scene_metadata = configure_collection_scene(cfg, args.scene, args.voxel_size)
+    if not all(0 < value < float("inf") for value in args.body_size):
+        parser.error("Body dimensions must be finite and positive.")
+    configure_body_shape(cfg, args.body_shape, args.body_size)
+    if args.young_modulus is not None:
+        if not 0 < args.young_modulus < float("inf"):
+            parser.error("Young modulus must be finite and positive.")
+        cfg.scene.sand.spawn.material.young_modulus = args.young_modulus
     if not 0 < args.body_mass < float("inf"):
         parser.error("Body mass must be finite and positive.")
     for values, axes in (
@@ -97,7 +119,7 @@ def main():
     # CUDA graph capture and collection throughput are separate optimization work.
     repo = Path(__file__).resolve().parents[2]
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "split": args.split,
         "seed": args.seed,
         "isaaclab_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
@@ -137,12 +159,14 @@ def main():
         "quaternion_order": "xyzw",
         "positions": "environment-relative; axes aligned with simulation world",
         "body_impulse": "material on body, torque impulse about body center; transition t to t+1",
-        "motion": "dynamic randomized box; MJWarp-MPM lagged two-way coupling",
+        "motion": "dynamic randomized rigid body; MJWarp-MPM lagged two-way coupling",
         "coupling_iterations": 1,
         "rigid_substeps": 1,
         "applied_body_impulse": "previous MPM feedback applied during current rigid transition",
         "initial_pose_offset_ranges": cfg.events.randomize_box.params["pose_range"],
         "initial_velocity_ranges": cfg.events.randomize_box.params["velocity_range"],
+        "body_shapes": ["box"] * 5 + [cfg.body_shape],
+        "body_sizes_m": configured_body_sizes(cfg),
         "body_mass_kg": cfg.scene.body5.spawn.mass_props.mass,
         "moving_object_id": MOVING_BODY_ID,
         "complete": False,

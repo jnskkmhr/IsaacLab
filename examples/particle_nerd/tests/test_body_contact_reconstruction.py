@@ -9,12 +9,14 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from body_contact_reconstruction import reconstruct_body_contact
 
 
-def test_normal_impact_has_reduced_mass_impulse_and_action_reaction():
+@pytest.mark.parametrize("shape", ["box", "sphere", "cylinder"])
+def test_normal_impact_has_reduced_mass_impulse_and_action_reaction(shape):
     result = reconstruct_body_contact(
         np.array([[0, 0, 0.0]]),
         np.zeros((1, 3)),
@@ -27,6 +29,7 @@ def test_normal_impact_has_reduced_mass_impulse_and_action_reaction():
         dt=0.01,
         contact_offset=0,
         effective_mass_scale=1,
+        body_shape=shape,
     )
     # Perfectly inelastic collision: impulse = reduced mass * closing speed.
     expected_impulse = (2 * 1 / (2 + 1)) * (1 + 9.81 * 0.01)

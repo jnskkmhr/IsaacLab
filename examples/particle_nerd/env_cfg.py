@@ -67,6 +67,7 @@ class ParticleEnvCfg(ManagerBasedEnvCfg):
     recorders = ParticleRecorderCfg()
     decimation = 1
     seed = 42
+    body_shape: str = "box"
     sim = SimulationCfg(
         dt=0.005,
         physics=NewtonCfg(

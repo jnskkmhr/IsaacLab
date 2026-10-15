@@ -8,7 +8,7 @@
 import torch
 import warp as wp
 from newton_access import NewtonData
-from scene_cfg import BODY_FRICTION, BODY_SIZES
+from scene_cfg import BODY_FRICTION, BODY_SIZES, configured_body_sizes
 
 from isaaclab.managers import RecorderManagerBaseCfg, RecorderTerm, RecorderTermCfg
 from isaaclab.utils import configclass
@@ -65,9 +65,11 @@ class ReferenceRecorder(RecorderTerm):
             "body_inertia": wp.to_torch(model.body_inertia)[self.access.body_indices],
             "body_com": wp.to_torch(model.body_com)[self.access.body_indices],
             "body_object_id": torch.arange(count, device=device).expand(n, -1),
-            "body_size": torch.tensor(
-                [getattr(self._env.cfg.scene, f"body{i}").spawn.size for i in range(count)], device=device
-            ).expand(n, -1, -1),
+            "body_size": torch.tensor(configured_body_sizes(self._env.cfg), device=device).expand(n, -1, -1),
+            "body_shape": torch.tensor(
+                [0] * 5 + [{"box": 0, "sphere": 1, "cylinder": 2}[self._env.cfg.body_shape]], device=device
+            ).expand(n, -1),
+            "body_dynamic": torch.tensor([False] * 5 + [True], device=device).expand(n, -1),
             "body_friction": torch.full((n, count), BODY_FRICTION, device=device),
             "environment_origin": self._env.scene.env_origins,
             "environment_id": torch.arange(n, device=device),
