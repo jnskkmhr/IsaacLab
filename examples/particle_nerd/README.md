@@ -402,7 +402,12 @@ One-step training starts from recorded states. With `--unroll 4`, the next three
 inputs use the model's predicted particle positions and velocities. Gradients
 pass through those predictions and analytic distance queries; neighbor indices
 are rebuilt discretely. A six-frame history and deeper message passing are
-configurable. Force labels do not enter training. Material parameters are inputs,
+configurable. The optional `--early-transition-probability 0.75` draws 75% of rollout starts
+from the first third of an episode and the remainder uniformly. This increases
+exposure to initial impacts in the drop/launch dataset; every particle remains
+in the loss, and no measured force determines the sampling weights. It is a
+dataset-specific training ablation, disabled by default.
+Force labels do not enter training. Material parameters are inputs,
 but stress, plastic strain, and MPM grid state are absent.
 
 `--projection static` in evaluation projects particles outside static rigid

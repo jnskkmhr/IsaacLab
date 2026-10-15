@@ -82,6 +82,12 @@ def main():
     parser.add_argument("--passes", type=int, default=3)
     parser.add_argument("--radius", type=float, default=0.035)
     parser.add_argument("--noise", type=float, default=0.01)
+    parser.add_argument(
+        "--early-transition-probability",
+        type=float,
+        default=0.0,
+        help="Probability of sampling a rollout start from the first third of an episode; otherwise sample uniformly.",
+    )
     parser.add_argument("--learning-rate", type=float, default=0.0003)
     parser.add_argument("--evaluate-every", type=int, default=500)
     parser.add_argument("--seed", type=int, default=1701)
@@ -92,6 +98,8 @@ def main():
         parser.error("Training dimensions and step counts must be positive.")
     if min(args.radius, args.input_velocity_scale, args.learning_rate) <= 0 or args.noise < 0:
         parser.error("Scales/rate must be positive and noise nonnegative.")
+    if not 0 <= args.early_transition_probability <= 1:
+        parser.error("Early-transition probability must be between zero and one.")
     if (args.output / "metrics.jsonl").exists():
         parser.error("Use a new output directory; existing training logs will not be overwritten.")
     args.output.mkdir(parents=True, exist_ok=True)
@@ -154,7 +162,10 @@ def main():
             break
         e = train[int(rng.integers(len(train)))]
         horizon = min(args.unroll, len(e["particle_position"]) - 1)
-        t = int(rng.integers(len(e["particle_position"]) - horizon))
+        available_starts = len(e["particle_position"]) - horizon
+        if args.early_transition_probability and rng.random() < args.early_transition_probability:
+            available_starts = max(1, min(available_starts, (len(e["particle_position"]) - 1) // 3))
+        t = int(rng.integers(available_starts))
         x = e["particle_position"][t].copy()
         history = velocity_history(e, t, model.config["history_length"])
         if args.noise:
