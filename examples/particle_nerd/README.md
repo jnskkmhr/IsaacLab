@@ -154,8 +154,9 @@ coupling.
 
 `body_contact_reconstruction.py` estimates a dynamic box reaction from current
 box state and predicted next material velocities. It does not run MPM and does
-not read future box acceleration. The present evaluations substitute recorded
-MPM particle motion for the future NeRD prediction. No motion network is trained.
+not read future box acceleration. The original force-only evaluations substitute recorded
+MPM particle motion. The learned-motion experiments below instead supply GNN
+predictions and feed the estimated reactions back into rigid-body integration.
 
 The calculation is:
 
@@ -181,7 +182,7 @@ every step, and discards separated contacts. It never initializes from recorded
 forces. `history_weight=0` retains the memoryless baseline; experiments with
 nonzero history are reported separately.
 
-The implementation currently handles one dynamic box. Static ground and wall
+The implementation handles one dynamic box, sphere, or cylinder. Static ground and wall
 reactions are not required to advance those fixed bodies, but their forces are
 included when checking the complete material momentum equations. This is a
 physical distinction between dynamic and fixed geometry, not an object category
@@ -336,6 +337,7 @@ at reset. Body geometry is selected with `--body-shape` and `--body-size`.
 | `particle_model.py` | Encode particle/rigid geometry features, exchange graph messages, and predict every particle's next position. |
 | `train_particles.py` | Train on next positions, optionally backpropagating through several predicted steps. |
 | `evaluate_particles.py` | Measure conditional particle rollouts and coupled particle/body rollouts. |
+| `newton_rigid.py` | Advance rigid bodies and rigid contacts with Newton MJWarp using estimated material forces. |
 | `evaluate_sdf.py` | Isolate sampled-distance-field error using recorded states and the analytical force estimator. |
 
 ### Inputs, outputs, and timestep order
@@ -413,10 +415,18 @@ Report one-step error, 300-step particle error, rigid-body position/orientation
 error, contact-force error, and the number of completed rollouts. Do not rank
 an early-terminated rollout by its smaller partial-horizon RMSE. The free-body
 integrator stops if the moving body intersects the rigid tray; an actual Newton
-rigid-contact inference adapter remains necessary for those cases. Runtime
+rigid-contact adapter is available with `--rigid-solver newton`. This adapter
+constructs only rigid geometry in Newton, applies the previous material wrench
+once, and uses MJWarp for rigid motion and direct tray contacts. It uses the
+collector's Euler integrator. A reference-force replay on one 300-step box episode
+reproduced body-center positions to 0.00000053 m RMS and orientation to
+0.000068 degrees RMS. Independent tests check free-flight momentum and a sphere
+settling on rigid ground. Direct rigid-contact forces are recorded separately
+from material reactions. Runtime
 measured during simultaneous GPU experiments is not a performance benchmark.
 
 The initial study uses 48 training, 6 validation, and 12 reserved test episodes.
+The expanded collection contains 156 training episodes in total.
 The expanded study adds training combinations; the split manifests in each run
 record exactly which episodes were used. All three shape families occur in
 training, so these tests do not establish generalization to unseen mesh shapes.

@@ -133,7 +133,7 @@ def main():
         model.load_state_dict(saved["model"])
     model.config["activation_checkpointing"] = args.checkpoint_activations
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
-    train = EpisodeStore(args.data, "train", cache_size=64)
+    train = EpisodeStore(args.data, "train", cache_size=256)
     validation = EpisodeStore(args.data, "validation", cache_size=16)
     split_names = {
         split: [f"{p.name}/{name}" for p, name in store.entries]

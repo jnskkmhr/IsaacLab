@@ -63,7 +63,15 @@ def project_particles(position, previous, body_pose, episode, mode="all", radius
 
 
 def rollout(
-    model, episode, device, mode="coupled", steps=300, projection="none", sampled_sdf=False, particle_baseline=False
+    model,
+    episode,
+    device,
+    mode="coupled",
+    steps=300,
+    projection="none",
+    sampled_sdf=False,
+    particle_baseline=False,
+    rigid_solver="free",
 ):
     e = episode
     body = e["moving_body"]
@@ -73,6 +81,12 @@ def rollout(
     history = [v.copy() for _ in range(model.config["history_length"])]
     poses = e["body_pose"][0].copy().astype(float)
     velocities = e["body_velocity"][0].copy().astype(float)
+    rigid = None
+    if mode == "coupled" and rigid_solver == "newton":
+        from newton_rigid import NewtonRigidStepper
+
+        rigid = NewtonRigidStepper(e)
+    direct_forces = []
     previous_force = np.zeros(6)
     particle_states, particle_velocities = [x.copy()], [v.copy()]
     body_states, body_velocities = [poses.copy()], [velocities.copy()]
@@ -91,6 +105,10 @@ def rollout(
             if mode == "conditional":
                 poses = e["body_pose"][t + 1].copy()
                 velocities = e["body_velocity"][t + 1].copy()
+            elif rigid is not None:
+                wrench = np.zeros((len(poses), 6))
+                wrench[body] = previous_force
+                poses, velocities = rigid.step(wrench)
             else:
                 poses[body], velocities[body] = integrate_body(
                     old_pose,
@@ -138,6 +156,7 @@ def rollout(
             previous_force = result.body_wrench
             failures += not result.converged
             forces.append(previous_force.copy())
+            direct_forces.append(rigid.direct_contact_force[body].copy() if rigid is not None else np.zeros(3))
             x, v = next_x, next_v
             history = history[1:] + [v.copy()]
             particle_states.append(x.copy())
@@ -145,7 +164,7 @@ def rollout(
             body_states.append(poses.copy())
             body_velocities.append(velocities.copy())
             elapsed.append(time.monotonic() - start)
-            if mode == "coupled" and rigid_clearance(e, poses[body]) < 0:
+            if mode == "coupled" and rigid is None and rigid_clearance(e, poses[body]) < 0:
                 stop_reason = "predicted body intersects rigid tray; rigid-tray contact is outside this diagnostic"
                 break
     x_all, v_all, pose_all = np.asarray(particle_states), np.asarray(particle_velocities), np.asarray(body_states)
@@ -162,6 +181,8 @@ def rollout(
         projection=projection,
         sampled_sdf=sampled_sdf,
         stationary_particle_baseline=particle_baseline,
+        rigid_solver=rigid_solver,
+        direct_rigid_contact_steps=int(np.sum(np.linalg.norm(direct_forces, axis=-1) > 0.1)) if direct_forces else 0,
         body_shape=e["body_shapes"][body],
         body_mass_kg=float(e["body_mass"][body]),
         material=e["material"],
@@ -188,6 +209,7 @@ def rollout(
         reference_particle_position=reference_x,
         reference_body_pose=e["body_pose"][: count + 1],
         reference_forces=e["force_reference"][:count, body],
+        direct_rigid_contact_force=np.asarray(direct_forces),
         dt=dt,
     )
     return metrics, arrays
@@ -203,6 +225,7 @@ def main():
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--projection", choices=("none", "static", "all"), default="none", nargs="?", const="all")
     parser.add_argument("--sampled-sdf", action="store_true")
+    parser.add_argument("--rigid-solver", choices=("free", "newton"), default="free")
     parser.add_argument(
         "--stationary-particles",
         action="store_true",
@@ -225,16 +248,29 @@ def main():
         expected_episodes=min(args.limit or len(store), len(store)),
         evaluation_complete=False,
         one_step=None if args.stationary_particles else one_step_metrics(model, store, device),
+        one_step_scope="Raw network with analytic geometry, before optional geometric projection.",
         particle_predictor="stationary" if args.stationary_particles else "gnn",
         rollouts=[],
         force_parameters=dict(effective_mass_scale=10, stabilization=0.01, contact_offset=0, affine=True),
-        limitation="Rigid integration is a free-body diagnostic; direct rigid-tray contacts stop coupled rollouts.",
+        limitation=(
+            "Newton MJWarp integrates rigid bodies and direct rigid contacts; learned particles remain external."
+            if args.rigid_solver == "newton"
+            else "Rigid integration is a free-body diagnostic; direct rigid-tray contacts stop coupled rollouts."
+        ),
     )
     model.eval()
     for i in range(min(args.limit or len(store), len(store))):
         for mode in args.modes:
             metrics, arrays = rollout(
-                model, store[i], device, mode, args.steps, args.projection, args.sampled_sdf, args.stationary_particles
+                model,
+                store[i],
+                device,
+                mode,
+                args.steps,
+                args.projection,
+                args.sampled_sdf,
+                args.stationary_particles,
+                args.rigid_solver,
             )
             output["rollouts"].append(metrics)
             output["evaluation_complete"] = i + 1 == output["expected_episodes"] and mode == args.modes[-1]
