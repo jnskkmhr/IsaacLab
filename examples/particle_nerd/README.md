@@ -497,3 +497,19 @@ Plot vertical **sand-on-box force** in newtons, positive upward. For a plot
 aligned with box motion, use `reference/applied_body_impulse / dt` and delay
 replay-produced forces by one step, matching the collector's lagged coupling.
 The 2 kg box's weight is 19.62 N. These are material sample spheres, not DEM grains.
+
+For controlled horizontal or spinning launches, override only the initial box
+velocity. Initial pose randomization remains controlled by `--seed`:
+
+```bash
+# Horizontal launch with an initial spin about the world x axis.
+uv run --no-project --python .venv/bin/python python examples/particle_nerd/collect.py \
+  --output /tmp/particle_nerd/launch_roll.hdf5 --scene g1-testbed --voxel-size 0.02 \
+  --num_envs 1 --episodes_per_env 1 --steps 400 --seed 20261025 --split validation \
+  --initial-linear-velocity 1.5 0 -0.1 --initial-angular-velocity 8 0 0
+```
+
+Linear velocity is in m/s; angular velocity is in rad/s about world x, y, and z.
+Use angular velocity `0 0 0` for translation only, `0 8 0` for a world-y spin,
+and `0 0 8` for a world-z spin. These are angular-velocity vector components,
+not Euler-angle derivatives. No velocity or trajectory is prescribed after reset.

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
+import math
 import subprocess
 import time
 from pathlib import Path
@@ -34,6 +35,20 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--scene", choices=("small", "g1-testbed"), default="small")
     parser.add_argument("--voxel-size", type=float, default=VOXEL_SIZE, help="MPM grid spacing [m].")
+    parser.add_argument(
+        "--initial-linear-velocity",
+        type=float,
+        nargs=3,
+        metavar=("VX", "VY", "VZ"),
+        help="Fixed initial box linear velocity in world axes [m/s]; otherwise use randomized ranges.",
+    )
+    parser.add_argument(
+        "--initial-angular-velocity",
+        type=float,
+        nargs=3,
+        metavar=("WX", "WY", "WZ"),
+        help="Fixed initial box angular velocity about world x/y/z [rad/s]; otherwise randomize.",
+    )
     parser.add_argument("--body-mass", type=float, default=2.0, help="Dynamic box mass [kg].")
     parser.add_argument("--mpm-iterations", type=int, choices=(25, 50), default=25)
     parser.add_argument("--material-friction", type=float, default=None)
@@ -55,6 +70,16 @@ def main():
     scene_metadata = configure_collection_scene(cfg, args.scene, args.voxel_size)
     if not 0 < args.body_mass < float("inf"):
         parser.error("Body mass must be finite and positive.")
+    for values, axes in (
+        (args.initial_linear_velocity, ("x", "y", "z")),
+        (args.initial_angular_velocity, ("roll", "pitch", "yaw")),
+    ):
+        if values is not None:
+            if not all(math.isfinite(value) for value in values):
+                parser.error("Initial velocities must be finite.")
+            cfg.events.randomize_box.params["velocity_range"].update(
+                {axis: (value, value) for axis, value in zip(axes, values, strict=True)}
+            )
     cfg.seed = args.seed
     cfg.scene.body5.spawn.mass_props.mass = args.body_mass
     if args.material_friction is not None:
