@@ -277,6 +277,49 @@ changed forces by only 0.0000165 N RMSE but did not always meet the strict
 default, with an explicit `--mpm-iterations 50` sensitivity option. Collection
 also accepts `--body-mass` for physical mass generalization experiments.
 
+### Contact history and timed evaluation
+
+Transporting the preceding estimated contact impulse and recalibrating four
+scalar contact parameters reduced force-vector RMSE from 9.41 N to **6.66 N**
+on the same 32 development episodes. Component MSE fell from 29.50 to
+**14.80 N²**; mean box-position RMSE fell from 0.72 to **0.38 cm**.
+However, upward-force error at the reference impact time increased from
+40.55 to **62.22 N RMSE**. Lower average error does not establish better
+impact-force reconstruction. These episodes have now been reused for method
+comparison and are no longer an untouched final test set.
+
+`overnight_study.py` compares mean-force and impact-force objectives using
+64 new fitting episodes, 32 validation episodes, and 64 independent test
+episodes. All recordings use randomized dynamic bodies and two-way MJWarp–MPM
+coupling. Force estimation uses particle motion and analytical contact iterations;
+it never invokes MPM or a force network. Histories advance at every timestep,
+including when only a subset of output frames is scored.
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+uv run --no-project --python "$FORCE_PYTHON" python examples/particle_nerd/overnight_study.py \
+  --data-dir /path/to/study_recordings \
+  --initial-experiment /path/to/history_parameters.json \
+  --baseline-experiment /path/to/memoryless_parameters.json \
+  --deadline 2026-10-15T14:00:00+00:00 \
+  --publish-site /path/to/particle_nerd_plan
+```
+
+The directory must contain `calibration.hdf5`, `validation.hdf5`, and
+`test.hdf5`; an existing `study.json` is never overwritten. The runner checks
+reference momentum balance, records source and dataset hashes, and selects
+candidates using validation force error and box-motion checks. Test forces
+are scored only after selection. Replay holds particle trajectories fixed,
+so it remains a diagnostic rather than a coupled NeRD simulation.
+
+Fitting stops 45 minutes before the specified deadline to leave time for
+independent evaluation. Completed trials and failures are saved locally.
+Optional publication updates only aggregate progress, the designated HTML
+results panel, and its PDF in an existing slide repository. Raw recordings
+and detailed per-frame outputs remain local. The runner does not publish
+IsaacLab code. Collection also accepts `--material-friction` and
+`--material-density` for material sensitivity experiments.
+
 ## Historical prescribed-motion validation
 
 The collection experiment completed four two-second episodes in two parallel
@@ -289,7 +332,7 @@ The recorded material/body linear momentum balance had relative residual
 The initial mechanics tests covered: free fall, weight transmission through
 a two-particle column, sliding friction and torque, and rotated-box contact geometry.
 These establish implementation conventions, not force accuracy on MPM trajectories.
-The expanded numerical suite now contains 22 passing mechanics tests.
+The expanded numerical suite contains 22 mechanics tests and two study-selection tests; all 24 pass.
 
 Reconstruction results are recorded separately after comparison with MPM.
 

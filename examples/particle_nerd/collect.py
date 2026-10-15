@@ -34,6 +34,8 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--body-mass", type=float, default=2.0, help="Dynamic box mass [kg].")
     parser.add_argument("--mpm-iterations", type=int, choices=(25, 50), default=25)
+    parser.add_argument("--material-friction", type=float, default=None)
+    parser.add_argument("--material-density", type=float, default=None, help="Material density [kg/m^3].")
     parser.add_argument("--split", choices=("train", "validation", "test"), default="train")
     add_launcher_args(parser)
     args = parser.parse_args()
@@ -50,6 +52,14 @@ def main():
         parser.error("Body mass must be finite and positive.")
     cfg.seed = args.seed
     cfg.scene.body5.spawn.mass_props.mass = args.body_mass
+    if args.material_friction is not None:
+        if not 0 <= args.material_friction < float("inf"):
+            parser.error("Material friction must be finite and nonnegative.")
+        cfg.scene.sand.spawn.material.friction = args.material_friction
+    if args.material_density is not None:
+        if not 0 < args.material_density < float("inf"):
+            parser.error("Material density must be finite and positive.")
+        cfg.scene.sand.spawn.material.density = args.material_density
     cfg.sim.physics.solver_cfg.entries[1].solver_cfg.max_iterations = args.mpm_iterations
     cfg.recorders.dataset_export_dir_path = str(output.parent)
     cfg.recorders.dataset_filename = output.stem

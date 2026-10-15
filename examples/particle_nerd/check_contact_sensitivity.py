@@ -63,7 +63,8 @@ def main():
         estimates, targets, iterations, residuals, times, converged = [], [], [], [], [], []
         for name in names:
             e = episodes[name]
-            for t in range(0, len(e["reference"]), 5):
+            previous_impulse = np.zeros_like(e["particle_position"][0])
+            for t in range(len(e["reference"])):
                 position = e["particle_position"][t + int(parameters["geometry"] == "end")].copy()
                 velocity = e["particle_velocity"][t + 1].copy()
                 position += position_sigma * rng.standard_normal(position.shape)
@@ -83,9 +84,14 @@ def main():
                     effective_mass_scale=parameters["effective_mass_scale"],
                     extrapolate_velocity=parameters.get("affine", False),
                     stabilization=parameters.get("stabilization", 0),
+                    previous_particle_impulse=previous_impulse,
+                    history_weight=parameters.get("history_weight", 0.0),
                     friction=float(e["body_friction"][body]) if parameters.get("frictional", False) else None,
                     max_iterations=maximum_iterations,
                 )
+                previous_impulse = result.particle_impulse
+                if t % 5:
+                    continue
                 estimates.append(result.body_wrench)
                 targets.append(e["reference"][t, body])
                 iterations.append(result.iterations)

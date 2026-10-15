@@ -39,7 +39,10 @@ def main():
     rows = []
     for name, e in episodes.items():
         fixed = np.arange(len(e["body_mass"])) != body
-        for t in range(0, len(e["reference"]), args.stride):
+        previous_impulse = np.zeros_like(e["particle_position"][0])
+        history_weight = parameters.get("history_weight", 0.0)
+        steps = range(len(e["reference"])) if history_weight else range(0, len(e["reference"]), args.stride)
+        for t in steps:
             position = e["particle_position"][t + int(parameters["geometry"] == "end")]
             contact = reconstruct_body_contact(
                 position,
@@ -56,8 +59,13 @@ def main():
                 effective_mass_scale=parameters["effective_mass_scale"],
                 extrapolate_velocity=parameters.get("affine", False),
                 stabilization=parameters.get("stabilization", 0),
+                previous_particle_impulse=previous_impulse,
+                history_weight=history_weight,
                 friction=float(e["body_friction"][body]) if parameters.get("frictional", False) else None,
             )
+            previous_impulse = contact.particle_impulse
+            if t % args.stride:
+                continue
             known_force = contact.particle_impulse / e["dt"]
             weight_scale = np.linalg.norm(e["particle_mass"][:, None] * gravity)
             for regularization in (1e-4, 1e-8):
