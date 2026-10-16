@@ -291,6 +291,41 @@ class modify_term_cfg(modify_env_param):
         self._address = self._address.replace("s.", "_manager.cfg.", 1)
 
 
+def linear_ramp(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    data: Any,
+    initial_value: Any,
+    final_value: Any,
+    start_step: int,
+    end_step: int,
+) -> Any:
+    """Linearly interpolate a parameter for :class:`modify_term_cfg` by control-step count.
+
+    Values are clamped to the endpoints outside the ramp. Equal start/end steps make a
+    step change. Nested tuples/lists are supported; their structure must match ``data``.
+
+    Args:
+        env: The environment, providing ``common_step_counter`` (not PPO iterations).
+        env_ids: Reset environment indices. Unused; the parameter is shared across environments.
+        data: Current parameter value, defining the result's container and scalar types.
+        initial_value: Parameter value at and before ``start_step``.
+        final_value: Parameter value at and after ``end_step``.
+        start_step: First control step of the ramp.
+        end_step: Last control step of the ramp. Must not precede ``start_step``.
+
+    Returns:
+        The interpolated parameter value.
+    """
+    if end_step < start_step:
+        raise ValueError("end_step must be greater than or equal to start_step.")
+    if end_step == start_step:
+        fraction = float(env.common_step_counter >= end_step)
+    else:
+        fraction = min(1.0, max(0.0, (env.common_step_counter - start_step) / (end_step - start_step)))
+    return _interpolate_nested(initial_value, final_value, data, fraction)
+
+
 class DifficultyScheduler(ManagerTermBase):
     """Adaptive difficulty scheduler for curriculum learning.
 

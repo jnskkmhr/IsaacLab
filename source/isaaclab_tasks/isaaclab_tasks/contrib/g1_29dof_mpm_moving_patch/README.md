@@ -75,3 +75,47 @@ uv run --with wandb isaaclab play --rl_library rsl_rl \
   --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain-Play \
   --num_envs 1 --wandb_run xxx 
 ```
+
+## Roll/pitch observation bias in moving-patch training
+
+The shared actor `PolicyCfg` uses `mdp.bias_projected_gravity`, with zero bias by
+default. Moving-patch and mixed-terrain training share the bias curriculum.
+Each environment samples
+independent, uniform roll and pitch offsets when it resets and keeps them for that
+episode. The offsets rotate the observed gravity direction; they do not change the
+robot's physical orientation. The critic and both Play configurations remain
+clean. Use the Play configuration with built-in projected gravity for policy export.
+
+`G1CurriculumCfg` in `env_cfg/curriculum_cfg.py` ramps each sampling range
+from `(0.0, 0.0)` to `(-math.radians(5.0), math.radians(5.0))` over 120,000 control
+steps (5,000 PPO iterations at 24 steps per iteration). Edit `final_value` and
+`end_step` in `gravity_roll_bias` and `gravity_pitch_bias` to change these defaults.
+The curriculum uses `mdp.modify_term_cfg` with `mdp.linear_ramp`; updated ranges
+apply only when an environment next resets. This schedule uses the environment's
+`common_step_counter`, not an inferred iteration number from a checkpoint.
+
+The observation lives in `PolicyCfg` in `env_cfg/observation_cfg.py`:
+
+```python
+projected_gravity = ObsTerm(
+    func=mdp.bias_projected_gravity,
+    mirror=mirror_vec3,
+    params={
+        "roll_bias_range": (0.0, 0.0),
+        "pitch_bias_range": (0.0, 0.0),
+        "roll_noise_std": 0.0,
+        "pitch_noise_std": 0.0,
+    },
+)
+```
+
+All angle parameters are **radians**. Optional `roll_noise_std` and `pitch_noise_std`
+add independent Gaussian angular noise on each observation evaluation; both default
+to zero. This replaces the mixed actor's previous Cartesian gravity-vector noise,
+so the gravity vector remains unit length. The error rotation uses the robot's local
+root axes: `q_observed = q_root * q_error`.
+
+This is tolerance training for orientation error, not a reproduction of Unitree's
+IMU estimator. Because the randomness is inside the observation term, setting
+`enable_corruption=False` alone does not disable it; use `mdp.projected_gravity`
+with empty parameters for clean evaluation, as the mixed-terrain Play config does.

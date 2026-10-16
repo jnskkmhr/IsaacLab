@@ -7,6 +7,7 @@
 
 import math
 
+import isaaclab.envs.mdp as mdp
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
@@ -126,6 +127,10 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
+        self.observations.policy.projected_gravity.func = mdp.projected_gravity
+        self.observations.policy.projected_gravity.params = {}
+        self.curriculum.gravity_roll_bias = None
+        self.curriculum.gravity_pitch_bias = None
 
         generator = ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = SLOPE_TERRAINS_CFG

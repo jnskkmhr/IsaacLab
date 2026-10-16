@@ -6,6 +6,7 @@
 
 import math
 
+import isaaclab.envs.mdp as mdp
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.utils import configclass
 
@@ -89,6 +90,10 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
         super().__post_init__()
         self.scene.num_envs = 2
         self.observations.policy.enable_corruption = False
+        self.observations.policy.projected_gravity.func = mdp.projected_gravity
+        self.observations.policy.projected_gravity.params = {}
+        self.curriculum.gravity_roll_bias = None
+        self.curriculum.gravity_pitch_bias = None
         self.events.push_robot = None
         for visualizer_cfg in self.sim.visualizer_cfgs:
             visualizer_cfg.headless = False
