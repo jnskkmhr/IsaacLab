@@ -28,22 +28,6 @@ from .scene_cfg import SAND_DEPTH
 class G1RewardsCfg:
     """Reward terms for the MDP."""
 
-    # metric_sliderbar = RewTerm(
-    #     func=mpm_mdp.metric_sliderbar,
-    #     weight=1.0,  # Zero-valued diagnostic; a zero weight would skip evaluation.
-    #     params={
-    #         "obs_group_name": "privileged",
-    #         "obs_term_names": [
-    #             # "base_lin_vel",
-    #             "foot_height",
-    #             "foot_contact",
-    #             "foot_contact_force",
-    #             "foot_air_time",
-    #             # "terrain_material_parameters",
-    #         ],
-    #     },
-    # )
-
     """
     task rewards
     """
@@ -86,7 +70,8 @@ class G1RewardsCfg:
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
+    # ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
+    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.2)
 
     """
     joint regularization.
@@ -189,45 +174,8 @@ class G1RewardsCfg:
         },
     )
 
-    # feet_pitch = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch,
-    #     weight=-4.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    # feet_pitch_diff = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch_diff,
-    #     weight=-4.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-    # # avoid toe contact
-    # feet_pitch_contact = RewTerm(
-    #     func=mpm_mdp.feet_pitch_contact,
-    #     weight=-4.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
     stance_foot_angle_penalty = RewTerm(
         func=mpm_mdp.stance_foot_angle_penalty,  # type: ignore
-        # weight=-4.0,
         weight=-8.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=[".*ankle_roll.*"], preserve_order=True),

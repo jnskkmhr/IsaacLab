@@ -326,6 +326,6 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
 
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
         ]

@@ -56,7 +56,7 @@ class G1EventCfg:
         func=mpm_mdp.reset_root_state_on_terrain,  # type: ignore
         mode="reset",
         params={
-            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-math.pi, math.pi)},
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "z": (0.1, 0.1), "yaw": (-math.pi, math.pi)},
             "velocity_range": {
                 "x": (-0.5, 0.5),
                 "y": (-0.5, 0.5),

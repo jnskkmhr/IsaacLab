@@ -16,11 +16,7 @@ from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
-    FLAT_TERRAINS_CFG,
-    ROUGH_TERRAINS_CFG,
     ROUGH_TERRAINS_DIFFICULT_CFG,
-    SLOPE_TERRAINS_CFG,
-    WAVE_TERRAINS_CFG,
     G1ActionsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,
@@ -32,7 +28,7 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .util.solver_setting import configure_sparse_mpm_capacities
-from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchKitVisualizerCfg, MovingPatchRTXVisualizerCfg
+from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchRTXVisualizerCfg
 
 
 @configclass
@@ -106,9 +102,7 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0), show_particles=True),
-            MovingPatchRTXVisualizerCfg(
-                eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, 
-            ),
+            MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [

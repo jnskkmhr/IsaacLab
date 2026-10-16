@@ -58,11 +58,6 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
             if term is not None:
                 term.func = randomize_mpm_material
 
-        self.curriculum.command_vel.params["velocity_stages"] = [
-                {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-                {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.5), "ang_vel_z": (-1.0, 1.0)},
-            ]
-
     def validate_config(self) -> None:
         if not 0.0 <= self.mpm_ratio <= 1.0:
             raise ValueError("mpm_ratio must be between 0 and 1.")
@@ -113,7 +108,7 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (1, 1)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
-        self.commands.base_velocity.rel_standing_envs = 0.5
+        # self.commands.base_velocity.rel_standing_envs = 0.
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
         self.sim.visualizer_cfgs = [
