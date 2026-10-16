@@ -288,6 +288,16 @@ class G1RewardsCfg:
         },
     )
 
+    stance_foot_velocity_l2 = RewTerm(
+        func=g1_mdp.stance_foot_velocity_l2,
+        weight=-5.0,
+        params={
+            "command_name": "base_velocity",
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
+            "command_threshold": 0.05,
+        },
+    )
+
     contact_impulse = RewTerm(
         func=mpm_mdp.reward_soft_landing,
         weight=-5e-3,

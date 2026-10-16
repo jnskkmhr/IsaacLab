@@ -577,8 +577,8 @@ class G1RewardsRoughCfg:
     )
 
     # Discourage stepping in place without prescribing a fixed standing joint pose.
-    standing_foot_motion = RewTerm(
-        func=g1_mdp.standing_foot_motion,
+    stance_foot_velocity_l2 = RewTerm(
+        func=g1_mdp.stance_foot_velocity_l2,
         weight=-5.0,
         params={
             "command_name": "base_velocity",

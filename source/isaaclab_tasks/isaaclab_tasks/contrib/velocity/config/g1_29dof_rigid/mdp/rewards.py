@@ -110,17 +110,20 @@ def break_contact_penalty(
         recovery_tilt=recovery_tilt,
     )
 
-def standing_foot_motion(
+
+def stance_foot_velocity_l2(
     env: ManagerBasedRLEnv,
     command_name: str,
     asset_cfg: SceneEntityCfg,
     command_threshold: float = 0.05,
 ) -> torch.Tensor:
-    """Penalize squared world-frame foot speed when linear and yaw commands are near zero.
+    """Penalize foot motion at near-zero commands, with less cost during root motion.
 
-    All three velocity components contribute, including vertical motion during steps in place.
-    The heading quaternion in the G1 command is ignored. Unlike a joint-position penalty, this
-    term allows the robot to settle into different standing poses on uneven terrain.
+    All three world-frame foot velocity components contribute, including vertical steps.
+    The heading quaternion in the command is ignored. The cost is multiplied by
+    ``exp(-(root_linear_speed + root_angular_speed)**2)``, using the root velocities
+    expressed in the body frame. This retains the full cost at rest and relaxes it
+    during recovery motion without prescribing a fixed standing joint pose.
     """
     command = env.command_manager.get_command(command_name)
     standing = (torch.linalg.vector_norm(command[:, :2], dim=-1) < command_threshold) & (
@@ -128,7 +131,10 @@ def standing_foot_motion(
     )
     asset: Articulation = env.scene[asset_cfg.name]
     foot_velocity = asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids]
-    return foot_velocity.square().sum(dim=(1, 2)) * standing
+    velocity_magnitude = torch.linalg.vector_norm(asset.data.root_lin_vel_b.torch, dim=-1)
+    velocity_magnitude += torch.linalg.vector_norm(asset.data.root_ang_vel_b.torch, dim=-1)
+    recovery_weight = torch.exp(-velocity_magnitude.square())
+    return foot_velocity.square().sum(dim=(1, 2)) * standing * recovery_weight
 
 
 def fly(
