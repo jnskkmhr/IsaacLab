@@ -317,8 +317,8 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
             NewtonRTXVisualizerCfg(
                 eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                # origin_type="asset",
-                # origin_track_path="robot",
+                origin_type="asset",
+                origin_track_path="robot",
                 streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),

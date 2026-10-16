@@ -160,14 +160,18 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]

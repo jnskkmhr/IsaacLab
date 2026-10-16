@@ -114,14 +114,19 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
 
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                # follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+                origin_env_index=0,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
