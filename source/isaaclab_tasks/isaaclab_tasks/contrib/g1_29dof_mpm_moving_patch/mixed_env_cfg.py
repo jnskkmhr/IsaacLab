@@ -2,23 +2,23 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-"""Equal-sized rigid-ground and MPM-ground groups for one G1 policy."""
+"""Random rigid-ground and MPM-ground assignments for one G1 policy."""
 
 import math
 
 import isaaclab.envs.mdp as mdp
-from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg  # noqa: F401
 from isaaclab.utils import configclass
 
 from .env_cfg import (
-    FLAT_TERRAINS_CFG,
-    ROUGH_TERRAINS_CFG,
+    FLAT_TERRAINS_CFG,  # noqa: F401
+    ROUGH_TERRAINS_CFG,  # noqa: F401
     ROUGH_TERRAINS_DIFFICULT_CFG,
-    SLOPE_TERRAINS_CFG,
-    WAVE_TERRAINS_CFG,
+    SLOPE_TERRAINS_CFG,  # noqa: F401
+    WAVE_TERRAINS_CFG,  # noqa: F401
 )
 from .env_cfg.mixed_scene_cfg import G1MixedTerrainSceneCfg
-from .env_cfg.physics_cfg import MPM_ENTRY, G1PhysicsProxyCfg
+from .env_cfg.physics_cfg import G1PhysicsProxyCfg
 from .env_cfg.scene_cfg import FOOT_CONTACT_MARGIN
 from .mdp.curriculums import terrain_levels_vel
 from .mixed_env import outside_contact_region, randomize_mpm_material
@@ -31,9 +31,12 @@ from .util.visualizer import (
 
 @configclass
 class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
-    """Use contiguous, equal-sized MPM and rigid groups, fixed across resets."""
+    """Sample rigid or MPM contact independently per environment, fixed across resets."""
 
     scene: G1MixedTerrainSceneCfg = G1MixedTerrainSceneCfg(num_envs=64, env_spacing=4.0)
+
+    mpm_ratio: float = 0.5
+    """Probability of MPM contact per environment, in [0, 1]. A single environment always uses MPM."""
 
     mpm_contact_margin: float = FOOT_CONTACT_MARGIN
     """Fixed robot foot collider margin in MPM environments [m]."""
@@ -61,6 +64,10 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
             ]
 
     def validate_config(self) -> None:
+        if not 0.0 <= self.mpm_ratio <= 1.0:
+            raise ValueError("mpm_ratio must be between 0 and 1.")
+        self.scene.clone_cfg.clone_combinations[0].weight = 1.0 - self.mpm_ratio
+        self.scene.clone_cfg.clone_combinations[1].weight = self.mpm_ratio
         if self.foot_contact_margin_range is not None:
             raise ValueError(
                 "Mixed terrain uses mpm_contact_margin and rigid_contact_margin, not a sampled margin range."
@@ -69,22 +76,14 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
             margin = getattr(self, name)
             if not math.isfinite(margin) or margin < 0.0:
                 raise ValueError(f"{name} must be finite and nonnegative.")
-        if self.scene.num_envs < 2 or self.scene.num_envs % 2:
-            raise ValueError("Mixed terrain requires an even num_envs >= 2 (half MPM, half rigid).")
+        if self.scene.num_envs < 1:
+            raise ValueError("Mixed terrain requires num_envs >= 1.")
         super().validate_config()
-        # Keep the same foot-proxy layout in every world so Newton can compact the MPM model.
-        # Worlds without particles produce no MPM reaction force.
-        for entry in self.sim.physics.solver_cfg.entries:
-            if entry.name == MPM_ENTRY:
-                entry.solver_cfg.max_active_cell_count //= 2
-                entry.solver_cfg.max_leaf_node_count //= 2
-                entry.solver_cfg.max_lower_node_count //= 2
-                entry.solver_cfg.max_upper_node_count = max(32, entry.solver_cfg.max_upper_node_count // 2)
 
 
 @configclass
 class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
-    """Play one environment of each ground type without pushes or observation noise."""
+    """Play sampled rigid or MPM environments without pushes or observation noise."""
 
     def __post_init__(self) -> None:
         super().__post_init__()

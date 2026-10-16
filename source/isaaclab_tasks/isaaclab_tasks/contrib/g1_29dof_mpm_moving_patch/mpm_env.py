@@ -78,7 +78,8 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def step(self, action: torch.Tensor):
         obs, reward, terminated, truncated, extras = super().step(action)
-        self.moving_patch_particle.check_terrain_queries()
+        if self.moving_patch_particle is not None:
+            self.moving_patch_particle.check_terrain_queries()
         # Rewards are computed from the pre-reset state, so the step on which a world diverges
         # carries a NaN reward even though `solver_diverged` already reset it. One NaN sample is
         # enough to destroy a policy update, so it is scrubbed here.
@@ -97,6 +98,9 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def _setup_moving_patch_particle(self) -> None:
         """Create particles from this scene's terrain and attach physics callbacks."""
+        NewtonManager.register_post_step_callback(self._restore_boundary_particles)
+        if NewtonManager.get_model().particle_count == 0:
+            return
         terrain = self.scene.terrain
         self.moving_patch_particle = MovingPatchParticles(
             model=NewtonManager.get_model(),
@@ -107,7 +111,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             background_mesh=terrain.background_mesh,  # type: ignore
         )
         NewtonManager.register_state_force_callback(self._update_moving_patch_particle)
-        NewtonManager.register_post_step_callback(self._restore_boundary_particles)
         for visualizer in self.sim._visualizers:
             if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
                 visualizer.moving_patch_particle = self.moving_patch_particle
@@ -118,7 +121,8 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def _restore_boundary_particles(self) -> None:
         """Remove boundary drift after the final substep of each physics step."""
-        self.moving_patch_particle.restore_boundary_particles(NewtonManager.get_state_0())
+        if self.moving_patch_particle is not None:
+            self.moving_patch_particle.restore_boundary_particles(NewtonManager.get_state_0())
 
     def close(self) -> None:
         """Detach this environment's callbacks before releasing its scene."""
@@ -296,6 +300,9 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         Proxy forces use global Newton body indices; ADMM forces use robot-entry indices.
         Both buffers exclude external forces. ADMM reports the wrench applied in its final iteration.
         """
+        model = NewtonManager.get_model()
+        if model.particle_count == 0:
+            return wp.zeros(model.body_count, dtype=wp.spatial_vector, device=model.device)
         solver = NewtonManager._solver
         if isinstance(solver, DirectSolverCoupler):
             return solver.coupling_forces

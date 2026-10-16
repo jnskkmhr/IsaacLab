@@ -14,11 +14,15 @@ import numpy as np
 import torch
 import warp as wp
 from isaaclab_newton.assets import MPMObject
+from isaaclab_newton.assets.mpm_object.mpm_object_data import MPMObjectData
 from isaaclab_newton.envs.mdp.events import randomize_mpm_material as RandomizeMPMMaterial
 from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
 
 from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
 
+from isaaclab_contrib.coupling import CouplerAdmmCfg
+
+from .env_cfg.physics_cfg import MPM_ENTRY
 from .mdp.terminations import root_outside_workspace
 from .mpm_env import G1MovingPatchEnv
 
@@ -51,23 +55,38 @@ def sum_rigid_foot_forces(
 
 
 class MixedMPMObject(MPMObject):
-    """Particle asset present only in the first half of scene environments."""
+    """Particle asset mapping sampled scene worlds to compact particle instances."""
 
     def _initialize_impl(self) -> None:
-        super()._initialize_impl()
-        self._scene_env_ids = torch.arange(2 * self.num_instances, device=self.device)
+        model = NewtonManager.get_model()
+        if model.particle_count:
+            super()._initialize_impl()
+        else:
+            # The clone plan may select only rigid worlds, leaving this asset with no instances.
+            self._num_instances = self._particles_per_object = 0
+            self._particle_offsets = wp.empty(0, dtype=wp.int32, device=self.device)
+            self._data = MPMObjectData(self._particle_offsets, 0, 0, self.device)
+        self.scene_env_ids = (
+            wp.to_torch(model.particle_world)[wp.to_torch(self._particle_offsets).long()].long()
+            if self.num_instances
+            else torch.empty(0, dtype=torch.long, device=self.device)
+        )
+        self._scene_to_instance = torch.full((model.world_count,), -1, dtype=torch.long, device=self.device)
+        self._scene_to_instance[self.scene_env_ids] = torch.arange(self.num_instances, device=self.device)
 
     def select_mpm_env_ids(self, env_ids: Sequence[int] | torch.Tensor | slice | None) -> torch.Tensor:
-        """Map scene reset selections to the particle asset's contiguous instances."""
-        ids = self._scene_env_ids[slice(None) if env_ids is None else env_ids]
-        return ids[ids < self.num_instances]
+        """Map scene environment IDs to compact particle-instance IDs, excluding rigid worlds."""
+        ids = self._scene_to_instance[slice(None) if env_ids is None else env_ids]
+        return ids[ids >= 0]
 
     def reset(
         self, env_ids: Sequence[int] | torch.Tensor | slice | None = None, env_mask: wp.array | None = None
     ) -> None:
         if env_mask is not None:
             env_ids = wp.to_torch(env_mask).nonzero().flatten()
-        super().reset(env_ids=self.select_mpm_env_ids(env_ids))
+        ids = self.select_mpm_env_ids(env_ids)
+        if ids.numel():
+            super().reset(env_ids=ids)
 
 
 class randomize_mpm_material(RandomizeMPMMaterial):
@@ -75,7 +94,7 @@ class randomize_mpm_material(RandomizeMPMMaterial):
 
     def __init__(self, cfg: EventTermCfg, env: G1MixedTerrainEnv) -> None:
         # The generic sampler requires one particle object per scene environment.
-        # Here its sampling rows correspond only to the MPM half of the scene.
+        # Here its sampling rows correspond only to the sampled MPM instances.
         ManagerTermBase.__init__(self, cfg, env)
         self.asset = env.scene[cfg.params["asset_cfg"].name]
         self._particle_offsets = wp.to_torch(self.asset._particle_offsets).long()
@@ -92,9 +111,13 @@ class randomize_mpm_material(RandomizeMPMMaterial):
         distribution: str = "uniform",
     ) -> None:
         ids = self.asset.select_mpm_env_ids(env_ids)
+        if not ids.numel():
+            return
         super().__call__(env, ids, asset_cfg, parameter_ranges, distribution)
         if "density" in parameter_ranges and ids.numel():
-            env.moving_patch_particle.set_dynamic_particle_density(self.material_parameters["density"][ids], ids)
+            env.moving_patch_particle.set_dynamic_particle_density(
+                self.material_parameters["density"][ids], self.asset.scene_env_ids[ids]
+            )
 
 
 def outside_contact_region(
@@ -106,9 +129,8 @@ def outside_contact_region(
     split_y = 0.0
     half_patch_width = env.cfg.scene.terrain.moving_patch_terrain.total_patch_size[1] / 2
     y = env.scene[asset_cfg.name].data.root_pos_w.torch[:, 1]
-    num_mpm_envs = env.num_envs // 2
-    outside[:num_mpm_envs] |= y[:num_mpm_envs] > split_y - half_patch_width - margin
-    outside[num_mpm_envs:] |= y[num_mpm_envs:] < split_y + margin
+    mpm = env.scene.terrain.mpm_env_mask
+    outside |= torch.where(mpm, y > split_y - half_patch_width - margin, y < split_y + margin)
     return outside
 
 
@@ -117,10 +139,27 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
 
     def _set_contact_margin(self, payload=None):
         """Use a fixed foot margin for each terrain group before solver construction."""
-        num_mpm_envs = self.num_envs // 2
-        margins = [self.cfg.mpm_contact_margin] * num_mpm_envs
-        margins += [self.cfg.rigid_contact_margin] * (self.num_envs - num_mpm_envs)
-        self._set_foot_contact_margins(margins)
+        mpm = self.scene.terrain.mpm_env_mask.cpu().tolist()
+        self._set_foot_contact_margins(
+            [self.cfg.mpm_contact_margin if is_mpm else self.cfg.rigid_contact_margin for is_mpm in mpm]
+        )
+        # The clone assignment is now known, but solver construction has not started.
+        count = sum(mpm)
+        coupling = self.cfg.sim.physics.solver_cfg
+        if count == 0:
+            # A proxy coupler with no connections never steps its entries. Use one
+            # uncoupled MJWarp entry, retaining its configured rigid substeps and contacts.
+            self.cfg.sim.physics.solver_cfg = CouplerAdmmCfg(
+                entries=[entry for entry in coupling.entries if entry.name != MPM_ENTRY],
+                contact_pairs=[],
+                iterations=1,
+            )
+        else:
+            for entry in coupling.entries:
+                if entry.name == MPM_ENTRY:
+                    for name in ("max_active_cell_count", "max_leaf_node_count", "max_lower_node_count"):
+                        setattr(entry.solver_cfg, name, getattr(entry.solver_cfg, name) // self.num_envs * count)
+                    entry.solver_cfg.max_upper_node_count = max(32, self.cfg.mpm_upper_node_count_per_world * count)
 
     def _setup_contact_state(self) -> None:
         entry = NewtonManager._solver._entries["robot"]
@@ -192,10 +231,16 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
         world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
         world_mask[: self.num_envs][env_ids] = True
         mask = wp.from_torch(world_mask, dtype=wp.bool)
-        NewtonMPMManager.reset_solver_state(world_mask=mask, flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE)
+        if self.moving_patch_particle is not None:
+            NewtonMPMManager.reset_solver_state(
+                world_mask=mask, flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE
+            )
+        else:
+            NewtonManager._solver.reset(NewtonManager.get_state_0(), world_mask=mask, flags=newton.StateFlags.BODY)
         self._foot_air_time[env_ids] = 0.0
         self._foot_contact_time[env_ids] = 0.0
         self._foot_first_contact[env_ids] = False
         self._rigid_contact_valid[env_ids] = False
         self._contact_state_step = -1
-        self.moving_patch_particle.reset(mask)
+        if self.moving_patch_particle is not None:
+            self.moving_patch_particle.reset(mask)

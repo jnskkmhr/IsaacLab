@@ -58,11 +58,22 @@ uv run --with wandb isaaclab play --rl_library rsl_rl \
   --num_envs 1 --viz newton_rtx --wandb_run xxx 
 ```
 
-# Moving patch terrain with mixed rigid ground 
+# Moving patch terrain with mixed rigid ground
 
-## Training 
+With `--num_envs 1`, the environment uses MPM. For larger batches, before scene
+assets are created, the cloner independently samples each environment's contact
+type: `0 = rigid`, `1 = MPM`. Set `mpm_ratio` to the MPM probability
+(default `0.5`); rigid terrain has probability `1 - mpm_ratio`. For example,
+append `env.mpm_ratio=0.75` to a train/play command for a 75% MPM probability.
+This is an independent random draw, so `0.5` gives an equal split on average,
+not an exact half-and-half count. The environment seed controls the draw, and
+membership stays fixed across episode resets. Odd counts are supported.
+The single-environment MPM override applies regardless of `mpm_ratio`.
+A draw containing only rigid worlds advances MJWarp without MPM particles or coupling interfaces.
 
-```bash 
+## Training
+
+```bash
 uv run --with wandb isaaclab train --rl_library rsl_rl \
   --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain \
   --num_envs 64
@@ -70,12 +81,11 @@ uv run --with wandb isaaclab train --rl_library rsl_rl \
 
 ## Play
 
-```bash 
+```bash
 uv run --with wandb isaaclab play --rl_library rsl_rl \
   --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain-Play \
-  --num_envs 1 --wandb_run xxx 
+  --num_envs 1 --wandb_run xxx
 ```
-
 ## Roll/pitch observation bias in moving-patch training
 
 The shared actor `PolicyCfg` uses `mdp.bias_projected_gravity`, with zero bias by

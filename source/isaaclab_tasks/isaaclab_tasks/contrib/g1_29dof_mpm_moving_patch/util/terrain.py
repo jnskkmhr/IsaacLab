@@ -343,7 +343,7 @@ class PairedTerrainGenerator(TerrainGenerator):
 
 
 class MixedTerrainImporter(BackgroundTerrainImporter):
-    """Assign the first half of environments to MPM columns and the rest to rigid columns.
+    """Assign environments to terrain columns using their sampled clone membership.
 
     Difficulty levels and row progression use TerrainImporter. Each contact group
     receives the full configured column count, including odd column counts.
@@ -361,16 +361,18 @@ class MixedTerrainImporter(BackgroundTerrainImporter):
 
     def _compute_env_origins_curriculum(self, num_envs: int, origins: torch.Tensor) -> torch.Tensor:
         super()._compute_env_origins_curriculum(num_envs, origins)
-        num_mpm_envs = num_envs // 2
+        # Clone membership is sampled before scene assets are constructed: 0=rigid, 1=MPM.
+        plan = sim_utils.SimulationContext.instance().get_clone_plan()
+        self.mpm_env_mask = torch.as_tensor(
+            plan.topology.world_prototype_layout == 1, dtype=torch.bool, device=self.device
+        )
         num_mpm_columns = origins.shape[1] // 2
-        self.terrain_types[:num_mpm_envs] = torch.div(
-            torch.arange(num_mpm_envs, device=self.device) * num_mpm_columns,
-            num_mpm_envs,
-            rounding_mode="floor",
-        )
-        self.terrain_types[num_mpm_envs:] = num_mpm_columns + torch.div(
-            torch.arange(num_envs - num_mpm_envs, device=self.device) * (origins.shape[1] - num_mpm_columns),
-            num_envs - num_mpm_envs,
-            rounding_mode="floor",
-        )
+        for is_mpm in (True, False):
+            env_ids = (self.mpm_env_mask == is_mpm).nonzero().flatten()
+            count = env_ids.numel()
+            if count:
+                offset = 0 if is_mpm else num_mpm_columns
+                self.terrain_types[env_ids] = offset + torch.div(
+                    torch.arange(count, device=self.device) * num_mpm_columns, count, rounding_mode="floor"
+                )
         return origins[self.terrain_levels, self.terrain_types].clone()

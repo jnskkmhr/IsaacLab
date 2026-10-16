@@ -4,13 +4,23 @@
 # SPDX-License-Identifier: BSD-3-Clause
 """Terrain-generator configuration for the mixed-contact G1 task."""
 
+import numpy as np
+
 from isaaclab.cloner import CloneCfg, InclusionSet
+from isaaclab.cloner.cloner_strategies import random
 from isaaclab.utils import configclass
 
 from ..mixed_env import MixedMPMObject
 from ..util.terrain import MixedTerrainImporter, PairedTerrainGenerator
 from .scene_cfg import G1MovingPatchSceneCfg
 from .terrain_cfg import ROUGH_TERRAINS_CFG
+
+
+def sample_contact_types(weights: np.ndarray, num_clones: int) -> np.ndarray:
+    """Select MPM for a single world; otherwise independently sample rigid (0) or MPM (1)."""
+    if num_clones == 1:
+        return np.ones(1, dtype=np.int32)
+    return random(weights, num_clones)
 
 
 @configclass
@@ -23,7 +33,10 @@ class G1MixedTerrainSceneCfg(G1MovingPatchSceneCfg):
         self.terrain.terrain_generator = ROUGH_TERRAINS_CFG.copy()
         self.terrain.class_type = MixedTerrainImporter
         self.terrain.use_terrain_origins = True
-        self.clone_cfg = CloneCfg(clone_combinations=[InclusionSet(assets=["sand"]), InclusionSet(assets=[])])
+        self.clone_cfg = CloneCfg(
+            clone_strategy=sample_contact_types,
+            clone_combinations=[InclusionSet(assets=[]), InclusionSet(assets=["sand"])],
+        )
         super().__post_init__()
 
     def configure_terrain(self) -> None:
