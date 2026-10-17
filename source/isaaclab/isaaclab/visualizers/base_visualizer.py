@@ -131,7 +131,7 @@ class BaseVisualizer(ABC):
                 view.before_render = self.update_camera_tracking
             else:
                 view_cfg = ImageViewCfg(
-                    source=camera.cfg.prim_path, envs=tuple(map(int, env_ids)),
+                    source=camera.cfg.prim_path, envs=(0,) if camera.num_instances == 1 else tuple(map(int, env_ids)),
                     channels=tuple(self.cfg.streaming_gt_types),
                     depth_range=(self.cfg.streaming_depth_min, self.cfg.streaming_depth_max),
                 )  # fmt: skip
