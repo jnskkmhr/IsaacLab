@@ -46,7 +46,6 @@ from isaaclab_visualizers.newton import (
 )
 
 import isaaclab.sim as sim_utils
-from isaaclab.envs.utils.camera_view import camera_rgb_batch, compose_rgb_grid_tensor
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.markers.config import GREEN_ARROW_X_MARKER_CFG
 from isaaclab.sensors import CameraCfg
@@ -791,87 +790,84 @@ def _run_newton_viewer_frame_motion_test(
         debug_phase="playing",
     )
 
-    # The RTX viewer exposes no Pause Rendering control (its end_frame() keeps the imgui running), so that
-    # phase only applies to the GL viewer.
-    supports_rendering_pause = not isinstance(visualizer, NewtonRTXVisualizer)
-    rendering_play_end_idx = play_end_idx
-    if supports_rendering_pause:
-        rendering_pause_start_idx = play_end_idx
-        rendering_pause_end_idx = rendering_pause_start_idx + PAUSE_VIZ_N_STEP
+    rendering_pause_start_idx = play_end_idx
+    rendering_pause_end_idx = rendering_pause_start_idx + PAUSE_VIZ_N_STEP
 
-        def _attempt_rendering_pause():
-            _set_newton_rendering_paused(viewer, True)
-            rendering_paused_start_frame = visualizer.render_rgb_array()
-            rendering_pause_start_state = _cartpole_body_state(env)
-            physics_step_before_render_pause = get_physics_step_count()
-            for _ in range(PAUSE_VIZ_N_STEP):
-                step_hook()
-            rendering_pause_end_state = _cartpole_body_state(env)
-            rendering_paused_end_frame = visualizer.render_rgb_array()
-            _save_visualizer_debug_phase_images(
-                rendering_paused_start_frame,
-                rendering_paused_end_frame,
-                prefix="2",
-                phase="pausing_rendering",
-                frame_start_idx=rendering_pause_start_idx,
-                frame_end_idx=rendering_pause_end_idx,
-            )
-            _assert_frames_remain_stable(
-                rendering_paused_start_frame,
-                rendering_paused_end_frame,
-                case_label=case_label,
-                phase="pausing_rendering",
-                debug_phase="pausing_rendering",
-            )
-            return physics_step_before_render_pause, rendering_pause_start_state, rendering_pause_end_state
-
-        physics_step_before_render_pause, rendering_pause_start_state, rendering_pause_end_state = (
-            _attempt_rendering_pause()
+    def _attempt_rendering_pause():
+        _set_newton_rendering_paused(viewer, True)
+        rendering_paused_start_frame = visualizer.render_rgb_array()
+        rendering_pause_start_state = _cartpole_body_state(env)
+        physics_step_before_render_pause = get_physics_step_count()
+        for _ in range(PAUSE_VIZ_N_STEP):
+            step_hook()
+        rendering_pause_end_state = _cartpole_body_state(env)
+        rendering_paused_end_frame = visualizer.render_rgb_array()
+        _save_visualizer_debug_phase_images(
+            rendering_paused_start_frame,
+            rendering_paused_end_frame,
+            prefix="2",
+            phase="pausing_rendering",
+            frame_start_idx=rendering_pause_start_idx,
+            frame_end_idx=rendering_pause_end_idx,
         )
-        assert get_physics_step_count() > physics_step_before_render_pause, (
-            f"{case_label} physics step count did not advance during pausing_rendering."
-        )
-        _assert_body_state_changed(
-            rendering_pause_start_state,
-            rendering_pause_end_state,
+        _assert_frames_remain_stable(
+            rendering_paused_start_frame,
+            rendering_paused_end_frame,
             case_label=case_label,
             phase="pausing_rendering",
+            debug_phase="pausing_rendering",
+        )
+        return physics_step_before_render_pause, rendering_pause_start_state, rendering_pause_end_state
+
+    physics_step_before_render_pause, rendering_pause_start_state, rendering_pause_end_state = (
+        _attempt_rendering_pause()
+    )
+    assert get_physics_step_count() > physics_step_before_render_pause, (
+        f"{case_label} physics step count did not advance during pausing_rendering."
+    )
+    _assert_body_state_changed(
+        rendering_pause_start_state,
+        rendering_pause_end_state,
+        case_label=case_label,
+        phase="pausing_rendering",
+    )
+
+    rendering_play_start_idx = rendering_pause_end_idx
+    rendering_play_end_idx = rendering_play_start_idx + PLAY_VIZ_N_STEP
+
+    def _attempt_rendering_play():
+        _set_newton_rendering_paused(viewer, False)
+        rendering_play_start_frame = visualizer.render_rgb_array()
+        for _ in range(PLAY_VIZ_N_STEP):
+            step_hook()
+        _flush_newton_render_for_motion_capture(visualizer)
+        rendering_play_end_frame = visualizer.render_rgb_array()
+        _save_visualizer_debug_phase_images(
+            rendering_play_start_frame,
+            rendering_play_end_frame,
+            prefix="3",
+            phase="playing",
+            frame_start_idx=rendering_play_start_idx,
+            frame_end_idx=rendering_play_end_idx,
+        )
+        _assert_non_flat_frame_array(rendering_play_end_frame)
+        _assert_frames_differ(
+            rendering_play_start_frame,
+            rendering_play_end_frame,
+            case_label=case_label,
+            phase="playing after rendering pause",
+            debug_phase="playing",
         )
 
-        rendering_play_start_idx = rendering_pause_end_idx
-        rendering_play_end_idx = rendering_play_start_idx + PLAY_VIZ_N_STEP
-
-        def _attempt_rendering_play():
-            _set_newton_rendering_paused(viewer, False)
-            rendering_play_start_frame = visualizer.render_rgb_array()
-            for _ in range(PLAY_VIZ_N_STEP):
-                step_hook()
-            _flush_newton_render_for_motion_capture(visualizer)
-            rendering_play_end_frame = visualizer.render_rgb_array()
-            _save_visualizer_debug_phase_images(
-                rendering_play_start_frame,
-                rendering_play_end_frame,
-                prefix="3",
-                phase="playing",
-                frame_start_idx=rendering_play_start_idx,
-                frame_end_idx=rendering_play_end_idx,
-            )
-            _assert_non_flat_frame_array(rendering_play_end_frame)
-            _assert_frames_differ(
-                rendering_play_start_frame,
-                rendering_play_end_frame,
-                case_label=case_label,
-                phase="playing after rendering pause",
-                debug_phase="playing",
-            )
-
-        _attempt_rendering_play()
+    _attempt_rendering_play()
 
     simulation_pause_start_idx = rendering_play_end_idx
     simulation_pause_end_idx = simulation_pause_start_idx + PAUSE_VIZ_N_STEP
 
     def _attempt_simulation_pause():
         _set_newton_simulation_paused(viewer, True)
+        # Let temporal rendering settle at the paused state before comparing static frames.
+        _warm_newton_viewer(visualizer)
         simulation_paused_start_frame = visualizer.render_rgb_array()
         simulation_pause_start_state = _cartpole_body_state(env)
         physics_step_before_simulation_pause = get_physics_step_count()
@@ -1018,9 +1014,6 @@ def _flush_newton_render_for_motion_capture(visualizer) -> None:
     call uses the latest physics state.
     """
     visualizer.step(0.0)
-    if isinstance(visualizer, NewtonRTXVisualizer):
-        # Async OVRTX hands back the previous submission, so one extra capture pushes the latest state through.
-        visualizer.render_rgb_array()
 
 
 def _assert_newton_rtx_markers_drawn(env, visualizer: NewtonRTXVisualizer, *, case_label: str) -> None:
@@ -1252,6 +1245,7 @@ def _run_kit_viewport_frame_motion_test(
 
         def _attempt_kit_pause():
             _set_kit_simulation_paused(env, True)
+            _warm_kit_rtx_render_product(env, annotator, use_convergence=True)
             paused_start_frame = _capture_kit_viewport_rgb(annotator)
             for _ in range(PAUSE_VIZ_N_STEP):
                 env.sim.render()
@@ -1322,43 +1316,21 @@ def _capture_kit_viewport_rgb(annotator) -> np.ndarray:
     return frame
 
 
-def _pump_tiled_until_stable(camera_sensor, camera_indices: list[int]) -> np.ndarray:
-    """Pump ``camera_sensor.update()`` until two consecutive tiled frames converge.
-
-    Replaces the fixed :data:`_TILED_CAMERA_SENSOR_WARMUP_UPDATES` loop with an
-    adaptive one: stops as soon as two consecutive frames satisfy
-    :func:`_frames_converged`, or after :data:`_WARMUP_MAX_FRAMES` updates.
-    Returns the last captured frame.
-    """
-    prev: np.ndarray | None = None
-    last: np.ndarray | None = None
-    for i in range(_WARMUP_MAX_FRAMES):
-        camera_sensor.update(dt=0.0, force_recompute=True)
-        rgb_batch = camera_rgb_batch(camera_sensor, camera_indices)
-        curr = compose_rgb_grid_tensor(rgb_batch).detach().cpu().numpy()[..., :3]
-        if i >= _TILED_CAMERA_SENSOR_WARMUP_UPDATES and prev is not None and _frames_converged(prev, curr):
-            return curr
-        prev = curr
-        last = curr
-    return last
-
-
-def _capture_visualizer_tiled_camera_rgb(
-    visualizer, *, label: str = "capture", force_recompute: bool = True, paused: bool = False
-) -> np.ndarray:
-    """Capture the declared scene camera used by the visualizer."""
-    camera_sensor = visualizer._camera_sensor
-    assert camera_sensor is not None, "Visualizer did not bind its declared scene camera."
-    camera_indices = [int(index) for index in (visualizer._camera_sensor_indices or [0])]
-    if force_recompute:
+def _capture_visualizer_tiled_camera_rgb(visualizer) -> np.ndarray:
+    """Converge the declared sensor and read the same composed frame used by its window."""
+    view = visualizer.current_image_view
+    assert view is not None and view.camera is not None, "Visualizer did not bind its declared scene camera."
+    previous = None
+    for index in range(_WARMUP_MAX_FRAMES):
         if isinstance(visualizer, KitVisualizer):
             _update_active_simulation_app()
-        return _pump_tiled_until_stable(camera_sensor, camera_indices)
-    rgb_batch = camera_rgb_batch(camera_sensor, camera_indices)
-    frame = compose_rgb_grid_tensor(rgb_batch).detach().cpu().numpy()
-    assert frame.ndim == 3, f"Expected tiled camera RGB frame to be HxWxC, got shape {frame.shape}."
-    assert frame.shape[-1] >= 3, f"Expected tiled camera RGB frame to have at least 3 channels, got {frame.shape}."
-    return frame[..., :3]
+        view.camera.update(dt=0.0, force_recompute=True)
+        view.invalidate()
+        frame = visualizer.render_tiled_rgb_array()
+        if index >= _TILED_CAMERA_SENSOR_WARMUP_UPDATES and _frames_converged(previous, frame):
+            return frame
+        previous = frame
+    return frame
 
 
 def _run_visualizer_tiled_camera_motion_test(env, visualizer, *, physics_kind: str, viz_kind: str) -> None:
@@ -1369,11 +1341,11 @@ def _run_visualizer_tiled_camera_motion_test(env, visualizer, *, physics_kind: s
     for _ in range(_INTEGRATION_MOTION_BUFFER_STEPS):
         env.step(action=actions)
 
-    motion_start_frame = _capture_visualizer_tiled_camera_rgb(visualizer, label="1a_playing_frame_00")
+    motion_start_frame = _capture_visualizer_tiled_camera_rgb(visualizer)
     for _ in range(PLAY_VIZ_N_STEP):
         env.step(action=actions)
     play_end_idx = PLAY_VIZ_N_STEP
-    motion_end_frame = _capture_visualizer_tiled_camera_rgb(visualizer, label="1b_playing_frame_20")
+    motion_end_frame = _capture_visualizer_tiled_camera_rgb(visualizer)
     _save_visualizer_debug_phase_images(
         motion_start_frame,
         motion_end_frame,
@@ -1399,10 +1371,10 @@ def _run_visualizer_tiled_camera_motion_test(env, visualizer, *, physics_kind: s
         # Re-render both paused captures: comparing the sensor's cached frame with itself cannot
         # detect a renderer that keeps changing the image after physics stops.  The denoiser residue
         # that motivated caching is handled by the per-channel threshold below (NVBUG 6570125).
-        paused_start_frame = _capture_visualizer_tiled_camera_rgb(visualizer, label="2a_pausing_frame_20", paused=True)
+        paused_start_frame = _capture_visualizer_tiled_camera_rgb(visualizer)
         for _ in range(PAUSE_VIZ_N_STEP):
             env.sim.render()
-        paused_end_frame = _capture_visualizer_tiled_camera_rgb(visualizer, label="2b_pausing_frame_25", paused=True)
+        paused_end_frame = _capture_visualizer_tiled_camera_rgb(visualizer)
         _save_visualizer_debug_phase_images(
             paused_start_frame,
             paused_end_frame,
@@ -1437,10 +1409,10 @@ def _run_visualizer_tiled_camera_motion_test(env, visualizer, *, physics_kind: s
 
     def _attempt_replay():
         _set_kit_simulation_paused(env, False)
-        play_start_frame = _capture_visualizer_tiled_camera_rgb(visualizer, label="3a_playing_frame_25")
+        play_start_frame = _capture_visualizer_tiled_camera_rgb(visualizer)
         for _ in range(PLAY_VIZ_N_STEP):
             env.step(action=actions)
-        play_end_frame = _capture_visualizer_tiled_camera_rgb(visualizer, label="3b_playing_frame_45")
+        play_end_frame = _capture_visualizer_tiled_camera_rgb(visualizer)
         _save_visualizer_debug_phase_images(
             play_start_frame,
             play_end_frame,
@@ -1695,6 +1667,10 @@ def _make_cartpole_camera_env(
     if tiled_camera:
         eye = _CARTPOLE_INTEGRATION_TILED_CAMERA_EYE_OFFSET
         _declare_streaming_cameras(env_cfg.scene, visualizer_cfgs, env_cfg.scene.cartpole, "slider", eye)
+    if "newton_rtx" in visualizer_kinds:
+        from isaaclab.app.sim_launcher import validate_launch
+
+        validate_launch(env_cfg, {"visualizer": list(visualizer_kinds)})
     return CartpoleCameraEnv(env_cfg)
 
 
@@ -1730,8 +1706,13 @@ def run_cartpole_env_visualizers_motion_with_play_pause(
                 env.step(action=actions)
 
             if "kit" in visualizer_kinds:
+                import omni.timeline
+
                 kit_visualizers = [viz for viz in env.sim.visualizers if isinstance(viz, KitVisualizer)]
                 assert kit_visualizers, "Expected an initialized Kit visualizer."
+                assert omni.timeline.get_timeline_interface().is_playing(), (
+                    "The Kit toolbar must show Pause while the simulation is running."
+                )
                 with _visualizer_debug_case("kit", backend_kind):
                     _run_kit_viewport_frame_motion_test(env, kit_visualizers[0], physics_kind=backend_kind)
 
@@ -1755,30 +1736,6 @@ def run_cartpole_env_visualizers_motion_with_play_pause(
                         physics_kind=backend_kind,
                     )
 
-            if "newton_rtx" in visualizer_kinds:
-                rtx_visualizers = [viz for viz in env.sim.visualizers if isinstance(viz, NewtonRTXVisualizer)]
-                assert rtx_visualizers, "Expected an initialized Newton RTX visualizer."
-                rtx_viewer = getattr(rtx_visualizers[0], "_viewer", None)
-                assert rtx_viewer is not None, "Newton RTX viewer was not created."
-
-                with _visualizer_debug_case("newton_rtx", backend_kind):
-                    # The first async capture must succeed before warm-up can suppress its error.
-                    first_frame = rtx_visualizers[0].render_rgb_array()
-                    width, height = _CARTPOLE_NEWTON_INTEGRATION_WINDOW_SIZE
-                    assert first_frame is not None and first_frame.shape == (height, width, 3)
-                    _run_newton_viewer_frame_motion_test(
-                        env,
-                        rtx_viewer,
-                        visualizer=rtx_visualizers[0],
-                        step_hook=_step_env,
-                        get_physics_step_count=lambda: env.sim._physics_step_count,
-                        physics_kind=backend_kind,
-                        viz_kind="newton_rtx",
-                    )
-                    _assert_newton_rtx_markers_drawn(
-                        env, rtx_visualizers[0], case_label=_visualizer_case_label("newton_rtx", backend_kind)
-                    )
-
             if "rerun" in visualizer_kinds:
                 from isaaclab_visualizers.rerun import RerunVisualizer
 
@@ -1795,62 +1752,6 @@ def run_cartpole_env_visualizers_motion_with_play_pause(
                 assert getattr(viser_visualizers[0], "_viewer", None) is not None, "Viser viewer was not created."
                 _step_env_without_frame_check(env, actions, max_steps=_MAX_FRAME_CHECK_STEPS)
 
-        _assert_no_visualizer_log_issues(caplog)
-    finally:
-        _cleanup_visualizer_test_process(env)
-
-
-def run_cartpole_env_kit_viewport_and_tiled(backend_kind: str, caplog: pytest.LogCaptureFixture) -> None:
-    """Kit RTX viewport and tiled camera motion tests in two sequential Kit-only envs.
-
-    Two envs are required because the Kit RTX viewport render product is inactive when
-    ``tiled_camera=True``; the GPU only renders tiled products in that mode.
-
-    Args:
-        backend_kind: Physics backend, ``"physx"`` or ``"newton"``.
-        caplog: Pytest log capture fixture.
-    """
-    env = None
-    try:
-        _prepare_visualizer_test_process()
-        sim_utils.create_new_stage()
-        env = _make_cartpole_camera_env(
-            visualizer_kind=("kit",),
-            backend_kind=backend_kind,
-        )
-        env.cfg.initial_pole_angle_range = _INTEGRATION_TEST_POLE_ANGLE_RANGE
-        env.cfg.initial_pole_velocity_range = _INTEGRATION_TEST_POLE_VELOCITY_RANGE
-        _configure_sim_for_visualizer_test(env)
-        with caplog.at_level(logging.WARNING):
-            env.reset()
-            kit_visualizers = [viz for viz in env.sim.visualizers if isinstance(viz, KitVisualizer)]
-            assert kit_visualizers, "Expected an initialized Kit visualizer."
-            with _visualizer_debug_case("kit", backend_kind):
-                _run_kit_viewport_frame_motion_test(env, kit_visualizers[0], physics_kind=backend_kind)
-        _assert_no_visualizer_log_issues(caplog)
-    finally:
-        _cleanup_visualizer_test_process(env)
-
-    env = None
-    try:
-        _prepare_visualizer_test_process()
-        sim_utils.create_new_stage()
-        env = _make_cartpole_camera_env(
-            visualizer_kind=("kit",),
-            backend_kind=backend_kind,
-            tiled_camera=True,
-        )
-        env.cfg.initial_pole_angle_range = _INTEGRATION_TEST_POLE_ANGLE_RANGE
-        env.cfg.initial_pole_velocity_range = _INTEGRATION_TEST_POLE_VELOCITY_RANGE
-        _configure_sim_for_visualizer_test(env)
-        with caplog.at_level(logging.WARNING):
-            env.reset()
-            kit_visualizers = [viz for viz in env.sim.visualizers if isinstance(viz, KitVisualizer)]
-            assert kit_visualizers, "Expected an initialized Kit visualizer."
-            with _visualizer_debug_case("kit", backend_kind, tiled=True):
-                _run_visualizer_tiled_camera_motion_test(
-                    env, kit_visualizers[0], physics_kind=backend_kind, viz_kind="kit"
-                )
         _assert_no_visualizer_log_issues(caplog)
     finally:
         _cleanup_visualizer_test_process(env)

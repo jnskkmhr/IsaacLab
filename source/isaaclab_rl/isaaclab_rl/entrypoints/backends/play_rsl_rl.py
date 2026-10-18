@@ -89,6 +89,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     add_launcher_args(parser)
     remaining_args_env_registration = cli_args.register_external_tasks(argv)
     args_cli, remaining_args = setup_preset_cli(parser, argv)
+    if remaining_args_env_registration is not None:
+        _, remaining_args_env_registration = setup_preset_cli(parser, remaining_args_env_registration)
     if args_cli.wandb_run is not None and args_cli.checkpoint:
         raise ValueError("--wandb_run cannot be combined with --checkpoint.")
     enable_cameras_for_video(args_cli)

@@ -7,128 +7,31 @@
 
 from __future__ import annotations
 
-import argparse
 import math
-import warnings
+from copy import deepcopy
 from dataclasses import MISSING
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from ..utils import configclass
-from ..utils.string import string_to_callable
 
 if TYPE_CHECKING:
+    from ..cloner import ReplicateContext
     from .base_visualizer import BaseVisualizer
 
 
-VISUALIZER_TYPES = {
-    "kit": "kit:KitVisualizerCfg",
-    "newton_gl": "newton:NewtonGLVisualizerCfg",
-    "newton_rtx": "newton:NewtonRTXVisualizerCfg",
-    "rerun": "rerun:RerunVisualizerCfg",
-    "viser": "viser:ViserVisualizerCfg",
-}
-"""Canonical visualizer type names, for ``--visualizer`` and :attr:`VisualizerCfg.visualizer_type`, mapped to
-the ``<isaaclab_visualizers subpackage>:<class>`` of their default config, imported only when needed."""
+VISUALIZER_TYPES = ("kit", "newton_gl", "newton_rtx", "rerun", "viser")
+"""Built-in visualizer identifiers accepted by legacy recording sources."""
 
 VISUALIZER_ALIASES = {"newton": "newton_gl"}
 """Deprecated ``--visualizer`` names and their replacements."""
 
-_VISUALIZER_EXTRAS = {
-    "kit": "isaacsim",
-    "rerun": "rerun",
-    "viser": "viser",
-}
-
-
-def get_visualizer_install_hint(visualizer_type: str) -> str:
-    """Return the uv command needed to run a visualizer backend."""
-    extra = _VISUALIZER_EXTRAS.get(visualizer_type)
-    if extra is None:
-        return "Run your command with: uv run <command>."
-    return f"Run your command with: uv run --extra {extra} <command>."
-
-
-def parse_visualizer_csv(value: str | list[str]) -> list[str]:
-    """Parse a ``--visualizer`` comma-separated list, or a list of names, into canonical names.
-
-    Parsing canonical names again returns them unchanged.
-    """
-    names = value.split(",") if isinstance(value, str) else list(value)
-    # an undocumented alias of omitting --visualizer, kept so older commands keep running
-    if names == ["none"]:
-        return []
-    invalid = [name for name in names if name not in (*VISUALIZER_TYPES, *VISUALIZER_ALIASES)]
-    if invalid:
-        raise argparse.ArgumentTypeError(
-            f"Invalid --visualizer value {value!r}: use a comma-separated list, without spaces, of "
-            f"{', '.join(VISUALIZER_TYPES)}."
-        )
-    for name in names:
-        if name in VISUALIZER_ALIASES:
-            warnings.warn(
-                f"--viz '{name}' is deprecated. Use '--viz {VISUALIZER_ALIASES[name]}' instead.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-    return list(dict.fromkeys(VISUALIZER_ALIASES.get(name, name) for name in names))
-
-
-def _make_visualizer_cfg(visualizer_type: str) -> VisualizerCfg:
-    """Construct the default config of a visualizer type, importing only its backend package."""
-    try:
-        cfg_class = string_to_callable(f"isaaclab_visualizers.{VISUALIZER_TYPES[visualizer_type]}")
-    except ValueError as exc:  # string_to_callable reports a missing module as ValueError
-        raise RuntimeError(
-            f"Visualizer '{visualizer_type}' is not available: {exc}. {get_visualizer_install_hint(visualizer_type)}"
-        ) from exc
-    return cfg_class()
-
-
-def resolve_visualizer_cfgs(
-    visualizer_cfgs: list[VisualizerCfg] | VisualizerCfg | None,
-    visualizers: list[str] | None,
-    max_visible_envs=None,
-    headless_visualizers: tuple[str, ...] | list[str] = (),
-) -> list[VisualizerCfg]:
-    """Return the visualizers a run uses: exactly the selected types, configured by *visualizer_cfgs*.
-
-    Each selected type reuses the configured visualizer of that type, with its settings, or else gets its default
-    config; configured visualizers of unselected types do not run. Each type of *headless_visualizers* the
-    selection lacks is added the same way but runs headless, e.g. a visualizer only a video recorder uses.
-
-    Args:
-        visualizer_cfgs: Configured visualizers, e.g. :attr:`~isaaclab.sim.SimulationCfg.visualizer_cfgs`.
-        visualizers: Selection in canonical names (see :func:`parse_visualizer_csv`), empty for no visualizers.
-            None applies no selection and keeps the configured visualizers, for a simulation built without a
-            launch.
-        max_visible_envs: ``--max_visible_envs`` applied to every resulting visualizer, or None.
-        headless_visualizers: Capture-capable types (``kit``, ``newton_gl``, ``newton_rtx``) to add headless when
-            not selected, in canonical names.
-    """
-    if visualizer_cfgs is None:
-        visualizer_cfgs = []
-    elif not isinstance(visualizer_cfgs, list):
-        visualizer_cfgs = [visualizer_cfgs]
-    if visualizers is not None:
-        configured = {cfg.visualizer_type: cfg for cfg in reversed(visualizer_cfgs)}
-        added = [name for name in headless_visualizers if name not in visualizers]
-        visualizer_cfgs = [cfg for cfg in visualizer_cfgs if cfg.visualizer_type in visualizers]
-        configured_types = {cfg.visualizer_type for cfg in visualizer_cfgs}
-        visualizer_cfgs += [_make_visualizer_cfg(name) for name in visualizers if name not in configured_types]
-        for name in added:
-            # a headless copy of the configured visualizer of the type keeps its settings, e.g. the camera pose
-            cfg = configured[name].copy() if name in configured else _make_visualizer_cfg(name)
-            cfg.headless = True
-            visualizer_cfgs.append(cfg)
-    if max_visible_envs is not None:
-        for cfg in visualizer_cfgs:
-            cfg.max_visible_envs = int(max_visible_envs)
-    return visualizer_cfgs
-
 
 @configclass
 class PerspectiveCameraCfg:
-    """Initial pose and optics for a visualizer-owned interactive perspective camera."""
+    """Initial pose and optics for an interactive perspective camera.
+
+    Newton RTX launch preparation expands this declaration into a scene CameraCfg. Newton GL
+    uses its native viewer camera."""
 
     eye: tuple[float, float, float] = (4.0, -4.0, 3.0)
     """Eye position in world coordinates [m]."""
@@ -149,6 +52,54 @@ class SceneCameraCfg:
 
     prim_path: str = MISSING
     """Scene camera's configured prim path, including ``{ENV_REGEX_NS}`` when applicable."""
+
+
+@configclass
+class ImageViewCfg:
+    """A shared image selection consumed by windows and recorders.
+
+    Reusing this declaration shares one runtime view within a simulation, including across copies
+    of an environment configuration. Use :func:`isaaclab.utils.replace` to declare an independent view.
+    """
+
+    class_type: str = "{DIR}.image_view:ImageView"
+    """Runtime image selection and composition."""
+
+    source: str | PerspectiveCameraCfg = MISSING
+    """Scene sensor name, or an interactive perspective camera declaration."""
+
+    envs: tuple[int, ...] = (0,)
+    """Sensor rows to display, in the requested order."""
+
+    channels: tuple[str, ...] = ("rgb",)
+    """Existing source outputs to display, left-to-right: rgb, depth, normals, or segmentation."""
+
+    depth_range: tuple[float, float] = (0.1, 10.0)
+    """Display color scale limits [m]. Source depth values and camera clipping planes remain unchanged."""
+
+    def __eq__(self, other) -> bool:
+        """Share explicit declarations; equal initial poses can belong to independent cameras."""
+        return self is other
+
+    def __deepcopy__(self, memo):
+        """Keep this explicitly shared declaration when its consumers' configurations are copied."""
+        return self
+
+    def validate_config(self) -> None:
+        """Reject unsupported channels, negative row indices, and invalid display color limits."""
+        if not isinstance(self.source, (str, PerspectiveCameraCfg)) or self.source == "":
+            raise ValueError("ImageViewCfg.source must name a scene camera or declare a perspective camera.")
+        if any(not isinstance(i, int) or i < 0 for i in self.envs):
+            raise ValueError("ImageViewCfg.envs must contain non-negative sensor row indices.")
+        if not self.channels:
+            raise ValueError("ImageViewCfg.channels must contain at least one display channel.")
+        for channel in self.channels:
+            if channel not in ("rgb", "depth", "normals", "segmentation"):
+                raise ValueError(f"Unsupported image channel: {channel!r}.")
+        if isinstance(self.source, PerspectiveCameraCfg) and (self.envs != (0,) or self.channels != ("rgb",)):
+            raise ValueError("Perspective image views provide one RGB image; use envs=(0,) and channels=('rgb',).")
+        if len(self.depth_range) != 2 or not 0 <= self.depth_range[0] < self.depth_range[1]:
+            raise ValueError("ImageViewCfg.depth_range must contain increasing non-negative limits.")
 
 
 @configclass
@@ -186,8 +137,11 @@ class VisualizerCfg:
     class_type: type[BaseVisualizer] | str | None = None
     """Visualizer implementation class. Concrete configs must set this field."""
 
-    cloning_contexts: tuple[type | str, ...] = ()
+    cloning_contexts: tuple[type[ReplicateContext] | str, ...] = ()
     """Clone contexts that build this visualizer's scene representation from the asset plan."""
+
+    view: ImageViewCfg | None = None
+    """Shared image view, or None to use the visualizer's camera selection."""
 
     window: WindowCfg = WindowCfg()
     """Native window settings used by Newton and Kit; network visualizers manage their own presentation."""
@@ -207,10 +161,10 @@ class VisualizerCfg:
     """
 
     eye: tuple[float, float, float] = (4.0, -4.0, 3.0)
-    """Interactive visualizer camera eye position in world coordinates."""
+    """Interactive camera eye offset from the configured origin, in world axes [m]."""
 
     lookat: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    """Interactive visualizer camera look-at target in world coordinates."""
+    """Interactive camera target offset from the configured origin, in world axes [m]."""
 
     focal_length: float = 12.0
     """Camera focal length in millimeters for visualizer camera views."""
@@ -221,6 +175,22 @@ class VisualizerCfg:
     None preserves the scene HDR background in Kit and Newton RTX, or Newton GL's procedural sky.
     An explicit color changes only the visible background, not scene lighting or reflections.
     Scene-camera images retain their sensor's :attr:`~isaaclab.sensors.CameraCfg.background_color`.
+    """
+
+    origin_type: Literal["world", "env", "asset"] = "world"
+    """Perspective camera origin: world, environment origin, or tracked asset position.
+
+    Asset tracking translates eye/lookat with the asset; it does not rotate the offsets.
+    Scene-camera sensors retain their own poses.
+    """
+
+    origin_env_index: int = 0
+    """Environment containing the camera origin when origin_type is env or asset."""
+
+    origin_track_path: str | None = None
+    """Asset root ("robot") or body ("robot/torso_link") to track for an asset origin.
+
+    Names refer to the interactive scene. The body expression must match exactly one body.
     """
 
     # ── Streaming view ────────────────────────────────────────────────────────
@@ -241,7 +211,7 @@ class VisualizerCfg:
 
     # Shared settings
     streaming_envs: int | list[int] = 32
-    """Environments to display.
+    """Environments to display, limited to 100 tiles.
 
     * ``int`` — sample this many envs once at initialization (from all visible envs).
     * ``list[int]`` — display exactly these env indices.
@@ -251,8 +221,7 @@ class VisualizerCfg:
     """GT data types displayed left-to-right per environment row.
 
     Valid values: ``"rgb"``, ``"depth"``, ``"segmentation"``, ``"normals"``.
-    Validated against :data:`~isaaclab.envs.utils.camera_colorizer.SUPPORTED_GT_TYPES`
-    at initialization time (only when :attr:`streaming_view` is ``True``).
+    Validated at initialization when :attr:`streaming_view` is ``True``.
     """
 
     streaming_depth_min: float = 0.1
@@ -297,8 +266,19 @@ class VisualizerCfg:
     """Collect and push live plot data every ``N`` simulation steps (default: every 5 steps)."""
 
     # Internal
+    launcher_type: ClassVar[str | None] = None
+    """Process runtime required by this visualizer, if any."""
+
     visualizer_type: str | None = None
     """Type identifier (e.g., 'newton', 'rerun', 'viser', 'kit'). Must be overridden by subclasses."""
+
+    def validate_config(self) -> None:
+        """Reject ambiguous sources and unsupported native-window configurations."""
+        if self.view is not None:
+            if self.visualizer_type not in ("newton_gl", "newton_rtx"):
+                raise ValueError("VisualizerCfg.view requires a Newton GL or RTX visualizer.")
+            if self.cameras is not None or self.streaming_sensor_prim_path is not None:
+                raise ValueError("Choose view or legacy cameras/streaming_sensor_prim_path, not both.")
 
     def __post_init__(self) -> None:
         if self.background_color is not None:
@@ -312,3 +292,17 @@ class VisualizerCfg:
             self.streaming_view = any(isinstance(camera, SceneCameraCfg) for camera in self.cameras)
             if isinstance(camera := self.cameras[0], PerspectiveCameraCfg):
                 self.eye, self.lookat, self.focal_length = camera.eye, camera.lookat, camera.focal_length
+
+
+def _apply_visualizer_defaults(visualizer: VisualizerCfg, defaults: VisualizerCfg | None) -> None:
+    """Copy non-default shared values into fields still at their backend defaults, including window fields."""
+    if defaults is None:
+        return
+    for source, target in ((defaults, visualizer), (defaults.window, visualizer.window)):
+        source_values, target_values = vars(source), vars(target)
+        target_defaults = vars(type(target)())
+        for name, default in vars(type(source)()).items():
+            if name in ("class_type", "visualizer_type", "window") or name not in target_defaults:
+                continue
+            if source_values[name] != default and target_values[name] == target_defaults[name]:
+                target_values[name] = deepcopy(source_values[name])

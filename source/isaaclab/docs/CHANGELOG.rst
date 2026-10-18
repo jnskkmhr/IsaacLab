@@ -3,6 +3,229 @@ Changelog
 
 .. towncrier release notes start
 
+39.0.0 (2026-10-18)
+~~~~~~~~~~~~~~~~~~~
+
+Changed
+^^^^^^^
+
+* ``randomize_rigid_body_scale`` now rejects multi-environment rigid bodies because their per-environment
+  USD scale edits do not reach replicated physics. Declare size variants with ``MultiAssetSpawnerCfg``.
+* Resolved ``CameraCfg.isp_cfg`` and authored RTX exposure overrides during camera construction, before
+  scene cloning or native import, including cameras with ``spawn=None``. Authored PPISP settings must be
+  present before constructing the sensor. Renderers now consumed the prepared configuration and retained
+  their normal runtime initialization; registry-owned renderers remained available across sensor resets.
+* **Breaking:** Removed the redundant ``BaseRenderer.prepare_cameras`` phase. Custom renderers should perform per-camera
+  runtime setup in ``create_render_data`` and access the authored stage through ``self._sim.stage``.
+
+Removed
+^^^^^^^
+
+* **Breaking:** Removed the non-replicated clone path. The ``replicate_physics`` argument remains accepted by
+  scene and clone configurations, ``cloner.replicate``, ``ReplicateSession``, and multi-asset spawners, but
+  now warns and is ignored. Use ``CloneCfg.clone_combinations`` for heterogeneous environments; assets such
+  as PhysX deformables can select a USD clone context when native physics replication is unsupported.
+* Removed the unused ``clone_in_fabric`` scene and multi-asset spawner arguments. PhysX replication continues
+  to use ``useFabricForReplication=False``.
+
+
+38.0.0 (2026-10-17)
+~~~~~~~~~~~~~~~~~~~
+
+Added
+^^^^^
+
+* Added :class:`~isaaclab.actuators.BamActuatorCfg` and :class:`~isaaclab.actuators.BamMotorCfg` for
+  identified voltage-domain servos with supply sag, command delay, and load-dependent gearbox friction.
+  BAM required Newton-native actuators with the MJWarp solver.
+* Added :attr:`~isaaclab.actuators.BamActuatorCfg.backlash_joint_template` for BAM servos whose
+  position feedback included a passive gearbox-play hinge, while motor velocity and effort
+  remained on the servo joint.
+* Added a static MicroDuck Warehouse demo that loads from the configured Isaac Lab asset root with renderer, output, and camera presets.
+  Enabled minimal-shading and instance-segmentation camera outputs in the existing viewer.
+* Added a standalone ten-part NIST assembly demo that downloaded a pretrained TorchScript policy,
+  selected fixed asset identities at startup, and randomized independent board resets without a trainer.
+* Registered the Rizon–Sharpa coffee demonstration with ``isaaclab demo`` and packaged
+  its runner under ``examples/demos/``. The licensed robot assets remain external.
+* Added an experimental Rizon--Sharpa teapot example with a physical index-finger grasp and one-way MPM collider synchronization.
+* Added ``isaaclab demo sonic`` and ``isaaclab example g1-terrain`` commands for pretrained G1
+  traversals over platforms, ramps, gravel, and sand with Newton or PhysX.
+* Added :func:`~isaaclab.app.validate_launch` to check whether a configuration's physics, renderer and
+  visualizer combination can launch, without starting a runtime. :func:`~isaaclab.app.launch_simulation`
+  runs it first.
+* Added ``isaaclab example sharpa-rj45``
+  for continuous scripted cable insertion and extraction with standard video recording.
+
+Changed
+^^^^^^^
+
+* Resolved clone-context routes during preparation, before native resource initialization.
+* Removed environment transform and destination-root authoring from ``InteractiveScene`` construction.
+  Clone backends applied plan placement to their own representation; direct tasks retained an untransformed
+  ``env_0`` container for regex spawning. Read planned world offsets from ``scene.env_origins`` before replication.
+* Expanded deformable metadata from the authored source origin, including prototypes with no environment transform.
+* Read the scene-data environment count from the clone plan instead of counting authored USD prototypes.
+* Prepared late-registered rendering consumers before initialization, retaining the simulation's selected clone path.
+* Exposed clone preparation and read-only backend lookup through public interfaces, keeping registry ownership in
+  ``SimulationContext``.
+* Expanded RTX perspective declarations into ordinary scene cameras during launch configuration. Scripts without a scene configuration must declare assets through ``ReplicateSession``, call ``instantiate(camera_cfg)``, and select the camera with ``SceneCameraCfg``. Set initial pose and resolution on the visualizer configuration instead of deprecated ``env_cfg.viewer``. Removed the Newton-model requirement for RTX visualization.
+* Supported global cameras outside replicated environments, including partial scene resets and direct camera discovery. Added ``CameraCfg.render_settings`` for per-camera OVRTX product attributes.
+* Preserved renderer stage preparation across physics resets while rebuilding physics-dependent resources and material writers.
+* Preserved the perspective field of view when expanding visualizer declarations into scene cameras.
+* Moved global-camera reset handling into the camera lifecycle. Reset IDs and masks remained selective for replicated cameras and refreshed global cameras as a whole. Invalidated camera images after intrinsic updates.
+* Passed the owning simulation explicitly to renderer constructors instead of discovering it through the simulation singleton.
+* Updated the ``tablecloth`` example with the Cloth Pull Challenge cantina from the configured
+  Isaac Lab asset root, a closer camera, three default pull speeds, and Kit RTX
+  launch instructions while preserving the existing manipulation and physics.
+* Changed ``isaaclab list_envs --show_presets`` to list the preset combinations each task can launch headless,
+  one per line with the default marked, instead of the preset names it declares.
+* **Breaking:** Required clone contexts to derive from :class:`~isaaclab.cloner.ReplicateContext`.
+  Replaced optional method discovery with explicit preparation before construction and dispatch.
+  Custom contexts must inherit the base class and implement ``replicate``; contexts changing routes
+  may override the static ``prepare`` method. Context implementations access their simulation through
+  ``self._sim``, including ``self._sim.stage`` for the USD stage.
+
+Deprecated
+^^^^^^^^^^
+
+* Deprecated the ``"controller"`` component of :func:`~isaaclab.actuators.newton.read_group_parameter` and
+  :func:`~isaaclab.actuators.newton.write_group_parameter` in favor of ``"drive"``, following the Newton 1.6
+  drive API. The old name still resolves to the drive and emits a ``DeprecationWarning``; it is scheduled for
+  removal in 3.2.
+
+Removed
+^^^^^^^
+
+* Removed the unused ``CameraImageBase.default_data_type`` class attribute. Custom camera image terms
+  declare their default in the ``data_type`` argument of ``__call__`` instead.
+
+Fixed
+^^^^^
+
+* Fixed Newton-native actuator authoring leaving a replacement ``NewtonActuator`` prim inactive when it reused
+  the path of an actuator prim deactivated during the same call, which left the joint without an actuator.
+* Fixed ``image_normals`` raising ``KeyError: 'data_type'`` when constructed through the observation manager.
+* Fixed height-field terrains dropping a pixel or a vertical step when a length is a multiple of its scale but does
+  not divide exactly in floating point, such as a 9.7 m size, a 0.3 m border or step width, or a 0.145 m step
+  height. This also fixed the shape-mismatch ``ValueError`` raised for a 10 m terrain with a 0.1 m horizontal scale
+  and a 0.4 m border. Terrains generated from such values changed; clear the terrain cache to regenerate them.
+* **Breaking:** Fixed the ``"physx"`` convention to mean the OVPhysX order on every backend: breadth-first from
+  the root PhysX elects, visiting child links by joint type, then joint prim path. ``"physx"`` on Newton changes for
+  the joints of Digit and for the bodies of Go2, G1, Galbot and the Franka mimic asset, and now resolves when
+  ``articulation_root_prim_path`` is a pattern. It roots at the ``ArticulationRootAPI`` body before any world joint,
+  and raises instead of guessing when a floating articulation rooted on a container prim has a tied graph center, as
+  Humanoid-AMP does, nested bodies or loop-closing joints.
+* Fixed the Haply teleoperation example instantiating its robot before the simulation stage was created.
+* Removed the obsolete Cubric requirement warning from Kit video recording with Newton physics,
+  which uses the native Fabric transform hierarchy.
+* Fixed missing live LEAPP inputs for camera pose and intrinsics, joint wrenches, cable state, and articulation dynamics.
+* Corrected the actuator control documentation to identify OVPhysX dynamic joint friction as a force/torque effort.
+* Raised the PyJWT minimum to 2.15.1 for the Isaac Sim extra and the virtualenv minimum to 21.7.13
+  for the RLInf extra to select upstream security fixes in source and wheel installations.
+* Updated the SONIC demo to honor ``--viz`` and default to offscreen Kit/RTX recording with Newton.
+  Explicit visualizer selections and PhysX record only when ``--video`` is passed.
+* Restored anisotropic water surface reconstruction and mesh smoothing in the teapot example
+  to avoid a granular appearance in the reconstructed stream and bowl.
+* Improved water flow with P1d strain, quadratic velocity interpolation, and PIC transfer in the robot
+  teapot example, increased particle contact coverage, and used a fixed 42-degree target for the rising pour.
+* Blended pickup into the gentle 25 cm rising pour, aligned grasp feedback with the initial lift,
+  and returned the teapot upright before the demonstration ends.
+* Restored the robot teapot example's receiving bowl to its original SimReady asset scale.
+* Loaded the shared kitchen visuals in Newton GL as well as Kit and Newton RTX.
+* Downloaded and verified the pinned Rizon/Sharpa robot bundle automatically on first use.
+* Fixed the ``newton-dominoes`` example failing to initialize before simulation startup.
+* Fixed the G1 terrain example to honor ``--viz``, use a backend-appropriate default visualizer,
+  and support kitless Newton launches.
+
+
+37.2.0 (2026-10-14)
+~~~~~~~~~~~~~~~~~~~
+
+Added
+^^^^^
+
+* Added the GPU-controlled ``tablecloth`` five-speed comparison with H2 Plus / SHARPA hands to the Isaac Lab example catalog and standalone launch smoke coverage.
+* Added the packaged ``mpm-g1-coupling`` example for comparing one-way and two-way G1--MPM interaction.
+
+Changed
+^^^^^^^
+
+* Updated Isaac Lab to use Isaac Sim 6.2, including the pip wheel, standalone importer,
+  container image, and China storage profile.
+* Raised the ``aiohttp`` and ``urllib3`` dependency floors to versions that address
+  GHSA-cq5v-8q36-5273 and GHSA-vxq7-64xx-v4gw.
+* Raised the ``GitPython`` security floor to 3.1.60 and refreshed the locked ``fsspec``
+  and ``hydra-core`` releases used by the default environment.
+
+Fixed
+^^^^^
+
+* Fixed multi-minute stalls on Windows in the first CUDA graph capture after the renderer's first frame,
+  seen with Newton physics under OVRTX and under Kit. :class:`~isaaclab.sim.SimulationContext` now reserves
+  CUDA graph memory when it is created, before the CUDA driver's address placement can be blocked.
+* Fixed lazy MJCF and URDF conversion returning an older USD after the importer wrote a changed asset to a numbered
+  folder. The cache now records the generated file and reuses only the most recent matching conversion. Old
+  hash-only cache records cause one conversion because they do not identify the generated file.
+* Fixed aggregate wheel uploads to PyPI by keeping the PyTorch dependencies index-resolvable while preserving
+  CUDA PyTorch selection for direct ``uvx`` use, generated projects, and standalone installations.
+
+
+37.1.0 (2026-10-13)
+~~~~~~~~~~~~~~~~~~~
+
+Added
+^^^^^
+
+* Exposed ``isaaclab.cli.load_external_tasks()`` for launchers to discover installed downstream task registrations.
+
+Fixed
+^^^^^
+
+* Fixed Ctrl+C being lost when Kit dispatched a Python event callback during a visualizer update.
+* Fixed manual joint-velocity termination to detect non-finite values.
+* Fixed manual demonstration success evaluation by keeping inert termination terms
+  registered for dependent rewards, while preserving curricula needed by reset events.
+* Fixed explicit rendering deadlocking while a visualizer had paused training.
+* Documented preservation of compliant-contact stiffness during material randomization on PhysX and OVPhysX.
+
+
+37.0.0 (2026-10-12)
+~~~~~~~~~~~~~~~~~~~
+
+Changed
+^^^^^^^
+
+* Added ``ImageViewCfg`` support to ``VideoRecorderCfg.source`` to share a view with visualizer windows.
+  Pass the shared declaration as ``VideoRecorderCfg(source=view)``.
+  Recording reused the composed device frame and host readback, replacing duplicate CPU colorization.
+  Existing ``sensor:<name>`` and ``viz:<type>[:streaming_view]`` source strings remained supported.
+* Selected display and recording producers together during launch. Headless recording retained the
+  configured perspective producer, including when multiple viewers used the same backend.
+* **Breaking:** Invalid recording sources and channel selections raised errors during recorder
+  construction instead of silently disabling recording. Configure a declared sensor or a capture-capable
+  visualizer with the requested outputs. Empty warmup frames continued to be skipped.
+* Detected physics configuration subclasses by type during launch, preserving runtime compatibility
+  checks independently of the configuration class name.
+* Preserved automatic recording frame rates for non-Gym environments and used shared image composition
+  for renderer gallery captures after removing the CPU colorizer.
+* Bound recorder capture functions after the initial simulation reset, removing deferred source discovery
+  from frame capture while preserving recordings that followed the window's camera selection.
+* **Breaking:** Propagated original import errors from ``string_to_callable`` and visualizer loading. Code handling
+  missing modules should catch ``ModuleNotFoundError`` instead of the former ``ValueError`` wrapper.
+* Added shared ``ImageViewCfg`` selections for scene cameras and perspective renders.
+  Windows reused one composed device image and retained native sensor dimensions.
+  Configurations used ``NewtonGLVisualizerCfg(view=view, window=WindowCfg(...))`` or the RTX equivalent;
+  legacy camera configurations remained supported. The existing simulation resource registry owned views.
+  Rejected mismatched channel batches, resolutions, and devices before GPU composition.
+* Bound camera references during simulation initialization and removed unused environment camera helpers.
+  Kept image composition and channel selection in the shared image utilities.
+
+Fixed
+^^^^^
+
+* Fixed LEAPP export of EMA joint position actions by preserving the previous target as feedback state.
+
+
 36.0.0 (2026-10-10)
 ~~~~~~~~~~~~~~~~~~~
 
