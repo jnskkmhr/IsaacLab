@@ -724,6 +724,8 @@ class NewtonVisualizerBase(BaseVisualizer):
         """Download the selected shared view for legacy capture callers."""
         if self.current_image_view is None:
             raise RuntimeError("The visualizer must be initialized before capturing an image.")
+        # Headless RTX capture uses a scene camera, bypassing the perspective ImageView hook.
+        self.update_camera_tracking()
         if self.current_image_view.camera is not None:
             self._capture_frame(None)
         frame = self.current_image_view.frame

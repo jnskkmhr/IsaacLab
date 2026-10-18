@@ -755,6 +755,14 @@ wheels = [
 ]
 
 [[package]]
+name = "compositional-rsl-rl"
+version = "0.1.0"
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=8b3e865c275213dbfef39ab3c4c0f14176d92573#8b3e865c275213dbfef39ab3c4c0f14176d92573" }
+dependencies = [
+    { name = "rsl-rl-lib" },
+]
+
+[[package]]
 name = "configargparse"
 version = "1.7.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1789,6 +1797,7 @@ dependencies = [
     { name = "alphashape" },
     { name = "botocore" },
     { name = "coacd" },
+    { name = "compositional-rsl-rl" },
     { name = "daqp", marker = "sys_platform != 'win32'" },
     { name = "einops" },
     { name = "fast-simplification" },
@@ -1996,6 +2005,7 @@ requires-dist = [
     { name = "av", marker = "extra == 'rlinf'", specifier = ">=12.3.0" },
     { name = "botocore" },
     { name = "coacd", specifier = ">=1.0.7" },
+    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=8b3e865c275213dbfef39ab3c4c0f14176d92573" },
     { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.1" },
     { name = "daqp", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')", specifier = "==0.8.5" },
     { name = "decord2", marker = "extra == 'rlinf'" },

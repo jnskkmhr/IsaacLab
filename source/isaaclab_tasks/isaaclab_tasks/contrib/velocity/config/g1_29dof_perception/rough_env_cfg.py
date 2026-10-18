@@ -49,8 +49,14 @@ class G1RoughPerceptionEnvCfg(ManagerBasedRLEnvCfg):
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
         self.scene.contact_forces.update_period = self.sim.dt
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
-            NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            NewtonGLVisualizerCfg(
+                eye=(12.0, 0.0, 6.0),
+                headless=True,
+                ),
+            NewtonRTXVisualizerCfg(
+                eye=(12.0, 0.0, 6.0),
+                headless=True,
+                ),
         ]
         self.video_recorders = [
             VideoRecorderCfg(
@@ -60,8 +66,6 @@ class G1RoughPerceptionEnvCfg(ManagerBasedRLEnvCfg):
                 video_interval=2000,
             ),
         ]
-        # self.scene.mid360_lidar.debug_vis = True
-        # self.scene.height_scanner.debug_vis = True
 
 
 @configclass
@@ -70,7 +74,6 @@ class G1RoughPerceptionEnvCfg_PLAY(G1RoughPerceptionEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        self.scene.num_envs = 4
         # self.scene.terrain.terrain_generator.num_rows = 5
         # self.scene.terrain.terrain_generator.num_cols = 5
         # self.scene.terrain.terrain_generator.curriculum = False
@@ -84,7 +87,24 @@ class G1RoughPerceptionEnvCfg_PLAY(G1RoughPerceptionEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         self.commands.base_velocity.ranges.heading = (0.0, 0.0)
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            NewtonGLVisualizerCfg(
+                eye=(0.0, -4.0, 1.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                headless=True,
+                ),
+            NewtonRTXVisualizerCfg(
+                eye=(0.0, -4.0, 1.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                headless=True,
+                ),
         ]
-        self.video_recorders = []
+        self.video_recorders = [
+            VideoRecorderCfg(
+                source="visualizer:newton_rtx",
+                output_dir=None,
+                video_length=200,
+                video_interval=2000,
+            ),
+        ]

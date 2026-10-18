@@ -78,7 +78,7 @@ class G1PerceptionSceneCfg(InteractiveSceneCfg):
         ),
         mesh_prim_paths=["/World/ground"],
         global_world_only=True,
-        debug_vis=False,
+        debug_vis=True,
     )
     mid360_lidar: RayCasterCfg | None = None
     d435_camera: CameraCfg | None = None
@@ -99,6 +99,4 @@ class G1PerceptionSceneCfg(InteractiveSceneCfg):
 @configclass
 class G1DepthSceneCfg(G1PerceptionSceneCfg):
     """Enable only the actor's depth camera and critic's height scanner."""
-
-    mid360_lidar = None
-    d435_camera = DEPTH_CAMERA_CFG.copy()
+    d435_camera = DEPTH_CAMERA_CFG.copy() # type: ignore
