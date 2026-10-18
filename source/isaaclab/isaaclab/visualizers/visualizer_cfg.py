@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from copy import deepcopy
 from dataclasses import MISSING
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from ..utils import configclass
 
@@ -161,10 +161,10 @@ class VisualizerCfg:
     """
 
     eye: tuple[float, float, float] = (4.0, -4.0, 3.0)
-    """Interactive visualizer camera eye position in world coordinates."""
+    """Interactive camera eye offset from the configured origin, in world axes [m]."""
 
     lookat: tuple[float, float, float] = (0.0, 0.0, 0.0)
-    """Interactive visualizer camera look-at target in world coordinates."""
+    """Interactive camera target offset from the configured origin, in world axes [m]."""
 
     focal_length: float = 12.0
     """Camera focal length in millimeters for visualizer camera views."""
@@ -175,6 +175,22 @@ class VisualizerCfg:
     None preserves the scene HDR background in Kit and Newton RTX, or Newton GL's procedural sky.
     An explicit color changes only the visible background, not scene lighting or reflections.
     Scene-camera images retain their sensor's :attr:`~isaaclab.sensors.CameraCfg.background_color`.
+    """
+
+    origin_type: Literal["world", "env", "asset"] = "world"
+    """Perspective camera origin: world, environment origin, or tracked asset position.
+
+    Asset tracking translates eye/lookat with the asset; it does not rotate the offsets.
+    Scene-camera sensors retain their own poses.
+    """
+
+    origin_env_index: int = 0
+    """Environment containing the camera origin when origin_type is env or asset."""
+
+    origin_track_path: str | None = None
+    """Asset root ("robot") or body ("robot/torso_link") to track for an asset origin.
+
+    Names refer to the interactive scene. The body expression must match exactly one body.
     """
 
     # ── Streaming view ────────────────────────────────────────────────────────

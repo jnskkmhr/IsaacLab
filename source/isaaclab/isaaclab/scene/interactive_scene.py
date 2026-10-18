@@ -121,7 +121,7 @@ class InteractiveScene:
         self._sensors = {}
         self._surface_grippers = {}
         self._visual_materials = {}
-        self._extras: dict[str, Asset | VisualizationMarkers] = {}
+        self._extras: dict[str, Asset | VisualizationMarkers | TerrainImporter] = {}
         self.sim = SimulationContext.instance()
         self.stage = get_current_stage()
         self.stage_id = get_current_stage_id()
@@ -328,7 +328,11 @@ class InteractiveScene:
 
     @property
     def terrain(self) -> TerrainImporter | None:
-        """The terrain in the scene. If None, then the scene has no terrain.
+        """The primary terrain in the scene. If None, then the scene has no terrain.
+
+        A configuration entry named ``terrain`` takes precedence over other terrain importers.
+        Additional terrain importers are available through :attr:`extras`. If no entry is named
+        ``terrain``, the last imported terrain remains primary for backward compatibility.
 
         Note:
             We treat terrain separate from :attr:`extras` since terrains define environment origins and are
@@ -388,7 +392,7 @@ class InteractiveScene:
         return self.sim.get_clone_plan()
 
     @property
-    def extras(self) -> dict[str, Asset | VisualizationMarkers]:
+    def extras(self) -> dict[str, Asset | VisualizationMarkers | TerrainImporter]:
         """A dictionary of scene entities without runtime simulation views.
 
         The keys are the names of miscellaneous authoring-only assets or visualization markers.
@@ -760,7 +764,12 @@ class InteractiveScene:
                 # terrains are special entities since they define environment origins
                 asset_cfg.num_envs = self.cfg.num_envs
                 asset_cfg.env_spacing = self.cfg.env_spacing
-                self._terrain = instantiate(asset_cfg)
+                importer = instantiate(asset_cfg)
+                # A named primary terrain must not depend on config iteration order.
+                if asset_name == "terrain" or not isinstance(getattr(self.cfg, "terrain", None), TerrainImporterCfg):
+                    self._terrain = importer
+                else:
+                    self._extras[asset_name] = importer
             elif isinstance(asset_cfg, ArticulationCfg):
                 self._articulations[asset_name] = instantiate(asset_cfg)
             elif isinstance(asset_cfg, CableObjectCfg):
