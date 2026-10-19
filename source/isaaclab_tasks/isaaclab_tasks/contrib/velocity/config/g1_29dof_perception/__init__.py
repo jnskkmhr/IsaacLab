@@ -32,7 +32,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionCNNEnvCfg",
         "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1CNNPPORunnerCfg",
     },
 )
@@ -42,7 +42,7 @@ gym.register(
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionEnvCfg_PLAY",
+        "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionCNNEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1CNNPPORunnerCfg",
     },
 )

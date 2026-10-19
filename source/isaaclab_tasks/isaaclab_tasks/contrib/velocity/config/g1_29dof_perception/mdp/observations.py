@@ -57,6 +57,8 @@ class elevation_map(ManagerTermBase):
     forward X and axis 1 is left Y; Z is world-up height relative to that origin.
     Missed rays keep their grid XY and use ``missing_height`` for Z. The sensor's
     ray starts may be elevated above its origin without changing this reference.
+    Return ``(B, nx, ny, 3)`` for AME or height-only ``(B, 1, nx, ny)`` when
+    ``height_only`` is enabled for RSL-RL's CNN.
     """
 
     def __init__(self, cfg: ObservationTermCfg, env: ManagerBasedRLEnv):
@@ -77,7 +79,13 @@ class elevation_map(ManagerTermBase):
         self._missing = starts.clone()
         self._missing[:, 2] = cfg.params["missing_height"]
 
-    def __call__(self, env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, missing_height: float) -> torch.Tensor:
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        sensor_cfg: SceneEntityCfg,
+        missing_height: float,
+        height_only: bool = False,
+    ) -> torch.Tensor:
         data = self._sensor.data
         hits = data.ray_hits_w.torch
         valid = torch.isfinite(hits).all(dim=-1)
@@ -85,4 +93,5 @@ class elevation_map(ManagerTermBase):
         quat = yaw_quat(data.quat_w.torch)[:, None, :].expand(-1, hits.shape[1], -1)
         points = quat_apply_inverse(quat.reshape(-1, 4), relative.reshape(-1, 3)).reshape_as(hits)
         points = torch.where(valid.unsqueeze(-1), points, self._missing.unsqueeze(0))
-        return points.reshape(-1, *self._shape)
+        points = points.reshape(-1, *self._shape)
+        return points[..., 2].unsqueeze(1).contiguous() if height_only else points

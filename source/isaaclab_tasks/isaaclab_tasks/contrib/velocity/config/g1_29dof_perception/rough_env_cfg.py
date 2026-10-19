@@ -52,11 +52,11 @@ class G1RoughPerceptionEnvCfg(ManagerBasedRLEnvCfg):
             NewtonGLVisualizerCfg(
                 eye=(12.0, 0.0, 6.0),
                 headless=True,
-                ),
+            ),
             NewtonRTXVisualizerCfg(
                 eye=(12.0, 0.0, 6.0),
                 headless=True,
-                ),
+            ),
         ]
         self.video_recorders = [
             VideoRecorderCfg(
@@ -92,13 +92,13 @@ class G1RoughPerceptionEnvCfg_PLAY(G1RoughPerceptionEnvCfg):
                 origin_type="asset",
                 origin_track_path="robot",
                 headless=True,
-                ),
+            ),
             NewtonRTXVisualizerCfg(
                 eye=(0.0, -4.0, 1.0),
                 origin_type="asset",
                 origin_track_path="robot",
                 headless=True,
-                ),
+            ),
         ]
         self.video_recorders = [
             VideoRecorderCfg(
@@ -108,3 +108,25 @@ class G1RoughPerceptionEnvCfg_PLAY(G1RoughPerceptionEnvCfg):
                 video_interval=2000,
             ),
         ]
+
+
+@configclass
+class G1RoughPerceptionCNNEnvCfg(G1RoughPerceptionEnvCfg):
+    """Velocity task with a single terrain-height channel for RSL-RL's CNN."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.observations.elevation_map.map.params["height_only"] = True
+        self.observations.elevation_map.map.mirror_params["height_only"] = True
+        self.observations.elevation_map.concatenate_dim = 0
+
+
+@configclass
+class G1RoughPerceptionCNNEnvCfg_PLAY(G1RoughPerceptionEnvCfg_PLAY):
+    """Playback with the same channel-first observations used for CNN training."""
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.observations.elevation_map.map.params["height_only"] = True
+        self.observations.elevation_map.map.mirror_params["height_only"] = True
+        self.observations.elevation_map.concatenate_dim = 0
