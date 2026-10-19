@@ -5,14 +5,10 @@
 
 """Independent signed-distance, frame, and sampled-surface checks."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from geometry import SampledSDF, body_contacts
+from particle_nerd.force_estimation.geometry import SampledSDF, body_contacts
 
 
 def test_rotated_cylinder_side_cap_corner_and_interior():
@@ -50,7 +46,8 @@ def test_sampled_sphere_distance_and_normal_converge_under_refinement():
 
 def test_differentiable_geometry_matches_independent_queries_and_gradients():
     import torch
-    from geometry import body_contacts_torch
+
+    from particle_nerd.force_estimation.geometry import body_contacts_torch
 
     rotation = Rotation.from_euler("xyz", [0.3, -0.4, 0.2])
     pose = np.r_[[0.1, 0.2, -0.1], rotation.as_quat()]

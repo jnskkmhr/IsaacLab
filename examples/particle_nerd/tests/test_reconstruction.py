@@ -9,14 +9,10 @@ These protect acceleration signs, internal action-reaction, and torque origins.
 There was no pre-existing reconstruction implementation or coverage for these contracts.
 """
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from reconstruction import box_contacts, reconstruct_reactions
+from particle_nerd.force_estimation.reconstruction import box_contacts, reconstruct_reactions
 
 
 def test_free_fall_has_no_body_reaction():

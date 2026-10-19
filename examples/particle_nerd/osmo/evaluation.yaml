@@ -1,0 +1,56 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 1
+      cpu: 8
+      memory: 64Gi
+      storage: 250Gi
+      platform: ovx-l40
+  tasks:
+  - name: evaluate
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    command: [bash, -c]
+    args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/particle-gnn "{{output}}/evaluation"
+      cd "{{input:0}}"
+      sha256sum --check bundle.sha256
+      tar -xzf bundle.tar.gz -C /tmp/particle-gnn
+      cp /tmp/particle-gnn/bundle/snapshot.json "{{output}}/snapshot.json"
+      export PARTICLE_OUTPUT="{{output}}"
+      export PARTICLE_DATA="{{input:1}}"
+      export PARTICLE_CHECKPOINT="{{input:2}}/best.pt"
+      test -s "$PARTICLE_CHECKPOINT"
+      sha256sum "$PARTICLE_CHECKPOINT" > "$PARTICLE_OUTPUT/checkpoint.sha256"
+      bash /tmp/particle-gnn/bundle/isaaclab/examples/particle_nerd/osmo/bootstrap.sh \
+        python -m particle_nerd.gnn.evaluate \
+        --data "$PARTICLE_DATA" --checkpoint "$PARTICLE_CHECKPOINT" \
+        --output "$PARTICLE_OUTPUT/evaluation" \
+        --episodes {{ num_episodes }} --steps {{ rollout_steps }} --split {{ split }}
+    environment:
+      HEADLESS: "1"
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: all
+    inputs:
+    - url: "{{ source_url }}"
+    - url: "{{ dataset_url }}"
+    - url: "{{ model_url }}"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}"
+default-values:
+  workflow_name: particle-gnn-evaluate
+  num_episodes: 12
+  rollout_steps: 250
+  split: test
+  source_url: ""
+  dataset_url: ""
+  model_url: ""
+  output_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-gnn/runs

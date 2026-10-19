@@ -1,0 +1,53 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 1
+      cpu: 8
+      memory: 64Gi
+      storage: 88Gi
+      platform: ovx-l40
+  tasks:
+#{% for rank in range(num_shards) %}
+  - name: collect-{{ rank }}
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    command: [bash, -c]
+    args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/particle-gnn "{{output}}/episodes"
+      cd "{{input:0}}"
+      sha256sum --check bundle.sha256
+      tar -xzf bundle.tar.gz -C /tmp/particle-gnn
+      cp /tmp/particle-gnn/bundle/snapshot.json "{{output}}/snapshot.json"
+      export PARTICLE_OUTPUT="{{output}}"
+      bash /tmp/particle-gnn/bundle/isaaclab/examples/particle_nerd/osmo/bootstrap.sh \
+        python -m particle_nerd.data_collection.campaign \
+        --episodes {{ num_episodes }} --shards {{ num_shards }} --shard {{ rank }} \
+        --output "$PARTICLE_OUTPUT/episodes"
+    environment:
+      HEADLESS: "1"
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: all
+    inputs:
+    - url: "{{ source_url }}"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/shard-{{ rank }}"
+    checkpoint:
+    - path: "{{output}}/episodes"
+      url: "{{ output_url }}/{{workflow_id}}/shard-{{ rank }}/episodes"
+      frequency: 5m
+      regex: '(?:.*/)?(?:progress\.json|COMPLETE\.json|episode-[0-9]+\.campaign\.json)$'
+#{% endfor %}
+default-values:
+  workflow_name: particle-gnn-collect
+  num_shards: 32
+  num_episodes: 1000
+  source_url: ""
+  output_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-gnn/runs

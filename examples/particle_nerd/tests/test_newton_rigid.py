@@ -5,16 +5,12 @@
 
 """Independent free-flight momentum and direct rigid-floor contact checks."""
 
-import sys
-from pathlib import Path
-
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from newton_rigid import NewtonRigidStepper
+from particle_nerd.runner.rigid import NewtonRigidStepper
 
 
-def test_applied_material_force_advances_momentum_exactly_once():
+def test_material_and_external_wrenches_advance_momentum_exactly_once():
     e = dict(
         body_pose=np.array([[[0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]]]),
         body_velocity=np.array([[[0.2, -0.1, 0.3, 0.0, 0.0, 0.0]]]),
@@ -29,13 +25,15 @@ def test_applied_material_force_advances_momentum_exactly_once():
     )
     stepper = NewtonRigidStepper(e)
     force = np.array([[4.0, 2.0, -1.0, 0.0, 0.0, 0.0]])
+    external = np.array([[2.0, -4.0, 0.0, 0.0, 0.0, 0.01]])
     for _ in range(20):
-        pose, velocity = stepper.step(force)
-    acceleration = np.array([2.0, 1.0, -10.31])
+        pose, velocity = stepper.step(force, external)
+    acceleration = np.array([3.0, -1.0, -10.31])
     expected_velocity = np.array([0.2, -0.1, 0.3]) + 0.2 * acceleration
     expected_position = np.array([0.0, 0.0, 1.0]) + 0.2 * np.array([0.2, -0.1, 0.3]) + 0.021 * acceleration
     np.testing.assert_allclose(velocity[0, :3], expected_velocity, atol=2e-6)
     np.testing.assert_allclose(pose[0, :3], expected_position, atol=2e-6)
+    np.testing.assert_allclose(velocity[0, 3:], [0, 0, 0.2], atol=2e-6)
     np.testing.assert_allclose(stepper.direct_contact_force, 0, atol=5e-5)
 
 
