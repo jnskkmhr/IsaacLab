@@ -1,0 +1,31 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""Reflection of the AME task's structured XYZ elevation map."""
+
+import torch
+
+
+def mirror_pose_command(data: torch.Tensor) -> torch.Tensor:
+    """Reflect (dx, dy, dz, sin(yaw_error), cos(yaw_error)) in the base XZ plane."""
+    return data * data.new_tensor((1.0, -1.0, 1.0, -1.0, 1.0))
+
+
+def mirror_elevation_map(data: torch.Tensor, height_only: bool = False) -> torch.Tensor:
+    """Reflect ``(..., nx, ny, 3)`` points across the torso yaw-frame XZ plane.
+
+    Reverse lateral grid cells and negate their Y coordinates. X and terrain Z
+    retain their values; history/batch dimensions and missing-height markers are
+    preserved. A spatial flip alone would associate points with the wrong XY cells.
+    Set ``height_only`` for CNN observations shaped ``(..., 1, nx, ny)``; their
+    heights only need a lateral grid flip.
+    """
+    if height_only:
+        if data.ndim < 3 or data.shape[-3] != 1:
+            raise ValueError("Height-map reflection requires (..., 1, nx, ny) data.")
+        return data.flip(-1)
+    if data.ndim < 3 or data.shape[-1] != 3:
+        raise ValueError("Elevation-map reflection requires (..., nx, ny, 3) XYZ data.")
+    return data.flip(-2) * data.new_tensor((1.0, -1.0, 1.0))
