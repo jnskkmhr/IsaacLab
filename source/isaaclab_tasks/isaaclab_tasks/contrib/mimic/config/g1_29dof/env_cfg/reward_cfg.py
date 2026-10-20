@@ -10,6 +10,7 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
+import isaaclab_tasks.core.velocity.mdp as velocity_mdp
 
 
 @configclass
@@ -61,41 +62,18 @@ class G1RewardsCfg:
     #     params={"command_name": "motion", "std": 3.14},
     # )
 
-    alive_reward = RewTerm(func=mdp.is_alive, weight=1.0)
+    # Track both ankle-link velocities using the validated walking/jogging reward.
+    motion_feet_lin_vel = RewTerm(
+        func=mimic_mdp.motion_global_body_linear_velocity_error_exp,
+        weight=1.0,
+        params={
+            "command_name": "motion",
+            "std": 1.0,
+            "body_names": ["left_ankle_roll_link", "right_ankle_roll_link"],
+        },
+    )
 
-    # -- standing terms, active only inside the stance intervals of the clip
-    # (see MotionCommandCfg.stance_phase_ranges). Stance has no reference trajectory worth tracking,
-    # so the tracking terms above are gated off there and these balance terms take over.
-    standing_flat_orientation = RewTerm(
-        func=mimic_mdp.standing_flat_orientation_l2,
-        weight=-5.0,
-        params={"command_name": "motion"},
-    )
-    standing_base_height = RewTerm(
-        func=mimic_mdp.standing_base_height_l2,
-        weight=-5.0,
-        params={"command_name": "motion", "target_height": 0.75},
-    )
-    standing_lin_vel_z = RewTerm(
-        func=mimic_mdp.standing_lin_vel_z_l2,
-        weight=-0.5,
-        params={"command_name": "motion"},
-    )
-    standing_lin_vel_xy = RewTerm(
-        func=mimic_mdp.standing_lin_vel_xy_l2,
-        weight=-1.0,
-        params={"command_name": "motion"},
-    )
-    standing_ang_vel_xy = RewTerm(
-        func=mimic_mdp.standing_ang_vel_xy_l2,
-        weight=-0.025,
-        params={"command_name": "motion"},
-    )
-    standing_joint_deviation = RewTerm(
-        func=mimic_mdp.standing_joint_deviation_l1,
-        weight=-0.5,
-        params={"command_name": "motion"},
-    )
+    alive_reward = RewTerm(func=mdp.is_alive, weight=1.0)
 
     # -- penalties
     joint_acc = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
@@ -117,5 +95,14 @@ class G1RewardsCfg:
                 ],
             ),
             "threshold": 1.0,
+        },
+    )
+
+    feet_slide = RewTerm(
+        func=velocity_mdp.feet_slide,
+        weight=-0.25,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
         },
     )
