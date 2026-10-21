@@ -20,6 +20,7 @@ from isaaclab.utils.configclass import configclass
 ##
 from isaaclab_assets import (
     UNITREE_G1_29DOF_BOX_FOOT_CFG,
+    UNITREE_G1_29DOF_BOX_FOOT_GHOST_CFG,
 )
 
 
@@ -46,6 +47,8 @@ class G1SceneCfg(InteractiveSceneCfg):
     )
     # robots
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
+
+    ghost: AssetBaseCfg = UNITREE_G1_29DOF_BOX_FOOT_GHOST_CFG.replace(enabled=False)
 
     # sensors
     contact_forces = ContactSensorCfg(

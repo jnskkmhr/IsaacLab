@@ -104,6 +104,14 @@ class G1EventCfg:
         },
     )
 
+    reset_ghost = EventTerm(func=mimic_mdp.update_ghost_pose, mode="reset")
+    update_ghost = EventTerm(
+        func=mimic_mdp.update_ghost_pose,
+        mode="interval",
+        interval_range_s=(0.0, 0.0),
+        is_global_time=True,
+    )
+
     # interval
     # NOTE: model-based wrench at the base that carries the robot toward the reference. Its gain is
     # the ZEST S6 automatic curriculum: set per env at reset from the measured failure rate of the

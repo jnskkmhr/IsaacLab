@@ -79,6 +79,7 @@ class EnvCfg_PLAY(EnvCfg):
     def __post_init__(self):
         """Post initialization."""
         super().__post_init__()
+        self.scene.ghost.enabled = True
 
         self.terminations.anchor_pos = None  # type: ignore
         self.terminations.anchor_ori = None  # type: ignore
@@ -90,8 +91,8 @@ class EnvCfg_PLAY(EnvCfg):
         self.events.assistive_wrench = None  # type: ignore
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            # NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            # NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
         self.video_recorders = [

@@ -93,6 +93,20 @@ positions in radians. See the dataset README for the complete example.
 
 Motion import and replay: [dataset pipeline](../../data/motions/README.md).
 
+## Reference ghost
+
+With `--viz newton_gl` or `--viz newton_rtx`, playback displays a translucent blue G1 at the current
+motion-reference pose. Its root follows the episode's reference translation and
+yaw, and its joints follow the selected clip. The ghost has no simulated
+articulation or contacts. The soft Mimic scene inherits the same overlay.
+
+Training disables the overlay by default. Set `env.scene.ghost.enabled=true` to
+include it in training videos, or `env.scene.ghost.enabled=false` to hide it in play.
+Every environment gets a reference ghost; there is no instance limit.
+Adjust `env.scene.ghost.spawn.color` and `env.scene.ghost.spawn.opacity` for its
+appearance. Kit is not supported. Enable the ghost before the first render so RTX
+registers its mesh when building the scene.
+
 The rigid Mimic task uses compositional PPO with the existing `policy` and `critic`
 observation groups. Run `uv sync` to install the locked `compositional-rsl-rl` main
 revision. The optional terrain snapshot interface is disabled for this plane task.

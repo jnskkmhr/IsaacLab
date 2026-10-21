@@ -31,6 +31,22 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedEnv
 
 
+def update_ghost_pose(
+    env: ManagerBasedEnv, env_ids: torch.Tensor | slice | None, command_name: str = "motion"
+) -> None:
+    """Display the current reference root and joint pose without simulated contacts.
+
+    Refresh all displayed instances after partial resets too. Reference root poses
+    include each environment's origin and the episode's fixed position/yaw offset.
+    """
+    ghost = env.scene["ghost"]
+    if not ghost.cfg.enabled:
+        return
+    reference: MotionCommand = env.command_manager.get_term(command_name)
+    root_pose = torch.cat((reference.root_pos_w, reference.root_quat_w), dim=-1)
+    ghost.write_pose(root_pose, reference.joint_pos_robot_order, reference.robot.joint_names)
+
+
 def randomize_joint_default_pos(
     env: ManagerBasedEnv,
     env_ids: torch.Tensor | None,
