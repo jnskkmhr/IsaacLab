@@ -71,6 +71,7 @@ def main():
     chart = Image.open(buffer).convert("RGB")
     total_height = top + height + chart_height
     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 17)
+    small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with launch_simulation(cfg.sim, dict(headless=True, device="cuda:0", visualizer=[])):
         env = gym.make(task, cfg=cfg)
@@ -130,7 +131,7 @@ def main():
             for k in indices:
                 frame = Image.new("RGB", (width, total_height), "#f7f9f7")
                 draw = ImageDraw.Draw(frame)
-                for i, (_, snap, _) in enumerate(data):
+                for i, (meta, snap, _) in enumerate(data):
                     t = float(snap["time_s"][k])
                     state.body_q.assign(snap["body_pose"][k])
                     state.particle_q.assign(snap["particle_position"][k])
@@ -142,8 +143,11 @@ def main():
                     frame.paste(Image.fromarray(viewer.get_frame().numpy()).convert("RGB"), (i * 640, top))
                     draw.text((i * 640 + 14, 12), labels[i], font=font, fill=colors[i])
                     draw.text(
-                        (i * 640 + 14, 40), f"Dynamic G1 | 3 x 3 m sand | t = {t:.2f} s", font=font, fill="#23383e"
+                        (i * 640 + 14, 35), f"Dynamic G1 | 3 x 3 m sand | t = {t:.2f} s", font=font, fill="#23383e"
                     )
+                    outcome = meta["outcome"].replace("_", " ")
+                    status = f"Recorded run: {meta['duration_s']:.2f} s ({outcome})"
+                    draw.text((i * 640 + 14, 59), status, font=small_font, fill="#566970")
                 frame.paste(chart, (0, top + height))
                 for (x, y, w, h), (xmin, xmax) in zip(bounds, limits, strict=True):
                     px = x + (t - xmin) / max(xmax - xmin, 0.01) * w
