@@ -59,5 +59,5 @@ class G1PPORunnerCfg(CompositionalRunnerCfg):
         ),
     )
     logger = "wandb"
-    wandb_project = "g1_jump_rigid"
-    experiment_name = "g1_jump_rigid"
+    wandb_project = "g1_mimic"
+    experiment_name = "g1_mimic"

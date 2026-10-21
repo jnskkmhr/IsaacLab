@@ -1,0 +1,19 @@
+{
+  "frames": 537,
+  "fps": 50.0,
+  "video_frames": 537,
+  "duration_s": 10.74,
+  "mimic_loader_passed": true,
+  "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+  "max_joint_limit_violation_rad": 0.0,
+  "violating_joints": [],
+  "max_joint_speed_rad_s": 14.838541030883789,
+  "max_foot_corner_depth_below_terrain_m": 0.48441663760936965,
+  "frames_with_foot_corner_depth_over_1cm": 62,
+  "foot_measurement": "Vertical depth of eight foot-box corners below highest terrain surface at the same world XY; discrete frames only; not full-body collision",
+  "max_hand_sphere_surface_overlap_m": 0.0,
+  "hand_measurement": "Nearest triangle distance from sphere center minus radius; unsigned mesh distance, not a solid-volume test",
+  "dynamic_tracking_validated": false,
+  "self_collision_checked": false,
+  "ready_for_training": false
+}

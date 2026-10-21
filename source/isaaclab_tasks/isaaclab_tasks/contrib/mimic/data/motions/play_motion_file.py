@@ -12,6 +12,10 @@
 
 Untagged motion files use the legacy PhysX joint order. Files with ``joint_names``
 metadata are reordered by name for Newton. No Isaac Sim Kit installation is required.
+Terrain stored in the NPZ is loaded automatically. Use ``--terrain_mode scene``
+to ignore it, or ``--terrain_mode motion`` to require paired terrain.
+Interactive playback follows the saved FPS and repeats by default. Pass ``--no-loop``
+to hold the final pose; the transition from the last frame to the first is not blended.
 
 Pass ``--video`` to save the replay to an mp4 instead of only viewing it. This works headless:
 
@@ -24,6 +28,7 @@ Pass ``--video`` to save the replay to an mp4 instead of only viewing it. This w
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Literal
@@ -45,6 +50,18 @@ parser.add_argument(
     type=int,
     default=None,
     help="Override the root body index; otherwise resolve its name from NPZ metadata (legacy default: 0).",
+)
+parser.add_argument(
+    "--terrain_mode",
+    choices=("auto", "motion", "scene"),
+    default="auto",
+    help="auto: load NPZ terrain when present; motion: require it; scene: use the default plane.",
+)
+parser.add_argument(
+    "--loop",
+    action=argparse.BooleanOptionalAction,
+    default=True,
+    help="Repeat the motion (default); --no-loop holds the final pose.",
 )
 parser.add_argument("--camera_distance", type=float, default=1.5, help="Camera distance from the robot.")
 parser.add_argument("--video", action="store_true", default=False, help="Record a video of the replay.")
@@ -69,13 +86,17 @@ from isaaclab_newton.physics import MJWarpSolverCfg, NewtonCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
 
 import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg
+from isaaclab.assets import ArticulationCfg
 from isaaclab.envs.utils.video_recorder import VideoRecorder
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
+from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.math import convert_quat
+from isaaclab.visualizers import WindowCfg
+
+from isaaclab_tasks.contrib.mimic.utils import configure_scene_motion_paired_terrain, motion_files_use_terrain
 
 from isaaclab_assets.robots.unitree import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
@@ -84,7 +105,7 @@ from isaaclab_assets.robots.unitree import UNITREE_G1_29DOF_BOX_FOOT_CFG
 class ReplayNpzSceneCfg(InteractiveSceneCfg):
     """Scene used to view a saved WBC npz motion."""
 
-    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
+    terrain = TerrainImporterCfg(prim_path="/World/ground", terrain_type="plane")
 
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
@@ -137,6 +158,9 @@ class NpzMotion:
         self.body_names = list(data["body_names"]) if "body_names" in data else None
         self.motion_file = motion_file
         self.fps = float(np.asarray(data["fps"]).reshape(-1)[0])
+        if not np.isfinite(self.fps) or self.fps <= 0:
+            data.close()
+            raise ValueError(f"Motion FPS must be finite and positive, got {self.fps}.")
         self.joint_pos = torch.tensor(data["joint_pos"], dtype=torch.float32, device=device)
         self.joint_vel = torch.tensor(data["joint_vel"], dtype=torch.float32, device=device)
         self.body_pos_w = torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device)
@@ -150,19 +174,24 @@ class NpzMotion:
             self.body_quat_w = convert_quat(self.body_quat_w, to="xyzw")
         data.close()
         self.num_frames = self.joint_pos.shape[0]
+        if self.num_frames == 0:
+            raise ValueError("Motion must contain at least one frame.")
         self.current_idx = 0
 
         print(f"[INFO]: Motion loaded: {motion_file}")
         print(f"[INFO]: fps={self.fps}, frames={self.num_frames}, duration={(self.num_frames - 1) / self.fps:.3f}s")
 
-    def next_frame(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def next_frame(self, *, loop: bool = True) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         frame = (
             self.joint_pos[self.current_idx],
             self.joint_vel[self.current_idx],
             self.body_pos_w[self.current_idx],
             self.body_quat_w[self.current_idx],
         )
-        self.current_idx = (self.current_idx + 1) % self.num_frames
+        if loop:
+            self.current_idx = (self.current_idx + 1) % self.num_frames
+        else:
+            self.current_idx = min(self.current_idx + 1, self.num_frames - 1)
         return frame
 
 
@@ -211,13 +240,14 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
         print(f"[INFO]: Recording {video_length} frames at {motion.fps} fps.")
 
     replay_steps = 0
+    last_render_time = None
     try:
-        while sim.is_headless_or_exist_active_visualizer():
-            joint_pos_frame, joint_vel_frame, body_pos_frame, body_quat_frame = motion.next_frame()
+        while sim.is_running():
+            joint_pos_frame, joint_vel_frame, body_pos_frame, body_quat_frame = motion.next_frame(loop=args_cli.loop)
 
             root_states = robot.data.default_root_pose.torch.clone()
             root_states[:, :3] = body_pos_frame[root_body_index]
-            root_states[:, :2] += scene.env_origins[:, :2]
+            root_states[:, :3] += scene.env_origins
             root_states[:, 3:7] = body_quat_frame[root_body_index]
             robot.write_root_pose_to_sim_index(root_pose=root_states[:, :7])
             robot.write_root_velocity_to_sim_index(root_velocity=robot.data.default_root_vel.torch)
@@ -234,6 +264,14 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
             camera_offset = np.array([args_cli.camera_distance, args_cli.camera_distance, 0.2])
             sim.set_camera_view(pos_lookat + camera_offset, pos_lookat)
 
+            # Pace the interactive window; headless exports use the recorded FPS.
+            # Never skip reference frames or catch up in a burst after a slow render.
+            if not args_cli.headless:
+                if last_render_time is not None:
+                    delay = last_render_time + 1.0 / motion.fps - time.perf_counter()
+                    if delay > 0:
+                        time.sleep(delay)
+                last_render_time = time.perf_counter()
             sim.render()
             scene.update(sim.get_physics_dt())
 
@@ -249,20 +287,22 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
 
 def main():
     with launch_simulation(cfg=NewtonCfg(solver_cfg=MJWarpSolverCfg()), launcher_args=args_cli) as physics_cfg:
+        motion_fps = NpzMotion(args_cli.motion_file, "cpu", args_cli.quaternion_order).fps
         sim_cfg = sim_utils.SimulationCfg(
             device=args_cli.device,
             physics=physics_cfg,
-            dt=1.0 / NpzMotion(args_cli.motion_file, "cpu", args_cli.quaternion_order).fps,
+            dt=1.0 / motion_fps,
             visualizer_cfgs=[
                 NewtonGLVisualizerCfg(
-                    window_width=args_cli.video_resolution[0],
-                    window_height=args_cli.video_resolution[1],
+                    window=WindowCfg(size=tuple(args_cli.video_resolution), fps=motion_fps),
                     headless=args_cli.headless,
                 )
             ],
         )
         sim = SimulationContext(sim_cfg)
         scene_cfg = ReplayNpzSceneCfg(num_envs=1, env_spacing=2.0)
+        if motion_files_use_terrain([args_cli.motion_file], args_cli.terrain_mode):
+            configure_scene_motion_paired_terrain(scene_cfg, [args_cli.motion_file])
         scene = InteractiveScene(scene_cfg)
         sim.reset()
         print("[INFO]: Setup complete.")

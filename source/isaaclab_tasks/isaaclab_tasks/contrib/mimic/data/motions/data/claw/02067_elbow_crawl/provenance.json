@@ -1,0 +1,96 @@
+{
+  "installed_export": {
+    "motion_file": "claw/02067_elbow_crawl/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/claw/02067_elbow_crawl/motion.npz",
+    "source_sha256": "3b28a90469aa3b8f3ca5377772424c980d5d5c5b11c6bf1b100938c7079bb811",
+    "sha256": "802acc4a0bbd868de069727a71644228676d8d6e4ee34d89a00f3263b1f526c6",
+    "fps": 50.0,
+    "frames": 483,
+    "duration_seconds": 9.64,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 5,
+    "terrain_vertex_count": 0,
+    "terrain_triangle_count": 0,
+    "ground_height_m": 0.0,
+    "metadata_changes": [
+      "Split terrain_boxes into terrain_position and terrain_dimension; dimensions remain full sizes in meters.",
+      "Renamed terrain_box_quat to terrain_quat; xyzw order unchanged.",
+      "Explicit ground_height=0 m matches the original motion-generation Isaac Lab viewer default plane."
+    ],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source_type": "public_G1_dynamic_trajectory",
+    "dataset": "JianuoCao/CLAW",
+    "revision": "cbd516f611e46d52182d261ca1651563d8044850",
+    "source_motion": "source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/claw/source/motion/02067_elbow_crawl/trajectory_dynamic.csv",
+    "source_sha256": "62f3fef71e54954b6f81a97930c28d73730d4a902406027106e3e15bd4e373d3",
+    "annotation": {
+      "schema_version": "1.0",
+      "recipe_name": "elbow_crawl",
+      "total_duration_sec": 9.12,
+      "data_fps": 50,
+      "trajectory_file": "trajectory_dynamic.csv",
+      "segments": [
+        {
+          "idx": 0,
+          "t_start": 0.0,
+          "t_end": 9.12,
+          "frame_start": 0,
+          "frame_end": 456,
+          "mode": "elbow_crawl",
+          "movement": "forward",
+          "turn_deg": null,
+          "turn_dir": null,
+          "duration_sec": 9.12,
+          "speed": 1.318
+        }
+      ],
+      "full_trajectory": [
+        "The robot army crawls forward for 9.1 seconds.",
+        "The person army crawls forward for 9.1 seconds.",
+        "Army crawls forward for 9.1 seconds.",
+        "The robot army crawls forward.",
+        "The person army crawls forward.",
+        "Army crawls forward.",
+        "Army crawl ahead for 9.1 seconds.",
+        "Crawl on elbows ahead rapidly for about 9.1 seconds.",
+        "The robot elbow-crawls forward rapidly for 9.1 seconds.",
+        "elbow crawl forward 9.1s",
+        "Army crawl ahead.",
+        "Crawl on elbows ahead rapidly.",
+        "The robot elbow-crawls forward rapidly.",
+        "elbow crawl forward",
+        "Army crawl straight rapidly for about 9.1 seconds.",
+        "The robot crawls on elbows straight rapidly for 9.1 seconds.",
+        "elbow crawl forward 9.1s."
+      ],
+      "per_segment": [
+        {
+          "segment_idx": 0,
+          "annotations": [
+            "Army crawl ahead for 9.1 seconds.",
+            "Low crawl forward rapidly for about 9.1 seconds.",
+            "The robot crawls on elbows straight rapidly for 9.1 seconds.",
+            "elbow crawl forward 9.1s",
+            "Army crawl ahead.",
+            "Low crawl forward rapidly.",
+            "The robot crawls on elbows straight rapidly.",
+            "elbow crawl forward"
+          ]
+        }
+      ]
+    },
+    "actual_frames": 483,
+    "fps": 50,
+    "terrain_source": "none supplied",
+    "target_robot": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "dynamic_tracking_validated_on_target_asset": false,
+    "license": "No explicit dataset license in the downloaded card; retain upstream provenance.",
+    "export_asset": "source/isaaclab_assets/data/unitree/g1_29dof_box_foot_ball_hand/g1_29dof_box_foot_ball_hand.usda",
+    "export_asset_sha256": "5a82189df73de1f96dc2e302f4112a4956b72b71dc79bddd5f6a5c5aabbfdc2d",
+    "dynamic_tracking_validated": false,
+    "source_joint_trajectory_modified": false
+  }
+}

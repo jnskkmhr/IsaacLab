@@ -110,3 +110,24 @@ registers its mesh when building the scene.
 The rigid Mimic task uses compositional PPO with the existing `policy` and `critic`
 observation groups. Run `uv sync` to install the locked `compositional-rsl-rl` main
 revision. The optional terrain snapshot interface is disabled for this plane task.
+
+## Motion-paired terrain
+
+Set `motion_files` in `env_cfg/commands_cfg.py`. Its default `terrain_mode="auto"`
+loads terrain from those NPZ files for both standard RL train and policy play.
+Clips without terrain metadata retain the existing scene plane. Use `"motion"`
+to require paired terrain, or `"scene"` to retain the configured scene terrain.
+
+The task creates terrain after CLI overrides, so this also works:
+
+```bash
+uv run isaaclab train --rl_library rsl_rl --task IsaacContrib-Mimic-G1-29dof-v0 \
+  "env.commands.motion.motion_files=['/absolute/path/motion.npz']" \
+  env.commands.motion.terrain_mode=auto
+```
+
+Use the same overrides with `isaaclab play`. For 50 Hz references, also pass
+`env.sim.dt=0.005` (the default task is 60 Hz with decimation 4).
+See the [terrain loading guide](../../utils/README.md) for playback, NPZ fields,
+and shared patch placement. Runtime utilities live in `mimic/utils/`; sampling
+and reset events remain in `mimic/mdp/`.

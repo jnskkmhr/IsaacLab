@@ -1,0 +1,61 @@
+{
+  "installed_export": {
+    "motion_file": "parc/jump_001/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/parc_jump_001/motion.npz",
+    "source_sha256": "157dd130687d9f7e6ea80e6937c2b83a31345c69d9fa90f7b6ea8146e64eeb37",
+    "sha256": "0afb6698c29c0216ca36d371d9ba8f3adf3c3c36fe32e419005365ce587ce662",
+    "fps": 50.0,
+    "frames": 182,
+    "duration_seconds": 3.62,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 3,
+    "terrain_vertex_count": 0,
+    "terrain_triangle_count": 0,
+    "ground_height_m": -2.7864453980329182,
+    "metadata_changes": [
+      "Split terrain_boxes into terrain_position and terrain_dimension; dimensions remain full sizes in meters.",
+      "Renamed terrain_box_quat to terrain_quat; xyzw order unchanged."
+    ],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source": "https://huggingface.co/datasets/mxucg/PARC",
+    "archive_entry": "dec_release/initial_aug/jumping/run_jump_gap_001_dm.pkl",
+    "source_sha256": "edc6ac041dc6e46f89ee976f70c529f6ba7eb16a436a2e7a24aafd67aec3e7a4",
+    "source_motion": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/sources/parc/terrain_run_jump_gap_001_dm.pkl",
+    "processing": "Mink root/torso/leg IK; joint-limited arm IK matching source segment directions in the torso frame; neutral fixed wrists; original timing; uniform motion and terrain scale",
+    "retarget_version": "parc_anatomical_arms_v2",
+    "arm_alignment": {
+      "left": {
+        "mean_elbow_flexion_error_deg": 0.015319509043415272,
+        "max_elbow_flexion_error_deg": 0.2381112190190096,
+        "max_segment_direction_error_deg": 0.24123120843722204,
+        "elbow_limit_frame_fraction": 0.0
+      },
+      "right": {
+        "mean_elbow_flexion_error_deg": 0.11608063380315758,
+        "max_elbow_flexion_error_deg": 6.377267023215281,
+        "max_segment_direction_error_deg": 10.84077426575043,
+        "elbow_limit_frame_fraction": 0.0
+      }
+    },
+    "arm_source_frame_speed_cap_rad_s": 20.0,
+    "arm_temporal_residual_weight": 0.03,
+    "arm_angle_definition": "0 degrees is straight; shoulder_roll -> elbow -> wrist_roll link origins",
+    "retarget_script_sha256": "e90b2c00ac79c4f8fbf014fd293bbc1a8c563989072687558f5d5195c9d5dd6e",
+    "uniform_scale": 0.8988533818562118,
+    "terrain_modified": "Uniformly scaled with motion; no terrain fitting",
+    "fps": 30,
+    "frames": 110,
+    "source_contact_flight_intervals": [
+      {
+        "start_s": 1.9666666666666666,
+        "end_s": 2.466666666666667,
+        "pelvis_horizontal_travel_m": 2.353903000405803
+      }
+    ],
+    "dynamic_tracking_validated": false,
+    "target_contacts_validated": false
+  }
+}

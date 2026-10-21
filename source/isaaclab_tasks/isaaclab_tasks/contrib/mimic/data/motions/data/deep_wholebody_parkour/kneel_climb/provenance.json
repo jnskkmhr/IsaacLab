@@ -1,0 +1,41 @@
+{
+  "installed_export": {
+    "motion_file": "deep_wholebody_parkour/kneel_climb/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/deep_kneel_climb/motion.npz",
+    "source_sha256": "9aefd4d54f7c7f8326225b11f53883dae9aa573a76c4f062012793465d0c54a2",
+    "sha256": "9aefd4d54f7c7f8326225b11f53883dae9aa573a76c4f062012793465d0c54a2",
+    "fps": 50.0,
+    "frames": 554,
+    "duration_seconds": 11.06,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 0,
+    "terrain_vertex_count": 5965,
+    "terrain_triangle_count": 9244,
+    "ground_height_m": -0.025300207063555718,
+    "metadata_changes": [],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source": "https://project-instinct.github.io/deep-whole-body-parkour/",
+    "source_motion": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/sources/deep_wholebody_parkour/50cm_kneeClimbStep_noWall/kneelClimbStep1-x-0.1-ziwen-retargeted.npz",
+    "source_sha256": "56158e8679580910ccff375963d025b138636acfe70f5b1f88381837209b2056",
+    "source_urdf_sha256": "5e99d930af64f3f0bfd34235239e288cc380ba62c8b01fcfcf8cc9f0996e7fa4",
+    "source_root": "torso_link",
+    "source_quaternion_order": "wxyz",
+    "target_root": "pelvis",
+    "processing": "Source URDF FK to pelvis; negate reversed waist joints; original timing and terrain retained",
+    "terrain_modified": false,
+    "fps": 90.0,
+    "frames": 997,
+    "max_source_target_link_position_difference_m": {
+      "pelvis": 0.0,
+      "torso_link": 0.02262308775548294,
+      "left_ankle_roll_link": 6.678351646030926e-09,
+      "right_ankle_roll_link": 6.431893565198044e-09,
+      "left_wrist_yaw_link": 0.022622848740994964,
+      "right_wrist_yaw_link": 0.022623589108039514
+    },
+    "dynamic_tracking_validated": false
+  }
+}

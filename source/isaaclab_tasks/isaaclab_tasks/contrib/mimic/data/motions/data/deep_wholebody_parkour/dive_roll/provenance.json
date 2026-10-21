@@ -1,0 +1,41 @@
+{
+  "installed_export": {
+    "motion_file": "deep_wholebody_parkour/dive_roll/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/deep_dive_roll/motion.npz",
+    "source_sha256": "36cc3de8387915df79a8612fbb80ef73d17609de88d40b01581eb1cd88fd579a",
+    "sha256": "36cc3de8387915df79a8612fbb80ef73d17609de88d40b01581eb1cd88fd579a",
+    "fps": 50.0,
+    "frames": 417,
+    "duration_seconds": 8.32,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 0,
+    "terrain_vertex_count": 2832,
+    "terrain_triangle_count": 4855,
+    "ground_height_m": -0.08065390631556511,
+    "metadata_changes": [],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source": "https://project-instinct.github.io/deep-whole-body-parkour/",
+    "source_motion": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/sources/deep_wholebody_parkour/20251106_diveroll4_simpleLab_noWall/diveroll4-ziwen-0-retargeted.npz",
+    "source_sha256": "8274d93046811824640ad373bba13ecd46ed347af8cc6d3d7c116df35a1bec59",
+    "source_urdf_sha256": "5e99d930af64f3f0bfd34235239e288cc380ba62c8b01fcfcf8cc9f0996e7fa4",
+    "source_root": "torso_link",
+    "source_quaternion_order": "wxyz",
+    "target_root": "pelvis",
+    "processing": "Source URDF FK to pelvis; negate reversed waist joints; original timing and terrain retained",
+    "terrain_modified": false,
+    "fps": 90.0,
+    "frames": 751,
+    "max_source_target_link_position_difference_m": {
+      "pelvis": 0.0,
+      "torso_link": 0.022621719144916737,
+      "left_ankle_roll_link": 6.087341135042235e-09,
+      "right_ankle_roll_link": 5.2710229825856325e-09,
+      "left_wrist_yaw_link": 0.022621411497847663,
+      "right_wrist_yaw_link": 0.0226222222895742
+    },
+    "dynamic_tracking_validated": false
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "installed_export": {
+    "motion_file": "omniretarget/climb_08/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/omniretarget/climb_08/motion.npz",
+    "source_sha256": "4d8d59463da0d216a7aae019f8e3794f95af8f525805fdecdf003f2ceceffe4f",
+    "sha256": "21af77e88ceaefd8b1a210223af3956ee03d7638f8165ad8e355e684c340abf4",
+    "fps": 50.0,
+    "frames": 572,
+    "duration_seconds": 11.42,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 1,
+    "terrain_vertex_count": 0,
+    "terrain_triangle_count": 0,
+    "ground_height_m": 0.0,
+    "metadata_changes": [
+      "Split terrain_boxes into terrain_position and terrain_dimension; dimensions remain full sizes in meters.",
+      "Renamed terrain_box_quat to terrain_quat; xyzw order unchanged.",
+      "Explicit ground_height=0 m matches the original motion-generation Isaac Lab viewer default plane."
+    ],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source_type": "public_retargeted_motion",
+    "dataset": "omniretarget/OmniRetarget_Dataset",
+    "revision": "135259130158f1cb1799e4ab9b6566c938285fc9",
+    "license": "MIT (dataset card)",
+    "source_motion": "source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/omniretarget/source/robot-terrain/climb_08_z_scale_1.0.npz",
+    "source_sha256": "8ad77014c7b9456dafb325dbf7df0191927ccf7269d5a1acb10984ccfd7e4540",
+    "terrain_source": "supplied paired terrain; original dimensions and transforms",
+    "terrain_urdf": "source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/omniretarget/source/models/terrain/climb_08/multi_boxes_z_scale_1.0.urdf",
+    "frames": 344,
+    "fps": 30.0,
+    "source_robot": "g1_29dof_spherehand.urdf",
+    "target_robot": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "contact_labels": "not supplied; no labels fabricated",
+    "dynamic_tracking_validated": false,
+    "export_asset": "source/isaaclab_assets/data/unitree/g1_29dof_box_foot_ball_hand/g1_29dof_box_foot_ball_hand.usda",
+    "export_asset_sha256": "5a82189df73de1f96dc2e302f4112a4956b72b71dc79bddd5f6a5c5aabbfdc2d",
+    "source_joint_trajectory_modified": false
+  }
+}

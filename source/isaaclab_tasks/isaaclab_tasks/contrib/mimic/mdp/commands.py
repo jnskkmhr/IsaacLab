@@ -32,6 +32,7 @@ from isaaclab.utils.math import (
     yaw_quat,
 )
 
+from ..utils.motion_paired_terrain_importer import MotionPairedTerrainImporter
 from .motion_loader import MotionLibrary
 from .motion_loader import MotionLoader as MotionLoader
 
@@ -61,6 +62,11 @@ class MotionCommand(CommandTerm):
             cfg.motion_quaternion_order,
             cfg.source_joint_names,
         )
+        self.motion_paired_terrain = (
+            env.scene.terrain if isinstance(env.scene.terrain, MotionPairedTerrainImporter) else None
+        )
+        if self.motion_paired_terrain is not None:
+            self.motion_paired_terrain.validate_motion_files(motion_files)
         self.num_motions = len(motion_files)
         self.cfg.body_names = self.motion.tracked_body_names
         self.motion_body_names = self.motion.body_names
@@ -243,6 +249,10 @@ class MotionCommand(CommandTerm):
         Height and roll/pitch perturbations remain tracking errors. This replaces
         the previous frame; later robot drift does not change the reference.
         """
+        if self.motion_paired_terrain is not None and (torch.any(position_offset != 0) or torch.any(yaw_offset != 0)):
+            raise ValueError(
+                "Paired terrain requires zero reference XY/yaw offsets. Use configure_motion_paired_terrain()."
+            )
         zeros = torch.zeros_like(yaw_offset)
         rotation = quat_from_euler_xyz(zeros, zeros, yaw_offset)
         pivot = self.motion._body_pos_w[self.reference_frame_indices[env_ids], self.motion_root_body_index]
@@ -480,6 +490,8 @@ class MotionCommand(CommandTerm):
         if len(pending) == 0:
             return
         self._adaptive_sampling(pending)
+        if self.motion_paired_terrain is not None:
+            self.motion_paired_terrain.assign_motion_origins(pending, self.motion_ids[pending])
         self.reference_pos_offset[pending] = 0.0
         self.reference_quat_offset[pending] = 0.0
         self.reference_quat_offset[pending, 3] = 1.0
@@ -600,6 +612,14 @@ class MotionCommandCfg(CommandTermCfg):
 
     Clips must describe the same robot, carry compatible body/joint labels, and
     match the control frequency. This does not switch motions within an episode.
+    """
+
+    terrain_mode: Literal["auto", "motion", "scene"] = "scene"
+    """Terrain source selected by the MotionTrackingEnv entry point before scene creation.
+
+    ``auto`` detects terrain metadata in the motion files, ``motion`` requires it
+    in every clip, and ``scene`` retains the configured scene terrain. The rigid
+    G1 train/play tasks default to ``auto`` in their commands configuration.
     """
 
     motion_quaternion_order: Literal["wxyz", "xyzw"] = "wxyz"

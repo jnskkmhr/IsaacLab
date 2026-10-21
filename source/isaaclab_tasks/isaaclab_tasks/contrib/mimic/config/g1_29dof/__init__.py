@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 import gymnasium as gym
 
 from . import agents
@@ -8,7 +13,7 @@ from . import agents
 
 gym.register(
     id="IsaacContrib-Mimic-G1-29dof-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    entry_point="isaaclab_tasks.contrib.mimic.utils.motion_env:MotionTrackingEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.mimic_env_cfg:EnvCfg",
@@ -18,7 +23,7 @@ gym.register(
 
 gym.register(
     id="IsaacContrib-Mimic-G1-29dof-Play-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    entry_point="isaaclab_tasks.contrib.mimic.utils.motion_env:MotionTrackingEnv",
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.mimic_env_cfg:EnvCfg_PLAY",

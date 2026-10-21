@@ -143,14 +143,14 @@ class GhostRobot(Asset):
             joint_names: Names defining the column order of ``joint_position``.
         """
         import newton
-        from isaaclab_visualizers.newton.newton_visualizer import NewtonVisualizer
+        from isaaclab_visualizers.newton.newton_visualizer import NewtonVisualizerBase
 
         if not self.cfg.enabled or not self.cfg.spawn.visible:
             return
         viewers = [
             viz
             for viz in SimulationContext.instance().visualizers
-            if isinstance(viz, NewtonVisualizer) and viz.is_running()
+            if isinstance(viz, NewtonVisualizerBase) and viz.is_running()
         ]
         if not viewers:
             return

@@ -1,0 +1,17 @@
+{
+  "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+  "mimic_loader_passed": true,
+  "motion_frames": 312,
+  "video_frames": 312,
+  "fps": 50.0,
+  "tracked_bodies": 30,
+  "max_joint_limit_violation_rad": 0.0,
+  "minimum_foot_terrain_signed_distance_m": -0.002423357505122712,
+  "foot_frames_below_minus_5mm": 0,
+  "minimum_hand_sphere_terrain_signed_distance_m": 0.002318484500192175,
+  "hand_frames_below_minus_5mm": 0,
+  "dynamic_tracking_validated": false,
+  "hand_knee_support_validated": false,
+  "issues": [],
+  "contact_check": "Sampled poses; exact sphere-to-box/plane distances and MuJoCo box-foot distances. No self-collision or continuous-time validation."
+}

@@ -1,0 +1,96 @@
+{
+  "installed_export": {
+    "motion_file": "parc/jump_002/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/parc_jump_002/motion.npz",
+    "source_sha256": "261e1ada3f7dd2f17a1e3f10de3f94246c5ceda06ffa705724840cd63842d809",
+    "sha256": "cdde3e81d1c151b6d20d54896841b95967157218c524b97cca707774ae8045af",
+    "fps": 50.0,
+    "frames": 517,
+    "duration_seconds": 10.32,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 6,
+    "terrain_vertex_count": 0,
+    "terrain_triangle_count": 0,
+    "ground_height_m": -2.7864453980329182,
+    "metadata_changes": [
+      "Split terrain_boxes into terrain_position and terrain_dimension; dimensions remain full sizes in meters.",
+      "Renamed terrain_box_quat to terrain_quat; xyzw order unchanged."
+    ],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source": "https://huggingface.co/datasets/mxucg/PARC",
+    "archive_entry": "dec_release/initial_aug/jumping/run_jump_gap_002_dm.pkl",
+    "source_sha256": "b0b12238e9f551c43ee23918f01e69fd9b9c01fce389bbdfde17f223a2595b55",
+    "source_motion": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/reference_comparison/sources/parc/terrain_run_jump_gap_002_dm.pkl",
+    "processing": "Mink root/torso/leg IK; joint-limited arm IK matching source segment directions in the torso frame; neutral fixed wrists; original timing; uniform motion and terrain scale",
+    "retarget_version": "parc_anatomical_arms_v2",
+    "arm_alignment": {
+      "left": {
+        "mean_elbow_flexion_error_deg": 0.008362319792834244,
+        "max_elbow_flexion_error_deg": 0.04151693310721362,
+        "max_segment_direction_error_deg": 0.04776935072162649,
+        "elbow_limit_frame_fraction": 0.0
+      },
+      "right": {
+        "mean_elbow_flexion_error_deg": 0.00863904195597867,
+        "max_elbow_flexion_error_deg": 0.059126600519423485,
+        "max_segment_direction_error_deg": 0.08009953223098142,
+        "elbow_limit_frame_fraction": 0.0
+      }
+    },
+    "arm_source_frame_speed_cap_rad_s": 20.0,
+    "arm_temporal_residual_weight": 0.03,
+    "arm_angle_definition": "0 degrees is straight; shoulder_roll -> elbow -> wrist_roll link origins",
+    "retarget_script_sha256": "e90b2c00ac79c4f8fbf014fd293bbc1a8c563989072687558f5d5195c9d5dd6e",
+    "uniform_scale": 0.8988533818562118,
+    "terrain_modified": "Uniformly scaled with motion; no terrain fitting",
+    "fps": 30,
+    "frames": 311,
+    "source_contact_flight_intervals": [
+      {
+        "start_s": 0.3333333333333333,
+        "end_s": 0.5666666666666667,
+        "pelvis_horizontal_travel_m": 0.8548825423661282
+      },
+      {
+        "start_s": 0.7333333333333333,
+        "end_s": 0.9,
+        "pelvis_horizontal_travel_m": 0.7374035324507509
+      },
+      {
+        "start_s": 1.5666666666666667,
+        "end_s": 1.7333333333333334,
+        "pelvis_horizontal_travel_m": 0.5342514865336735
+      },
+      {
+        "start_s": 1.9333333333333333,
+        "end_s": 2.466666666666667,
+        "pelvis_horizontal_travel_m": 1.9462887728145795
+      },
+      {
+        "start_s": 4.033333333333333,
+        "end_s": 4.466666666666667,
+        "pelvis_horizontal_travel_m": 1.835408071678542
+      },
+      {
+        "start_s": 7.533333333333333,
+        "end_s": 8.033333333333333,
+        "pelvis_horizontal_travel_m": 1.9524433516949933
+      },
+      {
+        "start_s": 8.633333333333333,
+        "end_s": 8.866666666666667,
+        "pelvis_horizontal_travel_m": 0.8136650736492572
+      },
+      {
+        "start_s": 8.966666666666667,
+        "end_s": 9.433333333333334,
+        "pelvis_horizontal_travel_m": 2.2194290385745608
+      }
+    ],
+    "dynamic_tracking_validated": false,
+    "target_contacts_validated": false
+  }
+}

@@ -96,6 +96,8 @@ class G1CommandsCfg:
         joint_names=JOINT_NAMES,
         body_names=BODY_NAMES,
         anchor_body_name="torso_link",
+        # Load terrain from each NPZ when present; flat clips keep the scene plane.
+        terrain_mode="auto",
         motion_files=[
             str(LAFAN_MOTION_DIR / "g1_walk.npz"),
             str(LAFAN_MOTION_DIR / "g1_running.npz"),

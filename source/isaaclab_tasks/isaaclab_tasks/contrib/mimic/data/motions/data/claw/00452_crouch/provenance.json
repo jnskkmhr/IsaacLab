@@ -1,0 +1,96 @@
+{
+  "installed_export": {
+    "motion_file": "claw/00452_crouch/motion.npz",
+    "source_file": "/home/jkamohara/isaac/skill_chaining/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/claw/00452_crouch/motion.npz",
+    "source_sha256": "beb60087d1877a12788273b8a79a1e8f57fd7658b137a6310b614cc4981da7bd",
+    "sha256": "1a9095d4771ca4e84209894b5e9ccbd9d4238cecc47c20182f19379e0a3d09b0",
+    "fps": 50.0,
+    "frames": 281,
+    "duration_seconds": 5.6,
+    "robot_asset": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "terrain_box_count": 5,
+    "terrain_vertex_count": 0,
+    "terrain_triangle_count": 0,
+    "ground_height_m": 0.0,
+    "metadata_changes": [
+      "Split terrain_boxes into terrain_position and terrain_dimension; dimensions remain full sizes in meters.",
+      "Renamed terrain_box_quat to terrain_quat; xyzw order unchanged.",
+      "Explicit ground_height=0 m matches the original motion-generation Isaac Lab viewer default plane."
+    ],
+    "motion_arrays_unchanged": true,
+    "dynamic_tracking_validated": false
+  },
+  "source_generation_provenance": {
+    "source_type": "public_G1_dynamic_trajectory",
+    "dataset": "JianuoCao/CLAW",
+    "revision": "cbd516f611e46d52182d261ca1651563d8044850",
+    "source_motion": "source/isaaclab_tasks/isaaclab_tasks/contrib/multi_task_locomotion/motion_generation/outputs/claw/source/motion/00452_crouch/trajectory_dynamic.csv",
+    "source_sha256": "c7a489a1692a58786cc9e7ea3834ffa0a7d833c4c17295397ced5d9c8ebf1c06",
+    "annotation": {
+      "schema_version": "1.0",
+      "recipe_name": "crouch",
+      "total_duration_sec": 5.12,
+      "data_fps": 50,
+      "trajectory_file": "trajectory_dynamic.csv",
+      "segments": [
+        {
+          "idx": 0,
+          "t_start": 0.0,
+          "t_end": 5.12,
+          "frame_start": 0,
+          "frame_end": 256,
+          "mode": "crouch",
+          "movement": "forward",
+          "turn_deg": null,
+          "turn_dir": null,
+          "duration_sec": 5.12,
+          "speed": -1.0
+        }
+      ],
+      "full_trajectory": [
+        "The robot crouch-walks forward for 5.1 seconds.",
+        "The person crouch-walks forward for 5.1 seconds.",
+        "Crouch-walks forward for 5.1 seconds.",
+        "The robot crouch-walks forward.",
+        "The person crouch-walks forward.",
+        "Crouch-walks forward.",
+        "Crouch-walk ahead for 5.1 seconds.",
+        "Crouch-walk ahead in a crouched posture for about 5.1 seconds.",
+        "The robot walks in a low crouch forward in a crouched posture for 5.1 seconds.",
+        "crouch forward 5.1s",
+        "Move while crouching ahead.",
+        "Move while crouching ahead in a crouched posture.",
+        "The robot crouch-walks forward in a crouched posture.",
+        "crouch forward",
+        "Crouch-walk straight low to the ground for about 5.1 seconds.",
+        "The robot walks in a low crouch straight in a crouched posture for 5.1 seconds.",
+        "crouch forward 5.1s."
+      ],
+      "per_segment": [
+        {
+          "segment_idx": 0,
+          "annotations": [
+            "Crouch-walk ahead for 5.1 seconds.",
+            "Walk in a low crouch forward low to the ground for about 5.1 seconds.",
+            "The robot crouch-walks straight in a crouched posture for 5.1 seconds.",
+            "crouch forward 5.1s",
+            "Crouch-walk ahead.",
+            "Walk in a low crouch forward low to the ground.",
+            "The robot crouch-walks straight in a crouched posture.",
+            "crouch forward"
+          ]
+        }
+      ]
+    },
+    "actual_frames": 281,
+    "fps": 50,
+    "terrain_source": "none supplied",
+    "target_robot": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+    "dynamic_tracking_validated_on_target_asset": false,
+    "license": "No explicit dataset license in the downloaded card; retain upstream provenance.",
+    "export_asset": "source/isaaclab_assets/data/unitree/g1_29dof_box_foot_ball_hand/g1_29dof_box_foot_ball_hand.usda",
+    "export_asset_sha256": "5a82189df73de1f96dc2e302f4112a4956b72b71dc79bddd5f6a5c5aabbfdc2d",
+    "dynamic_tracking_validated": false,
+    "source_joint_trajectory_modified": false
+  }
+}

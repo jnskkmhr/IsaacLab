@@ -42,6 +42,16 @@ The task defaults to `data/lafan/{walking,running,sprinting}/motion_60fps.npz`.
 Import those clips or override `LAFAN_MOTION_DIR` / `commands.motion.motion_files`.
 The repository does not include those three LAFAN clips.
 
+Interactive reference playback follows the NPZ frame rate and repeats by default.
+Use `--no-loop` to hold the final pose; the last-to-first transition when looping is not blended.
+Headless video export runs without wall-clock pacing and encodes at the saved FPS.
+
+The reference player automatically loads terrain embedded in the NPZ. Use
+`--terrain_mode motion` to require paired terrain, or `--terrain_mode scene` to
+ignore it and display the default plane. See the
+[terrain loading guide](../../utils/README.md) for the box/mesh fields and the
+same setup in standard RL train/play. Runtime terrain code lives in `mimic/utils/`.
+
 For untagged files, declare `--quaternion_order xyzw` or `wxyz`. Files without
 frame-rate metadata also require `--input_fps`. Metadata in the file takes
 precedence. `--params params.json` supplies importer arguments such as

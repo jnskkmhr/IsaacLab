@@ -91,12 +91,24 @@ class EnvCfg_PLAY(EnvCfg):
         self.events.assistive_wrench = None  # type: ignore
 
         self.sim.visualizer_cfgs = [
-            # NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            # NewtonGLVisualizerCfg(
+            #     eye=(0.0, -3.0, 0.5),
+            #     lookat=(0.0, 0.0, 0.0),
+            #     origin_type="asset",
+            #     origin_track_path="robot",
+            #     streaming_view=False,
+            # ),
+            NewtonRTXVisualizerCfg(
+                eye=(0.0, -3.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=600),
-            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=600),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=600),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]
