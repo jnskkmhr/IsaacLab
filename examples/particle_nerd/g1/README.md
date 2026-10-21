@@ -28,10 +28,15 @@ The output contains 200 Hz force and robot traces and 25 Hz replay snapshots.
 
 ## Learned simulation
 
+The selected full-data checkpoint is optimizer step 9,750 from the 500-trajectory
+experiment. This is an experimental checkpoint: short predictions are accurate,
+but local long rollouts fail. See the [measured results and videos](https://jnskkmhr.github.io/particle-nerd-plan/g1-training.html).
+
 ```bash
+CHECKPOINT="$HOME/isaac/particle_nerd/experiments/g1-nerd-osmo-20261020/full-training-final/model/best.pt"
 uv run --no-sync python -m particle_nerd.g1.play \
-  --checkpoint /path/to/g1-best.pt --output /tmp/g1-learned \
-  --duration 5 --effective-mass-scale 10 --iterations 50 --viz newton_rtx
+  --checkpoint "$CHECKPOINT" --output /tmp/g1-learned \
+  --duration 5 --effective-mass-scale 100 --iterations 200 --viz newton_rtx
 ```
 
 This replaces every material step with Transolver and an analytical foot-force
@@ -40,6 +45,9 @@ No MPM solve runs during learned inference. The existing native task still alloc
 its MPM state during setup for particle initialization and reset compatibility.
 The first history is extrapolated from the initial particle position and velocity;
 no future reference particle frames are supplied.
+
+The command above uses the final experiment settings: material-mass multiplier
+100 and 200 solver iterations (the parser defaults remain 10 and 50).
 
 The estimator uses independent native virtual-foot responses, not the full
 articulated contact response matrix. `--effective-mass-scale` multiplies the
