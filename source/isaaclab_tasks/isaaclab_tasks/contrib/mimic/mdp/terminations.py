@@ -33,32 +33,16 @@ from .commands import MotionCommand
 from .utils import get_body_indices
 
 
-def _gate_on_tracking(command: MotionCommand, terminated: torch.Tensor, only_when_tracking: bool) -> torch.Tensor:
-    """Suppress a tracking-error termination while the reference is in a stance interval.
-
-    Stance has no reference trajectory to follow in principle -- the robot only has to stay balanced
-    -- so a tracking-error bound there just kills otherwise-healthy episodes. Falling during stance is
-    caught by the base-height termination instead.
-    """
-    if not only_when_tracking:
-        return terminated
-    return terminated & ~command.is_stance
-
-
-def bad_anchor_pos(
-    env: ManagerBasedRLEnv, command_name: str, threshold: float, only_when_tracking: bool = True
-) -> torch.Tensor:
+def bad_anchor_pos(env: ManagerBasedRLEnv, command_name: str, threshold: float) -> torch.Tensor:
     command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
     bad = torch.norm(command.anchor_pos_w - command.robot_anchor_pos_w, dim=1) > threshold
-    return _gate_on_tracking(command, bad, only_when_tracking)
+    return bad
 
 
-def bad_anchor_pos_z_only(
-    env: ManagerBasedRLEnv, command_name: str, threshold: float, only_when_tracking: bool = True
-) -> torch.Tensor:
+def bad_anchor_pos_z_only(env: ManagerBasedRLEnv, command_name: str, threshold: float) -> torch.Tensor:
     command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
     bad = torch.abs(command.anchor_pos_w[:, -1] - command.robot_anchor_pos_w[:, -1]) > threshold
-    return _gate_on_tracking(command, bad, only_when_tracking)
+    return bad
 
 
 def bad_anchor_ori(
@@ -66,7 +50,6 @@ def bad_anchor_ori(
     asset_cfg: SceneEntityCfg,
     command_name: str,
     threshold: float,
-    only_when_tracking: bool = True,
 ) -> torch.Tensor:
     asset: RigidObject | Articulation = env.scene[asset_cfg.name]
 
@@ -80,7 +63,7 @@ def bad_anchor_ori(
     robot_projected_gravity_b = quat_apply_inverse(command.robot_anchor_quat_w, gravity_vec_w)
 
     bad = (motion_projected_gravity_b[:, 2] - robot_projected_gravity_b[:, 2]).abs() > threshold
-    return _gate_on_tracking(command, bad, only_when_tracking)
+    return bad
 
 
 def bad_motion_body_pos(
@@ -88,13 +71,12 @@ def bad_motion_body_pos(
     command_name: str,
     threshold: float,
     body_names: list[str] | None = None,
-    only_when_tracking: bool = True,
 ) -> torch.Tensor:
     command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
 
     body_indexes = get_body_indices(command, body_names)
     error = torch.norm(command.body_pos_relative_w[:, body_indexes] - command.robot_body_pos_w[:, body_indexes], dim=-1)
-    return _gate_on_tracking(command, torch.any(error > threshold, dim=-1), only_when_tracking)
+    return torch.any(error > threshold, dim=-1)
 
 
 def bad_motion_body_pos_z_only(
@@ -102,13 +84,12 @@ def bad_motion_body_pos_z_only(
     command_name: str,
     threshold: float,
     body_names: list[str] | None = None,
-    only_when_tracking: bool = True,
 ) -> torch.Tensor:
     command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
 
     body_indexes = get_body_indices(command, body_names)
     error = torch.abs(command.body_pos_relative_w[:, body_indexes, -1] - command.robot_body_pos_w[:, body_indexes, -1])
-    return _gate_on_tracking(command, torch.any(error > threshold, dim=-1), only_when_tracking)
+    return torch.any(error > threshold, dim=-1)
 
 
 def end_of_reference(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:

@@ -120,3 +120,8 @@ jump completion, and post-landing torso tilt/angular speed. A higher return alon
 can reflect avoiding the jump to reduce penalties. To reproduce the previous
 fine-tuning configuration, set the three added reward terms to `None` and restore
 its `push_robot` x/y ranges to `(-0.5, 0.5)`.
+
+Stance intervals and blending are owned by `mdp/commands.py` in this soft task.
+Set `commands.motion.stance_phase_ranges` for the selected motion clips and
+`commands.motion.stance_blend_time` for the blend duration in seconds. The default
+interval list is empty; no jump-specific intervals are assumed for locomotion clips.

@@ -14,10 +14,12 @@ from isaaclab_tasks.contrib.mimic.config.g1_29dof.mimic_env_cfg import EnvCfg as
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.mimic_env_cfg import EnvCfg_PLAY as RigidPlayEnvCfg
 
 from .env_cfg.action_cfg import G1ActionsCfg, G1ActionsFinetuneCfg
+from .env_cfg.commands_cfg import G1CommandsCfg
 from .env_cfg.curriculum_cfg import G1CurriculumCfg
 from .env_cfg.event_cfg import G1EventCfg, G1EventFinetuneCfg
 from .env_cfg.reward_cfg import G1RewardsCfg, G1RewardsFinetuneCfg
 from .env_cfg.scene_cfg import G1SceneCfg
+from .env_cfg.termination_cfg import G1TerminationsCfg
 
 
 @configclass
@@ -25,6 +27,8 @@ class EnvCfg(RigidEnvCfg):
     """Fine-tune the rigid mimic policy with stance pushes on a fixed-depth soft layer."""
 
     actions: G1ActionsCfg = G1ActionsCfg()
+    commands: G1CommandsCfg = G1CommandsCfg()
+    terminations: G1TerminationsCfg = G1TerminationsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
     events: G1EventCfg = G1EventCfg()
     rewards: G1RewardsCfg = G1RewardsCfg()
@@ -69,6 +73,8 @@ class EnvCfg_PLAY(RigidPlayEnvCfg):
     """Play the mimic policy on a fixed-depth soft layer with randomized material."""
 
     actions: G1ActionsCfg = G1ActionsCfg()
+    commands: G1CommandsCfg = G1CommandsCfg()
+    terminations: G1TerminationsCfg = G1TerminationsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
     events: G1EventCfg = G1EventCfg()
     rewards: G1RewardsCfg = G1RewardsCfg()

@@ -187,8 +187,7 @@ class AssistiveWrench(ManagerTermBase):
     a fixed schedule (see ``mimic.mdp.curriculums.assistive_wrench_scale``). ``scale`` multiplies the
     adaptive gain too, so it can be left at 1.0.
 
-    Assistance follows the existing adaptive gain throughout the reference;
-    it is not gated by stance phases.
+    Assistance follows the existing adaptive gain throughout the reference.
 
     Base targets use the command's fixed episode reference frame, including initial
     XY translation and yaw randomization.

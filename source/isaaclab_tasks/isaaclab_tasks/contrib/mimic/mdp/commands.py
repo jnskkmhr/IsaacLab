@@ -47,9 +47,11 @@ class MotionCommand(CommandTerm):
 
         self.robot: Articulation = env.scene[cfg.asset_name]
 
-        motion_files = list(cfg.motion_files) if cfg.motion_files else [cfg.motion_file]
-        if any(not isinstance(path, str) or not path for path in motion_files):
-            raise ValueError("Set motion_file or a nonempty motion_files list.")
+        if not isinstance(cfg.motion_files, (list, tuple)):
+            raise ValueError("motion_files must be a list of NPZ paths, including for a single clip.")
+        motion_files = list(cfg.motion_files)
+        if not motion_files or any(not isinstance(path, str) or not path for path in motion_files):
+            raise ValueError("Set a nonempty motion_files list.")
         self.motion = MotionLibrary(
             motion_files,
             cfg.body_names,
@@ -57,7 +59,7 @@ class MotionCommand(CommandTerm):
             self.device,
             env.step_dt,
             cfg.motion_quaternion_order,
-            cfg.motion_joint_names,
+            cfg.source_joint_names,
         )
         self.num_motions = len(motion_files)
         self.cfg.body_names = self.motion.tracked_body_names
@@ -82,7 +84,6 @@ class MotionCommand(CommandTerm):
         self.reference_quat_offset = torch.zeros(self.num_envs, 4, device=self.device)
         """Fixed episode yaw rotation in xyzw order, shape [N, 4]."""
         self.reference_quat_offset[:, 3] = 1.0
-        self.frame_stance_weight = self._build_frame_stance_weight()
         self.body_pos_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 3, device=self.device)
         self.body_quat_relative_w = torch.zeros(self.num_envs, len(cfg.body_names), 4, device=self.device)
         self.body_quat_relative_w[:, :, 3] = 1.0
@@ -131,7 +132,6 @@ class MotionCommand(CommandTerm):
         self.metrics["error_joint_pos"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["error_joint_vel"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["phase"] = torch.zeros(self.num_envs, device=self.device)
-        self.metrics["standing_weight"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["sampling_entropy"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["sampling_top1_prob"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["sampling_top1_bin"] = torch.zeros(self.num_envs, device=self.device)
@@ -369,37 +369,8 @@ class MotionCommand(CommandTerm):
         """True once the reference is sitting on the last frame of the clip, i.e. it has played out."""
         return self.time_steps >= self.motion_lengths - 1
 
-    @property
-    def standing_weight(self) -> torch.Tensor:
-        """Deprecated compatibility weight, always zero; standing rewards are disabled."""
-        return self.frame_stance_weight[self.reference_frame_indices]
-
-    @property
-    def tracking_weight(self) -> torch.Tensor:
-        """Complement of :attr:`standing_weight`: the weight for motion-tracking rewards."""
-        return 1.0 - self.standing_weight
-
-    @property
-    def is_stance(self) -> torch.Tensor:
-        """True where the reference is more stance than tracking (weight > 0.5)."""
-        return self.standing_weight > 0.5
-
-    def _build_frame_stance_weight(self) -> torch.Tensor:
-        """Return zero stance weights for every packed clip; retain legacy consumers."""
-        if self.cfg.stance_phase_ranges or any(self.cfg.motion_stance_phase_ranges or []):
-            import warnings
-
-            warnings.warn(
-                "stance_phase_ranges and motion_stance_phase_ranges are deprecated and ignored;"
-                " motion tracking is always active.",
-                FutureWarning,
-                stacklevel=2,
-            )
-        return torch.zeros(self.motion.time_step_total, device=self.device)
-
     def _update_metrics(self):
         self.metrics["phase"] = self.phase
-        self.metrics["standing_weight"] = self.standing_weight
         self.metrics["assist_scale"][:] = self.assist_scale
         rates = self.bin_failure_rate
         for motion_id, (start, end) in enumerate(self.bin_ranges):
@@ -612,46 +583,45 @@ class MotionCommandCfg(CommandTermCfg):
 
     asset_name: str = MISSING  # type: ignore
 
-    motion_file: str | None = None
-    """Legacy single reference file, used when motion_files is empty."""
-
-    motion_files: list[str] = []
-    """Reference files, sampled uniformly at episode reset. Overrides motion_file.
-
-    Clips must describe the same robot, carry compatible body/joint labels, and
-    match the control frequency. This does not switch motions within an episode.
-    """
-
-    motion_stance_phase_ranges: list[list[tuple[float, float]]] | None = None
-    """Deprecated and ignored. Tracking remains active for every frame of every clip."""
-
-    motion_quaternion_order: Literal["wxyz", "xyzw"] = "wxyz"
-    """Quaternion order for untagged NPZ files; file metadata overrides this fallback.
-
-    Legacy references use wxyz. Runtime tensors and newly converted references use xyzw.
-    """
-    motion_joint_names: list[str] | None = None
-    """Fallback joint names in stored column order for files without joint_names metadata.
-
-    NPZ metadata takes precedence. Positions and velocities are mapped into robot
-    joint order. With neither metadata nor fallback names, robot ordering is assumed.
-    """
+    # Robot tracking targets.
     joint_names: list[str] | None = None
     """Joint selection and order for policy reference and tracking metrics; None uses robot order.
 
-    Source column labels come from NPZ metadata or the legacy motion_joint_names fallback.
+    Source column labels come from NPZ metadata or the source_joint_names fallback.
     Reset writes always use the complete reference in articulation order.
     """
     anchor_body_name: str = MISSING  # type: ignore
     body_names: list[str] | None = None
     """Bodies to track; None uses NPZ body_names. Untagged files require column-order names."""
 
+    # Reference data and source metadata.
+    motion_files: list[str] = []
+    """Reference NPZ files, sampled uniformly at episode reset; one entry is a single-motion task.
+
+    Clips must describe the same robot, carry compatible body/joint labels, and
+    match the control frequency. This does not switch motions within an episode.
+    """
+
+    motion_quaternion_order: Literal["wxyz", "xyzw"] = "wxyz"
+    """Quaternion order for untagged NPZ files; file metadata overrides this fallback.
+
+    Legacy references use wxyz. Runtime tensors and newly converted references use xyzw.
+    """
+    source_joint_names: list[str] | None = None
+    """Fallback joint names in stored column order for files without joint_names metadata.
+
+    NPZ metadata takes precedence. Positions and velocities are mapped into robot
+    joint order. With neither metadata nor fallback names, robot ordering is assumed.
+    """
+
+    # Episode sampling.
     adaptive_kernel_size: int = 1
     adaptive_lambda: float = 0.8
     adaptive_uniform_ratio: float = 0.1
     adaptive_alpha: float = 0.001
     start_from_beginning: bool = False
 
+    # Assistive wrench curriculum.
     assist_eta: float = 0.8
     """Target similarity at which the assistive wrench retires (``eta`` in ZEST S6).
 
@@ -662,12 +632,7 @@ class MotionCommandCfg(CommandTermCfg):
     """Cap on the assistive gain. Kept below 1.0 so assistance stays partial: the policy still has to
     do most of the work, and it does not overfit to physics that will be taken away."""
 
-    stance_phase_ranges: list[tuple[float, float]] = []
-    """Deprecated and ignored. Motion tracking remains active throughout the reference."""
-
-    stance_blend_time: float = 0.2
-    """Deprecated and ignored; stance-phase reward blending is disabled."""
-
+    # Debug visualization.
     anchor_visualizer_cfg: VisualizationMarkersCfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/pose")  # type: ignore
     anchor_visualizer_cfg.markers["frame"].scale = (0.2, 0.2, 0.2)  # type: ignore
 

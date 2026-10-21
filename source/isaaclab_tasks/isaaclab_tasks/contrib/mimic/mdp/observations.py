@@ -11,8 +11,9 @@ the observation introduced by the function.
 
 from __future__ import annotations
 
-import torch
 from typing import TYPE_CHECKING
+
+import torch
 
 from isaaclab.utils.math import matrix_from_quat, subtract_frame_transforms
 
@@ -100,16 +101,6 @@ def motion_anchor_ori_b(env: ManagerBasedEnv, command_name: str) -> torch.Tensor
     return mat[..., :2].reshape(mat.shape[0], -1)
 
 def motion_phase(env: ManagerBasedEnv, command_name: str) -> torch.Tensor:
-    """Normalized position in the reference clip, in [0, 1].
-
-    Lets the policy tell a stance segment (where it only has to stay balanced) from a segment it has
-    to actually track, which the raw joint-position command alone does not disambiguate.
-    """
+    """Normalized position in the reference clip, in [0, 1]."""
     command: MotionCommand = env.command_manager.get_term(command_name) # type: ignore
     return command.phase.unsqueeze(-1)
-
-
-def motion_standing_weight(env: ManagerBasedEnv, command_name: str) -> torch.Tensor:
-    """The stance/tracking blend weight the rewards are gated with, in [0, 1]."""
-    command: MotionCommand = env.command_manager.get_term(command_name) # type: ignore
-    return command.standing_weight.unsqueeze(-1)

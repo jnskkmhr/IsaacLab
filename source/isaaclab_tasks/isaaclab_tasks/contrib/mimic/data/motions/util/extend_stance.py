@@ -4,13 +4,11 @@ Takes a chosen "settled" frame at each end (default: the first and last frames) 
 all velocities zeroed so the hold is a true static stance rather than a coast at whatever speed the
 held frame happened to have. The recorded frames themselves are copied through untouched.
 
-The point is to give a motion-tracking policy a stretch of clip where it only has to stand still, so
-the stance phase can be gated to standing/balance rewards (see `MotionCommandCfg.stance_phase_ranges`,
-which this script prints ready to paste).
+The held frames remain part of the motion reference and use the same tracking rewards.
 
 .. code-block:: bash
 
-    python extend_stance.py -f leap_wide_g1_retargeted_mirror_right.npz --lead_seconds 5 --tail_seconds 5
+    python util/extend_stance.py -f data/xsens/leap_wide_g1_retargeted_mirror_right.npz --lead_seconds 5 --tail_seconds 5
 """
 
 import argparse
@@ -72,10 +70,7 @@ for key in POSE_KEYS + VELOCITY_KEYS:
     data[key] = np.concatenate(pieces, axis=0)
 
 total = data["joint_pos"].shape[0]
-print(
-    f"[INFO] {num_frames} -> {total} frames at {fps} fps"
-    f" ({num_frames / fps:.2f}s -> {total / fps:.2f}s)"
-)
+print(f"[INFO] {num_frames} -> {total} frames at {fps} fps ({num_frames / fps:.2f}s -> {total / fps:.2f}s)")
 if lead_frames:
     root_z = data["body_pos_w"][0, 0, 2]
     print(f"[INFO] lead:  frame {args_cli.lead_frame} held for {lead_frames} frames (root height {root_z:.3f}m)")
@@ -85,13 +80,3 @@ if tail_frames:
 
 np.savez(args_cli.output_name, **data)
 print(f"[INFO] Saved to {args_cli.output_name}")
-
-# The held sections are stance by construction; report them in the phase units the command term
-# wants. The clip's own settled tail is not included here -- measure that separately if you want it
-# folded into the same range.
-ranges = []
-if lead_frames:
-    ranges.append((0.0, (lead_frames - 1) / (total - 1)))
-if tail_frames:
-    ranges.append(((total - tail_frames) / (total - 1), 1.0))
-print("[INFO] stance_phase_ranges=[" + ", ".join(f"({a:.3f}, {b:.3f})" for a, b in ranges) + "]")

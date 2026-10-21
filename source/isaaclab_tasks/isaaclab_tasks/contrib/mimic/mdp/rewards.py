@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 import torch
 
-import isaaclab.envs.mdp as base_mdp
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 from isaaclab.utils.math import quat_apply_inverse, quat_error_magnitude
@@ -26,16 +25,6 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 from .utils import get_body_indices
-
-
-def _phase_gate(env: ManagerBasedRLEnv, command_name: str, mode: str) -> torch.Tensor:
-    """Deprecated compatibility gate: tracking is always active, standing is disabled."""
-    command: MotionCommand = env.command_manager.get_term(command_name)  # type: ignore
-    if mode == "tracking":
-        return command.tracking_weight
-    elif mode == "standing":
-        return command.standing_weight
-    raise ValueError(f"Unknown phase gate mode: {mode}")
 
 
 def motion_global_anchor_position_error_exp(env: ManagerBasedRLEnv, command_name: str, std: float) -> torch.Tensor:
@@ -152,59 +141,6 @@ def motion_global_body_angular_velocity_error_exp(
         torch.square(command.body_ang_vel_w[:, body_indexes] - command.robot_body_ang_vel_w[:, body_indexes]), dim=-1
     )
     return torch.exp(-error.mean(-1) / std**2)
-
-
-def standing_flat_orientation_l2(
-    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    """Same as `flat_orientation_l2`, but only penalized while the reference is in a stance interval."""
-    return base_mdp.flat_orientation_l2(env, asset_cfg) * _phase_gate(env, command_name, "standing")
-
-
-def standing_base_height_l2(
-    env: ManagerBasedRLEnv,
-    command_name: str,
-    target_height: float,
-    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    sensor_cfg: SceneEntityCfg | None = None,
-) -> torch.Tensor:
-    """Same as `base_height_l2`, but only penalized while the reference is in a stance interval."""
-    return base_mdp.base_height_l2(env, target_height, asset_cfg, sensor_cfg) * _phase_gate(
-        env, command_name, "standing"
-    )
-
-
-def standing_lin_vel_z_l2(
-    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    """Same as `lin_vel_z_l2`, but only penalized while the reference is in a stance interval."""
-    return base_mdp.lin_vel_z_l2(env, asset_cfg) * _phase_gate(env, command_name, "standing")
-
-
-def standing_ang_vel_xy_l2(
-    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    """Same as `ang_vel_xy_l2`, but only penalized while the reference is in a stance interval."""
-    return base_mdp.ang_vel_xy_l2(env, asset_cfg) * _phase_gate(env, command_name, "standing")
-
-
-def standing_lin_vel_xy_l2(
-    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    """Penalize planar base velocity while standing.
-
-    This is the zero-command case of the velocity-tracking task reward the standing policy is trained
-    with: during stance there is no trajectory to follow, the robot just has to hold still.
-    """
-    asset = env.scene[asset_cfg.name]
-    return torch.sum(torch.square(asset.data.root_lin_vel_b[:, :2]), dim=1) * _phase_gate(env, command_name, "standing")
-
-
-def standing_joint_deviation_l1(
-    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
-) -> torch.Tensor:
-    """Same as `joint_deviation_l1`, but only penalized while the reference is in a stance interval."""
-    return base_mdp.joint_deviation_l1(env, asset_cfg) * _phase_gate(env, command_name, "standing")
 
 
 def feet_contact_time(env: ManagerBasedRLEnv, sensor_cfg: SceneEntityCfg, threshold: float) -> torch.Tensor:

@@ -96,6 +96,6 @@ class EnvCfg_PLAY(EnvCfg):
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=600),
-            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=600),
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=600),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]

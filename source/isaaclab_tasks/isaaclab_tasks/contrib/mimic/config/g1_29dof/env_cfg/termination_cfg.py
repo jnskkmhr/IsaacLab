@@ -52,8 +52,7 @@ class G1TerminationsCfg:
         },
     )
 
-    # -- falls, including during a stance interval where the tracking-error terms above are gated
-    # off. Measured base-to-lowest-foot so it stays valid on the uneven/soft terrain.
+    # -- falls, measured from the base to the lowest foot.
     base_too_low = DoneTerm(
         func=mimic_mdp.root_height_below_minimum_adaptive,
         params={

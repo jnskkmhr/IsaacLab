@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+import isaaclab.envs.mdp as base_mdp
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import quat_apply, quat_apply_inverse
@@ -122,3 +123,60 @@ def post_jump_torso_ang_vel_l2(
     grounded = foot_contact_hybrid(env, rigid_contact_sensor_cfg=sensor_cfg).bool().any(dim=-1)
     weight = command.standing_weight * (command.phase >= max(final_starts)) * grounded
     return (speed - tolerance).clamp(min=0.0).square() * weight
+
+
+def standing_flat_orientation_l2(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Same as `flat_orientation_l2`, but only penalized while the reference is in a stance interval."""
+    return base_mdp.flat_orientation_l2(env, asset_cfg) * env.command_manager.get_term(command_name).standing_weight
+
+
+def standing_base_height_l2(
+    env: ManagerBasedRLEnv,
+    command_name: str,
+    target_height: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+    """Same as `base_height_l2`, but only penalized while the reference is in a stance interval."""
+    return (
+        base_mdp.base_height_l2(env, target_height, asset_cfg, sensor_cfg)
+        * env.command_manager.get_term(command_name).standing_weight
+    )
+
+
+def standing_lin_vel_z_l2(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Same as `lin_vel_z_l2`, but only penalized while the reference is in a stance interval."""
+    return base_mdp.lin_vel_z_l2(env, asset_cfg) * env.command_manager.get_term(command_name).standing_weight
+
+
+def standing_ang_vel_xy_l2(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Same as `ang_vel_xy_l2`, but only penalized while the reference is in a stance interval."""
+    return base_mdp.ang_vel_xy_l2(env, asset_cfg) * env.command_manager.get_term(command_name).standing_weight
+
+
+def standing_lin_vel_xy_l2(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Penalize planar base velocity while standing.
+
+    This is the zero-command case of the velocity-tracking task reward the standing policy is trained
+    with: during stance there is no trajectory to follow, the robot just has to hold still.
+    """
+    asset = env.scene[asset_cfg.name]
+    return (
+        torch.sum(torch.square(asset.data.root_lin_vel_b[:, :2]), dim=1)
+        * env.command_manager.get_term(command_name).standing_weight
+    )
+
+
+def standing_joint_deviation_l1(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Same as `joint_deviation_l1`, but only penalized while the reference is in a stance interval."""
+    return base_mdp.joint_deviation_l1(env, asset_cfg) * env.command_manager.get_term(command_name).standing_weight

@@ -29,7 +29,7 @@ which leaves every arm joint angle untouched. Pass ``--keep_waist_yaw`` to skip 
 
 .. code-block:: bash
 
-    python mirror_motion.py -f leap_g1_retargeted.npy --source left
+    python util/mirror_motion.py -f data/xsens/leap_g1_retargeted.npy --source left
 """
 
 import argparse

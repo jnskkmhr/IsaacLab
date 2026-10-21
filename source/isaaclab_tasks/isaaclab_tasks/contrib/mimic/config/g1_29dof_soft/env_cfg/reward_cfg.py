@@ -8,8 +8,6 @@ import math
 from isaaclab.managers import RewardTermCfg, SceneEntityCfg
 from isaaclab.utils import configclass
 
-import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
-import isaaclab_tasks.core.velocity.mdp as mdp
 from isaaclab_tasks.contrib.mimic.config.g1_29dof.env_cfg.reward_cfg import G1RewardsCfg as RigidRewardsCfg
 from isaaclab_tasks.contrib.mimic.mdp.rewards import motion_global_anchor_tilt_error_l2
 

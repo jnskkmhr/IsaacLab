@@ -13,7 +13,7 @@ and the recorded frames are left untouched.
 
 .. code-block:: bash
 
-    python edit_longer_stance.py -f leap_g1_retargeted_mirror.npy --hold_seconds 5
+    python util/edit_longer_stance.py -f data/xsens/leap_g1_retargeted_mirror.npy --hold_seconds 5
 """
 
 import argparse

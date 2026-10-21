@@ -128,7 +128,7 @@ class MotionLibrary(MotionLoader):
                 if not set(self.tracked_body_names).issubset(bodies):
                     raise ValueError(f"{path}: tracked bodies are missing.")
                 if len(motion_files) > 1 and joints is None:
-                    raise ValueError(f"{path}: multiple clips require joint names or motion_joint_names.")
+                    raise ValueError(f"{path}: multiple clips require joint names or source_joint_names.")
                 self._validate_arrays(data, path, len(robot_joint_names), len(bodies), step_dt)
             clip = MotionLoader(
                 path,

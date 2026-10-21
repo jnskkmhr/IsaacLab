@@ -206,7 +206,8 @@ def _is_missing(value) -> bool:
 
 
 def _has_non_missing_attr(obj, attr_name: str) -> bool:
-    return hasattr(obj, attr_name) and not _is_missing(getattr(obj, attr_name))
+    value = getattr(obj, attr_name, None)
+    return value is not None and not _is_missing(value)
 
 
 def _handle_empirical_normalization(policy_cfg, agent_cfg):

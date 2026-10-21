@@ -7,8 +7,8 @@
 
 .. code-block:: bash
 
-    uv run python source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/play_motion_file.py \
-        --motion_file source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/g1_TO_jump_forward.npz
+    uv run python source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/play_motion_file.py \
+        --motion_file source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/data/claw/g1_TO_jump_forward.npz
 
 Untagged motion files use the legacy PhysX joint order. Files with ``joint_names``
 metadata are reordered by name for Newton. No Isaac Sim Kit installation is required.
@@ -17,14 +17,15 @@ Pass ``--video`` to save the replay to an mp4 instead of only viewing it. This w
 
 .. code-block:: bash
 
-    uv run python source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/play_motion_file.py \
+    uv run python source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/play_motion_file.py \
         --motion_file .../leap_g1_retargeted.npz --video --headless
 """
 
 from __future__ import annotations
 
 import argparse
-import os
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Literal
 
 import numpy as np
@@ -42,8 +43,8 @@ parser.add_argument(
 parser.add_argument(
     "--root_body_index",
     type=int,
-    default=0,
-    help="Body index in body_pos_w/body_quat_w to use as the articulation root pose.",
+    default=None,
+    help="Override the root body index; otherwise resolve its name from NPZ metadata (legacy default: 0).",
 )
 parser.add_argument("--camera_distance", type=float, default=1.5, help="Camera distance from the robot.")
 parser.add_argument("--video", action="store_true", default=False, help="Record a video of the replay.")
@@ -63,19 +64,20 @@ parser.add_argument("--headless", action="store_true", help="Render offscreen wi
 parser.set_defaults(visualizer=["newton_gl"])
 args_cli = parser.parse_args()
 
-import imageio.v2 as imageio
 import torch
 from isaaclab_newton.physics import MJWarpSolverCfg, NewtonCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
+from isaaclab.envs.utils.video_recorder import VideoRecorder
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
 from isaaclab.utils.configclass import configclass
 from isaaclab.utils.math import convert_quat
 
-from isaaclab_assets.robots.unitree import UNITREE_G1_29DOF_CFG
+from isaaclab_assets.robots.unitree import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
 
 @configclass
@@ -84,7 +86,7 @@ class ReplayNpzSceneCfg(InteractiveSceneCfg):
 
     ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
 
-    robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 # Legacy NPZ files store joints in PhysX articulation order.
@@ -132,8 +134,9 @@ class NpzMotion:
             raise KeyError(f"Motion file is missing required keys: {missing_keys}")
 
         self.joint_names = list(data["joint_names"]) if "joint_names" in data else list(LEGACY_JOINT_NAMES)
+        self.body_names = list(data["body_names"]) if "body_names" in data else None
         self.motion_file = motion_file
-        self.fps = int(np.asarray(data["fps"]).reshape(-1)[0])
+        self.fps = float(np.asarray(data["fps"]).reshape(-1)[0])
         self.joint_pos = torch.tensor(data["joint_pos"], dtype=torch.float32, device=device)
         self.joint_vel = torch.tensor(data["joint_vel"], dtype=torch.float32, device=device)
         self.body_pos_w = torch.tensor(data["body_pos_w"], dtype=torch.float32, device=device)
@@ -163,30 +166,6 @@ class NpzMotion:
         return frame
 
 
-class ViewportRecorder:
-    """Record RGB frames from the Newton GL visualizer."""
-
-    def __init__(self, sim: SimulationContext, video_path: str, fps: int):
-        self.visualizer = next(viz for viz in sim.visualizers if viz.cfg.visualizer_type == "newton_gl")
-        os.makedirs(os.path.dirname(video_path) or ".", exist_ok=True)
-        self.video_path = video_path
-        self.writer = imageio.get_writer(video_path, fps=fps, macro_block_size=16)
-        self.num_frames = 0
-
-    def capture(self) -> bool:
-        """Append the current RGB frame, returning whether capture succeeded."""
-        rgb = self.visualizer.render_rgb_array()
-        if rgb is None or rgb.size == 0:
-            return False
-        self.writer.append_data(rgb[:, :, :3])
-        self.num_frames += 1
-        return True
-
-    def close(self):
-        self.writer.close()
-        print(f"[INFO]: Saved {self.num_frames} frames to {os.path.abspath(self.video_path)}")
-
-
 def run_simulator(sim: SimulationContext, scene: InteractiveScene):
     """Stream the saved motion state into the robot and render it."""
 
@@ -207,9 +186,12 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
             "This viewer expects npz joint_pos/joint_vel in the robot joint order."
         )
 
-    if args_cli.root_body_index >= motion.body_pos_w.shape[1]:
+    root_body_index = args_cli.root_body_index
+    if root_body_index is None:
+        root_body_index = motion.body_names.index(robot.body_names[0]) if motion.body_names is not None else 0
+    if not 0 <= root_body_index < motion.body_pos_w.shape[1]:
         raise ValueError(
-            f"root_body_index={args_cli.root_body_index} is out of range for {motion.body_pos_w.shape[1]} saved bodies."
+            f"root_body_index={root_body_index} is out of range for {motion.body_pos_w.shape[1]} saved bodies."
         )
 
     joint_indices = [motion.joint_names.index(name) for name in robot.joint_names]
@@ -217,18 +199,26 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
     recorder = None
     if args_cli.video:
         video_length = args_cli.video_length if args_cli.video_length > 0 else motion.num_frames
-        video_name = os.path.splitext(os.path.basename(args_cli.motion_file))[0] + ".mp4"
-        recorder = ViewportRecorder(sim, os.path.join(args_cli.video_folder, video_name), motion.fps)
+        recorder_cfg = VideoRecorderCfg(
+            source="visualizer:newton_gl",
+            output_dir=args_cli.video_folder,
+            video_length=video_length,
+            video_interval=0,
+            output_filename_prefix=Path(args_cli.motion_file).stem,
+        )
+        # Standalone replay supplies the context normally provided by the environment.
+        recorder = VideoRecorder(recorder_cfg, SimpleNamespace(sim=sim, scene=scene, step_dt=1.0 / motion.fps))
         print(f"[INFO]: Recording {video_length} frames at {motion.fps} fps.")
 
+    replay_steps = 0
     try:
         while sim.is_headless_or_exist_active_visualizer():
             joint_pos_frame, joint_vel_frame, body_pos_frame, body_quat_frame = motion.next_frame()
 
             root_states = robot.data.default_root_pose.torch.clone()
-            root_states[:, :3] = body_pos_frame[args_cli.root_body_index]
+            root_states[:, :3] = body_pos_frame[root_body_index]
             root_states[:, :2] += scene.env_origins[:, :2]
-            root_states[:, 3:7] = body_quat_frame[args_cli.root_body_index]
+            root_states[:, 3:7] = body_quat_frame[root_body_index]
             robot.write_root_pose_to_sim_index(root_pose=root_states[:, :7])
             robot.write_root_velocity_to_sim_index(root_velocity=robot.data.default_root_vel.torch)
 
@@ -248,10 +238,9 @@ def run_simulator(sim: SimulationContext, scene: InteractiveScene):
             scene.update(sim.get_physics_dt())
 
             if recorder is not None:
-                if not recorder.capture():
-                    # renderer not ready yet, so replay this frame again rather than dropping it
-                    motion.current_idx = (motion.current_idx - 1) % motion.num_frames
-                elif recorder.num_frames >= video_length:
+                recorder.step()
+                replay_steps += 1
+                if replay_steps >= video_length:
                     return
     finally:
         if recorder is not None:

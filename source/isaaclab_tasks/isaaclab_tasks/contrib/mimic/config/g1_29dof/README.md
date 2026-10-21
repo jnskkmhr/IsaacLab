@@ -86,17 +86,13 @@ separately with `use_mirror_loss=True` and a positive `mirror_loss_coeff`.
 
 ## Export reference joint positions
 
-To export a headerless CSV with one motion frame per row and one joint per column:
+Use `DatasetManager.save_csv(motion, "joint_pos.csv", joint_positions_only=True,
+joint_names=JOINT_NAMES)` after loading the motion through a dataset term. Columns
+follow `JOINT_NAMES` from `env_cfg/commands_cfg.py`; values are absolute joint
+positions in radians. See the dataset README for the complete example.
 
-```bash
-uv run python source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/convert_npz_to_joint_pos_csv.py \
-  --input_file source/isaaclab_tasks/isaaclab_tasks/contrib/mimic/data/motions/npz/cmu_83_43.npz \
-  --output_file /tmp/cmu_83_43_joint_pos.csv
-```
+Motion import and replay: [dataset pipeline](../../data/motions/README.md).
 
-Columns follow `JOINT_NAMES` in `env_cfg/commands_cfg.py`, matching the default
-policy's reference-joint command order. Values are absolute joint positions in
-radians, without root poses, velocities, timestamps, or a header. The input must
-include `joint_names` metadata so source columns can be reordered safely. If
-`--output_file` is omitted, the converter writes `<input_stem>_joint_pos.csv`
-beside the input NPZ.
+The rigid Mimic task uses compositional PPO with the existing `policy` and `critic`
+observation groups. Run `uv sync` to install the locked `compositional-rsl-rl` main
+revision. The optional terrain snapshot interface is disabled for this plane task.
