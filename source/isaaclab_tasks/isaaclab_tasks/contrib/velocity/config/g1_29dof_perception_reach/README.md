@@ -23,5 +23,5 @@ uv run --with wandb isaaclab play --rl_library rsl_rl \
 # CNN
 uv run --with wandb isaaclab play --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Rough-G1-29dof-Perception-Reach-CNN-Play \
-  --num_envs 1 --wandb_run xxx --viz newton_gl
+  --num_envs 1 --wandb_run 9q5x0q1a --viz newton_rtx
 ```

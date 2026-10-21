@@ -11,6 +11,6 @@ import isaaclab_tasks.contrib.velocity.config.g1_29dof_perception_reach.mdp as r
 
 @configclass
 class G1CurriculumCfg:
-    """Change terrain difficulty using final-state reach-and-hold success."""
+    """Change terrain difficulty using final-state goal pose accuracy."""
 
     terrain_levels = CurrTerm(func=reach_mdp.terrain_levels_reach, params={"command_name": "base_pose"})

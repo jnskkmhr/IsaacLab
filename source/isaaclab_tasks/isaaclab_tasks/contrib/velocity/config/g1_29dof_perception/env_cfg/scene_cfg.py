@@ -16,7 +16,7 @@ from isaaclab.utils.configclass import configclass
 
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
-from .sensors_cfg import DEPTH_CAMERA_CFG, elevation_grid_pattern
+from .sensors_cfg import DEPTH_CAMERA_CFG
 
 
 @configclass
@@ -40,14 +40,14 @@ class G1PerceptionSceneCfg(InteractiveSceneCfg):
                 "pyramid_stairs": MeshPyramidStairsTerrainCfg(
                     proportion=1.0,
                     step_height_range=(0.00, 0.2),
-                    step_width=0.15,
+                    step_width=0.2,
                     platform_width=1.0,
                     border_width=2.0,
                 ),
                 "inverted_pyramid_stairs": MeshInvertedPyramidStairsTerrainCfg(
                     proportion=1.0,
                     step_height_range=(0.00, 0.2),
-                    step_width=0.15,
+                    step_width=0.2,
                     platform_width=1.0,
                     border_width=2.0,
                 ),
@@ -73,15 +73,35 @@ class G1PerceptionSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot/.*torso_link",
         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0)),
         ray_alignment="yaw",
-        pattern_cfg=patterns.GridPatternCfg(
-            func=elevation_grid_pattern, resolution=0.1, size=(3.2, 2.0), ordering="yx"
-        ),
+        # pattern_cfg=patterns.GridPatternCfg(
+        #     func=elevation_grid_pattern, resolution=0.1, size=(3.2, 2.0), ordering="yx"
+        # ),
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(1.6, 1.0), ordering="yx"),
         mesh_prim_paths=["/World/ground"],
         global_world_only=True,
         debug_vis=True,
     )
     mid360_lidar: RayCasterCfg | None = None
     d435_camera: CameraCfg | None = None
+    # Sole center is 0.038 m forward of the ankle-roll frame for the box-foot asset.
+    left_foot_height_scanner = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/.*left_ankle_roll_link",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.038, 0.0, 1.0)),
+        ray_alignment="yaw",
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.02, size=(0.065 + 0.141, 0.0368 * 2), ordering="yx"),
+        mesh_prim_paths=["/World/ground"],
+        global_world_only=True,
+        debug_vis=True,
+    )
+    right_foot_height_scanner = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/.*right_ankle_roll_link",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.038, 0.0, 1.0)),
+        ray_alignment="yaw",
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.02, size=(0.065 + 0.141, 0.0368 * 2), ordering="yx"),
+        mesh_prim_paths=["/World/ground"],
+        global_world_only=True,
+        debug_vis=True,
+    )
     contact_forces = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*",
         history_length=3,
@@ -99,4 +119,5 @@ class G1PerceptionSceneCfg(InteractiveSceneCfg):
 @configclass
 class G1DepthSceneCfg(G1PerceptionSceneCfg):
     """Enable only the actor's depth camera and critic's height scanner."""
-    d435_camera = DEPTH_CAMERA_CFG.copy() # type: ignore
+
+    d435_camera = DEPTH_CAMERA_CFG.copy()  # type: ignore

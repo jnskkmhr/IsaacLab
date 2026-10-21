@@ -44,18 +44,20 @@ class G1RoughPerceptionReachEnvCfg(ManagerBasedRLEnvCfg):
 
     def __post_init__(self):
         self.decimation = 4
-        self.episode_length_s = 20.0
+        self.episode_length_s = 10.0
         self.sim.dt = 0.005
         self.sim.render_interval = self.decimation
         self.sim.physics_material = self.scene.terrain.physics_material
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
+        self.scene.left_foot_height_scanner.update_period = self.decimation * self.sim.dt
+        self.scene.right_foot_height_scanner.update_period = self.decimation * self.sim.dt
         self.scene.contact_forces.update_period = self.sim.dt
         self.observations.elevation_map.map.params["height_only"] = self.height_only
         self.observations.elevation_map.map.mirror_params["height_only"] = self.height_only
         self.observations.elevation_map.concatenate_dim = 0 if self.height_only else -1
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
-            NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            # NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
         ]
         self.video_recorders = [
             VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
@@ -63,23 +65,27 @@ class G1RoughPerceptionReachEnvCfg(ManagerBasedRLEnvCfg):
 
     def play_mode(self):
         super().play_mode()
+        self.episode_length_s = 4.0
         self.scene.num_envs = min(self.scene.num_envs, 4)
-        self.curriculum.terrain_levels = None
-        self.scene.terrain.max_init_terrain_level = None
+        # self.curriculum.terrain_levels = None
+        self.scene.terrain.max_init_terrain_level = 5
         self.observations.policy.enable_corruption = False
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(
-                eye=(0.0, -4.0, 1.0),
-                origin_type="asset",
-                origin_track_path="robot",
-                headless=True,
-            ),
+            # NewtonGLVisualizerCfg(
+            #     eye=(0.0, -4.0, 1.0),
+            #     origin_type="asset",
+            #     origin_track_path="robot",
+            #     # headless=True,
+            # ),
             NewtonRTXVisualizerCfg(
-                eye=(0.0, -4.0, 1.0),
-                origin_type="asset",
-                origin_track_path="robot",
-                headless=True,
+                eye=(0.0, -2.0, 1.5),
+                # origin_type="asset",
+                # origin_track_path="robot",
+                # headless=True,
             ),
+        ]
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
         ]
 
 

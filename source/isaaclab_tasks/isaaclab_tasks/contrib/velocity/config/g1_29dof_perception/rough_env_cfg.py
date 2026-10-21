@@ -47,16 +47,18 @@ class G1RoughPerceptionEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.render_interval = self.decimation
         self.sim.physics_material = self.scene.terrain.physics_material
         self.scene.height_scanner.update_period = self.decimation * self.sim.dt
+        self.scene.left_foot_height_scanner.update_period = self.decimation * self.sim.dt
+        self.scene.right_foot_height_scanner.update_period = self.decimation * self.sim.dt
         self.scene.contact_forces.update_period = self.sim.dt
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(
                 eye=(12.0, 0.0, 6.0),
                 headless=True,
             ),
-            NewtonRTXVisualizerCfg(
-                eye=(12.0, 0.0, 6.0),
-                headless=True,
-            ),
+            # NewtonRTXVisualizerCfg(
+            #     eye=(12.0, 0.0, 6.0),
+            #     headless=True,
+            # ),
         ]
         self.video_recorders = [
             VideoRecorderCfg(
@@ -80,24 +82,28 @@ class G1RoughPerceptionEnvCfg_PLAY(G1RoughPerceptionEnvCfg):
         # self.scene.terrain.max_init_terrain_level = None
         self.observations.policy.enable_corruption = False
         self.events.push_robot = None
-        self.curriculum.terrain_levels = None
+        # self.curriculum.terrain_levels = None
+        self.scene.terrain.max_init_terrain_level = 5
+        self.scene.terrain.terrain_generator.difficulty_range = (0.7, 0.7)
 
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
         self.commands.base_velocity.ranges.heading = (0.0, 0.0)
+
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(
-                eye=(0.0, -4.0, 1.0),
-                origin_type="asset",
-                origin_track_path="robot",
-                headless=True,
-            ),
+            # NewtonGLVisualizerCfg(
+            #     eye=(0.0, -4.0, 1.0),
+            #     origin_type="asset",
+            #     origin_track_path="robot",
+            #     # headless=True,
+            # ),
             NewtonRTXVisualizerCfg(
-                eye=(0.0, -4.0, 1.0),
+                eye=(0.0, -2.0, 1.5),
                 origin_type="asset",
                 origin_track_path="robot",
-                headless=True,
+                # headless=True,
             ),
         ]
         self.video_recorders = [
@@ -130,3 +136,4 @@ class G1RoughPerceptionCNNEnvCfg_PLAY(G1RoughPerceptionEnvCfg_PLAY):
         self.observations.elevation_map.map.params["height_only"] = True
         self.observations.elevation_map.map.mirror_params["height_only"] = True
         self.observations.elevation_map.concatenate_dim = 0
+        self.video_recorders = []

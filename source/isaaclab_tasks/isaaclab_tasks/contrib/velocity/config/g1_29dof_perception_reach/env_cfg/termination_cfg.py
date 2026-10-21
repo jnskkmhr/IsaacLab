@@ -18,6 +18,10 @@ class G1TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    # base_contact = DoneTerm(
+    #     func=mdp.illegal_contact,
+    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="torso_link"), "threshold": 1.0},
+    # )
     base_too_low = DoneTerm(
         func=g1_mdp.root_height_below_minimum_adaptive,
         params={"minimum_height": 0.2, "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},

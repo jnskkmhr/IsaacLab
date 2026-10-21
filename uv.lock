@@ -757,7 +757,7 @@ wheels = [
 [[package]]
 name = "compositional-rsl-rl"
 version = "0.1.0"
-source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=main#8b3e865c275213dbfef39ab3c4c0f14176d92573" }
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=main#fed92caeff32d883c3a14e4b9bfd99b7a915b516" }
 dependencies = [
     { name = "rsl-rl-lib" },
 ]

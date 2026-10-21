@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Terrain-supported base-pose goals and explicit reach-and-hold tolerances."""
+"""Terrain-supported base-pose goals and pose tolerances."""
 
 import math
 
@@ -19,7 +19,6 @@ class TerrainPoseCommandCfg(CommandTermCfg):
 
     class_type: str = "{DIR}.commands:TerrainPoseCommand"
     asset_name: str = "robot"
-    contact_sensor_name: str = "contact_forces"
     foot_body_names: str = ".*_ankle_roll_link"
     target_patch_name: str = "target"
     distance_range: tuple[float, float] = (0.75, 3.5)
@@ -30,12 +29,6 @@ class TerrainPoseCommandCfg(CommandTermCfg):
     position_tolerance: float = 0.2
     height_tolerance: float = 0.08
     heading_tolerance: float = 0.2
-    linear_velocity_tolerance: float = 0.15
-    angular_velocity_tolerance: float = 0.2
-    foot_velocity_tolerance: float = 0.1
-    contact_force_threshold: float = 5.0
-    hold_time: float = 0.5
-    """Continuous time inside all pose, velocity, and foot-contact tolerances."""
     resampling_time_range: tuple[float, float] = (1.0e9, 1.0e9)
     debug_vis: bool = True
     goal_visualizer_cfg: VisualizationMarkersCfg = VisualizationMarkersCfg(

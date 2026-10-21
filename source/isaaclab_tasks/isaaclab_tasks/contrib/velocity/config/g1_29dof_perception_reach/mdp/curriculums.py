@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Terrain progression based on completing a reach-and-hold episode."""
+"""Terrain progression based on finishing an episode within the goal pose tolerances."""
 
 from __future__ import annotations
 

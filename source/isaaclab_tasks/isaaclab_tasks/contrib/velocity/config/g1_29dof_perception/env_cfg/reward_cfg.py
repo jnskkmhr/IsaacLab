@@ -143,6 +143,20 @@ class G1RewardsCfg:
         },
     )
 
+    feet_edge = RewTerm(
+        func=vel_mdp.feet_edge_penalty,
+        weight=-1.0,
+        params={
+            "left_sensor_cfg": SceneEntityCfg("left_foot_height_scanner"),
+            "right_sensor_cfg": SceneEntityCfg("right_foot_height_scanner"),
+            "sensor_cfg": SceneEntityCfg(
+                "contact_forces", body_names=["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True
+            ),
+            "height_threshold": 0.03,
+            "margin": 0.03,
+            "contact_threshold": 1.0,
+        },
+    )
     foot_distance = RewTerm(
         func=g1_mdp.reward_foot_lateral_symmetry,
         weight=-2.0,

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Local SE(2) + Z targets with reach-and-hold success tracking."""
+"""Local SE(2) + Z targets with pose-based success tracking."""
 
 from __future__ import annotations
 
@@ -34,22 +34,17 @@ class TerrainPoseCommand(CommandTerm):
 
     def __init__(self, cfg: TerrainPoseCommandCfg, env: ManagerBasedRLEnv):
         super().__init__(cfg, env)
-        if not 0 <= cfg.distance_range[0] < cfg.distance_range[1] or cfg.hold_time <= 0:
-            raise ValueError("Reach goals require an increasing nonnegative distance range and positive hold time.")
+        if not 0 <= cfg.distance_range[0] < cfg.distance_range[1]:
+            raise ValueError("Reach goals require an increasing nonnegative distance range.")
         self.robot = env.scene[cfg.asset_name]
         self.terrain = env.scene.terrain
-        self.contact_sensor = env.scene[cfg.contact_sensor_name]
         self.foot_ids, _ = self.robot.find_bodies(cfg.foot_body_names)
-        self.contact_ids, _ = self.contact_sensor.find_bodies(cfg.foot_body_names)
-        if len(self.foot_ids) != 2 or len(self.contact_ids) != 2:
-            raise ValueError("G1 reach-and-hold requires both ankle-roll bodies and their contact measurements.")
         self.valid_targets = self.terrain.flat_patches[cfg.target_patch_name]
         self.pos_command_w = torch.zeros(self.num_envs, 3, device=self.device)
         self.heading_command_w = torch.zeros(self.num_envs, device=self.device)
         self._command = torch.zeros(self.num_envs, 5, device=self.device)
-        self.hold_duration = torch.zeros(self.num_envs, device=self.device)
-        self.goal_held = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        self.goal_reached = torch.zeros_like(self.goal_held)
+        self.goal_in_tolerance = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.goal_reached = torch.zeros_like(self.goal_in_tolerance)
         self._last_status_step = -1
         for name in ("position_error", "height_error", "heading_error"):
             self.metrics[name] = torch.zeros(self.num_envs, device=self.device)
@@ -69,45 +64,31 @@ class TerrainPoseCommand(CommandTerm):
         return wrap_to_pi(self.heading_command_w - self.robot.data.heading_w.torch)
 
     @property
+    def position_in_tolerance(self) -> torch.Tensor:
+        """Whether the current base position meets both the XY and Z goal tolerances."""
+        error = self.position_error_w
+        return (torch.linalg.vector_norm(error[:, :2], dim=-1) < self.cfg.position_tolerance) & (
+            error[:, 2].abs() < self.cfg.height_tolerance
+        )
+
+    @property
     def episode_success(self) -> torch.Tensor:
-        """Finish holding the goal at timeout, with no simultaneous failure."""
-        return self.goal_held & self._env.termination_manager.time_outs & ~self._env.termination_manager.terminated
+        """Finish within the goal pose tolerances at timeout, with no simultaneous failure."""
+        return (
+            self.goal_in_tolerance & self._env.termination_manager.time_outs & ~self._env.termination_manager.terminated
+        )
 
     def update_goal_status(self):
-        """Count each control step once, including the final step before automatic reset.
+        """Cache pose success once per control step, including the final step before reset.
 
-        Called during command updates and by the settling reward and curriculum
+        Called during command updates and by the goal reward and curriculum
         before reset. Command updates alone cannot evaluate the final state.
         """
         if self._last_status_step == self._env.common_step_counter:
             return
         self._last_status_step = self._env.common_step_counter
-        error = self.position_error_w
-        contact = (
-            torch.linalg.vector_norm(self.contact_sensor.data.net_forces_w.torch[:, self.contact_ids], dim=-1)
-            > self.cfg.contact_force_threshold
-        )
-        foot_speed = torch.linalg.vector_norm(self.robot.data.body_lin_vel_w.torch[:, self.foot_ids], dim=-1)
-        settled = (
-            (torch.linalg.vector_norm(error[:, :2], dim=-1) < self.cfg.position_tolerance)
-            & (error[:, 2].abs() < self.cfg.height_tolerance)
-            & (self.heading_error.abs() < self.cfg.heading_tolerance)
-            & (
-                torch.linalg.vector_norm(self.robot.data.root_lin_vel_w.torch, dim=-1)
-                < self.cfg.linear_velocity_tolerance
-            )
-            & (
-                torch.linalg.vector_norm(self.robot.data.root_ang_vel_w.torch, dim=-1)
-                < self.cfg.angular_velocity_tolerance
-            )
-            & (foot_speed < self.cfg.foot_velocity_tolerance).all(dim=-1)
-            & contact.all(dim=-1)
-            & (self._env.episode_length_buf > 0)
-            & ~self._env.termination_manager.terminated
-        )
-        self.hold_duration[:] = torch.where(settled, self.hold_duration + self._env.step_dt, 0.0)
-        self.goal_held[:] = self.hold_duration >= self.cfg.hold_time
-        self.goal_reached |= self.goal_held
+        self.goal_in_tolerance[:] = self.position_in_tolerance & (self.heading_error.abs() < self.cfg.heading_tolerance)
+        self.goal_reached |= self.goal_in_tolerance
 
     def reset(self, env_ids: Sequence[int] | slice | None = None) -> dict[str, torch.Tensor]:
         if env_ids is None:
@@ -139,8 +120,7 @@ class TerrainPoseCommand(CommandTerm):
         self.heading_command_w[env_ids] = torch.empty(len(env_ids), device=self.device).uniform_(
             *self.cfg.heading_range
         )
-        self.hold_duration[env_ids] = 0.0
-        self.goal_held[env_ids] = False
+        self.goal_in_tolerance[env_ids] = False
         self.goal_reached[env_ids] = False
         self._update_command()
 
