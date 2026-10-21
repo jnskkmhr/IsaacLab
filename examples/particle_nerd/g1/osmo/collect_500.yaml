@@ -1,0 +1,826 @@
+workflow:
+  name: particle-g1-collect-500
+  resources:
+    default:
+      cpu: 8
+      gpu: 1
+      memory: 64Gi
+      platform: ovx-l40s
+      storage: 192Gi
+  tasks:
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 0 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-0
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-0
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-0
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 1 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-1
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-1
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-1
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 2 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-2
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-2
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-2
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 3 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-3
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-3
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-3
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 4 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-4
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-4
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-4
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 5 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-5
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-5
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-5
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 6 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-6
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-6
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-6
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 7 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-7
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-7
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-7
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 8 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-8
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-8
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-8
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 9 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-9
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-9
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-9
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 10 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-10
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-10
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-10
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 11 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-11
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-11
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-11
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 12 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-12
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-12
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-12
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 13 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-13
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-13
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-13
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 14 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-14
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-14
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-14
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/data"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      export PARTICLE_OUTPUT="{{output}}"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      cp deployment/commands.json "{{output}}/commands.json"
+      uv run --no-sync python -m particle_nerd.g1.collect \
+        --limit 500 --shard 15 --shards 16 \
+        --num-envs 2 --duration 5 --headless \
+        --schedule deployment/commands.json \
+        --checkpoint deployment/policy/model_39998.pt \
+        --output "{{output}}/data"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}'
+      regex: .*\.(json|log)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-15
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/collector-pilot50-retry2/
+    name: collect-15
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/{{workflow_id}}/shard-15

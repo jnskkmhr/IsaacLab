@@ -1,0 +1,115 @@
+workflow:
+  name: particle-g1-transolver-500
+  resources:
+    default:
+      cpu: 16
+      gpu: 8
+      memory: 128Gi
+      platform: ovx-l40s
+      storage: 1500Gi
+  tasks:
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/model"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      uv run --no-sync python deployment/audit_dataset.py \
+        --data "{{input:1}}" --schedule deployment/commands.json \
+        --expected-limit 500 --workers 8 \
+        --output "{{output}}/dataset-audit.json"
+
+      initialize_args=()
+
+      test -f "{{input:2}}/best.pt"
+      sha256sum "{{input:2}}/best.pt" > "{{output}}/initial-checkpoint.sha256"
+      initialize_args=(--initialize "{{input:2}}/best.pt")
+
+      uv run --no-sync torchrun --standalone --nproc_per_node=8 \
+        --module particle_nerd.g1.train \
+        --data "{{input:1}}" --output "{{output}}/model" \
+        --steps 10000 --rollout-steps 2 --stride 1 \
+        --evaluate-every 250 --validation-samples 50 \
+        "${initialize_args[@]}"
+
+      uv run --no-sync python - "{{input:1}}" "{{output}}" <<'PY'
+      import hashlib
+      import json
+      from pathlib import Path
+      import sys
+      import numpy as np
+      import torch
+      import warp as wp
+      from particle_nerd.g1.data import Episodes
+      from particle_nerd.g1.train import validate
+      from particle_nerd.transolver.model import ParticleTransolver
+
+      torch.set_num_threads(2)
+      torch.cuda.set_device(0)
+      wp.init()
+      data_root, output = map(Path, sys.argv[1:])
+      checkpoint = output / "model/best.pt"
+      saved = torch.load(checkpoint, map_location="cuda:0", weights_only=False)
+      model = ParticleTransolver(**saved["config"]["model"]).to("cuda:0")
+      model.load_state_dict(saved["model"], strict=True)
+      test = Episodes(data_root, "test", stride=1)
+      test_ids = {record["index"] for record in test.records}
+      schedule = json.loads(Path("deployment/commands.json").read_text())
+      expected = {trial["trial_id"] for trial in schedule["trials"] if trial["split"] == "test"}
+      run = json.loads((output / "model/run.json").read_text())
+      assert len(test_ids) == 50 and test_ids == expected
+      assert not test_ids.intersection(run["train_ids"] + run["validation_ids"])
+      metrics = validate(model, test, 2, 50, "cuda:0")
+      assert all(np.isfinite(value).all() for value in metrics.values())
+      report = dict(
+          checkpoint_step=saved["step"], checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+          split="test", trajectory_count=50, trial_ids=sorted(test_ids), prediction_steps=2,
+          timestep_s=test.dt, horizon_s=2 * test.dt, sampling_seed=42027, windows_per_trajectory=1,
+          scope="Two-step10ms particle prediction with reference rigid motion; not five-second free simulation",
+          selection="Checkpoint selected using validation only; test evaluated once after all optimization",
+          metrics=metrics,
+      )
+      (output / "test-metrics.json").write_text(json.dumps(report, indent=2) + "\n")
+      print("RESERVED_TEST_METRICS", json.dumps(report), flush=True)
+      PY
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}/model'
+      regex: .*\.(pt|json|jsonl)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/training/{{workflow_id}}/model
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NCCL_DEBUG: WARN
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      TORCH_NCCL_ASYNC_ERROR_HANDLING: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/snapshots/training-audit8-pelvis/
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/particle-g1-collect-500-1/
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/initialization/pilot-best-step2000-234f9bfe84da/
+    name: train
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/training/{{workflow_id}}

@@ -114,3 +114,28 @@ The report checks matching initial particle and robot poses. It plots the pelvis
 trajectory and height, vertical sand forces on both feet, and particle position
 error against the frozen-particle baseline. Force differences between diverging
 robot trajectories are not a force-estimation error measured on the same motion.
+
+## Reproduce the cloud experiment
+
+The [collection workflow](osmo/collect_500.yaml) and
+[training workflow](osmo/train_500.yaml) pin the exact source snapshots, dataset,
+and pilot initialization used for this experiment. They use OSMO direct storage;
+the full dataset remains in the cloud. These are reproduction configurations,
+not automatically updated snapshots of your local source edits.
+
+```bash
+osmo workflow submit examples/particle_nerd/g1/osmo/collect_500.yaml --pool isaac-lab-l40s-03
+```
+
+Collection writes to a new workflow-ID prefix. To train on that new collection,
+update the dataset input URL in `train_500.yaml` after collection completes.
+Leaving it unchanged reproduces training on the original completed collection.
+
+```bash
+osmo workflow submit examples/particle_nerd/g1/osmo/train_500.yaml --pool isaac-lab-l40s-03
+```
+
+The mandatory [dataset audit](osmo/audit_dataset.py) checks every recorded numeric
+value, trajectory IDs, splits, rates, and geometry before training. It also exports
+measured pelvis paths at 10 Hz. Checkpoint selection uses validation trajectories;
+short-horizon test metrics are computed only after selection.
