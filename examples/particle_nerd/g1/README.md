@@ -1,0 +1,116 @@
+# G1 particle NeRD
+
+The G1 examples use the current native G1 MPM task in `~/isaac/IsaacLab`.
+The model is Transolver. No GNN, region selector, or MPM correction network is used.
+
+## Runtime
+
+Use the native IsaacLab checkout's runtime and only overlay these example modules:
+
+```bash
+cd ~/isaac/IsaacLab
+export PYTHONPATH="$HOME/isaac/IsaacLab-particle-nerd/examples${PYTHONPATH:+:$PYTHONPATH}"
+```
+
+Do not add this worktree's `source/` directories to `PYTHONPATH`: the reference
+collector uses the newer native G1 task and Newton/MJWarp versions.
+
+## Reference simulation
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.play \
+  --output /tmp/g1-reference --duration 5 --viz newton_rtx
+```
+
+Omit `--checkpoint` to use native coupled MPM–MJWarp. The pretrained robot policy
+runs at 50 Hz; physics runs at 200 Hz. `--headless` disables the live viewer.
+The output contains 200 Hz force and robot traces and 25 Hz replay snapshots.
+
+## Learned simulation
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.play \
+  --checkpoint /path/to/g1-best.pt --output /tmp/g1-learned \
+  --duration 5 --effective-mass-scale 10 --iterations 50 --viz newton_rtx
+```
+
+This replaces every material step with Transolver and an analytical foot-force
+estimator. The native robot solver handles actuators, joints and rigid dynamics.
+No MPM solve runs during learned inference. The existing native task still allocates
+its MPM state during setup for particle initialization and reset compatibility.
+The first history is extrapolated from the initial particle position and velocity;
+no future reference particle frames are supplied.
+
+The estimator uses independent native virtual-foot responses, not the full
+articulated contact response matrix. `--effective-mass-scale` multiplies the
+auxiliary material mass; it does not change robot mass. This evaluation runner
+uses one environment and eager dispatch; it is not the optimized batch benchmark.
+
+For matched command scenarios, add the same `--schedule commands.json --trial 12`
+and `--seed 120000` to both reference and learned commands. Native termination
+ends the recorded run. The robot policy observes each run's evolving robot state.
+
+## Record reference data
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.collect \
+  --schedule /path/to/commands.json --output /path/to/data \
+  --num-envs 2 --limit 50 --duration 5 --headless
+```
+
+`--shard R --shards N` partitions scheduled trials. Each HDF5 file records one
+trajectory at 200 Hz; native resets are excluded. Static data contain particle
+masses, collision-box geometry, and material parameters. `applied_generalized_force`
+is Newton `Control.joint_f`, which excludes the native actuator output. It must
+not be interpreted as total actuator torque.
+
+## Train Transolver
+
+```bash
+uv run --no-sync python -m torch.distributed.run --standalone --nproc_per_node=4 \
+  -m particle_nerd.g1.train --data /path/to/data --output /path/to/model \
+  --steps 2000 --rollout-steps 2 --validation-samples 50
+```
+
+The trainer streams HDF5 windows; it does not load the complete dataset into RAM.
+All particles are processed. The validation split selects `best.pt`; the test
+split is not used for training or checkpoint selection. Two-step training and
+validation cover 10 ms, so long rollouts must be evaluated separately.
+
+## Evaluate particle motion with recorded robot geometry
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.evaluate \
+  --checkpoint /path/to/g1-best.pt --episode /path/to/validation-episode.hdf5 \
+  --output /tmp/g1-particle-evaluation --duration 5
+```
+
+Only the first three particle frames initialize the rollout. Later particle
+predictions feed the next step. Robot geometry follows the recording throughout.
+This measures particle prediction; it is not closed-loop robot simulation.
+
+## Render paired dynamic simulations
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.render \
+  --reference /tmp/g1-reference --prediction /tmp/g1-learned \
+  --output /tmp/g1-comparison.mp4
+```
+
+Newton RTX renders the saved states without advancing physics. Both views use
+brown particles, a 10 mm display radius, and identical cameras. The chart shows
+vertical force exerted by sand on each robot foot. Omit `--prediction` for a
+reference-only video. `--preview` writes one JPEG instead of the video.
+
+## Plot robot motion, foot forces, and particle error
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.report \
+  --reference /tmp/g1-reference --prediction /tmp/g1-learned \
+  --particle-evaluation /tmp/g1-particle-evaluation --output /tmp/g1-report
+```
+
+The report checks matching initial particle and robot poses. It plots the pelvis
+trajectory and height, vertical sand forces on both feet, and particle position
+error against the frozen-particle baseline. Force differences between diverging
+robot trajectories are not a force-estimation error measured on the same motion.
