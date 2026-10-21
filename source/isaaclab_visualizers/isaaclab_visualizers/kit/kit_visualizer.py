@@ -21,12 +21,11 @@ from isaaclab.app.settings_manager import get_settings_manager
 from isaaclab.sim import SimulationContext
 from isaaclab.utils.math import create_rotation_matrix_from_view, quat_from_matrix
 from isaaclab.utils.renderers import ISAAC_RTX_SHOW_ALL_PARTITIONS_BY_DEFAULT_SETTING
+from isaaclab.visualizers import VisualizerCfg
 from isaaclab.visualizers.base_visualizer import BaseVisualizer
 from isaaclab.visualizers.visualizer_cfg import PerspectiveCameraCfg
 
 from isaaclab_visualizers.desktop_entry import write_desktop_entry
-
-from .kit_visualizer_cfg import KitVisualizerCfg
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +48,13 @@ class KitVisualizer(BaseVisualizer):
     _timeline_auto_update: ClassVar[bool | None] = None
     _timeline_control_owner_count: ClassVar[int] = 0
 
-    def __init__(self, cfg: KitVisualizerCfg):
+    def __init__(self, cfg: VisualizerCfg):
         """Initialize Kit visualizer state.
 
         Args:
             cfg: Kit visualizer configuration.
         """
         super().__init__(cfg)
-        self.cfg: KitVisualizerCfg = cfg
 
         self._simulation_app = None
         self._viewport_window = None
@@ -130,14 +128,14 @@ class KitVisualizer(BaseVisualizer):
                 ("streaming_gt_types", list(self.cfg.streaming_gt_types)),
                 ("max_visible_envs", self.cfg.max_visible_envs),
                 ("num_visualized_envs", num_visualized_envs),
-                ("create_viewport", self.cfg.create_viewport),
+                ("create_viewport", self.cfg.backend.create_viewport),
                 ("headless", self._runtime_headless),
             ],
         )
         if self.current_image_view is not None and not self._runtime_headless:
             import omni.ui
 
-            title = self.cfg.viewport_name or "Streaming View"
+            title = self.cfg.backend.viewport_name or "Streaming View"
             self._camera_image_provider = omni.ui.ByteImageProvider()
             self._camera_image_window = omni.ui.Window(
                 title, width=self.cfg.window.size[0], height=self.cfg.window.size[1]
@@ -151,7 +149,7 @@ class KitVisualizer(BaseVisualizer):
         self._fabric = sim.get_or_create_backend(FabricBackendCfg(stage=sim.stage, device=sim.device))
         self._fabric.bind_transforms(scene_data_provider)
         self._is_initialized = True
-        self._setup_initial_camera_view()
+        self.reapply_origin()
         self._controls_kit_timeline = sim.has_gui and self.physics_backend not in ("physx", "ovphysx")
         if self._controls_kit_timeline:
             self.play()
@@ -174,6 +172,7 @@ class KitVisualizer(BaseVisualizer):
         provider = self._sim.get_scene_data_provider()
         self._fabric.update_transforms(provider)
         self._fabric.update_geometries(provider, self._sim.render_generation)
+        self.update_camera_tracking()
         self._app_pumped_this_step = self._pump_kit_app_update()
         if self._camera_image_provider is not None:
             image = self.current_image_view.frame.data if self.is_training_paused() else self.render_tiled_rgba_array()
@@ -289,8 +288,7 @@ class KitVisualizer(BaseVisualizer):
         provider = self._sim.get_scene_data_provider()
         self._fabric.update_transforms(provider)
         self._fabric.update_geometries(provider, self._sim.render_generation)
-        if self._runtime_headless and self.cfg.origin_type == "asset":
-            self._update_asset_tracking_camera()
+        self.update_camera_tracking()
         w, h = self.cfg.window.size
 
         # Create the render product and annotator before the app update so the first
@@ -436,9 +434,18 @@ class KitVisualizer(BaseVisualizer):
             return
         self._set_viewport_camera(tuple(eye), tuple(target))
 
+    @property
+    def viewer_origin(self) -> torch.Tensor | None:
+        """Current world-space origin offset applied to :attr:`~isaaclab.visualizers.VisualizerCfg.eye` and
+        :attr:`~isaaclab.visualizers.VisualizerCfg.lookat` when computing the absolute camera position.
+
+        Returns ``None`` before :meth:`initialize` is called or when no valid origin has been
+        established yet (e.g. asset-tracking before the first :meth:`step`).
+        """
+        return self._viewer_origin
+
     def reapply_origin(self) -> None:
-        """Recompute the camera position from the current :attr:`~KitVisualizerCfg.origin_type` and push it to
-        the viewport.
+        """Apply the shared camera origin settings to the viewport.
 
         Call this after mutating :attr:`cfg.origin_type`, :attr:`cfg.origin_env_index`, or
         :attr:`cfg.origin_track_path` so the viewport reflects the new origin immediately rather than
@@ -449,16 +456,6 @@ class KitVisualizer(BaseVisualizer):
         :meth:`~isaaclab.sim.SimulationContext.reset`.
         """
         self._setup_initial_camera_view()
-
-    @property
-    def viewer_origin(self) -> torch.Tensor | None:
-        """Current world-space origin offset applied to :attr:`~KitVisualizerCfg.eye` and
-        :attr:`~KitVisualizerCfg.lookat` when computing the absolute camera position.
-
-        Returns ``None`` before :meth:`initialize` is called or when no valid origin has been
-        established yet (e.g. asset-tracking before the first :meth:`step`).
-        """
-        return self._viewer_origin
 
     # ---- Viewport + camera ----------------------------------------------------------------
 
@@ -630,8 +627,12 @@ class KitVisualizer(BaseVisualizer):
             self._write_desktop_entry()
             import omni.kit.viewport.utility as vp_utils
 
-            if self.cfg.create_viewport:
-                name = self.cfg.viewport_name if self.cfg.viewport_name is not None else _DEFAULT_VIEWPORT_NAME
+            if self.cfg.backend.create_viewport:
+                name = (
+                    self.cfg.backend.viewport_name
+                    if self.cfg.backend.viewport_name is not None
+                    else _DEFAULT_VIEWPORT_NAME
+                )
                 if not str(name).strip():
                     raise RuntimeError(
                         "[KitVisualizer] viewport_name must be a non-empty string when create_viewport=True."
@@ -730,7 +731,9 @@ class KitVisualizer(BaseVisualizer):
 
         if main_viewport and main_viewport != window:
             window.dock_in(
-                main_viewport, dock_positions.get(self.cfg.dock_position.upper(), omni.ui.DockPosition.SAME), 0.5
+                main_viewport,
+                dock_positions.get(self.cfg.backend.dock_position.upper(), omni.ui.DockPosition.SAME),
+                0.5,
             )
             if focus:
                 await omni.kit.app.get_app().next_update_async()
