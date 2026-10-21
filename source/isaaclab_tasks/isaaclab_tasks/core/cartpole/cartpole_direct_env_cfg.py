@@ -3,55 +3,23 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Configuration for the direct-workflow cartpole environment."""
+
 from __future__ import annotations
 
 import math
 
-from isaaclab_newton.physics import (
-    KaminoPADMMSolverCfg,
-    MJWarpSolverCfg,
-    NewtonCfg,
-)
-from isaaclab_ov.physics import OvPhysxCfg
-from isaaclab_physx.physics import PhysxCfg
-
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import DirectRLEnvCfg
-from isaaclab.physics import PhysxAutoCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
-from isaaclab.utils import configclass
+from isaaclab.utils import configclass, replace
 from isaaclab.visualizers import VisualizerCfg
-
-from isaaclab_tasks.utils import PresetCfg
 
 from isaaclab_assets.robots.cartpole import CARTPOLE_CFG
 
-
-@configclass
-class CartpolePhysicsCfg(PresetCfg):
-    isaacsim_physx: PhysxCfg = PhysxCfg()
-    ovphysx: OvPhysxCfg = OvPhysxCfg()
-    physx: PhysxAutoCfg = PhysxAutoCfg(isaacsim_physx=isaacsim_physx, ovphysx=ovphysx)
-    newton_mjwarp: NewtonCfg = NewtonCfg(
-        solver_cfg=MJWarpSolverCfg(
-            njmax=5,
-            nconmax=3,
-            cone="pyramidal",
-            impratio=1,
-            integrator="implicitfast",
-        ),
-        num_substeps=1,
-        debug_mode=False,
-        use_cuda_graph=True,
-    )
-    newton_kamino: NewtonCfg = NewtonCfg(
-        solver_cfg=KaminoPADMMSolverCfg(sparse_jacobian=True),
-        debug_mode=False,
-        use_cuda_graph=True,
-    )
-    default = newton_mjwarp
+from .cartpole_common import LIGHT_ORIENTATION, CartpolePhysicsCfg
 
 
 @configclass
@@ -59,18 +27,18 @@ class CartpoleSceneCfg(InteractiveSceneCfg):
     """Cartpole assets constructed and cloned as one scene."""
 
     ground = AssetBaseCfg(prim_path="/World/ground", spawn=sim_utils.GroundPlaneCfg())
-    cartpole: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    cartpole: ArticulationCfg = replace(CARTPOLE_CFG, prim_path="{ENV_REGEX_NS}/Robot")
     light = AssetBaseCfg(
         prim_path="/World/Light",
         spawn=sim_utils.DistantLightCfg(intensity=2000.0),
-        init_state=AssetBaseCfg.InitialStateCfg(
-            rot=(-0.14644663035869598, -0.3535534143447876, -0.3535534143447876, 0.8535533547401428)
-        ),
+        init_state=AssetBaseCfg.InitialStateCfg(rot=LIGHT_ORIENTATION),
     )
 
 
 @configclass
 class CartpoleEnvCfg(DirectRLEnvCfg):
+    """Configuration for the direct-workflow cartpole balancing environment."""
+
     # env
     decimation = 2
     episode_length_s = 5.0
@@ -86,9 +54,7 @@ class CartpoleEnvCfg(DirectRLEnvCfg):
     pole_dof_name = "cart_to_pole"
 
     # scene
-    scene: CartpoleSceneCfg = CartpoleSceneCfg(
-        num_envs=4096, env_spacing=4.0, replicate_physics=True, clone_in_fabric=True
-    )
+    scene: CartpoleSceneCfg = CartpoleSceneCfg(num_envs=4096, env_spacing=4.0)
 
     # reset
     max_cart_pos = 3.0  # the cart is reset if it exceeds that position [m]
@@ -104,4 +70,4 @@ class CartpoleEnvCfg(DirectRLEnvCfg):
     rew_scale_pole_vel = -0.005
 
     def __post_init__(self):
-        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(8.0, 0.0, 5.0))
+        self.sim.visualizer_cfgs = VisualizerCfg(eye=(8.0, 0.0, 5.0))

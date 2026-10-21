@@ -5,18 +5,26 @@
 
 import math
 
-from isaaclab_visualizers.kit import KitVisualizerCfg
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+
 # from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.events import reset_root_state_uniform_on_ground
+
 from . import mdp
+from .env_cfg import G1PhysicsCfg, G1RewardsCfg
 from .rough_env_cfg import G1RoughEnvCfg
 
 
 @configclass
 class G1FlatEnvCfg(G1RoughEnvCfg):
+    rewards: G1RewardsCfg = G1RewardsCfg()
+    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
+
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
@@ -27,9 +35,13 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.sim.render_interval = self.decimation
 
         # physics
-        newton_mjwarp = self.sim.physics.newton_mjwarp # type: ignore
+        newton_mjwarp = self.sim.physics.newton_mjwarp  # type: ignore
         newton_mjwarp.solver_cfg.njmax = 95
         newton_mjwarp.solver_cfg.nconmax = 10
+
+        # Preserve the original flat RFT surface and reset height.
+        self.actions.physics_callback.terrain_name = None
+        self.events.reset_base.func = reset_root_state_uniform_on_ground
 
         # make curriculum soft terrain
         self.scene.terrain = mdp.CurriculumSoftTerrain
@@ -59,13 +71,14 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
 
         # disable curriculum for walking only
-        self.curriculum.command_vel = None # type: ignore
+        # self.curriculum.command_vel = None # type: ignore
 
         # edit command range
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
-        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
-        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
+        # self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
+        # self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
+        # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
+        # self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
+        self.commands.base_velocity.debug_vis = False
 
         # disable for non rough terrain
         self.terminations.terrain_out_of_bounds = None  # type: ignore
@@ -79,7 +92,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         # change timestep
         self.sim.dt = 1 / 200  # 200Hz
         self.decimation = 4  # 50Hz
-        self.episode_length_s = 10.0
+        self.episode_length_s = 20.0
 
         # make a smaller scene for play
         self.scene.num_envs = 50
@@ -106,9 +119,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.scale_actuator_gains = None  # type: ignore
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
         self.commands.base_velocity.heading_command = False
         self.commands.base_velocity.rel_standing_envs = 0.0
@@ -133,8 +146,25 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         }
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            NewtonGLVisualizerCfg(
+                eye=(0.0, -2.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
+            NewtonRTXVisualizerCfg(
+                eye=(0.0, -2.0, 0.5),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+            ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.video_recorders = []
+
+        self.video_recorders = [
+            # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
+        ]

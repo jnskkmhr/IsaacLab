@@ -8,9 +8,9 @@ from __future__ import annotations
 from dataclasses import MISSING
 from typing import TYPE_CHECKING, Literal
 
-import isaaclab.sim as sim_utils
-from isaaclab.sim.spawners import materials
-from isaaclab.utils import configclass
+from .. import sim as sim_utils
+from ..sim.spawners import materials
+from ..utils import configclass
 
 if TYPE_CHECKING:
     from .terrain_generator_cfg import TerrainGeneratorCfg
@@ -120,6 +120,12 @@ class TerrainImporterCfg:
 
     debug_vis: bool = False
     """Whether to enable visualization of terrain origins for the terrain. Defaults to False."""
+
+    disable_visual: bool = False
+    """Whether to hide terrain geometry while retaining collision. Defaults to False.
+
+    This controls normal rendering. A viewer's collision-debug display may still show colliders.
+    """
 
     disable_collider: bool = False
     """Whether to import the terrain without a collider. Defaults to False.

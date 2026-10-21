@@ -12,9 +12,7 @@ This is the first runtime example in :ref:`asset-authoring`: spawn a rigid body,
 state, step the simulation, and read the updated state. Use the authoring guides for
 configuration details and :ref:`tutorial-interact-articulation` for bodies connected by joints.
 
-In the previous tutorials, we learned the essential workings of the standalone script and how to
-spawn different objects (or *prims*) into the simulation. This tutorial shows how to create and interact
-with a rigid object. For this, we will use the :class:`assets.RigidObject` class provided in Isaac Lab.
+Use :class:`assets.RigidObject` to read and write the spawned object's state.
 
 The Code
 ~~~~~~~~
@@ -26,7 +24,7 @@ The tutorial corresponds to the ``run_rigid_object.py`` script in the ``scripts/
 
    .. literalinclude:: ../../../scripts/tutorials/01_assets/run_rigid_object.py
       :language: python
-      :emphasize-lines: 55-74, 76-78, 98-108, 111-112, 118-119, 132-134, 139-140
+      :emphasize-lines: 49-68, 70-72, 92-104, 107-108, 114-115, 131-133, 138-139
       :linenos:
 
 
@@ -147,13 +145,6 @@ the Isaac Sim viewport shown below:
       .. code-block:: bash
 
          uv run isaaclab -p scripts/tutorials/01_assets/run_rigid_object.py --viz kit
-
-
-   .. tab-item:: isaaclab.sh / isaaclab.bat
-
-      .. code-block:: bash
-
-         ./isaaclab.sh -p scripts/tutorials/01_assets/run_rigid_object.py --viz kit
 
 
 This should open a stage with a ground plane, lights, and several green cones. The cones must be dropping from

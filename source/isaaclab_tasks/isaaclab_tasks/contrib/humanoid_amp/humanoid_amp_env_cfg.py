@@ -16,7 +16,7 @@ from isaaclab.assets import AssetBaseCfg
 from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
-from isaaclab.utils import configclass
+from isaaclab.utils import configclass, replace
 
 from isaaclab_assets import HUMANOID_28_CFG
 
@@ -25,15 +25,11 @@ MOTIONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "motions"
 
 @configclass
 class HumanoidAmpSceneCfg(InteractiveSceneCfg):
-    robot = HUMANOID_28_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot").replace(
+    robot = replace(
+        replace(HUMANOID_28_CFG, prim_path="{ENV_REGEX_NS}/Robot"),
         actuators={
             "body": ImplicitActuatorCfg(
-                joint_names_expr=[".*"],
-                stiffness=None,
-                damping=None,
-                joint_velocity_limit={
-                    ".*": 100.0,
-                },
+                joint_names_expr=[".*"], stiffness=None, damping=None, joint_velocity_limit={".*": 100.0}
             ),
         },
     )
@@ -41,7 +37,7 @@ class HumanoidAmpSceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         collision_group=-1,
         spawn=sim_utils.GroundPlaneCfg(
-            physics_material=sim_utils.RigidBodyMaterialCfg(
+            physics_material=sim_utils.RigidBodyMaterialBaseCfg(
                 static_friction=1.0,
                 dynamic_friction=1.0,
                 restitution=0.0,
@@ -89,7 +85,7 @@ class HumanoidAmpEnvCfg(DirectRLEnvCfg):
     )
 
     # scene
-    scene: HumanoidAmpSceneCfg = HumanoidAmpSceneCfg(num_envs=4096, env_spacing=10.0, replicate_physics=True)
+    scene: HumanoidAmpSceneCfg = HumanoidAmpSceneCfg(num_envs=4096, env_spacing=10.0)
 
 
 @configclass

@@ -18,14 +18,14 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.markers import VisualizationMarkersCfg
 from isaaclab.physics import PhysxAutoCfg
-from isaaclab.utils import configclass
+from isaaclab.utils import configclass, replace
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from isaaclab_tasks.utils import PresetCfg
 
-from isaaclab_assets.robots.allegro import ALLEGRO_HAND_CFG
+from isaaclab_assets.robots.allegro import ALLEGRO_HAND_CFG, ALLEGRO_HAND_FRICTION_REPLACEMENTS
 
-ALLEGRO_HAND_ROBOT_CFG = ALLEGRO_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+ALLEGRO_HAND_ROBOT_CFG = replace(ALLEGRO_HAND_CFG, prim_path="{ENV_REGEX_NS}/Robot")
 
 CUBE_CFG = RigidObjectCfg(
     prim_path="{ENV_REGEX_NS}/object",
@@ -53,9 +53,25 @@ CUBE_CFG = RigidObjectCfg(
 )
 """In-hand cube for the Allegro reorientation task."""
 
+GOAL_MARKER_OFFSET = (-0.12, -0.14, 0.06)
+"""Goal-cube display offset from the in-hand position [m], wider than the shared one to clear the larger hand."""
+
+GOAL_OBJECT_CFG = VisualizationMarkersCfg(
+    prim_path="/Visuals/goal_marker",
+    markers={
+        "goal": sim_utils.UsdFileCfg(
+            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
+            scale=(1.2, 1.2, 1.2),
+        )
+    },
+)
+"""Goal cube marker for the reorientation environments."""
+
 
 @configclass
 class PhysicsCfg(PresetCfg):
+    """Physics backend presets for the Allegro Hand reorientation environments."""
+
     isaacsim_physx = PhysxCfg(
         bounce_threshold_velocity=0.2,
     )
@@ -70,17 +86,9 @@ class PhysicsCfg(PresetCfg):
         ),
         num_substeps=2,
     )
-    ovphysx = OvPhysxCfg()
+    ovphysx = OvPhysxCfg(
+        # Match the measured 0.6 runtime actuator efforts, not the USD coefficient (0.035).
+        legacy_joint_friction_replacements=ALLEGRO_HAND_FRICTION_REPLACEMENTS,
+    )
     physx = PhysxAutoCfg(isaacsim_physx=isaacsim_physx, ovphysx=ovphysx)
     default = newton_mjwarp
-
-
-GOAL_OBJECT_CFG = VisualizationMarkersCfg(
-    prim_path="/Visuals/goal_marker",
-    markers={
-        "goal": sim_utils.UsdFileCfg(
-            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-            scale=(1.2, 1.2, 1.2),
-        )
-    },
-)

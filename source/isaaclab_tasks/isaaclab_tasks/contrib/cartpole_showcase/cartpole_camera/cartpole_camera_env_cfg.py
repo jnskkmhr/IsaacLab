@@ -15,7 +15,7 @@ from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import CameraCfg
 from isaaclab.sim import SimulationCfg
-from isaaclab.utils import configclass
+from isaaclab.utils import configclass, replace
 from isaaclab.visualizers import VisualizerCfg
 
 from isaaclab_tasks.utils import PresetCfg
@@ -42,7 +42,7 @@ def get_tiled_camera_cfg(data_type: str, width: int = 100, height: int = 100) ->
 class CartpoleCameraSceneCfg(InteractiveSceneCfg):
     """Cartpole, camera, and light owned by one scene lifecycle."""
 
-    cartpole = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    cartpole = replace(CARTPOLE_CFG, prim_path="{ENV_REGEX_NS}/Robot")
     tiled_camera = get_tiled_camera_cfg("rgb")
     light = AssetBaseCfg(prim_path="/World/Light", spawn=sim_utils.DistantLightCfg(intensity=2000.0))
     light.init_state.rot = (-0.14644663035869598, -0.3535534143447876, -0.3535534143447876, 0.8535533547401428)
@@ -78,7 +78,7 @@ class CartpoleCameraEnvCfg(DirectRLEnvCfg):
     observation_space = list(_RGB_IMAGE_SHAPE)
 
     # scene
-    scene: CartpoleCameraSceneCfg = CartpoleCameraSceneCfg(num_envs=512, env_spacing=20.0, replicate_physics=True)
+    scene: CartpoleCameraSceneCfg = CartpoleCameraSceneCfg(num_envs=512, env_spacing=20.0)
 
     # reset
     max_cart_pos = 3.0  # the cart is reset if it exceeds that position [m]
@@ -95,7 +95,7 @@ class CartpoleCameraEnvCfg(DirectRLEnvCfg):
     rew_scale_pole_vel = -0.005
 
     def __post_init__(self):
-        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(20.0, 20.0, 20.0))
+        self.sim.visualizer_cfgs = VisualizerCfg(eye=(20.0, 20.0, 20.0))
 
 
 ###

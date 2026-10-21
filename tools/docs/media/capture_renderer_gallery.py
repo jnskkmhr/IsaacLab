@@ -41,7 +41,10 @@ _RTX_ONLY_MODES = (
 _RENDERER_SLUGS = {"newton": "newton", "ovrtx": "ovrtx", "isaac_rtx": "isaac-rtx"}
 _SIMPLE_SHADING_MODES = tuple(mode.output_name for mode in _RTX_ONLY_MODES if mode.output_name.startswith("simple_"))
 _OVRTX_AMBIENT_LIGHT_SETTING = "float omni:rtx:rt:ambientLight:intensity = 1.0"
-_DEFAULT_GALLERY_SCENE = "omniverse://isaac-dev.ov.nvidia.com/Isaac/IsaacLab/Docs/Renderers/renderer_gallery_scene.usda"
+_DEFAULT_GALLERY_SCENE = (
+    "https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.2/Isaac/IsaacLab/Docs/"
+    "Renderers/renderer_gallery_scene.usda"
+)
 
 
 def gallery_modes(renderer: str) -> tuple[GalleryMode, ...]:
@@ -74,11 +77,6 @@ def gallery_asset_name(renderer: str, output_name: str) -> str:
     return f"camera-renderer-{renderer_slug}{output_suffix}.{suffix}"
 
 
-def snapshot_camera_tensor(data: Any) -> Any:
-    """Copy a renderer-owned tensor to stable CPU storage."""
-    return data.detach().to(device="cpu", copy=True)
-
-
 def depth_display_bounds(data: Any) -> tuple[float, float]:
     """Return the minimum and maximum finite depths in a frame."""
     import torch
@@ -95,7 +93,7 @@ def motion_vectors_to_image(data: Any) -> Any:
     import torch
     from PIL import Image, ImageDraw
 
-    data = snapshot_camera_tensor(data)
+    data = data.detach().to(device="cpu", copy=True)
     uv = data[..., :2].float()
     raw_magnitude = torch.linalg.vector_norm(uv, dim=-1)
     max_magnitude = max(float(raw_magnitude.quantile(0.99)), 1.0e-6)
@@ -175,8 +173,8 @@ def gallery_stage_paths() -> tuple[str, str]:
 
 
 def resolve_gallery_scene(scene: str) -> str:
-    """Preserve a Nucleus URI or resolve and validate a local scene path."""
-    if scene.startswith("omniverse://"):
+    """Preserve a remote URI or resolve and validate a local scene path."""
+    if scene.startswith(("https://", "omniverse://")):
         return scene
 
     scene_path = Path(scene).expanduser().resolve()
@@ -186,7 +184,7 @@ def resolve_gallery_scene(scene: str) -> str:
 
 
 def add_gallery_arguments(parser: argparse.ArgumentParser) -> None:
-    """Add renderer-gallery arguments without colliding with AppLauncher options."""
+    """Add renderer-gallery arguments without colliding with the simulation launcher options."""
     script_dir = Path(__file__).resolve().parent
     parser.add_argument("--renderer-backend", choices=tuple(_RENDERER_SLUGS), required=True)
     parser.add_argument("--capture-group", choices=("standard", *_SIMPLE_SHADING_MODES), default="standard")
@@ -206,12 +204,12 @@ def add_gallery_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _parse_args() -> argparse.Namespace:
     """Parse capture and Isaac Lab launcher arguments."""
-    from isaaclab.app import AppLauncher
+    from isaaclab.app import add_launcher_args
 
     parser = argparse.ArgumentParser(description=__doc__)
     add_gallery_arguments(parser)
-    AppLauncher.add_app_launcher_args(parser)
-    parser.set_defaults(enable_cameras=True, headless=True)
+    add_launcher_args(parser)
+    parser.set_defaults(enable_cameras=True)
     args = parser.parse_args()
     args.output_dir = args.output_dir.expanduser().resolve()
     if args.width < 1 or args.height < 1:
@@ -268,9 +266,9 @@ def gallery_lighting_override(renderer: str) -> Iterator[None]:
 
     original_builder = ovrtx_renderer.build_render_product_as_string
 
-    def build_render_product_without_ambient_light(*args: Any, **kwargs: Any) -> tuple[str, str]:
-        render_product_usd, render_product_path = original_builder(*args, **kwargs)
-        return override_ovrtx_ambient_light(render_product_usd), render_product_path
+    def build_render_product_without_ambient_light(*args: Any, **kwargs: Any) -> str:
+        render_product_usd = original_builder(*args, **kwargs)
+        return override_ovrtx_ambient_light(render_product_usd)
 
     ovrtx_renderer.build_render_product_as_string = build_render_product_without_ambient_light
     try:
@@ -291,13 +289,16 @@ def _capture(args: argparse.Namespace) -> None:
     """Load the USD scene, render the selected outputs, and write documentation assets."""
     import numpy as np
     import torch
+    import warp as wp
+    from matplotlib import colormaps
     from PIL import Image
 
     import isaaclab.sim as sim_utils
     from isaaclab import cloner
     from isaaclab.assets import AssetBaseCfg
-    from isaaclab.envs.utils.camera_colorizer import CameraFrameColorizer
     from isaaclab.sensors import Camera, CameraCfg
+    from isaaclab.utils import instantiate
+    from isaaclab.utils.images import compose_image
 
     if renderer_requires_kit(args.renderer_backend):
         sim_cfg = sim_utils.SimulationCfg(dt=1.0 / 60.0, render_interval=1, device=args.device, use_fabric=True)
@@ -318,7 +319,7 @@ def _capture(args: argparse.Namespace) -> None:
     clone_plan = cloner.clone_plan_from_env_0(
         cloner.CloneCfg(), (scene_cfg,), 1, 0.0, positions=np.zeros((1, 3), dtype=np.float32)
     )
-    scene_cfg.class_type(scene_cfg)
+    instantiate(scene_cfg)
     cloner.replicate(clone_plan)
     camera = _create_camera_and_reset(
         args.renderer_backend,
@@ -337,21 +338,24 @@ def _capture(args: argparse.Namespace) -> None:
     )
 
     def tensor_to_image(data: torch.Tensor, output_name: str) -> Image.Image:
-        data = snapshot_camera_tensor(data)
-        if output_name == "depth":
-            depth_min, depth_max = depth_display_bounds(data)
-            array = CameraFrameColorizer.colorize(data, "depth", depth_min=depth_min, depth_max=depth_max)
-        elif output_name == "normals":
-            array = CameraFrameColorizer.colorize(data, "normals")
-        elif output_name in {"semantic_segmentation", "instance_segmentation"}:
-            if data.ndim == 3 and data.shape[-1] >= 3 and data.dtype == torch.uint8:
-                array = data[..., :3].numpy()
-            else:
-                array = CameraFrameColorizer.colorize(data, "segmentation")
+        colored_segmentation = data.ndim == 3 and data.shape[-1] >= 3 and data.dtype == torch.uint8
+        segmentation_ids = output_name.endswith("segmentation") and not colored_segmentation
+        if output_name in {"depth", "normals"} or segmentation_ids:
+            channel = "segmentation" if segmentation_ids else output_name
+            depth_min, depth_max = depth_display_bounds(data) if channel == "depth" else (0.1, 10.0)
+            device = str(data.device)
+            pixels = wp.empty((*data.shape[:2], 4), dtype=wp.uint8, device=device)
+            colors = (colormaps["turbo"](np.arange(256) / 255.0)[..., :3] * 255).astype(np.uint8)
+            compose_image(
+                pixels, (wp.from_torch(data.reshape(1, *data.shape[:2], -1)),),
+                wp.zeros(1, dtype=wp.int32, device=device), (channel,), wp.array(colors, dtype=wp.uint8, device=device),
+                depth_min=depth_min, depth_max=depth_max,
+            )  # fmt: skip
+            array = pixels.numpy()[..., :3]
         elif output_name == "motion_vectors":
             return motion_vectors_to_image(data)
         else:
-            array = data[..., :3].numpy()
+            array = data[..., :3].detach().cpu().numpy()
             if array.dtype != np.uint8:
                 array = np.clip(array, 0.0, 1.0)
                 array = (array * 255).astype(np.uint8)
@@ -417,18 +421,16 @@ def _capture(args: argparse.Namespace) -> None:
 
 def main() -> None:
     """Launch Isaac Sim and capture the selected renderer gallery group."""
-    from isaaclab.app import AppLauncher
+    from isaaclab.app import launch_simulation
 
     args = _parse_args()
     if not renderer_requires_kit(args.renderer_backend):
         _capture(args)
     else:
-        app_launcher = AppLauncher(args)
-        simulation_app = app_launcher.app
-        try:
+        # the capture builds its simulation config after launch, so request Kit explicitly
+        args.require_kit = True
+        with launch_simulation(None, args):
             _capture(args)
-        finally:
-            simulation_app.close()
 
 
 if __name__ == "__main__":

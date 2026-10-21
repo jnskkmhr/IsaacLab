@@ -3,8 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Reusable terms for contributed velocity tasks."""
+"""This sub-module contains the functions that are specific to the Spot locomotion task."""
 
 from isaaclab.utils.module import lazy_export
 
-__getattr__, __dir__, __all__ = lazy_export()
+lazy_export()

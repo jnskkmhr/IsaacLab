@@ -17,7 +17,7 @@ from tensordict import TensorDict
 
 from isaaclab.sensors.ray_caster.patterns import GridPatternCfg, grid_pattern
 
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import (
+from isaaclab_contrib.mdp import (
     compute_mirrored_states,
     mirror_joints,
     mirror_quat,
@@ -109,7 +109,7 @@ def _joint_mirror(joint_names: tuple[str, ...]) -> tuple[tuple[int, ...], tuple[
 
 @lru_cache(maxsize=16)
 def _scan_mirror(size: tuple[float, float], resolution: float, ordering: str) -> tuple[int, ...]:
-    cfg = GridPatternCfg(size=size, resolution=resolution, ordering=ordering) # type: ignore
+    cfg = GridPatternCfg(size=size, resolution=resolution, ordering=ordering)  # type: ignore
     positions, _ = grid_pattern(cfg, "cpu")
     nx, ny = (positions[:, axis].unique().numel() for axis in (0, 1))
     shape, axis = ((ny, nx), 0) if ordering == "xy" else ((nx, ny), 1)

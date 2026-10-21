@@ -8,10 +8,11 @@ from __future__ import annotations
 from dataclasses import MISSING
 from typing import TYPE_CHECKING, Any, Literal
 
-from isaaclab.sim import SpawnerCfg
-from isaaclab.utils import configclass
+from ..sim import SpawnerCfg
+from ..utils import configclass
 
 if TYPE_CHECKING:
+    from ..cloner import ReplicateContext
     from .asset import Asset
 
 
@@ -50,7 +51,7 @@ class AssetBaseCfg:
     Physics-backed asset classes should inherit from :class:`~isaaclab.assets.AssetBase`.
     """
 
-    cloning_contexts: tuple[str | type, ...] | None = None
+    cloning_contexts: tuple[type[ReplicateContext] | str, ...] | None = None
     """Cloning contexts for this asset. Defaults to None.
 
     Entries are ``"module:ContextClass"`` references (or classes). If None, planning

@@ -6,9 +6,8 @@
 """Deprecated: ViewportCameraController compatibility shim.
 
 Camera tracking is now built into :class:`~isaaclab_visualizers.kit.KitVisualizer`.
-Configure ``eye``, ``lookat``, ``origin_type``, and ``origin_track_path`` directly on
-:class:`~isaaclab_visualizers.kit.KitVisualizerCfg` and add it to
-:attr:`~isaaclab.sim.SimulationCfg.visualizer_cfgs`.
+Configure ``eye`` and ``lookat`` on :class:`~isaaclab.visualizers.VisualizerCfg`, and
+``origin_type`` and ``origin_track_path`` on :class:`~isaaclab.visualizers.VisualizerCfg`.
 """
 
 from __future__ import annotations
@@ -20,13 +19,13 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from isaaclab.envs import ViewerCfg
+    from .. import ViewerCfg
 
 
 def _warn_method(name: str) -> None:
     warnings.warn(
         f"ViewportCameraController.{name}() is deprecated. "
-        "Set cfg fields (origin_type, origin_track_path, eye, lookat) on KitVisualizerCfg and "
+        "Set eye/lookat on VisualizerCfg and origin_type/origin_track_path on VisualizerCfg; "
         "call visualizer.reapply_origin() to update at runtime.",
         DeprecationWarning,
         stacklevel=3,
@@ -38,18 +37,16 @@ class ViewportCameraController:
 
     .. deprecated::
         :class:`ViewportCameraController` has been removed. Camera tracking is now built into
-        :class:`~isaaclab_visualizers.kit.KitVisualizer`. Set ``origin_type``,
-        ``origin_track_path``, ``eye``, and ``lookat`` directly on
-        :class:`~isaaclab_visualizers.kit.KitVisualizerCfg` and pass it to
-        :attr:`~isaaclab.sim.SimulationCfg.visualizer_cfgs`.
+        :class:`~isaaclab_visualizers.kit.KitVisualizer`. Set ``eye`` and ``lookat`` on
+        :class:`~isaaclab.visualizers.VisualizerCfg`, and ``origin_type`` and ``origin_track_path``
+        on :class:`~isaaclab.visualizers.VisualizerCfg`.
     """
 
     def __init__(self, env: object, cfg: ViewerCfg):
         warnings.warn(
             "ViewportCameraController is deprecated and has been removed. "
             "Camera tracking is now built into KitVisualizer — configure "
-            "origin_type, origin_track_path, eye, and lookat directly on KitVisualizerCfg "
-            "and add it to SimulationCfg.visualizer_cfgs.",
+            "eye/lookat on VisualizerCfg and origin_type/origin_track_path on VisualizerCfg.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -71,7 +68,7 @@ class ViewportCameraController:
     # ------------------------------------------------------------------
 
     def set_view_env_index(self, env_index: int) -> None:
-        """Deprecated. Update :attr:`~KitVisualizerCfg.origin_env_index` on the visualizer instead."""
+        """Deprecated. Update :attr:`~isaaclab.visualizers.VisualizerCfg.origin_env_index` on the visualizer instead."""
         _warn_method("set_view_env_index")
         num_envs = getattr(self._env, "num_envs", None)
         if num_envs is not None and not (0 <= env_index < num_envs):
@@ -82,11 +79,11 @@ class ViewportCameraController:
         self._cfg.env_index = env_index
         for viz in self._get_kit_visualizers():
             viz.cfg.origin_env_index = env_index
-            if getattr(viz.cfg, "origin_type", None) == "env":
+            if viz.cfg.origin_type == "env":
                 viz.reapply_origin()
 
     def update_view_to_world(self) -> None:
-        """Deprecated. Set ``origin_type='world'`` on :class:`~isaaclab_visualizers.kit.KitVisualizerCfg` instead."""
+        """Deprecated. Set ``origin_type='world'`` on :class:`~isaaclab.visualizers.VisualizerCfg` instead."""
         _warn_method("update_view_to_world")
         self._cfg.origin_type = "world"
         origin = torch.zeros(3)
@@ -97,7 +94,7 @@ class ViewportCameraController:
             viz.set_camera_view(tuple(eye), tuple(target))
 
     def update_view_to_env(self) -> None:
-        """Deprecated. Set ``origin_type='env'`` on :class:`~isaaclab_visualizers.kit.KitVisualizerCfg` instead."""
+        """Deprecated. Set ``origin_type='env'`` on :class:`~isaaclab.visualizers.VisualizerCfg` instead."""
         _warn_method("update_view_to_env")
         self._cfg.origin_type = "env"
         for viz in self._get_kit_visualizers():
@@ -106,7 +103,7 @@ class ViewportCameraController:
 
     def update_view_to_asset_root(self, asset_name: str) -> None:
         """Deprecated. Set ``origin_type='asset'`` and ``origin_track_path`` on
-        :class:`~isaaclab_visualizers.kit.KitVisualizerCfg` instead."""
+        :class:`~isaaclab.visualizers.VisualizerCfg` instead."""
         _warn_method("update_view_to_asset_root")
         self._cfg.asset_name = asset_name
         self._cfg.origin_type = "asset_root"
@@ -117,7 +114,7 @@ class ViewportCameraController:
 
     def update_view_to_asset_body(self, asset_name: str, body_name: str) -> None:
         """Deprecated. Set ``origin_type='asset'`` and ``origin_track_path`` on
-        :class:`~isaaclab_visualizers.kit.KitVisualizerCfg` instead."""
+        :class:`~isaaclab.visualizers.VisualizerCfg` instead."""
         _warn_method("update_view_to_asset_body")
         self._cfg.asset_name = asset_name
         self._cfg.body_name = body_name
@@ -154,11 +151,4 @@ class ViewportCameraController:
 
     def _get_kit_visualizers(self) -> list:
         """Return active Kit visualizers from the env's sim, if any."""
-        sim = getattr(self._env, "sim", None)
-        if sim is None:
-            return []
-        return [
-            v
-            for v in getattr(sim, "visualizers", [])
-            if getattr(getattr(v, "cfg", None), "visualizer_type", None) == "kit"
-        ]
+        return [v for v in self._env.sim.visualizers if v.cfg.backend.visualizer_type == "kit"]

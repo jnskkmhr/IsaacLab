@@ -10,6 +10,7 @@ uv run --with wandb wandb login
 
 ## Training
 ```bash
+uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Rough-G1-29dof-Rigid --num_envs 4096 --viz newton_gl --video
 uv run --with wandb isaaclab train --rl_library rsl_rl --task IsaacContrib-Velocity-Flat-G1-29dof-Rigid --num_envs 4096 --viz newton_gl --video
 ```
 

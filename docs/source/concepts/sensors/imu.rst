@@ -6,8 +6,7 @@
 Inertial Measurement Unit (IMU)
 ===============================
 
-A :class:`~sensors.Imu` models the two quantities produced by a conventional inertial measurement
-unit:
+An :class:`~sensors.Imu` measures:
 
 * :attr:`~sensors.ImuData.ang_vel_b`: angular velocity [rad/s] relative to the world, expressed in
   the IMU frame.
@@ -60,8 +59,8 @@ with the control loop that consumes the measurement.
    :figwidth: 100%
    :alt: IMU acceleration debug visualization
 
-A complete runnable example is available in ``scripts/demos/sensors/imu_sensor.py``:
+A complete runnable example is available as ``imu``:
 
 .. code-block:: bash
 
-   uv run --extra isaacsim python scripts/demos/sensors/imu_sensor.py
+   uv run --extra isaacsim isaaclab example imu

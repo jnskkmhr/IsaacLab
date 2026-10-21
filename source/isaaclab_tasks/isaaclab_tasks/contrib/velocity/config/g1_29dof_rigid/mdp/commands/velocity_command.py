@@ -180,9 +180,9 @@ class UniformVelocityYawCommand(UniformVelocityCommand):
             / max_command_step
         )
 
-    def _resample_command(self, env_ids: Sequence[int]):
+    def _resample_command(self, env_ids: Sequence[int] | torch.Tensor | slice):
         # sample velocity commands
-        r = torch.empty(len(env_ids), device=self.device)
+        r = torch.empty(self.vel_command_b[env_ids].shape[0], device=self.device)
         # -- linear velocity - x direction
         self.vel_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.lin_vel_x)
         # -- linear velocity - y direction
@@ -290,7 +290,7 @@ class UniformVelocityYawCommand(UniformVelocityCommand):
             torch.tensor([0.5, 0.5, 0.5], device=self.device).repeat(self.num_envs, 1),
         )
 
-    def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, float]:
+    def reset(self, env_ids: Sequence[int] | torch.Tensor | slice | None = None) -> dict[str, float]:
         extras = super().reset(env_ids)
         # -- heading target: reset to the current orientation
         self.heading_target[env_ids] = math_utils.yaw_quat(self.robot.data.root_quat_w.torch[env_ids])

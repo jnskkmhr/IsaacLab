@@ -19,9 +19,9 @@ from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 @configclass
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 20_000
+    max_iterations = 30_000
     save_interval = 500
-    obs_groups = {"actor": ["policy"], "critic": ["critic", "privileged"]}
+    obs_groups = {"actor": ["policy", "command"], "critic": ["critic", "privileged", "command"]}
     actor = RslRlMLPModelCfg(
         hidden_dims=[512, 256, 128],
         activation="elu",
@@ -54,11 +54,10 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
             ),
     )
     logger = "wandb"
-    wandb_project = "g1_29dof_rigid_rough"
-    experiment_name = "g1_29dof_rigid_rough"
-    # wandb_project = "g1_29dof_soft_vanilla_ppo"
-    # experiment_name = "g1_29dof_soft_vanilla_ppo"
-
+    wandb_project = "g1_29dof_rigid_rough_ppo"
+    experiment_name = "g1_29dof_rigid_rough_ppo"
+    # wandb_project = "g1_29dof_soft_flat_ppo"
+    # experiment_name = "g1_29dof_soft_flat_ppo"
 
 @configclass
 class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
@@ -66,11 +65,9 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         super().__post_init__() # pyright: ignore[reportAttributeAccessIssue]
 
         self.max_iterations = 30_000
-        # self.max_iterations = 25_000
-        self.wandb_project = "g1_29dof_rigid_flat"
-        self.experiment_name = "g1_29dof_rigid_flat"
-        # self.wandb_project = "g1_29dof_soft_vanilla_ppo"
-        # self.experiment_name = "g1_29dof_soft_vanilla_ppo"
+        self.wandb_project = "g1_29dof_rigid_flat_ppo"
+        self.experiment_name = "g1_29dof_rigid_flat_ppo"
+
 
 
 @configclass

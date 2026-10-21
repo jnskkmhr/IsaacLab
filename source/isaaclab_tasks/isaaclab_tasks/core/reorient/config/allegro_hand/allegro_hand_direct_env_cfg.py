@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Configuration for the direct-workflow Allegro Hand reorientation environment."""
+
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from isaaclab.envs import DirectRLEnvCfg
@@ -13,14 +15,16 @@ from isaaclab.sim import SimulationCfg
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.utils import configclass
 
-from isaaclab_tasks.core.reorient.config.allegro_hand.allegro_hand_common import (
+from isaaclab_assets.robots.allegro import ALLEGRO_ACTUATED_JOINT_NAMES, ALLEGRO_FINGERTIP_BODY_NAMES
+
+from ...utils import VISUALIZER_CFG
+from .allegro_hand_common import (
     ALLEGRO_HAND_ROBOT_CFG,
     CUBE_CFG,
+    GOAL_MARKER_OFFSET,
     GOAL_OBJECT_CFG,
     PhysicsCfg,
 )
-
-from isaaclab_assets.robots.allegro import ALLEGRO_ACTUATED_JOINT_NAMES, ALLEGRO_FINGERTIP_BODY_NAMES
 
 
 @configclass
@@ -39,6 +43,8 @@ class AllegroHandSceneCfg(InteractiveSceneCfg):
 
 @configclass
 class AllegroHandEnvCfg(DirectRLEnvCfg):
+    """Configuration for the direct-workflow Allegro Hand cube reorientation environment."""
+
     # env
     decimation = 4
     episode_length_s = 10.0
@@ -48,7 +54,7 @@ class AllegroHandEnvCfg(DirectRLEnvCfg):
     asymmetric_obs = False
     obs_type = "full"
 
-    # simulation — values mirrored by the manager cfg
+    # simulation, mirrored by the manager-based configuration
     sim: SimulationCfg = SimulationCfg(
         dt=1 / 120,
         render_interval=decimation,
@@ -62,7 +68,6 @@ class AllegroHandEnvCfg(DirectRLEnvCfg):
     scene: AllegroHandSceneCfg = AllegroHandSceneCfg(
         num_envs=8192,
         env_spacing=0.75,
-        replicate_physics=True,
     )
     # reset
     reset_position_noise = 0.01  # range of position at reset
@@ -81,8 +86,19 @@ class AllegroHandEnvCfg(DirectRLEnvCfg):
     max_consecutive_success = 0
     in_hand_pos_offset: tuple[float, float, float] = (0.0, 0.0, -0.04)
     """In-hand goal anchor, relative to the object's default position [m]."""
-    goal_marker_position: tuple[float, float, float] = (-0.2, -0.45, 0.68)
-    """Fixed goal-marker display position [m], environment frame."""
+    goal_marker_position: tuple[float, float, float] | None = None
+    """Fixed goal-marker display position [m], environment frame, or ``None`` to follow the hand."""
+    goal_marker_offset: tuple[float, float, float] = GOAL_MARKER_OFFSET
+    """Goal-marker display offset from the in-hand position [m], used when no fixed position is set."""
     av_factor = 0.1
     act_moving_average = 1.0
     force_torque_obs_scale = 10.0
+
+    def play_mode(self) -> None:
+        """Frame one hand after applying the shared play-mode scene size."""
+        super().play_mode()
+        viewers = self.sim.visualizer_cfgs
+        for viewer in viewers if isinstance(viewers, list) else [viewers]:
+            viewer.eye = VISUALIZER_CFG.eye
+            viewer.lookat = VISUALIZER_CFG.lookat
+            viewer.focal_length = VISUALIZER_CFG.focal_length

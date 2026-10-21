@@ -16,7 +16,7 @@ from isaaclab.utils.configclass import configclass
 ##
 from isaaclab_assets import UNITREE_G1_29DOF_CFG
 
-from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
+from . import terrain_cfg
 
 
 @configclass
@@ -27,7 +27,8 @@ class G1SceneCfg(InteractiveSceneCfg):
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="generator",
-        terrain_generator=ROUGH_TERRAINS_CFG,
+        # terrain_generator=ROUGH_TERRAINS_CFG,
+        terrain_generator=terrain_cfg.ROUGH_TERRAINS_CFG,
         max_init_terrain_level=5,
         collision_group=-1,
         physics_material=sim_utils.RigidBodyMaterialCfg(
@@ -49,6 +50,7 @@ class G1SceneCfg(InteractiveSceneCfg):
 
     # robots
     robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
+    # robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
 
     # sensors
     height_scanner = RayCasterCfg(
@@ -56,8 +58,9 @@ class G1SceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot/.*torso_link",
         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
         ray_alignment="yaw",
-        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(1.6, 1.0)),
-        debug_vis=False,
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(0.2, 0.2)),
+        # debug_vis=False,
+        debug_vis=True,
         mesh_prim_paths=["/World/ground"],
     )
     # multi-body contact reporting

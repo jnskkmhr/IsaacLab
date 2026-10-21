@@ -11,21 +11,22 @@ from isaaclab.sensors import JointWrenchSensorCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
-import isaaclab_tasks.core.reorient.mdp as mdp
-from isaaclab_tasks.core.reorient.config.shadow_hand.feature_extractor import FeatureExtractorCfg
-from isaaclab_tasks.core.reorient.config.shadow_hand.shadow_hand_direct_camera_env_cfg import (
-    ShadowHandTiledCameraCfg,
-    validate_shadow_hand_camera_settings,
-)
-from isaaclab_tasks.core.reorient.config.shadow_hand.shadow_hand_manager_env_cfg import (
-    ReorientFullStateObsCfg,
-    ShadowHandManagerEnvCfg,
-    ShadowHandManagerSceneCfg,
-)
-from isaaclab_tasks.core.reorient.reorient_manager_env_cfg import ReorientRobotObsCfg
 from isaaclab_tasks.utils import preset
 
 from isaaclab_assets.robots.shadow_hand import FINGERTIP_NAMES
+
+from ... import mdp
+from ...reorient_manager_env_cfg import ReorientFullStateObsCfg, ReorientRobotObsCfg
+from ...utils import CAMERA_VISUALIZER_CFG
+from .feature_extractor import FeatureExtractorCfg
+from .shadow_hand_direct_camera_env_cfg import (
+    ShadowHandTiledCameraCfg,
+    validate_shadow_hand_camera_settings,
+)
+from .shadow_hand_manager_env_cfg import (
+    ShadowHandManagerEnvCfg,
+    ShadowHandManagerSceneCfg,
+)
 
 _PRETRAINED_CHECKPOINT_DIR = f"{ISAACLAB_NUCLEUS_DIR}/PretrainedCheckpoints/rsl_rl"
 _MANAGER_NEWTON_FEATURE_EXTRACTOR_CHECKPOINT = (
@@ -43,7 +44,7 @@ class ShadowHandCameraManagerSceneCfg(ShadowHandManagerSceneCfg):
     num_envs = 1225
     env_spacing = 2.0
 
-    # does it not need ground? or is ground needed at all in general?
+    # no ground plane, matching the Direct camera scene
     ground = None
     tiled_camera: ShadowHandTiledCameraCfg = ShadowHandTiledCameraCfg()
     joint_wrench = JointWrenchSensorCfg(prim_path="{ENV_REGEX_NS}/Robot")
@@ -62,10 +63,9 @@ class ShadowHandCameraObservationsCfg:
         """
 
         goal_pose = ObsTerm(func=mdp.generated_commands, params={"command_name": "object_pose"})
-        # No action_name, deliberately: omitting it returns the WHOLE action vector, whereas
-        # naming a term returns only that term's raw actions. This hand's twenty motors are
-        # split across a joint term and a tendon term, so naming either would feed the policy
-        # half of its own last action.
+        # no action_name: omitting it returns the whole action vector, whereas naming a term returns
+        # only that term's raw actions. This hand's twenty motors are split across a joint term and a
+        # tendon term, so naming either would feed the policy half of its own last action.
         last_action = ObsTerm(func=mdp.last_action)
         camera_features = ObsTerm(
             func=mdp.ShadowHandCameraFeatures,
@@ -116,9 +116,6 @@ class ShadowHandCameraManagerEnvCfg(ShadowHandManagerEnvCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        # camera tasks display the goal inside the tiled camera's frustum
-        # goal cube must sit inside the tiled camera's frustum
-        self.commands.object_pose.fixed_marker_pos = (-0.2, 0.1, 0.6)
         self.observations.policy.camera_features.params["feature_extractor_cfg"] = self.feature_extractor
 
     def validate_config(self):
@@ -129,6 +126,11 @@ class ShadowHandCameraManagerEnvCfg(ShadowHandManagerEnvCfg):
         super().play_mode()
         # the tiled camera needs more environments than the shared play default
         self.scene.num_envs = 64
+        viewers = self.sim.visualizer_cfgs
+        for viewer in viewers if isinstance(viewers, list) else [viewers]:
+            viewer.eye = CAMERA_VISUALIZER_CFG.eye
+            viewer.lookat = CAMERA_VISUALIZER_CFG.lookat
+            viewer.focal_length = CAMERA_VISUALIZER_CFG.focal_length
         # mutate rather than replace: subclasses may have disabled the CNN
         self.feature_extractor.train = False
         self.feature_extractor.load_checkpoint = True

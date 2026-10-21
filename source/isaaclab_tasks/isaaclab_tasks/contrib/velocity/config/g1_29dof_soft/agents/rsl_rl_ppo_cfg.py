@@ -5,6 +5,8 @@
 
 from isaaclab.utils.configclass import configclass
 
+from isaaclab_contrib.mdp import compute_mirrored_states
+
 from isaaclab_rl.rsl_rl import (
     RslRlMLPModelCfg,
     RslRlOnPolicyRunnerCfg,
@@ -13,15 +15,14 @@ from isaaclab_rl.rsl_rl import (
     RslRlSymmetryCfg,
 )
 
-from isaaclab_tasks.contrib.velocity.config.vel_mdp import compute_mirrored_states
-
 
 @configclass
 class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 1500
+    max_iterations = 20_000
     save_interval = 500
-    obs_groups = {"actor": ["policy"], "critic": ["critic", "privileged"]}
+    obs_groups = {"actor": ["policy", "command"], "critic": ["critic", "command", "privileged"]}
+    # obs_groups = {"actor": ["policy"], "critic": ["critic", "privileged"]}
     actor = RslRlMLPModelCfg(
         hidden_dims=[512, 256, 128],
         activation="elu",
@@ -50,11 +51,13 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         symmetry_cfg=RslRlSymmetryCfg(
             use_data_augmentation=True,
             data_augmentation_func=compute_mirrored_states,
+            use_mirror_loss=True,
+            mirror_loss_coeff=0.1,
         ),
     )
     logger = "wandb"
-    wandb_project = "g1_29dof_soft_rough"
-    experiment_name = "g1_29dof_soft_rough"
+    wandb_project = "g1_29dof_soft_rough_ppo"
+    experiment_name = "g1_29dof_soft_rough_ppo"
 
 
 @configclass
@@ -63,5 +66,5 @@ class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
         super().__post_init__()  # type: ignore
 
         self.max_iterations = 20_000
-        self.wandb_project = "g1_29dof_soft_vanilla_ppo"
-        self.experiment_name = "g1_29dof_soft_vanilla_ppo"
+        self.wandb_project = "g1_29dof_soft_flat_ppo"
+        self.experiment_name = "g1_29dof_soft_flat_ppo"

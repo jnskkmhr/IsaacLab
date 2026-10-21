@@ -6,9 +6,9 @@
 Frame Transformer
 =================
 
-A :class:`~sensors.FrameTransformer` tracks the pose of one or more target frames relative to a
-source frame. It provides the same batched interface across cloned environments, avoiding repeated
-USD traversal or per-environment transform calculations.
+A :class:`~sensors.FrameTransformer` measures target poses relative to a source
+frame across all environments. Use it to track a hand, foot, or object without
+calculating each transform yourself.
 
 .. figure:: ../../_static/overview/sensors/frame_transformer.jpg
    :align: center
@@ -66,9 +66,8 @@ the offset source frame in world coordinates. Positions are in meters; quaternio
    :figwidth: 100%
    :alt: Frame transformer debug visualization
 
-A complete runnable example is available in
-``scripts/demos/sensors/frame_transformer_sensor.py``:
+A complete runnable example is available as ``frame-transformer``:
 
 .. code-block:: bash
 
-   uv run --extra isaacsim python scripts/demos/sensors/frame_transformer_sensor.py
+   uv run --extra isaacsim isaaclab example frame-transformer

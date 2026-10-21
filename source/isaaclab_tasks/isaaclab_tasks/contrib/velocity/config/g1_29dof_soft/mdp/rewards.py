@@ -19,6 +19,9 @@ import isaaclab.utils.math as math_utils
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor
 
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.rewards import stance_foot_angle_penalty
+from isaaclab_tasks.contrib.velocity.config.vel_mdp import compute_standing_contact_penalty
+
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
@@ -224,3 +227,61 @@ def reward_soft_landing_hybrid(
         active = ((linear_norm + angular_norm) > command_threshold).float()
         cost = cost * active
     return cost
+
+
+def _feet_in_contact_hybrid(
+    env: ManagerBasedRLEnv,
+    rigid_contact_sensor_cfg: SceneEntityCfg,
+    soft_contact_sensor_name: str,
+) -> torch.Tensor:
+    """Select each foot's stance state from the authoritative contact solver."""
+    rigid_sensor = env.scene.sensors[rigid_contact_sensor_cfg.name]
+    soft_solver = env.action_manager.get_term(soft_contact_sensor_name).contact_solver
+    rigid_contact = rigid_sensor.data.current_contact_time.torch[:, rigid_contact_sensor_cfg.body_ids] > 0.0
+    soft_contact = soft_solver.data.current_contact_time > 0.0
+    return torch.where(soft_solver.data.is_sensor_active, soft_contact, rigid_contact)
+
+
+class stance_foot_angle_penalty_hybrid(stance_foot_angle_penalty):
+    """Apply the terrain-relative pitch penalty throughout rigid or RFT stance."""
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        rigid_contact_sensor_cfg: SceneEntityCfg,
+        asset_cfg: SceneEntityCfg,
+        height_sensor_cfg: SceneEntityCfg | None,
+        angle_tolerance: float,
+        soft_contact_sensor_name: str = "physics_callback",
+    ) -> torch.Tensor:
+        """Exclude swing feet while retaining the shared terrain plane fit."""
+        penalty = self._compute_penalty(env, asset_cfg, height_sensor_cfg, angle_tolerance)
+        contact = _feet_in_contact_hybrid(env, rigid_contact_sensor_cfg, soft_contact_sensor_name)
+        return torch.where(contact, penalty, 0.0).sum(dim=-1)
+
+
+def break_contact_penalty_hybrid(
+    env: ManagerBasedRLEnv,
+    rigid_contact_sensor_cfg: SceneEntityCfg,
+    command_name: str,
+    command_threshold: float = 0.05,
+    recovery_linear_velocity: float = 0.2,
+    recovery_angular_velocity: float = 0.5,
+    recovery_tilt: float = 0.2,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    soft_contact_sensor_name: str = "physics_callback",
+) -> torch.Tensor:
+    """Penalize loss of foot contact while standing, with reduced cost during recovery."""
+    foot_contact = _feet_in_contact_hybrid(env, rigid_contact_sensor_cfg, soft_contact_sensor_name)
+    asset = env.scene[asset_cfg.name]
+    return compute_standing_contact_penalty(
+        foot_contact=foot_contact,
+        velocity_command=env.command_manager.get_command(command_name),
+        base_lin_vel_b=asset.data.root_lin_vel_b.torch,
+        base_ang_vel_b=asset.data.root_ang_vel_b.torch,
+        projected_gravity_b=asset.data.projected_gravity_b.torch,
+        command_threshold=command_threshold,
+        recovery_linear_velocity=recovery_linear_velocity,
+        recovery_angular_velocity=recovery_angular_velocity,
+        recovery_tilt=recovery_tilt,
+    )

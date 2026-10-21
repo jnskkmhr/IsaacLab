@@ -15,7 +15,8 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
 from isaaclab.sim import SimulationCfg
 from isaaclab.terrains import TerrainImporterCfg
-from isaaclab.utils import configclass
+from isaaclab.utils import configclass, replace
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 ##
 # Pre-defined configs
@@ -57,7 +58,7 @@ class AnymalCFlatSceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="plane",
         collision_group=-1,
-        physics_material=sim_utils.RigidBodyMaterialCfg(
+        physics_material=sim_utils.PhysxRigidBodyMaterialCfg(
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
             static_friction=1.0,
@@ -66,7 +67,7 @@ class AnymalCFlatSceneCfg(InteractiveSceneCfg):
         ),
         debug_vis=False,
     )
-    robot = ANYMAL_C_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot = replace(ANYMAL_C_CFG, prim_path="{ENV_REGEX_NS}/Robot")
     contact_sensor = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/[^/]*", history_length=3, update_period=0.005, track_air_time=True
     )
@@ -83,14 +84,14 @@ class AnymalCRoughSceneCfg(AnymalCFlatSceneCfg):
         terrain_generator=ROUGH_TERRAINS_CFG,
         max_init_terrain_level=9,
         collision_group=-1,
-        physics_material=sim_utils.RigidBodyMaterialCfg(
+        physics_material=sim_utils.PhysxRigidBodyMaterialCfg(
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
             static_friction=1.0,
             dynamic_friction=1.0,
         ),
         visual_material=sim_utils.MdlFileCfg(
-            mdl_path="{NVIDIA_NUCLEUS_DIR}/Materials/Base/Architecture/Shingles_01.mdl",
+            mdl_path=f"{ISAAC_NUCLEUS_DIR}/Materials/Base/Architecture/Shingles_01.mdl",
             project_uvw=True,
         ),
         debug_vis=False,
@@ -120,7 +121,7 @@ class AnymalCFlatEnvCfg(DirectRLEnvCfg):
         dt=1 / 200,
         render_interval=decimation,
         physics=PhysxCfg(gpu_max_rigid_patch_count=2**20),
-        physics_material=sim_utils.RigidBodyMaterialCfg(
+        physics_material=sim_utils.PhysxRigidBodyMaterialCfg(
             friction_combine_mode="multiply",
             restitution_combine_mode="multiply",
             static_friction=1.0,
@@ -130,7 +131,7 @@ class AnymalCFlatEnvCfg(DirectRLEnvCfg):
     )
 
     # scene
-    scene: AnymalCFlatSceneCfg = AnymalCFlatSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: AnymalCFlatSceneCfg = AnymalCFlatSceneCfg(num_envs=4096, env_spacing=4.0)
 
     # events
     events: EventCfg = EventCfg()
@@ -162,7 +163,7 @@ class AnymalCRoughEnvCfg(AnymalCFlatEnvCfg):
     # env
     observation_space = 235
 
-    scene: AnymalCRoughSceneCfg = AnymalCRoughSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: AnymalCRoughSceneCfg = AnymalCRoughSceneCfg(num_envs=4096, env_spacing=4.0)
 
     # reward scales (override from flat config)
     flat_orientation_reward_scale = 0.0
