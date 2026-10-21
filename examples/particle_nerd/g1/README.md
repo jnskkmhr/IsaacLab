@@ -9,7 +9,7 @@ Use the native IsaacLab checkout's runtime and only overlay these example module
 
 ```bash
 cd ~/isaac/IsaacLab
-export PYTHONPATH="$HOME/isaac/IsaacLab-particle-nerd/examples${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$HOME/isaac/particle_nerd/worktrees/IsaacLab-scalability/examples${PYTHONPATH:+:$PYTHONPATH}"
 ```
 
 Do not add this worktree's `source/` directories to `PYTHONPATH`: the reference
@@ -36,7 +36,8 @@ but local long rollouts fail. See the [measured results and videos](https://jnsk
 CHECKPOINT="$HOME/isaac/particle_nerd/experiments/g1-nerd-osmo-20261020/full-training-final/model/best.pt"
 uv run --no-sync python -m particle_nerd.g1.play \
   --checkpoint "$CHECKPOINT" --output /tmp/g1-learned \
-  --duration 5 --effective-mass-scale 100 --iterations 200 --viz newton_rtx
+  --duration 5 --effective-mass-scale 100 --iterations 200 \
+  --contact-relaxation 0.02 --viz newton_rtx
 ```
 
 This replaces every material step with Transolver and an analytical foot-force
@@ -46,8 +47,11 @@ its MPM state during setup for particle initialization and reset compatibility.
 The first history is extrapolated from the initial particle position and velocity;
 no future reference particle frames are supplied.
 
-The command above uses the final experiment settings: material-mass multiplier
-100 and 200 solver iterations (the parser defaults remain 10 and 50).
+The command above uses material-mass multiplier 100, 200 solver iterations, and
+Jacobi relaxation 0.02. The smaller relaxation avoids the divergence observed on
+a captured G1 contact problem with the original 0.1 setting. It does not fix
+particle drift or establish accurate long-rollout physics. Parser defaults remain
+10, 50, and 0.1; pass these options explicitly to reproduce the newer evaluation.
 
 The estimator uses independent native virtual-foot responses, not the full
 articulated contact response matrix. `--effective-mass-scale` multiplies the
@@ -57,6 +61,33 @@ uses one environment and eager dispatch; it is not the optimized batch benchmark
 For matched command scenarios, add the same `--schedule commands.json --trial 12`
 and `--seed 120000` to both reference and learned commands. Native termination
 ends the recorded run. The robot policy observes each run's evolving robot state.
+
+## Ten-second coupled evaluation
+
+```bash
+cd ~/isaac/IsaacLab
+export PYTHONPATH="$HOME/isaac/IsaacLab-particle-nerd/examples${PYTHONPATH:+:$PYTHONPATH}"
+CHECKPOINT="$HOME/isaac/particle_nerd/experiments/g1-nerd-osmo-20261020/full-training-final/model/best.pt"
+SCHEDULE="$HOME/isaac/particle_nerd/particle_nerd_plan/assets/g1-command-plan-500/commands.json"
+uv run --no-sync python -m particle_nerd.g1.play \
+  --checkpoint "$CHECKPOINT" --schedule "$SCHEDULE" --trial 2 --seed 120000 \
+  --output /tmp/g1-learned-10s --duration 10 \
+  --effective-mass-scale 100 --iterations 200 --contact-relaxation 0.02 \
+  --viz newton_rtx
+```
+
+Use `--trial 106` for curved motion or `--trial 306` for lateral motion. Omit
+`--checkpoint` and use a different output directory for the matched MPM reference.
+The requested horizon is 10 seconds; native termination or a nonfinite state ends
+the recording earlier. Failed runs are not padded or reset into a second episode.
+The command after the scheduled switch remains constant through the extended
+horizon. Training trajectories were at most five seconds.
+
+`metadata.json` records the actual duration, requested duration, solver settings,
+and native termination terms when available. Learned `trace.npz` also records
+per-foot `contact_stats`: contact count, iterations used, and maximum unrelaxed
+impulse correction (N s). These diagnostics copy to the CPU for recording; they
+are not part of a simulation throughput benchmark.
 
 ## Record reference data
 

@@ -34,7 +34,7 @@ def scatter_wrench(
 
 
 class LearnedMaterial:
-    def __init__(self, raw, checkpoint, *, iterations=50, effective_mass_scale=10.0):
+    def __init__(self, raw, checkpoint, *, iterations=50, effective_mass_scale=10.0, contact_relaxation=0.1):
         from isaaclab_newton.physics import NewtonManager
 
         if raw.num_envs != 1:
@@ -58,7 +58,11 @@ class LearnedMaterial:
         mapping = self.entry.body_local_to_global.numpy()
         local_feet = [int(np.flatnonzero(mapping == i).item()) for i in global_feet]
         self.estimator = G1ProxyEstimator(
-            self.mpm, local_feet, iterations=iterations, effective_mass_scale=effective_mass_scale
+            self.mpm,
+            local_feet,
+            iterations=iterations,
+            effective_mass_scale=effective_mass_scale,
+            relaxation=contact_relaxation,
         )
         self.local_feet = wp.array(local_feet, dtype=int, device=self.master.device)
         sb, st = self.master.shape_body.numpy(), self.master.shape_type.numpy()

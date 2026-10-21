@@ -136,11 +136,15 @@ class G1ProxyEstimator:
         gradient_contact_band=0.08,
         stabilization=0.01,
         contact_offset=0.0,
+        relaxation=0.1,
     ):
         if iterations < 1 or effective_mass_scale <= 0 or gradient_radius <= 0 or gradient_contact_band <= 0:
             raise ValueError("Iterations, effective mass and gradient distances must be positive")
         if contact_offset < 0 or not np.isfinite(contact_offset):
             raise ValueError("Contact offset must be finite and nonnegative")
+        if not np.isfinite(relaxation) or not 0 < relaxation <= 1:
+            raise ValueError("Contact relaxation must be finite and in (0, 1]")
+        self.relaxation = float(relaxation)
         self.contact_offset = float(contact_offset)
         self.model = mpm_solver.model
         self.body_ids = [int(body) for body in proxy_body_ids]
@@ -168,6 +172,7 @@ class G1ProxyEstimator:
         self.metadata = {
             "method": "independent_virtual_foot_proxy",
             "iterations": self.iteration_limit,
+            "jacobi_relaxation": self.relaxation,
             "effective_mass_scale": self.effective_scale,
             "gradient_radius_m": self.gradient_radius,
             "gradient_contact_band_m": self.contact_band,
@@ -342,7 +347,7 @@ class G1ProxyEstimator:
                     index,
                     f["stats"],
                     False,
-                    0.1,
+                    self.relaxation,
                 ],
                 device=self.device,
                 block_dim=128,

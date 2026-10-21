@@ -29,6 +29,7 @@ def main():
     p.add_argument("--seed", type=int, default=120000)
     p.add_argument("--effective-mass-scale", type=float, default=10.0)
     p.add_argument("--iterations", type=int, default=50)
+    p.add_argument("--contact-relaxation", type=float, default=0.1, help="Jacobi impulse-update relaxation in (0, 1]")
     p.add_argument("--headless", action="store_true")
     add_launcher_args(p)
     args = p.parse_args()
@@ -106,7 +107,11 @@ def main():
                 # Loading the neural model must not alter the policy/noise RNG sequence.
                 with torch.random.fork_rng(devices=[torch.cuda.current_device()]):
                     adapter = LearnedMaterial(
-                        raw, args.checkpoint, iterations=args.iterations, effective_mass_scale=args.effective_mass_scale
+                        raw,
+                        args.checkpoint,
+                        iterations=args.iterations,
+                        effective_mass_scale=args.effective_mass_scale,
+                        contact_relaxation=args.contact_relaxation,
                     )
             feet = raw._foot_body_ids[0].cpu().numpy()
             trace, snapshots = [], []
@@ -116,8 +121,10 @@ def main():
                 state = NewtonManager.get_state_0()
                 bq, q = state.body_q.numpy(), state.particle_q.numpy()
                 wrench = raw._coupling_forces.numpy()[feet]
-                if not all(np.isfinite(a).all() for a in (q, bq, wrench)):
-                    raise FloatingPointError(f"Nonfinite state at {step}")
+                fields = {"particle_position": q, "body_pose": bq, "foot_wrench": wrench}
+                invalid = [name for name, value in fields.items() if not np.isfinite(value).all()]
+                if invalid:
+                    raise FloatingPointError(f"Nonfinite {invalid} at step {step}")
                 trace.append(
                     dict(
                         time_s=step * 0.005,
@@ -126,6 +133,8 @@ def main():
                         root_velocity=state.body_qd.numpy()[0].copy(),
                     )
                 )
+                if adapter:
+                    trace[-1]["contact_stats"] = np.stack([f["stats"].numpy() for f in adapter.estimator.feet])
                 if step % 8 == 0:
                     snapshots.append(dict(time_s=step * 0.005, body_pose=bq.copy(), particle_position=q.copy()))
 
@@ -141,6 +150,7 @@ def main():
             noise = torch.zeros(1, raw.action_manager.total_action_dim, device=raw.device)
             target = torch.zeros_like(noise)
             outcome, failure = "duration", None
+            termination_terms = []
             with torch.inference_mode():
                 for k in range(round(args.duration / 0.02)):
                     command = trial["command_end"] if k * 0.02 >= trial["switch_time_s"] else trial["command_start"]
@@ -158,12 +168,17 @@ def main():
                     elif trial["mode"] == "zero":
                         action.zero_()
                     try:
-                        obs, _, done, _ = env.step(action)
+                        obs, _, done, info = env.step(action)
                     except (FloatingPointError, RuntimeError) as error:
                         outcome, failure = "simulation_error", str(error)
                         break
                     if bool(done[0]):
                         outcome = "native_termination"
+                        termination_terms = [
+                            name.removeprefix("Episode_Termination/")
+                            for name, value in info.get("log", {}).items()
+                            if name.startswith("Episode_Termination/") and float(value) > 0
+                        ]
                         break
                     if k % 25 == 0:
                         print(
@@ -176,7 +191,9 @@ def main():
                 seed=args.seed,
                 outcome=outcome,
                 duration_s=float(trace[-1]["time_s"]),
+                requested_duration_s=args.duration,
                 failure=failure,
+                termination_terms=termination_terms,
                 backend="particle_nerd" if adapter else "mpm",
                 checkpoint=str(args.checkpoint),
                 particle_count=model.particle_count,
