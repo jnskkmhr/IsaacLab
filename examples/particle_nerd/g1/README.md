@@ -128,6 +128,20 @@ Only the first three particle frames initialize the rollout. Later particle
 predictions feed the next step. Robot geometry follows the recording throughout.
 This measures particle prediction; it is not closed-loop robot simulation.
 
+## Render particle predictions with recorded G1 motion
+
+```bash
+uv run --no-sync python -m particle_nerd.g1.render \
+  --particle-evaluation /tmp/g1-particle-evaluation \
+  --output /tmp/g1-recorded-motion.mp4
+```
+
+Left: recorded MPM particles. Right: autoregressive particle NeRD predictions.
+Both views use the identical recorded G1 poses. The charts show particle-position
+error, not contact forces. The renderer checks saved reference particles and
+robot poses against the source HDF5. Use `--episode /path/to/episode.hdf5` if that
+file has moved. This replay does not advance physics or apply force feedback.
+
 ## Render paired dynamic simulations
 
 ```bash
