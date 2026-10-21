@@ -3,10 +3,14 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import os
+from pathlib import Path
+
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.mimic.mdp as mimic_mdp
-from isaaclab_tasks.contrib.mimic import MOTION_TRACKING_DATA_DIR
+# Set LAFAN_MOTION_DIR before launch if the dataset lives elsewhere.
+LAFAN_MOTION_DIR = Path(os.environ.get("LAFAN_MOTION_DIR", "~/datasets/lafan_straight_v1_local")).expanduser()
 
 
 
@@ -173,5 +177,10 @@ class G1CommandsCfg:
         joint_names=JOINT_NAMES,
         body_names=BODY_NAMES,
         anchor_body_name="torso_link",
-        motion_file=f"{MOTION_TRACKING_DATA_DIR}/motions/npz/cmu_83_43.npz",
+        motion_file=None,
+        motion_files=[
+            str(LAFAN_MOTION_DIR / "walking" / "motion_60fps.npz"),
+            str(LAFAN_MOTION_DIR / "running" / "motion_60fps.npz"),
+            str(LAFAN_MOTION_DIR / "sprinting" / "motion_60fps.npz"),
+        ],
     )
