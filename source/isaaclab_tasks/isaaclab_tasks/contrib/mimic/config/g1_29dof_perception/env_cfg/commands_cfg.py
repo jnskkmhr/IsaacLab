@@ -95,7 +95,7 @@ class G1CommandsCfg:
         # Load terrain from each NPZ when present; flat clips keep the scene plane.
         terrain_mode="auto",
         motion_files=[
-            # str(MOTION_DATA_DIR / "parc" / "jump_001" / "motion.npz"),
+            str(MOTION_DATA_DIR / "parc" / "jump_001" / "motion.npz"),
             # str(MOTION_DATA_DIR / "parc" / "jump_002" / "motion.npz"),
             # str(MOTION_DATA_DIR / "parc" / "jump_003" / "motion.npz"),
             # str(MOTION_DATA_DIR / "parc" / "jump_004" / "motion.npz"),
@@ -104,7 +104,7 @@ class G1CommandsCfg:
             # str(MOTION_DATA_DIR / "deep_wholebody_parkour" / "kneel_climb" / "motion.npz"),
             # str(MOTION_DATA_DIR / "omniretarget" / "climb_06" / "motion.npz"),
             # str(MOTION_DATA_DIR / "omniretarget" / "climb_08" / "motion.npz"),
-            str(MOTION_DATA_DIR / "omniretarget" / "climb_14" / "motion.npz"),
+            # str(MOTION_DATA_DIR / "omniretarget" / "climb_14" / "motion.npz"), # climb up
             # str(MOTION_DATA_DIR / "omniretarget" / "climb_16" / "motion.npz"),
             # str(MOTION_DATA_DIR / "omniretarget" / "climb_20" / "motion.npz"),
             # str(MOTION_DATA_DIR / "omniretarget" / "climb_26" / "motion.npz"),

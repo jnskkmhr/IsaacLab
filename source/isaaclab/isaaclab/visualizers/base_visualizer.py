@@ -119,7 +119,7 @@ class BaseVisualizer(ABC):
             if isinstance(self.cfg.view.source, str):
                 camera = scene_data_provider.get_camera_sensors().get(self.cfg.view.source)
             self.current_image_view = sim.get_or_create_backend(self.cfg.view, camera=camera)
-            if camera is None:
+            if camera is None or self.cfg.origin_type != "world":
                 self.current_image_view.before_render = self.update_camera_tracking
             self._image_views.append(self.current_image_view)
             return
@@ -144,6 +144,8 @@ class BaseVisualizer(ABC):
                     depth_range=(self.cfg.streaming_depth_min, self.cfg.streaming_depth_max),
                 )  # fmt: skip
                 view = sim.get_or_create_backend(view_cfg, camera=camera)
+                if self.cfg.origin_type != "world":
+                    view.before_render = self.update_camera_tracking
             if self.cfg.backend.visualizer_type in ("newton_gl", "newton_rtx", "kit"):
                 view.aspect = self.cfg.window.size[0] / self.cfg.window.size[1]
             self._image_views.append(view)
@@ -446,13 +448,22 @@ class BaseVisualizer(ABC):
             raise ValueError("VisualizerCfg.focal_length must be positive.")
         return math.degrees(2.0 * math.atan(_USD_DEFAULT_VERTICAL_APERTURE_MM / (2.0 * focal_length)))
 
+    def invalidate_camera_tracking(self) -> None:
+        """Refresh tracked camera poses and images after a reset or teleport without a physics step."""
+        if self.cfg.origin_type == "world":
+            return
+        self._camera_tracking_step = -1
+        for view in self._image_views:
+            if view.before_render == self.update_camera_tracking:
+                view.invalidate()
+
     def reset(self, soft: bool = False) -> None:
         """Reset visualizer state.
 
         Args:
             soft: Whether to perform a soft reset.
         """
-        self._camera_tracking_step = -1
+        self.invalidate_camera_tracking()
 
     def _log_initialization_table(self, logger: logging.Logger, title: str, rows: list[tuple[str, Any]]) -> None:
         """Log a compact initialization table for a visualizer.

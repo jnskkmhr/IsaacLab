@@ -89,7 +89,7 @@ class EnvCfg_PLAY(EnvCfg):
 
         self.commands.motion.start_from_beginning = True
         # self.events.reset_joints.params["position_range"] = (0.0, 0.0)
-        # self.events.assistive_wrench = None  # type: ignore
+        self.events.assistive_wrench = None  # type: ignore
 
         self.sim.visualizer_cfgs = [
             # NewtonGLVisualizerCfg(
@@ -102,9 +102,10 @@ class EnvCfg_PLAY(EnvCfg):
             NewtonRTXVisualizerCfg(
                 eye=(0.0, -3.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                # origin_type="asset",
-                # origin_track_path="robot",
+                origin_type="asset",
+                origin_track_path="robot",
                 # streaming_view=False,
+                # headless=True,
             ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]

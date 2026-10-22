@@ -83,11 +83,11 @@ class ImageView:
         if self.frame.timestamp == frame_id:
             return self.frame.data
 
+        if self.before_render is not None:
+            self.before_render()
         if camera is None:
             if self.render is None:
                 raise RuntimeError("Bind a perspective image view to a visualizer before reading or recording it.")
-            if self.before_render is not None:
-                self.before_render()
             self.frame.data = self.render(self.frame.data)
         else:
             outputs = camera.data.output

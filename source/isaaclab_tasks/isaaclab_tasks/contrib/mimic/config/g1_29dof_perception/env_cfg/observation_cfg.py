@@ -71,7 +71,6 @@ class G1ObservationsCfg:
             mirror=mirror_g1_joints,
             mirror_params={"joint_names": JOINT_NAMES},
         )  # ref joint pos
-        # motion_phase = ObsTerm(func=mimic_mdp.motion_phase, params={"command_name": "motion"}, mirror=mirror_identity)
 
         base_ang_vel = ObsTerm(
             mirror=mirror_vec3,
@@ -136,7 +135,6 @@ class G1ObservationsCfg:
             mirror=mirror_g1_joints,
             mirror_params={"joint_names": JOINT_NAMES},
         )
-        # motion_phase = ObsTerm(func=mimic_mdp.motion_phase, params={"command_name": "motion"}, mirror=mirror_identity)
 
         base_ang_vel = ObsTerm(mirror=mirror_vec3, mirror_params={"axial": True}, func=mdp.base_ang_vel)
         projected_gravity = ObsTerm(mirror=mirror_vec3, func=mdp.projected_gravity)
