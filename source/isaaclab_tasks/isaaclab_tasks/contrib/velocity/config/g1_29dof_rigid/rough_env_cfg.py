@@ -67,7 +67,7 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
-            # NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
+            NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
             # KitVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
         ]
 
@@ -113,7 +113,10 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
 
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            # NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.video_recorders = []
+        self.video_recorders = [
+            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=1000, video_interval=2000),
+        ]

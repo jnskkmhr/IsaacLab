@@ -10,7 +10,7 @@ from isaaclab.utils import configclass
 from ..mixed_env import MixedMPMObject
 from ..util.terrain import MixedTerrainImporter
 from .scene_cfg import G1MovingPatchSceneCfg
-from .terrain_cfg import FLAT_TERRAINS_CFG
+from .terrain_cfg import FLAT_TERRAINS_CFG, ROUGH_TERRAINS_CFG
 
 
 @configclass
@@ -19,7 +19,8 @@ class G1MixedTerrainSceneCfg(G1MovingPatchSceneCfg):
 
     def __post_init__(self) -> None:
         # Replace this generator with ROUGH_TERRAINS_CFG.copy(), as in the MPM task.
-        self.terrain.terrain_generator = FLAT_TERRAINS_CFG.replace(num_rows=1, num_cols=2)
+        # self.terrain.terrain_generator = FLAT_TERRAINS_CFG.replace(num_rows=1, num_cols=2)
+        self.terrain.terrain_generator = ROUGH_TERRAINS_CFG.copy()
         self.terrain.class_type = MixedTerrainImporter
         self.terrain.use_terrain_origins = True
         self.clone_cfg = CloneCfg(clone_combinations=[InclusionSet(assets=["sand"]), InclusionSet(assets=[])])

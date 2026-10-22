@@ -225,7 +225,6 @@ class G1RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=[".*ankle_roll.*"], preserve_order=True),
             "height_sensor_cfg": SceneEntityCfg("height_scanner"),
-            # "angle_tolerance": math.radians(4.0),
             "angle_tolerance": math.radians(0.0),
         },
     )

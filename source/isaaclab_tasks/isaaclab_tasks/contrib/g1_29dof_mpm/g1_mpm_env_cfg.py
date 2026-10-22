@@ -146,7 +146,7 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.events.physics_material = None  # type: ignore
         self.events.scale_actuator_gains = None  # type: ignore
         self.events.reset_base.params = {
-            "pose_range": {"x": (-0.25, 0.25), "y": (-0.25, 0.25), "yaw": (-0.4, 0.4)},
+            "pose_range": {"x": (-0.25, 0.25), "y": (-0.25, 0.25), "yaw": (0.0, 0.0)},
             "velocity_range": {
                 "x": (0.0, 0.0),
                 "y": (0.0, 0.0),
@@ -167,12 +167,14 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
 
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(
-                eye=(0.0, -6.0, 1.5),
+                eye=(2.0, -3.0, 0.5),
+                lookat=(2.0, 0.0, 0.0),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
             ),
             NewtonRTXVisualizerCfg(
-                eye=(0.0, -6.0, 1.5),
+                eye=(-0.5, -4.0, 1.5),
+                lookat=(-0.5, 0.0, 0.0),
                 show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
             ),
@@ -181,7 +183,7 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
 
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
         ]
 
