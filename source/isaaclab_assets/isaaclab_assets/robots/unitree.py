@@ -1058,6 +1058,17 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
 
 UNITREE_G1_29DOF_BOX_FOOT_CFG = UNITREE_G1_29DOF_CFG.replace(spawn=spawn_box_foot_robot_usd)
 
+UNITREE_G1_29DOF_BALL_HAND_CFG = UNITREE_G1_29DOF_BOX_FOOT_CFG.copy()
+UNITREE_G1_29DOF_BALL_HAND_CFG.spawn.usd_path = (
+    f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_box_foot_ball_hand/g1_29dof_box_foot_ball_hand.usda"
+)
+"""Box-foot G1 with fixed 4 cm spherical pads; mass and friction are provisional.
+
+Preserves the 29 joints and rubber-hand body frames. The USD variant changes only
+hand geometry, mass properties and contact materials. Hardware calibration and
+contact-aware motion refinement are required before deployment.
+"""
+
 
 UNITREE_G1_29DOF_BOX_FOOT_GHOST_CFG = GhostRobotCfg(
     prim_path="/Visuals/G1Target",

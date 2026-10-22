@@ -11,7 +11,7 @@ every physics step (see ``env_cfg/event_cfg.py``), so -- same as the soft-terrai
 ``contrib/velocity`` -- the PhysX backends need to re-apply external forces on every solver iteration.
 """
 
-from isaaclab_newton.physics import MJWarpSolverCfg, NewtonCfg
+from isaaclab_newton.physics import MJWarpSolverCfg, NewtonCfg, NewtonCollisionPipelineCfg, NewtonShapeCfg
 from isaaclab_ov.physics import OvPhysxCfg
 from isaaclab_physx.physics import PhysxCfg
 
@@ -37,7 +37,9 @@ class G1PhysicsCfg(PresetCfg):
             integrator="implicitfast",
             use_mujoco_contacts=False,
         ),
+        collision_cfg=NewtonCollisionPipelineCfg(max_triangle_pairs=2500000),
         num_substeps=2,
         debug_mode=False,
+        default_shape_cfg=NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0),
     )
     default = newton_mjwarp

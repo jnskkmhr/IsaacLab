@@ -45,7 +45,7 @@ uv run --with wandb isaaclab train \
 ## Inference
 
 ```bash
-uv run --extra ovrtx isaaclab play \
+uv run --with wandb --extra ovrtx isaaclab play \
   --rl_library rsl_rl \
   --task IsaacContrib-Mimic-G1-29dof-Perception-Play \
   --num_envs 1 --viz newton_rtx \
