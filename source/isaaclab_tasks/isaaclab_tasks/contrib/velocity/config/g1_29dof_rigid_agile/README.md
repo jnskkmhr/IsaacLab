@@ -1,50 +1,50 @@
 # Agile G1 locomotion configuration
 
-Install from this IsaacLab checkout with `uv sync --locked --extra wandb`. uv fetches the pinned
-compositional-rsl-rl Git revision and its matching RSL-RL fork automatically; no separate library
-checkouts or editable installs are needed. Use `uv run --extra wandb isaaclab train ...` below
-for the task's default W&B logger, or select `--logger tensorboard` without the W&B extra.
+Install with `uv sync --extra wandb`. uv fetches the pinned compositional-rsl-rl
+Git revision and its matching RSL-RL fork automatically; separate library checkouts
+and editable installs are unnecessary.
 
-This task ports the rewards, observations, and FlashSAC hyperparameters from
-`agile.rl_env.tasks.locomotion.g1.flashsac_velocity_env_cfg.G1VelocityHistoryNewtonFlashSACEnvCfg`.
-It controls fourteen joints: both legs followed by waist roll and pitch.
-The remaining joints are held at their default positions.
+This task follows Agile's
+`G1VelocityHistoryNewtonFlashSACEnvCfg` and FlashSAC training recipe:
 
-The actor receives 255 values: five frames of each policy term, flattened term by term.
-The Q critic receives that same policy history followed by 84 current privileged values,
-then the learner's fourteen candidate actions before its residual encoder.
-The actor and critic use independent 128/256-wide residual features with two blocks;
-the critic has two categorical Q estimates with 101 bins on [-5, 5].
-The reward terms, initial weights, tracking widths, and action-smoothing weight ramps
-match the Agile task. Both terrain variants use the same rewards.
-
-The robot is `G1_29DOF_BeyondMimic_delay`: BeyondMimic's pose and gains with implicit
-drives delayed by 0–4 physics steps, resampled per environment and actuator group on reset.
-The existing Agile `G1_29DOF_BeyondMimic` preset is unchanged.
+- Fourteen controlled joints: both legs followed by waist roll and pitch. The remaining
+  joints receive randomized position targets with Agile's trapezoidal velocity profiles.
+- Agile's delayed DC motors, default pose, gains, armature, effort and velocity limits,
+  zero robot collision margin, and selective self-collision exclusions.
+- The reference rough terrain, terrain progression, reset and dynamics randomization,
+  command sampling, contact sensors, and termination conditions.
+- The same observation histories, reward terms, and initial reward weights. The actor
+  receives 255 values; the critic receives those plus 84 privileged values and fourteen
+  candidate actions before its independent residual encoder.
+- Independent 128/256-wide residual actor/critic features with two blocks, a squashed
+  Gaussian policy, and two categorical Q estimates with 101 bins on [-5, 5].
+- Reward smoothing ramps by collection step; contact penalties and forward command
+  bounds ramp by wall time. Replay stores reward components and reconstructs sampled
+  n-step rewards using the current weights, including past transitions.
+- Seed 1, 2,048 environments, 200 Hz physics, 50 Hz control, and 30-second episodes.
+  The default training budget is 3,500 seconds including setup. Checkpoints are saved
+  every 5,000 learner updates and at the end. Video recording is disabled by default.
 
 ```bash
 uv run --extra wandb isaaclab train --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Agile \
-  --agent rsl_rl_flash_sac_cfg_entry_point --num_envs 2048 \
-  'env.video_recorders=[]'
+  --agent rsl_rl_flash_sac_cfg_entry_point --num_envs 2048
 ```
 
-Use `Rough` instead of `Flat` for the terrain-generator task. Append `-Play` for playback.
-The ordinary `rsl_rl_cfg_entry_point` remains PPO; its inputs and basic hyperparameters
-are aligned with Agile's G1 PPO configuration. Recurrent PPO remains an optional configuration.
+The existing `Flat` task ID is retained for compatibility, but now uses Agile's reference
+terrain, just like the `Rough` ID. Append `-Play` for playback. Select `--logger tensorboard`
+when W&B logging is unnecessary. The ordinary `rsl_rl_cfg_entry_point` still selects PPO;
+the wall-clock budget and replay reward curricula above belong to the FlashSAC entry point.
 
-## Scope of parity
+## Validation
 
-This matches the requested reward/observation/learner configuration, not the entire hardware recipe.
-The requested BeyondMimic delayed implicit robot differs from Agile's FlashSAC robot,
-which uses delayed DC motors and randomized arm targets.
-Terrain generation, terrain progression, randomization, and termination conditions retain the
-rigid task's definitions. Three-dimensional command sampling includes Agile's 0.1 dead zone.
+The resolved scene, actions, events, commands, terminations, curricula, and simulator
+configuration match the native Agile task after excluding visualization and adapter
+metadata. A simulator smoke test checks zero collision margins, final observations,
+symmetry augmentation, and replay reward reconstruction. Native and ported randomized
+joint trajectories and curriculum schedules are compared directly.
 
-The reference trainer also owns wall-clock command/contact curricula, replay reward relabeling,
-and a wall-clock stopping budget. Those are not provided by this task configuration.
-The current runner stores rewards with the weights at collection time; it does not relabel older
-samples after reward-weight ramps. Its training budget is iteration-based (100,000 by default),
-and periodic checkpoints are every 1,250 collection iterations. Replay requests one million
-transitions under the same 3 GiB budget; the actual capacity is bounded by storage requirements.
-Agile's optional PPO entropy annealing is not implemented here.
+A 600-second run with 2,048 environments verifies improving returns and episode lengths.
+This is a learning sanity check, not a full convergence or hardware evaluation. Identical
+configuration does not imply identical random-number consumption or learning curves
+across the two training backends.

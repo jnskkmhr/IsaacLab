@@ -15,7 +15,7 @@ from typing import Any
 
 import torch
 
-from isaaclab.actuators import ImplicitActuator, ImplicitActuatorCfg
+from isaaclab.actuators import DCMotor, DCMotorCfg, ImplicitActuator, ImplicitActuatorCfg
 from isaaclab.utils import DelayBuffer, configclass
 from isaaclab.utils.types import ArticulationActions
 
@@ -77,3 +77,71 @@ class DelayedImplicitActuatorCfg(ImplicitActuatorCfg):
     class_type: type = DelayedImplicitActuator
     min_delay: int = 0
     max_delay: int = 4
+
+
+class DelayedDCMotor(DCMotor):
+    """Delayed DC motor actuator model."""
+
+    cfg: DelayedDCMotorCfg
+
+    def __init__(self, cfg: DelayedDCMotorCfg, *args: Any, **kwargs: Any) -> None:
+        super().__init__(cfg, *args, **kwargs)
+
+        # instantiate the delay buffers
+        self.positions_delay_buffer = DelayBuffer(cfg.max_delay, self._num_envs, device=self._device)
+        self.velocities_delay_buffer = DelayBuffer(cfg.max_delay, self._num_envs, device=self._device)
+        self.efforts_delay_buffer = DelayBuffer(cfg.max_delay, self._num_envs, device=self._device)
+
+    def reset(self, env_ids: Sequence[int] | slice | None = None) -> None:
+        super().reset(env_ids)
+        # number of environments (since env_ids can be a slice)
+        if env_ids is None:
+            env_ids = slice(None)
+        num_envs = len(range(self._num_envs)[env_ids]) if isinstance(env_ids, slice) else len(env_ids)
+        # set a new random delay for environments in env_ids
+        time_lags = torch.randint(
+            low=self.cfg.min_delay,
+            high=self.cfg.max_delay + 1,
+            size=(num_envs,),
+            dtype=torch.int,
+            device=self._device,
+        )
+        # set delays
+        self.positions_delay_buffer.set_time_lag(time_lags, env_ids)
+        self.velocities_delay_buffer.set_time_lag(time_lags, env_ids)
+        self.efforts_delay_buffer.set_time_lag(time_lags, env_ids)
+        # reset buffers
+        self.positions_delay_buffer.reset(env_ids)
+        self.velocities_delay_buffer.reset(env_ids)
+        self.efforts_delay_buffer.reset(env_ids)
+
+    def compute(
+        self,
+        control_action: ArticulationActions,
+        joint_pos: torch.Tensor,
+        joint_vel: torch.Tensor,
+    ) -> ArticulationActions:
+        # apply delay based on the delay the model for all the setpoints
+        control_action.joint_positions = self.positions_delay_buffer.compute(control_action.joint_positions)
+        control_action.joint_velocities = self.velocities_delay_buffer.compute(control_action.joint_velocities)
+        control_action.joint_efforts = self.efforts_delay_buffer.compute(control_action.joint_efforts)
+        # compte actuator model
+        return super().compute(control_action, joint_pos, joint_vel)
+
+
+@configclass
+class DelayedDCMotorCfg(DCMotorCfg):
+    """Configuration for delayed direct control (DC) motor actuator model."""
+
+    class_type: type = DelayedDCMotor
+
+    min_delay: int = 0
+    """Minimum number of physics time-steps with which the actuator command may be delayed. Defaults to 0."""  # noqa: E501
+
+    max_delay: int = 0
+    """Maximum number of physics time-steps with which the actuator command may be delayed. Defaults to 0."""  # noqa: E501
+
+    def __post_init__(self) -> None:
+        """Use the joint velocity limit as the motor's rated speed unless one is given (DC motors require it)."""
+        if self.actuator_velocity_limit is None:
+            self.actuator_velocity_limit = self.joint_velocity_limit

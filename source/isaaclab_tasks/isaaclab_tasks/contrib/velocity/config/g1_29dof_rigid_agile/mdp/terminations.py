@@ -17,6 +17,7 @@ import torch
 
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
+from isaaclab.sensors import ContactSensor, RayCaster
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -70,3 +71,40 @@ def root_height_below_minimum_adaptive(
     min_foot_height = (asset.data.body_pos_w.torch[:, asset_cfg.body_ids, 2]).min(dim=1).values
 
     return asset.data.root_pos_w.torch[:, 2] - min_foot_height < minimum_height
+
+
+def illegal_ground_contact(
+    env: ManagerBasedRLEnv,
+    threshold: float,
+    sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    min_height: float,
+) -> torch.Tensor:
+    """Terminate when the contact force exceeds the force threshold and the asset is below the min_height."""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history.torch
+    # check if any contact force exceeds the threshold
+
+    asset_height = torch.min(env.scene[asset_cfg.name].data.body_pos_w.torch[:, asset_cfg.body_ids, 2], dim=1)[0]
+    on_ground = asset_height < min_height
+
+    in_contact = torch.any(
+        torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold,
+        dim=1,
+    )
+
+    return in_contact & on_ground
+
+
+def illegal_base_height(
+    env: ManagerBasedRLEnv,
+    height_threshold: float = 0.4,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),  # noqa: B008
+    sensor_cfg: SceneEntityCfg = SceneEntityCfg("height_measurement_sensor"),
+) -> torch.Tensor:
+    """Terminate if the base height is below the threshold."""
+    robot = env.scene[asset_cfg.name]
+    sensor: RayCaster = env.scene[sensor_cfg.name]
+    base_height = robot.data.root_pos_w.torch[:, 2] - torch.mean(sensor.data.ray_hits_w.torch[..., 2], dim=1)
+    return base_height < height_threshold

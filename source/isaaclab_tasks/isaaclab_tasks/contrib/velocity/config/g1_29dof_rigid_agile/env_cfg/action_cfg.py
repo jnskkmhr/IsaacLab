@@ -7,6 +7,8 @@ from isaaclab.utils.configclass import configclass
 
 from isaaclab_contrib.mdp import MirrorJointPositionActionCfg
 
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid_agile.mdp as g1_mdp
+
 from ..mdp import symmetry
 
 CONTROLLED_JOINT_NAMES = [
@@ -29,4 +31,23 @@ class G1ActionsCfg:
         use_default_offset=True,
         preserve_order=True,
         clip={".*": (-10.0, 10.0)},
+    )
+
+    random_pos = g1_mdp.RandomActionCfg(
+        asset_name="robot",
+        joint_names_exclude=[".*_hip_.*_joint", ".*_knee_joint", ".*_ankle_.*_joint", "waist_.*_joint"],
+        sample_range=(0.1, 2.5),
+        preserve_order=True,
+        velocity_profile_cfg=g1_mdp.TrapezoidalVelocityProfileCfg(
+            acceleration_range=(1.0, 20.0),
+            max_velocity_range=(10.0, 20.0),
+            min_cruise_ratio=0.1,
+            synchronize_joints=True,
+            time_scaling_method="max_time",
+            use_smooth_start=False,
+            position_tolerance=0.001,
+            velocity_tolerance=0.01,
+            enable_position_limits=True,
+            enable_velocity_limits=True,
+        ),
     )

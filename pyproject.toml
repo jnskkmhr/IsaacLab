@@ -81,7 +81,7 @@ dependencies = [
     "rich",
     "tqdm>=4.67.1",
     "rsl-rl-lib",  # compatible version pinned by compositional-rsl-rl
-    "compositional-rsl-rl==0.2.0.dev0",  # network/loss composition for PPO and FlashSAC
+    "compositional-rsl-rl==0.2.0.dev1",  # network/loss composition for PPO and FlashSAC
     "gitpython>=3.1.60",  # used by RL training and experiment logging
     # ----- newton (default physics engine) -----
     # Match the MPM fork revision selected below.
@@ -436,7 +436,7 @@ egl-probe = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 
 [tool.uv.sources]
 # The compositional package owns the matching RSL-RL Git revision.
-compositional-rsl-rl = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git", rev = "40530be3e02de55fc08ba850e78cfc3dcc7521ea" }
+compositional-rsl-rl = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git", rev = "ac2f96cf7dede7495384ee56f61570d33216638c" }
 # Official Warp nightly includes the multi-environment cell lookup fix.
 warp-lang = { index = "nvidia" }
 # Newton fork contains OpenGL texture reuse and coupler parameter synchronization fixes.

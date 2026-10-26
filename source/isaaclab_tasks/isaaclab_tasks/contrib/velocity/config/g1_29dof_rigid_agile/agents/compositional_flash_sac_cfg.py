@@ -32,6 +32,14 @@ class G1FlashSACNetworksCfg(NetworkCfg):
 class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
     """Reference residual actor and categorical Q ensemble for the rough-terrain observation groups."""
 
+    seed = 1
+    max_time_s = 3500.0
+    save_interval_updates = 5000
+    replay_cfg = {
+        "class_name": (
+            "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid_agile.mdp.curriculums:ReplayRewardCurriculum"
+        ),
+    }
     num_steps_per_env = 1
     updates_per_step = 4
     n_step = 3
@@ -40,7 +48,7 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
     replay_capacity = 1_000_000
     replay_max_bytes = 3 * 1024**3
     warmup_transitions = 100_000
-    max_iterations = 100_000
+    max_iterations = 1_000_000_000
     save_interval = 1250  # 5000 learner updates after warmup.
 
     networks = G1FlashSACNetworksCfg(

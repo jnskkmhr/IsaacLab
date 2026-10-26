@@ -4,6 +4,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "RandomActionCfg",
+    "TrapezoidalVelocityProfileCfg",
+    "illegal_ground_contact",
+    "illegal_base_height",
+    "terrain_levels_vel_curriculum",
+    "update_reward_weight_step",
     "rewards",
     "symmetry",
     "ramp_reward_weight",
@@ -31,8 +37,9 @@ __all__ = [
 ]
 
 from . import rewards, symmetry
+from .actions import RandomActionCfg, TrapezoidalVelocityProfileCfg
 from .commands.commands_cfg import UniformNullVelocityCommandCfg
-from .curriculums import ramp_reward_weight
+from .curriculums import ramp_reward_weight, terrain_levels_vel_curriculum, update_reward_weight_step
 from .rewards import (
     SmoothContactObserver,
     action_rate_l2,
@@ -55,3 +62,4 @@ from .rewards import (
     track_lin_vel_xy_command_width,
     tracking_reward,
 )
+from .terminations import illegal_base_height, illegal_ground_contact
