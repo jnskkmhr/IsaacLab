@@ -74,14 +74,14 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 1.0,
+                ".*": 0.5,
             },
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02,
                 # ".*hip_roll.*": 0.15,
                 ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.15,
+                ".*hip_yaw.*": 0.08,
                 ".*knee.*": 0.02,
                 ".*ankle_pitch.*": 0.02,
                 ".*ankle_roll.*": 0.02,
@@ -101,10 +101,10 @@ class G1RewardsCfg:
                 ".*hip_pitch.*": 0.005,
                 # ".*hip_roll.*": 0.15,
                 ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.15,
+                ".*hip_yaw.*": 0.08,
                 ".*knee.*": 0.005,
-                ".*ankle_pitch.*": 0.01,
-                ".*ankle_roll.*": 0.01,
+                ".*ankle_pitch.*": 0.02,
+                ".*ankle_roll.*": 0.02,
                 # waist
                 ".*waist_yaw.*": 0.15,
                 ".*waist_roll.*": 2.0,
@@ -341,16 +341,7 @@ class G1RewardsRoughCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
-            "weight_standing": {
-                # Allow the legs to adapt to the terrain while retaining upper-body posture.
-                ".*hip_pitch.*": 0.02,
-                ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.08,
-                ".*knee.*": 0.02,
-                ".*ankle_pitch.*": 0.02,
-                ".*ankle_roll.*": 0.02,
-                ".*(waist|shoulder|elbow|wrist).*": 0.5,
-            },
+            "weight_standing": {".*": 0.5},
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02,
@@ -515,19 +506,6 @@ class G1RewardsRoughCfg:
         },
     )
 
-    break_contact = RewTerm(
-        func=g1_mdp.break_contact_penalty,
-        weight=-0.5,
-        params={
-            "command_name": "base_velocity",
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
-            "command_threshold": 0.05,
-            "recovery_linear_velocity": 0.2,
-            "recovery_angular_velocity": 0.5,
-            "recovery_tilt": 0.2,
-        },
-    )
-
     no_fly = RewTerm(
         func=g1_mdp.fly,
         weight=-2.0,
@@ -572,17 +550,6 @@ class G1RewardsRoughCfg:
         params={
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*ankle_roll.*"),
             "command_name": "base_velocity",
-            "command_threshold": 0.05,
-        },
-    )
-
-    # Discourage stepping in place without prescribing a fixed standing joint pose.
-    stance_foot_velocity_l2 = RewTerm(
-        func=g1_mdp.stance_foot_velocity_l2,
-        weight=-5.0,
-        params={
-            "command_name": "base_velocity",
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*ankle_roll.*"),
             "command_threshold": 0.05,
         },
     )

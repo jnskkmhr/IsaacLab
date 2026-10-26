@@ -15,7 +15,7 @@ import time
 from datetime import datetime
 
 import torch.distributed as dist
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+from rsl_rl.runners import DistillationRunner, OffPolicyRunner, OnPolicyRunner
 
 from isaaclab.app import add_launcher_args, launch_simulation, report_activity
 from isaaclab.envs import DirectMARLEnvCfg
@@ -197,11 +197,15 @@ def _run(args_cli: argparse.Namespace) -> None:
             screen.stage("Preparing agent")
             start_time = time.time()
             report_activity("Wrapping environment")
+            if agent_cfg.class_name == "OffPolicyRunner":
+                env.unwrapped.cfg.compute_final_obs = True
             env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
             report_activity(None)
             report_activity("Building policy")
             if agent_cfg.class_name == "OnPolicyRunner":
                 runner = OnPolicyRunner(env, to_dict(agent_cfg), log_dir=log_dir, device=agent_cfg.device)
+            elif agent_cfg.class_name == "OffPolicyRunner":
+                runner = OffPolicyRunner(env, to_dict(agent_cfg), log_dir=log_dir, device=agent_cfg.device)
             elif agent_cfg.class_name == "DistillationRunner":
                 runner = DistillationRunner(env, to_dict(agent_cfg), log_dir=log_dir, device=agent_cfg.device)
             else:

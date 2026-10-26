@@ -7,7 +7,7 @@
 
 from isaaclab.utils.configclass import configclass
 
-from ...g1_29dof_rigid.agents.rsl_rl_ppo_cfg import G1FlatPPORunnerCfg
+from ...g1_29dof_rigid.agents.compositional_ppo_cfg import G1FlatPPORunnerCfg
 
 
 @configclass

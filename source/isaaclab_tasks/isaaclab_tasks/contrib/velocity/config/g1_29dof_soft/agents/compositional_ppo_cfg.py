@@ -3,38 +3,44 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Compositional PPO configurations for G1 locomotion with soft contacts."""
+
+from compositional_rsl_rl.algorithm import CompositionalPPOAlgorithmCfg
+from compositional_rsl_rl.loss import LossesCfg
+from compositional_rsl_rl.network import ActorHeadCfg, CriticHeadCfg, NetworkCfg
+from compositional_rsl_rl.runner import CompositionalRunnerCfg
+
 from isaaclab.utils.configclass import configclass
 
 from isaaclab_contrib.mdp import compute_mirrored_states
 
-from isaaclab_rl.rsl_rl import (
-    RslRlMLPModelCfg,
-    RslRlOnPolicyRunnerCfg,
-    RslRlPpoAlgorithmCfg,
-    # RslRlRNNModelCfg,
-    RslRlSymmetryCfg,
-)
+from isaaclab_rl.rsl_rl import RslRlSymmetryCfg
 
 
 @configclass
-class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class G1RoughPPORunnerCfg(CompositionalRunnerCfg):
+    """Independent actor and critic MLPs for soft rough-terrain locomotion."""
+
     num_steps_per_env = 24
     max_iterations = 20_000
     save_interval = 500
-    obs_groups = {"actor": ["policy", "command"], "critic": ["critic", "command", "privileged"]}
-    # obs_groups = {"actor": ["policy"], "critic": ["critic", "privileged"]}
-    actor = RslRlMLPModelCfg(
-        hidden_dims=[512, 256, 128],
-        activation="elu",
-        obs_normalization=False,
-        distribution_cfg=RslRlMLPModelCfg.GaussianDistributionCfg(init_std=1.0),
+    networks = NetworkCfg(
+        actor=ActorHeadCfg(
+            input=["policy", "command"],
+            hidden_dims=[512, 256, 128],
+            activation="elu",
+            obs_normalization=False,
+            distribution_cfg=ActorHeadCfg.GaussianDistributionCfg(init_std=1.0),
+        ),
+        critic=CriticHeadCfg(
+            input=["critic", "command", "privileged"],
+            hidden_dims=[512, 256, 128],
+            activation="elu",
+            obs_normalization=False,
+        ),
     )
-    critic = RslRlMLPModelCfg(
-        hidden_dims=[512, 256, 128],
-        activation="elu",
-        obs_normalization=False,
-    )
-    algorithm = RslRlPpoAlgorithmCfg(
+    loss = LossesCfg()
+    algorithm = CompositionalPPOAlgorithmCfg(
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
@@ -56,6 +62,7 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         ),
     )
     logger = "wandb"
+    neptune_project = "isaaclab"
     wandb_project = "g1_29dof_soft_rough_ppo"
     experiment_name = "g1_29dof_soft_rough_ppo"
 
@@ -64,7 +71,6 @@ class G1RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
 class G1FlatPPORunnerCfg(G1RoughPPORunnerCfg):
     def __post_init__(self):
         super().__post_init__()  # type: ignore
-
         self.max_iterations = 20_000
         self.wandb_project = "g1_29dof_soft_flat_ppo"
         self.experiment_name = "g1_29dof_soft_flat_ppo"

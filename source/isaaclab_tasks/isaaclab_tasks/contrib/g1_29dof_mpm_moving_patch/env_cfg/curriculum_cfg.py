@@ -33,6 +33,33 @@ class G1CurriculumCfg:
         },
     )
 
+    gravity_roll_bias = CurrTerm(
+        func=mdp.modify_term_cfg,
+        params={
+            "address": "observations.policy.projected_gravity.params.roll_bias_range",
+            "modify_fn": mdp.linear_ramp,
+            "modify_params": {
+                "initial_value": (0.0, 0.0),
+                "final_value": (-math.radians(5.0), math.radians(5.0)),
+                "start_step": 0,
+                "end_step": 5000 * 24,
+            },
+        },
+    )
+    gravity_pitch_bias = CurrTerm(
+        func=mdp.modify_term_cfg,
+        params={
+            "address": "observations.policy.projected_gravity.params.pitch_bias_range",
+            "modify_fn": mdp.linear_ramp,
+            "modify_params": {
+                "initial_value": (0.0, 0.0),
+                "final_value": (-math.radians(5.0), math.radians(5.0)),
+                "start_step": 0,
+                "end_step": 5000 * 24,
+            },
+        },
+    )
+
     track_lin_vel = CurrTerm(
         func=g1_mdp.ramp_reward_param,
         params={
@@ -124,30 +151,3 @@ class G1CurriculumCfg:
     #         "step_1": 15000 * 24,
     #     }
     # )
-
-    gravity_roll_bias = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "observations.policy.projected_gravity.params.roll_bias_range",
-            "modify_fn": mdp.linear_ramp,
-            "modify_params": {
-                "initial_value": (0.0, 0.0),
-                "final_value": (-math.radians(5.0), math.radians(5.0)),
-                "start_step": 0,
-                "end_step": 5000 * 24,
-            },
-        },
-    )
-    gravity_pitch_bias = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "observations.policy.projected_gravity.params.pitch_bias_range",
-            "modify_fn": mdp.linear_ramp,
-            "modify_params": {
-                "initial_value": (0.0, 0.0),
-                "final_value": (-math.radians(5.0), math.radians(5.0)),
-                "start_step": 0,
-                "end_step": 5000 * 24,
-            },
-        },
-    )

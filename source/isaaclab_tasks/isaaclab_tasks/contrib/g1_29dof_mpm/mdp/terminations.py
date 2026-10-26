@@ -15,8 +15,6 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import quat_apply_inverse
 
-from ..env_cfg.scene_cfg import SAND_BED_SIZE, WALKABLE_XY_BOUNDS
-
 if TYPE_CHECKING:
     from ..g1_mpm_env import G1MPMEnv
 
@@ -42,7 +40,12 @@ def root_outside_workspace(
     """
     asset: Articulation = env.scene[asset_cfg.name]
     position_e = asset.data.root_pos_w.torch - env.scene.env_origins
-    (x_lo, x_hi), (y_lo, y_hi) = WALKABLE_XY_BOUNDS
+    sand = env.cfg.scene.sand.spawn
+    x_lo, y_lo = sand.lower[:2]
+    x_hi, y_hi = sand.upper[:2]
+    approach = env.cfg.scene.approach_platform
+    if approach is not None:
+        x_lo = min(x_lo, approach.init_state.pos[0] - approach.spawn.size[0] / 2)
     outside_x = (position_e[:, 0] < x_lo + margin) | (position_e[:, 0] > x_hi - margin)
     outside_y = (position_e[:, 1] < y_lo + margin) | (position_e[:, 1] > y_hi - margin)
     return outside_x | outside_y
@@ -75,6 +78,5 @@ def root_outside_testbed(env: G1MPMEnv, margin: float = 0.3) -> torch.Tensor:
         tray.data.body_quat_w.torch[:, tray_id],
         env.scene["robot"].data.root_pos_w.torch - tray.data.body_pos_w.torch[:, tray_id],
     )
-    return (position[:, 0].abs() > SAND_BED_SIZE[0] / 2 - margin) | (
-        position[:, 1].abs() > SAND_BED_SIZE[1] / 2 - margin
-    )
+    length, width, _ = env.cfg.scene.testbed.spawn.sand_bed_size
+    return (position[:, 0].abs() > length / 2 - margin) | (position[:, 1].abs() > width / 2 - margin)

@@ -35,6 +35,8 @@ def checkpoint_load_cfg(
     """
     if resume_optimizer_state:
         return None
+    if runner_class == "OffPolicyRunner":
+        return {"actor": True, "critic": True, "optimizer": resume_optimizer_state, "iteration": resume_optimizer_state}
     if runner_class == "DistillationRunner":
         return {"student": True, "teacher": True, "optimizer": False, "iteration": True}
     return {"actor": True, "critic": True, "optimizer": False, "iteration": True, "rnd": True}

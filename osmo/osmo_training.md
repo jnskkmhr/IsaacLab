@@ -12,46 +12,19 @@ setup works as the image's non-root user without installing system packages.
 Custom images must also provide Git and either uv or curl.
 
 ```bash
+# finetune pretrained policy with MPM
+# export osmo_node="isaac-lab-l40-06"
+# export platform="ovx-l40"
+export osmo_node="isaac-lab-l40s-03"
+export platform="ovx-l40s"
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
-  --pool isaac-lab-l40-07 \
-  --set num_nodes=20 num_gpu=1 \
-  --set-string \
-    platform=ovx-l40 \
-    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
-    wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
-
-
-bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
-  --pool isaac-lab-l40s-03 \
+  --pool "$osmo_node" \
   --set num_nodes=40 num_gpu=1 \
   --set-string \
-    platform=ovx-l40s \
+    platform="$platform" \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
-
-
-
-bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
-  --pool isaac-lab-l40-07 \
-  --set num_nodes=40 num_gpu=1 \
-  --set-string \
-    platform=ovx-l40 \
-    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
-    wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
-
-
-bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
-  --pool isaac-lab-l40s-03 \
-  --set num_nodes=40 num_gpu=1 \
-  --set-string \
-    platform=ovx-l40s \
-    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
-    wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video"
-
+    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video --wandb_project g1_29dof_soft_flat_ppo"
 
 # train from scratch 
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
@@ -64,6 +37,15 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
     args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --logger wandb --viz newton_gl --video"
 
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool isaac-lab-l40-06 \
+  --set num_nodes=40 num_gpu=1 \
+  --set-string \
+    platform=ovx-l40 \
+    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
+    wandb_credential=wb-auth wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --logger wandb --viz newton_gl --video"
+
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --pool isaac-lab-l40s-03 \
   --set num_nodes=40 num_gpu=1 \
   --set-string \
@@ -71,6 +53,62 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
     args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --logger wandb --viz newton_gl --video"
+
+
+# resume training 
+export osmo_node="isaac-lab-l40s-03"
+export platform="ovx-l40s"
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool "$osmo_node" \
+  --set num_nodes=40 num_gpu=1 \
+  --set-string \
+    platform="$platform" \
+    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
+    wandb_credential=wb-auth wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --logger wandb --viz newton_gl --video --wandb_run gzi8enaw"
+```
+
+```bash
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool isaac-lab-l40-07 \
+  --set num_nodes=8 num_gpu=1 \
+  --set-string \
+    platform=ovx-l40 \
+    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/g1-soft/runs \
+    wandb_credential=wb-auth wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-Flat-G1-29dof-Soft --num_envs 512 --logger wandb --viz newton_gl --video"
+```
+
+
+```bash 
+export osmo_node="isaac-lab-l40-07"
+export platform="ovx-l40"
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool "$osmo_node" \
+  --set num_nodes=40 num_gpu=1 \
+  --set-string \
+    platform="$platform" \
+    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
+    wandb_credential=wb-auth wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain \
+--num_envs 64 \
+--wandb_run tyiby5k6 \
+--wandb_project g1_29dof_soft_flat_ppo \
+--logger wandb \
+--log_project_name g1_29dof_mpm_mixed_terrain \
+--run_name soft_contact_finetune_bias5 \
+--viz newton_gl --video \
+agent.load_checkpoint=model_19999.pt \
+agent.algorithm.learning_rate=0.0001 \
+agent.env_interface.restore_terrain=false \
+env.rewards.ang_vel_xy_l2.weight=-0.05 \
+env.rewards.base_height.params.target_height=0.75 \
+env.rewards.feet_air_time.weight=2.0 \
+env.rewards.feet_trailing_distance.weight=0.0 \
+env.curriculum.gravity_roll_bias.params.modify_params.start_step=480000 \
+env.curriculum.gravity_roll_bias.params.modify_params.end_step=600000 \
+env.curriculum.gravity_pitch_bias.params.modify_params.start_step=480000 \
+env.curriculum.gravity_pitch_bias.params.modify_params.end_step=600000"
 ```
 
 Append `--dry-run` to render the workflow without submitting or syncing files.

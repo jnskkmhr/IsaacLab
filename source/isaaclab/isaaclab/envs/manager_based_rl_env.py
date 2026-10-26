@@ -157,9 +157,11 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         }
         scalars = {
             "episode": {
-                "mean_reward": lambda: float(getattr(self, "reward_buf", None).mean())
-                if getattr(self, "reward_buf", None) is not None
-                else 0.0,
+                "mean_reward": lambda: (
+                    float(getattr(self, "reward_buf", None).mean())
+                    if getattr(self, "reward_buf", None) is not None
+                    else 0.0
+                ),
                 "episode_length": lambda: float(self.episode_length_buf.float().mean()),
             }
         }
@@ -242,11 +244,12 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             self.recorder_manager.record_post_step()
 
         # -- reset envs that terminated/timed-out and log the episode information
+        self.extras.pop("final_obs", None)
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1).int()
         if len(reset_env_ids) > 0:
             # capture the terminal observation before reset and expose it for Same-Step autoreset.
             if self.cfg.compute_final_obs:
-                self.extras["final_obs"] = self.observation_manager.compute()
+                self.extras["final_obs"] = self.observation_manager.compute(preview_history=True)
             self.recorder_manager.record_pre_reset(reset_env_ids)
 
             self._reset_idx(reset_env_ids)
@@ -264,6 +267,8 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             index_fill_(not_yet_reset, reset_env_ids, False)
             manual_reset_ids = not_yet_reset.nonzero(as_tuple=False).squeeze(-1).int()
             if len(manual_reset_ids) > 0:
+                if self.cfg.compute_final_obs and "final_obs" not in self.extras:
+                    self.extras["final_obs"] = self.observation_manager.compute(preview_history=True)
                 # mark as terminated so RL wrappers observe the episode boundary
                 index_fill_(self.reset_terminated, manual_reset_ids, True)
                 # mirror the recorder lifecycle used for normal resets

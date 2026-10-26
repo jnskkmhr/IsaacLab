@@ -70,8 +70,11 @@ class G1RewardsCfg:
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
     lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
-    # ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.2)
+    ang_vel_xy_l2 = RewTerm(
+        func=mdp.ang_vel_xy_l2,
+        weight=-0.05,
+        # weight=-0.2,
+    )
 
     """
     joint regularization.
@@ -93,16 +96,18 @@ class G1RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
-            "weight_standing": {
-                # Allow the legs to adapt to the terrain while retaining upper-body posture.
-                ".*hip_pitch.*": 0.02,
-                ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.08,
-                ".*knee.*": 0.02,
-                ".*ankle_pitch.*": 0.02,
-                ".*ankle_roll.*": 0.02,
-                ".*(waist|shoulder|elbow|wrist).*": 0.5,
-            },
+            "weight_standing": {".*": 0.5},
+            # "weight_standing": {".*": 1.0},
+            # "weight_standing": {
+            #     # Regularize hip pitch/yaw and upper-body posture while allowing the other leg joints to adapt.
+            #     ".*hip_pitch.*": 0.5,
+            #     ".*hip_roll.*": 0.3,
+            #     ".*hip_yaw.*": 0.5,
+            #     ".*knee.*": 0.1,
+            #     ".*ankle_pitch.*": 0.1,
+            #     ".*ankle_roll.*": 0.1,
+            #     ".*(waist|shoulder|elbow|wrist).*": 0.5,
+            # },
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02,
@@ -198,18 +203,6 @@ class G1RewardsCfg:
         },
     )
 
-    break_contact = RewTerm(
-        func=mpm_mdp.break_contact_penalty,
-        weight=-0.5,
-        params={
-            "command_name": "base_velocity",
-            "command_threshold": 0.05,
-            "recovery_linear_velocity": 0.2,
-            "recovery_angular_velocity": 0.5,
-            "recovery_tilt": 0.2,
-        },
-    )
-
     no_fly = RewTerm(
         func=mpm_mdp.no_fly,
         weight=-2.0,
@@ -236,15 +229,15 @@ class G1RewardsCfg:
         },
     )
 
-    stance_foot_velocity_l2 = RewTerm(
-        func=g1_mdp.stance_foot_velocity_l2,
-        weight=-5.0,
-        params={
-            "command_name": "base_velocity",
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link"),
-            "command_threshold": 0.05,
-        },
-    )
+    # # Allow normal stance travel before penalizing feet too far behind the pelvis.
+    # feet_trailing_distance = RewTerm(
+    #     func=mpm_mdp.feet_trailing_distance_l2,
+    #     weight=-2.0,
+    #     params={
+    #         "max_trailing_distance": 0.3,
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link", preserve_order=True),
+    #     },
+    # )
 
     contact_impulse = RewTerm(
         func=mpm_mdp.reward_soft_landing,

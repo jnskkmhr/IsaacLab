@@ -6,6 +6,7 @@ import math
 
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.utils.configclass import configclass
 
 from .env_cfg import G1RewardsCfg
@@ -89,9 +90,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.events.scale_actuator_gains = None  # type: ignore
 
         # Commands
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (1.0, 1.0)
 
         self.commands.base_velocity.heading_command = False
         # self.commands.base_velocity.rel_standing_envs = 1.0
@@ -120,4 +121,11 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
-        self.video_recorders = []
+        self.video_recorders = [
+            VideoRecorderCfg(
+                source="visualizer:newton_rtx",
+                output_dir=None,
+                video_length=200,
+                video_interval=2000
+                ),
+        ]

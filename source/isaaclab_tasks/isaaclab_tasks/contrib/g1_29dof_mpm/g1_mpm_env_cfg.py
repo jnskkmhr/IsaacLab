@@ -27,11 +27,18 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .env_cfg.physics_cfg import DEFAULT_PROXY_MASS_SCALE, configure_sparse_mpm_capacities, g1_mpm_physics_cfg
-from .env_cfg.scene_cfg import APPROACH_LENGTH, MPM_VISUAL_COLOR, G1RoughMPMSceneCfg, G1TiltingMPMSceneCfg
+from .env_cfg.scene_cfg import (
+    MPM_VISUAL_COLOR,
+    G1DescendingMPMSceneCfg,
+    G1DuneMPMSceneCfg,
+    G1RoughMPMSceneCfg,
+    G1TiltingMPMSceneCfg,
+    G1WalkingTiltingMPMSceneCfg,
+)
 from .mdp.rewards import base_height_above_testbed
 from .mdp.terminations import root_outside_testbed
-from .terrain import TerrainMPMGridCfg
-from .tilting_testbed import TestbedMotionCfg
+from .util.terrain import TerrainMPMGridCfg
+from .util.tilting_testbed import TestbedMotionCfg
 
 # VISUALIZER = "newton_gl"
 VISUALIZER = "newton_rtx"
@@ -87,7 +94,7 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 4  # 50 Hz control
         # The approach has to be crossed before the granular part of the episode even begins.
-        self.episode_length_s = 10.0 + APPROACH_LENGTH
+        self.episode_length_s = 13.0
         self.is_finite_horizon = False
 
         # simulation settings
@@ -168,7 +175,8 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
-        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.rel_standing_envs = 0.5
+        self.commands.base_velocity.resampling_time_range = (3.0, 3.0)
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
 
         self.sim.visualizer_cfgs = [
@@ -231,28 +239,30 @@ class G1RoughMPMEnvCfg_PLAY(G1MPMEnvCfg_PLAY):
                 eye=(-4.4, 1.5, 3.5),
                 lookat=(-1.133547, -1.052032, 0.704035),  # Pitch -34 deg, yaw -38 deg.
                 focal_length=12.000874,  # Vertical FOV 65 deg.
-                origin_type="asset",
-                origin_track_path="robot",
-                streaming_view=False,
+                # origin_type="asset",
+                # origin_track_path="robot",
+                # streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
         ]
 
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
         ]
 
 
+ROLL_MAX = math.radians(15.0)
+PITCH_MAX = math.radians(15.0)
 @configclass
 class G1TiltingMPMEnvCfg(G1MPMEnvCfg):
     """Balance on a slowly tilting sand tray driven through physical joints."""
 
     scene: G1TiltingMPMSceneCfg = G1TiltingMPMSceneCfg(num_envs=4, env_spacing=8.0)
     testbed_motion: TestbedMotionCfg = TestbedMotionCfg(
-        roll_range=(math.radians(-15.0), math.radians(15.0)),
-        pitch_range=(math.radians(-15.0), math.radians(15.0)),
+        roll_range=(-ROLL_MAX, ROLL_MAX),
+        pitch_range=(-PITCH_MAX, PITCH_MAX),
         debug_vis=True,
     )
 
@@ -260,7 +270,6 @@ class G1TiltingMPMEnvCfg(G1MPMEnvCfg):
         super().__post_init__()
         self.testbed_motion.validate()
         self.episode_length_s = 30.0
-        self.scene.robot.init_state.pos = (0.0, 0.0, 0.76)
         # The same dynamic tray collides with G1 in MJWarp and with particles via its MPM proxy.
         self.sim.physics.solver_cfg.entries[0].bodies.append(r"/World/envs/env_.*/Testbed")
         self.sim.physics.solver_cfg.entries[0].include_static_shapes = False
@@ -317,9 +326,9 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
             NewtonRTXVisualizerCfg(
                 eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
-                streaming_view=False,
+                # origin_type="asset",
+                # origin_track_path="robot",
+                # streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
         ]
@@ -329,3 +338,73 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
             VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
         ]
+
+
+@configclass
+class G1DescendingMPMEnvCfg(G1RoughMPMEnvCfg):
+    """Locomotion onto a descending sand ramp."""
+
+    scene: G1DescendingMPMSceneCfg = G1DescendingMPMSceneCfg(num_envs=32, env_spacing=8.0)
+
+
+@configclass
+class G1DescendingMPMEnvCfg_PLAY(G1RoughMPMEnvCfg_PLAY):
+    """Deterministic playback on a descending sand ramp."""
+
+    scene: G1DescendingMPMSceneCfg = G1DescendingMPMSceneCfg(num_envs=1, env_spacing=8.0)
+
+
+@configclass
+class G1DuneMPMEnvCfg(G1RoughMPMEnvCfg):
+    """Locomotion over sinusoidal sand ridges."""
+
+    scene: G1DuneMPMSceneCfg = G1DuneMPMSceneCfg(num_envs=32, env_spacing=8.0)
+
+
+@configclass
+class G1DuneMPMEnvCfg_PLAY(G1RoughMPMEnvCfg_PLAY):
+    """Deterministic playback over sinusoidal sand ridges."""
+
+    scene: G1DuneMPMSceneCfg = G1DuneMPMSceneCfg(num_envs=1, env_spacing=8.0)
+
+
+@configclass
+class G1WalkingTiltingMPMEnvCfg(G1TiltingMPMEnvCfg):
+    """Track planar velocity and yaw-rate commands on a square tilting sand tray."""
+
+    scene: G1WalkingTiltingMPMSceneCfg = G1WalkingTiltingMPMSceneCfg(num_envs=4, env_spacing=8.0)
+    testbed_motion: TestbedMotionCfg = TestbedMotionCfg(
+        roll_range=(math.radians(-10.0), math.radians(10.0)),
+        pitch_range=(math.radians(-10.0), math.radians(10.0)),
+        debug_vis=True,
+    )
+    mpm_leaf_node_count_per_world: int = 1 << 15
+    mpm_lower_node_count_per_world: int = 1 << 12
+    mpm_upper_node_count_per_world: int = 64
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.commands.base_velocity.ranges.lin_vel_x = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
+        self.commands.base_velocity.rel_standing_envs = 0.0
+
+
+@configclass
+class G1WalkingTiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg_PLAY):
+    """Forward-walking playback; command ranges can select lateral walking or turning."""
+
+    scene: G1WalkingTiltingMPMSceneCfg = G1WalkingTiltingMPMSceneCfg(num_envs=1, env_spacing=8.0)
+    testbed_motion: TestbedMotionCfg = TestbedMotionCfg(debug_vis=True)
+    mpm_leaf_node_count_per_world: int = 1 << 15
+    mpm_lower_node_count_per_world: int = 1 << 12
+    mpm_upper_node_count_per_world: int = 64
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (1.0, 1.0)
+        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
+        self.commands.base_velocity.debug_vis = True

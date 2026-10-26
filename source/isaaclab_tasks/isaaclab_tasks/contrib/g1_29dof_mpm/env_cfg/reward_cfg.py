@@ -89,7 +89,7 @@ class G1RewardsCfg:
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
             "weight_standing": {
-                ".*": 0.5,
+                ".*": 1.0,
             },
             "weight_walking": {
                 ".*hip_pitch.*": 0.02,

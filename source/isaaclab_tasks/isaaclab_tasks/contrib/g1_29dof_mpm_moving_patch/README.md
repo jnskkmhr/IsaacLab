@@ -45,6 +45,44 @@ uv run --with wandb isaaclab train --rl_library rsl_rl \
   --experiment_name g1_29dof_mpm_rough_ppo
 ```
 
+## Resume curriculum progress
+
+The moving-patch and mixed-terrain tasks use `agents/compositional_ppo_cfg.py`: independent
+MLP actor and critic heads with the existing observation order, PPO settings, and symmetry augmentation.
+The root `pyproject.toml` and `uv.lock` pin `compositional-rsl-rl` to commit `5ca12657`.
+Run `uv sync --locked --extra rsl-rl` after updating this checkout.
+
+Resume a compositional checkpoint or an existing ordinary RSL-RL MLP checkpoint using the usual entrypoint:
+
+```bash
+uv run --with wandb isaaclab train --rl_library rsl_rl \
+  --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain \
+  --num_envs 64 --checkpoint /path/to/model_10000.pt --resume_optimizer_state
+```
+
+Checkpoints store the exact `common_step_counter` alongside the policy. Loading restores that
+counter; step-based curricula use it at their next normal update. Use
+`--no-resume_optimizer_state` to restore the counter while starting a fresh policy optimizer.
+Optimizer restoration is enabled by default.
+`env_interface = EnvInterfaceCfg()` also checkpoints per-rank terrain levels, column assignments,
+terrain origin grid/seed, rigid/MPM membership when present, and the physics step counter.
+Terrain restoration is disabled by default, so playback and finetuning keep the destination terrain.
+For an exact terrain resume, append `agent.env_interface.restore_terrain=true`. This requires the
+same world size, environments per rank, terrain configuration, and rigid/MPM assignments.
+Restoration resets fresh episodes on the saved terrain without advancing terrain levels during
+that reset. Episode motion, solver history, and random-number-generator state are not restored.
+
+Use `agent.env_interface=null` to disable terrain checkpointing entirely. Checkpoints without terrain
+state leave terrain assignments untouched and do not reset the environment. The training counter
+is still restored/estimated independently.
+
+Older checkpoints without the counter estimate progress as
+`(iteration + 1) * num_steps_per_env` and warn. This assumes the same rollout length and no
+previous curriculum restart. Ordinary RSL-RL checkpoints load directly when they contain separate
+`actor_state_dict` and `critic_state_dict` entries matching these independent MLP heads. Keep the
+observation/action order, activation, and normalization settings identical to the source policy.
+The older combined `model_state_dict` format is not supported.
+
 ## Play
 ```bash
 # newton_gl rendering
@@ -55,7 +93,7 @@ uv run --with wandb isaaclab play --rl_library rsl_rl \
 # newton_gl rendering
 uv run --with wandb isaaclab play --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch-Play \
-  --num_envs 1 --viz newton_rtx --wandb_run xxx
+  --num_envs 32 --viz newton_rtx --wandb_run xxx
 ```
 
 # Moving patch terrain with mixed rigid ground

@@ -1010,3 +1010,23 @@ def test_positional_out_does_not_enable_destination_writes(setup_env):
     result = manager.compute()["policy"]
     setup_env.data.pos_w.zero_()
     torch.testing.assert_close(result, expected)
+
+
+@pytest.mark.parametrize("lag", [0, 1])
+def test_terminal_preview_includes_successor_without_advancing_history(lag):
+    """A timeout sees the new frame; the subsequent collection still appends it exactly once."""
+    cfg = HistoryObservationsCfg()
+    cfg.policy.history_length = 3
+    cfg.policy.enable_corruption = False
+    cfg.policy.dummy.delay_min_lag = cfg.policy.dummy.delay_max_lag = lag
+    env = DummyEnv()
+    manager = ObservationManager(cfg, cast("ManagerBasedEnv", env))
+    for value in (1.0, 2.0, 3.0):
+        env.observation.fill_(value)
+        recorded = manager.compute(update_history=True)["policy"]
+    env.observation.fill_(4.0)
+    preview = manager.compute(preview_history=True)["policy"]
+    expected = torch.tensor([[2.0, 3.0, 4.0] if lag == 0 else [1.0, 2.0, 3.0]]).expand(env.num_envs, -1)
+    torch.testing.assert_close(preview, expected)
+    torch.testing.assert_close(manager.compute()["policy"], recorded)
+    torch.testing.assert_close(manager.compute(update_history=True)["policy"], expected)
