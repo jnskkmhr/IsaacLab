@@ -1,5 +1,10 @@
 # Agile G1 locomotion configuration
 
+Install from this IsaacLab checkout with `uv sync --locked --extra wandb`. uv fetches the pinned
+compositional-rsl-rl Git revision and its matching RSL-RL fork automatically; no separate library
+checkouts or editable installs are needed. Use `uv run --extra wandb isaaclab train ...` below
+for the task's default W&B logger, or select `--logger tensorboard` without the W&B extra.
+
 This task ports the rewards, observations, and FlashSAC hyperparameters from
 `agile.rl_env.tasks.locomotion.g1.flashsac_velocity_env_cfg.G1VelocityHistoryNewtonFlashSACEnvCfg`.
 It controls fourteen joints: both legs followed by waist roll and pitch.
@@ -18,7 +23,7 @@ drives delayed by 0–4 physics steps, resampled per environment and actuator gr
 The existing Agile `G1_29DOF_BeyondMimic` preset is unchanged.
 
 ```bash
-uv run isaaclab train --rl_library rsl_rl \
+uv run --extra wandb isaaclab train --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Agile \
   --agent rsl_rl_flash_sac_cfg_entry_point --num_envs 2048 \
   'env.video_recorders=[]'

@@ -435,8 +435,8 @@ package = false
 egl-probe = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 
 [tool.uv.sources]
-compositional-rsl-rl = { path = "../tmp/isaac_PR/compositional_rsl_rl", editable = true }
-rsl-rl-lib = { path = "../tmp/isaac_PR/rsl_rl", editable = true }
+# The compositional package owns the matching RSL-RL Git revision.
+compositional-rsl-rl = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git", rev = "40530be3e02de55fc08ba850e78cfc3dcc7521ea" }
 # Official Warp nightly includes the multi-environment cell lookup fix.
 warp-lang = { index = "nvidia" }
 # Newton fork contains OpenGL texture reuse and coupler parameter synchronization fixes.

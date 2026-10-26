@@ -757,19 +757,10 @@ wheels = [
 [[package]]
 name = "compositional-rsl-rl"
 version = "0.2.0.dev0"
-source = { editable = "../tmp/isaac_PR/compositional_rsl_rl" }
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=40530be3e02de55fc08ba850e78cfc3dcc7521ea#40530be3e02de55fc08ba850e78cfc3dcc7521ea" }
 dependencies = [
     { name = "rsl-rl-lib" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "onnx", marker = "extra == 'test'" },
-    { name = "onnxruntime", marker = "extra == 'test'" },
-    { name = "pytest", marker = "extra == 'test'" },
-    { name = "rsl-rl-lib", editable = "../tmp/isaac_PR/rsl_rl" },
-]
-provides-extras = ["test"]
 
 [[package]]
 name = "configargparse"
@@ -2012,7 +2003,7 @@ requires-dist = [
     { name = "av", marker = "extra == 'rlinf'", specifier = ">=12.3.0" },
     { name = "botocore" },
     { name = "coacd", specifier = ">=1.0.7" },
-    { name = "compositional-rsl-rl", editable = "../tmp/isaac_PR/compositional_rsl_rl" },
+    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=40530be3e02de55fc08ba850e78cfc3dcc7521ea" },
     { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.1" },
     { name = "daqp", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')", specifier = "==0.8.5" },
     { name = "decord2", marker = "extra == 'rlinf'" },
@@ -2102,8 +2093,8 @@ requires-dist = [
     { name = "rich", marker = "extra == 'sb3'" },
     { name = "rl-games", marker = "extra == 'rl-games'", git = "https://github.com/isaac-sim/rl_games.git?rev=5cf4f9ff07e9a01bbefd167cf19b6804b294b51c" },
     { name = "robomimic", marker = "sys_platform == 'linux' and extra == 'mimic'", git = "https://github.com/ARISE-Initiative/robomimic.git?rev=v0.4.0" },
-    { name = "rsl-rl-lib", editable = "../tmp/isaac_PR/rsl_rl" },
-    { name = "rsl-rl-lib", marker = "extra == 'rsl-rl'", editable = "../tmp/isaac_PR/rsl_rl" },
+    { name = "rsl-rl-lib" },
+    { name = "rsl-rl-lib", marker = "extra == 'rsl-rl'" },
     { name = "scipy", specifier = ">=1.11.0" },
     { name = "skrl", marker = "extra == 'skrl'", specifier = ">=2.1.0" },
     { name = "skrl", extras = ["jax"], marker = "extra == 'skrl-jax'", specifier = ">=2.1.0" },
@@ -5097,7 +5088,7 @@ wheels = [
 [[package]]
 name = "rsl-rl-lib"
 version = "5.5.1+flashsac.1"
-source = { editable = "../tmp/isaac_PR/rsl_rl" }
+source = { git = "https://github.com/jnskkmhr/rsl_rl.git?rev=ace7c23aa71a044bd30b0f2d39e8707a87243023#ace7c23aa71a044bd30b0f2d39e8707a87243023" }
 dependencies = [
     { name = "gitpython" },
     { name = "numpy" },
@@ -5107,21 +5098,6 @@ dependencies = [
     { name = "tensordict" },
     { name = "torch" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "gitpython" },
-    { name = "neptune", marker = "extra == 'neptune'" },
-    { name = "numpy", specifier = ">=1.16.4" },
-    { name = "onnx" },
-    { name = "onnxscript", specifier = ">=0.5.4" },
-    { name = "pytest", marker = "extra == 'test'" },
-    { name = "tensorboard" },
-    { name = "tensordict", specifier = ">=0.7.0" },
-    { name = "torch", specifier = ">=2.6.0" },
-    { name = "wandb", marker = "extra == 'wandb'" },
-]
-provides-extras = ["test", "wandb", "neptune"]
 
 [[package]]
 name = "rtree"
