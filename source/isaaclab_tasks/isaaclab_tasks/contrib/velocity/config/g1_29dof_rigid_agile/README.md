@@ -1,3 +1,9 @@
+## Moviepy install 
+Need this for video logging
+```bash 
+pip install 'moviepy<2'
+```
+
 # Agile G1 locomotion configuration
 
 Install with `uv sync --extra wandb`. uv fetches the pinned compositional-rsl-rl
@@ -7,14 +13,15 @@ and editable installs are unnecessary.
 This task follows Agile's
 `G1VelocityHistoryNewtonFlashSACEnvCfg` and FlashSAC training recipe:
 
-- Fourteen controlled joints: both legs followed by waist roll and pitch. The remaining
+- Fifteen controlled joints: both legs followed by waist yaw, roll, and pitch. Waist yaw
+  is an intentional extension of Agile's fourteen-action setup. The remaining
   joints receive randomized position targets with Agile's trapezoidal velocity profiles.
 - Agile's delayed DC motors, default pose, gains, armature, effort and velocity limits,
   zero robot collision margin, and selective self-collision exclusions.
 - The reference rough terrain, terrain progression, reset and dynamics randomization,
   command sampling, contact sensors, and termination conditions.
 - The same observation histories, reward terms, and initial reward weights. The actor
-  receives 255 values; the critic receives those plus 84 privileged values and fourteen
+  receives 270 values; the critic receives those plus 85 privileged values and fifteen
   candidate actions before its independent residual encoder.
 - Independent 128/256-wide residual actor/critic features with two blocks, a squashed
   Gaussian policy, and two categorical Q estimates with 101 bins on [-5, 5].
@@ -39,12 +46,14 @@ the wall-clock budget and replay reward curricula above belong to the FlashSAC e
 ## Validation
 
 The resolved scene, actions, events, commands, terminations, curricula, and simulator
-configuration match the native Agile task after excluding visualization and adapter
-metadata. A simulator smoke test checks zero collision margins, final observations,
+configuration were compared against the native Agile task before the waist-yaw extension,
+excluding visualization and adapter metadata. A simulator smoke test checks zero collision margins, final observations,
 symmetry augmentation, and replay reward reconstruction. Native and ported randomized
 joint trajectories and curriculum schedules are compared directly.
 
-A 600-second run with 2,048 environments verifies improving returns and episode lengths.
+A 600-second run with 2,048 environments verified improving returns and episode lengths
+for the original fourteen-action setup. The fifteen-action setup has a separate simulator
+smoke check; its learning curve has not been evaluated.
 This is a learning sanity check, not a full convergence or hardware evaluation. Identical
 configuration does not imply identical random-number consumption or learning curves
 across the two training backends.

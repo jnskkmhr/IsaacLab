@@ -19,7 +19,7 @@ from .action_cfg import CONTROLLED_JOINT_NAMES
 
 @configclass
 class PolicyCfg(ObsGroup):
-    """Five frames, flattened term by term in Agile collector order (255 values)."""
+    """Five frames, flattened term by term in Agile collector order (270 values)."""
 
     base_ang_vel = ObsTerm(
         func=mdp.base_ang_vel,
@@ -60,7 +60,7 @@ class PolicyCfg(ObsGroup):
 
 @configclass
 class CriticCfg(ObsGroup):
-    """Current privileged state (84 values); the network also receives policy history."""
+    """Current privileged state (85 values); the network also receives policy history."""
 
     velocity_commands = ObsTerm(
         func=mdp.generated_commands, params={"command_name": "base_velocity"}, mirror=symmetry.mirror_velocity_commands
