@@ -756,8 +756,8 @@ wheels = [
 
 [[package]]
 name = "compositional-rsl-rl"
-version = "0.2.0.dev1"
-source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=ac2f96cf7dede7495384ee56f61570d33216638c#ac2f96cf7dede7495384ee56f61570d33216638c" }
+version = "0.2.0.dev2"
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=946be241a2b307b5d2d81f3aa1409ebacc7ebfe1#946be241a2b307b5d2d81f3aa1409ebacc7ebfe1" }
 dependencies = [
     { name = "rsl-rl-lib" },
 ]
@@ -2003,7 +2003,7 @@ requires-dist = [
     { name = "av", marker = "extra == 'rlinf'", specifier = ">=12.3.0" },
     { name = "botocore" },
     { name = "coacd", specifier = ">=1.0.7" },
-    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=ac2f96cf7dede7495384ee56f61570d33216638c" },
+    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=946be241a2b307b5d2d81f3aa1409ebacc7ebfe1" },
     { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.1" },
     { name = "daqp", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')", specifier = "==0.8.5" },
     { name = "decord2", marker = "extra == 'rlinf'" },
@@ -5087,8 +5087,8 @@ wheels = [
 
 [[package]]
 name = "rsl-rl-lib"
-version = "5.5.1+flashsac.2"
-source = { git = "https://github.com/jnskkmhr/rsl_rl.git?rev=e778b1573375350f76f834e35f321d02f1441785#e778b1573375350f76f834e35f321d02f1441785" }
+version = "5.5.1+flashsac.3"
+source = { git = "https://github.com/jnskkmhr/rsl_rl.git?rev=8b90bdeb7e047b2200de6874ca7630bfd47fe6a7#8b90bdeb7e047b2200de6874ca7630bfd47fe6a7" }
 dependencies = [
     { name = "gitpython" },
     { name = "numpy" },

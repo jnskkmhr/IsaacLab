@@ -22,7 +22,9 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 
-from ..mdp.actuators import DelayedDCMotorCfg
+from isaaclab_assets.robots.unitree import UNITREE_G1_29DOF_CFG
+
+from ..mdp.actuators import DelayedDCMotorCfg, DelayedImplicitActuatorCfg
 from .terrain_cfg import MEDIUM_ROUGH_TERRAIN_CFG
 
 
@@ -331,6 +333,24 @@ G1_29DOF_DELAYED_DC_MOTOR = SelectiveSelfCollisionArticulationCfg(
 )
 
 
+# Keep the locomotion robot geometry and pose; use BeyondMimic's delayed implicit drives.
+G1_29DOF_BeyondMimic_delay = G1_29DOF_DELAYED_DC_MOTOR.replace(
+    actuators={
+        name: DelayedImplicitActuatorCfg(
+            joint_names_expr=cfg.joint_names_expr,
+            joint_effort_limit=cfg.effort_limit_sim,
+            joint_velocity_limit=cfg.velocity_limit_sim,
+            stiffness=cfg.stiffness,
+            damping=cfg.damping,
+            armature=cfg.armature,
+            min_delay=0,
+            max_delay=MAX_DELAY_PHY_STEPS,
+        )
+        for name, cfg in UNITREE_G1_29DOF_CFG.actuators.items()
+    }
+)
+
+
 @configclass
 class G1SceneCfg(InteractiveSceneCfg):
     """Configuration for the terrain scene with a legged robot."""
@@ -359,7 +379,7 @@ class G1SceneCfg(InteractiveSceneCfg):
         debug_vis=False,
     )
 
-    robot = G1_29DOF_DELAYED_DC_MOTOR.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot = G1_29DOF_BeyondMimic_delay.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
 

@@ -1,0 +1,98 @@
+# Copyright (c) 2022-2026, Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Submit through run_multinode.sh to upload the current checkout and assets.
+# One shared policy; num_gpu selects the number of synchronized learner replicas.
+workflow:
+  name: isaac_flash_sac_g1
+  pool: isaac-lab-l40s-03
+  resources:
+    default:
+      gpu: {{ num_gpu }}
+      cpu: {{ num_cpu }}
+      memory: {{ memory }}Gi
+      storage: {{ storage }}Gi
+      platform: {{ platform }}
+  tasks:
+  - name: isaac_flash_sac_g1
+    image: {{ image }}
+    command: [bash, /tmp/run.sh]
+{% if wandb_credential %}
+    credentials:
+      "{{ wandb_credential }}":
+        WANDB_API_KEY: "{{ wandb_key }}"
+{% endif %}
+    environment:
+      HEADLESS: "1"
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: "{{ [1, num_cpu // num_gpu] | max }}"
+      MKL_NUM_THREADS: "{{ [1, num_cpu // num_gpu] | max }}"
+      OPENBLAS_NUM_THREADS: "{{ [1, num_cpu // num_gpu] | max }}"
+      UV_PYTHON: "3.12"
+      UV_PYTHON_PREFERENCE: only-managed
+      UV_PROJECT_ENVIRONMENT: /tmp/isaaclab-venv
+      UV_INSTALL_DIR: /tmp/uv
+      UV_NO_MODIFY_PATH: "1"
+    files:
+    - path: /tmp/run.sh
+      contents: |
+        set -euo pipefail
+        mkdir -p "{{output}}/logs"
+        unset PYTHONPATH VIRTUAL_ENV DISPLAY
+        export PATH="/tmp/uv:$PATH"
+        if ! command -v uv >/dev/null; then
+          curl --fail --location --retry 3 https://astral.sh/uv/{{ uv_version }}/install.sh | sh
+        fi
+        cp -a "{{input:0}}" /tmp/isaaclab
+        cp -a "{{input:1}}" /tmp/isaaclab/source/isaaclab_assets/data
+        cd /tmp/isaaclab
+        ln -s "{{output}}/logs" logs
+{% if warp_wheel_url %}
+        uv sync --extra wandb --extra video --no-install-package warp-lang
+        uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" --no-deps "{{input:2}}"/*.whl
+{% else %}
+        uv sync --extra wandb --extra video
+{% endif %}
+{% if num_gpu > 1 %}
+        uv run --no-sync isaaclab train_multigpu --num_gpus {{ num_gpu }} --rl_library rsl_rl \
+{% else %}
+        uv run --no-sync isaaclab train --rl_library rsl_rl \
+{% endif %}
+          --task IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Agile \
+          --agent rsl_rl_flash_sac_cfg_entry_point \
+          --num_envs {{ num_envs }} --logger {{ logger }} --video --viz newton_gl \
+          {{ args }}
+    inputs:
+    - url: "{{ source_url }}"
+    - url: "{{ assets_url }}"
+{% if warp_wheel_url %}
+    - url: "{{ warp_wheel_url }}"
+{% endif %}
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}"
+    checkpoint:
+    - path: "{{output}}/logs"
+      url: "{{ output_url }}/{{workflow_id}}/logs"
+      frequency: 10m
+
+default-values:
+  image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+  platform: ovx-l40s
+  num_gpu: 1
+  num_cpu: 8
+  memory: 64
+  storage: 88
+  num_envs: 4096
+  logger: wandb
+  uv_version: 0.12.12
+  args: ""
+  wandb_credential: ""
+  wandb_key: WANDB_API_KEY
+  output_url: ""
+  assets_url: ""
+  source_url: ""
+  warp_wheel_url: ""

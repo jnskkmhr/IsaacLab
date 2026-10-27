@@ -430,7 +430,7 @@ class ContactRewardStage:
             raise ValueError("Contact curriculum clock must be bound once before collection")
         self.clock_origin = origin
 
-    def before_collection(self, completed_steps):
+    def before_collection(self, completed_steps, elapsed_seconds: float | None = None):
         if (
             type(completed_steps) is not int
             or completed_steps < 0
@@ -440,7 +440,7 @@ class ContactRewardStage:
             raise ValueError("Contact stage requires strictly increasing completed collection steps")
         if self.clock_origin is None:
             raise ValueError("Bind contact curriculum clock before collection")
-        elapsed = time.perf_counter() - self.clock_origin
+        elapsed = time.perf_counter() - self.clock_origin if elapsed_seconds is None else elapsed_seconds
         if (
             not math.isfinite(elapsed)
             or elapsed < 0
@@ -528,7 +528,7 @@ class ForwardCommandStage:
             raise ValueError("Bind command clock once to a positive remaining training budget")
         self.origin, self.duration = origin, duration_seconds
 
-    def before_collection(self, completed_steps):
+    def before_collection(self, completed_steps, elapsed_seconds: float | None = None):
         if (
             self.origin is None
             or type(completed_steps) is not int
@@ -537,7 +537,7 @@ class ForwardCommandStage:
             and completed_steps <= self.completed_steps
         ):
             raise ValueError("Bind clock before strictly increasing command-stage collection steps")
-        elapsed = time.perf_counter() - self.origin
+        elapsed = time.perf_counter() - self.origin if elapsed_seconds is None else elapsed_seconds
         if not math.isfinite(elapsed) or elapsed < 0 or self.elapsed is not None and elapsed < self.elapsed:
             raise ValueError("Command curriculum requires monotonic elapsed time")
         self._validate_ranges()
@@ -610,8 +610,16 @@ class ReplayRewardCurriculum:
         self.command.start_clock(origin, duration)
 
     def before_collection(self, collection_step: int) -> None:
-        self.command.before_collection(collection_step)
-        self.contact.before_collection(collection_step)
+        elapsed = None
+        if torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1:
+            # All ranks use the lead collector's elapsed time for reward/command ramps.
+            clock = torch.tensor(
+                time.perf_counter() - self.contact.clock_origin, device=self.env.device, dtype=torch.float64
+            )
+            torch.distributed.broadcast(clock, src=0)
+            elapsed = clock.item()
+        self.command.before_collection(collection_step, elapsed_seconds=elapsed)
+        self.contact.before_collection(collection_step, elapsed_seconds=elapsed)
         self.collection_weights = tuple(self.manager.get_term_cfg(name).weight for name in self.smoothing_names)
 
     def process_transition(self, transition):
