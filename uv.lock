@@ -20,7 +20,7 @@ overrides = [
     { name = "fsspec", specifier = ">=2026.6.0" },
     { name = "mujoco", specifier = "~=3.15.0" },
     { name = "mujoco-warp", specifier = "~=3.15.0" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=4877f4fece77570c9c5cd61988f6008b61032ece" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numpy", specifier = ">=2" },
     { name = "packaging", specifier = ">=20,<27" },
@@ -756,8 +756,8 @@ wheels = [
 
 [[package]]
 name = "compositional-rsl-rl"
-version = "0.2.0.dev2"
-source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=946be241a2b307b5d2d81f3aa1409ebacc7ebfe1#946be241a2b307b5d2d81f3aa1409ebacc7ebfe1" }
+version = "0.2.0.dev3"
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=ceb6aba27c3d2bfd7760b26bfb7c2bec33ba55ee#ceb6aba27c3d2bfd7760b26bfb7c2bec33ba55ee" }
 dependencies = [
     { name = "rsl-rl-lib" },
 ]
@@ -2003,7 +2003,7 @@ requires-dist = [
     { name = "av", marker = "extra == 'rlinf'", specifier = ">=12.3.0" },
     { name = "botocore" },
     { name = "coacd", specifier = ">=1.0.7" },
-    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=946be241a2b307b5d2d81f3aa1409ebacc7ebfe1" },
+    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=ceb6aba27c3d2bfd7760b26bfb7c2bec33ba55ee" },
     { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.1" },
     { name = "daqp", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')", specifier = "==0.8.5" },
     { name = "decord2", marker = "extra == 'rlinf'" },
@@ -2053,7 +2053,7 @@ requires-dist = [
     { name = "meshio", specifier = ">=5.3.5" },
     { name = "moviepy", marker = "extra == 'video'", specifier = ">=1.0.3,<2.0.0.dev0" },
     { name = "myst-parser", marker = "extra == 'dev'" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=4877f4fece77570c9c5cd61988f6008b61032ece" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numba", specifier = ">=0.63.1" },
     { name = "numpy", specifier = ">=2" },
@@ -3461,7 +3461,7 @@ wheels = [
 [[package]]
 name = "newton"
 version = "1.8.0.dev0"
-source = { git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync#af06def4d33557eb2bfedfd6c7ed487cbb44ef6f" }
+source = { git = "https://github.com/jnskkmhr/newton.git?rev=4877f4fece77570c9c5cd61988f6008b61032ece#4877f4fece77570c9c5cd61988f6008b61032ece" }
 dependencies = [
     { name = "warp-lang" },
 ]
@@ -5087,8 +5087,8 @@ wheels = [
 
 [[package]]
 name = "rsl-rl-lib"
-version = "5.5.1+flashsac.3"
-source = { git = "https://github.com/jnskkmhr/rsl_rl.git?rev=8b90bdeb7e047b2200de6874ca7630bfd47fe6a7#8b90bdeb7e047b2200de6874ca7630bfd47fe6a7" }
+version = "5.5.1+flashsac.4"
+source = { git = "https://github.com/jnskkmhr/rsl_rl.git?rev=22d529cd1f5add891d6d0ba4972d89de6e2064e1#22d529cd1f5add891d6d0ba4972d89de6e2064e1" }
 dependencies = [
     { name = "gitpython" },
     { name = "numpy" },

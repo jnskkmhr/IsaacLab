@@ -5,9 +5,10 @@
 
 from isaaclab.utils.configclass import configclass
 
-from isaaclab_contrib.mdp import MirrorJointPositionActionCfg
+from isaaclab_contrib.mdp import MirrorJointPositionActionCfg, MirrorJointPositionRangeActionCfg
 
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
+from isaaclab_tasks.utils import PresetCfg
 
 
 @configclass
@@ -54,3 +55,29 @@ class G1ActionsCfg:
     )
 
     joint_pos.mirror_params = {"joint_names": joint_pos.joint_names}
+
+
+@configclass
+class G1JointRangeActionsCfg(G1ActionsCfg):
+    """Map normalized actions to symmetric joint ranges around the default pose."""
+
+    joint_pos = MirrorJointPositionRangeActionCfg(
+        mirror=symmetry.mirror_g1_joints,
+        asset_name="robot",
+        joint_names=G1ActionsCfg().joint_pos.joint_names,
+        # scale=1.0,
+        scale=2.0,
+        use_default_offset=True,
+        preserve_order=True,
+    )
+    joint_pos.mirror_params = {"joint_names": joint_pos.joint_names}
+
+
+@configclass
+class G1ActionPresetsCfg(PresetCfg):
+    """Select joint-range scaling with ``env.actions=joint_range_action``."""
+
+    constant_scale_action = G1ActionsCfg()
+    joint_range_action: G1JointRangeActionsCfg = G1JointRangeActionsCfg()
+    # default = constant_scale_action
+    default = joint_range_action

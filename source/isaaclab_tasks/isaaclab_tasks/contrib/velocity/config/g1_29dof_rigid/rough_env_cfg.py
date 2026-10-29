@@ -17,13 +17,13 @@ from isaaclab_tasks.core.velocity.velocity_env_cfg import LocomotionVelocityRoug
 # Pre-defined configs
 ##
 from .env_cfg import (
-    G1ActionsCfg,
+    G1ActionPresetsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,
     G1EventCfg,
     G1ObservationsCfg,
     G1PhysicsCfg,
-    G1RewardsRoughCfg,
+    G1RewardsRoughPresetsCfg,
     G1SceneCfg,
     G1TerminationsCfg,
 )
@@ -33,8 +33,8 @@ from .env_cfg import (
 class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
     # physics settings owned by the task instead of inherited from the velocity base env
     sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
-    rewards: G1RewardsRoughCfg = G1RewardsRoughCfg()
-    actions: G1ActionsCfg = G1ActionsCfg()
+    rewards: G1RewardsRoughPresetsCfg = G1RewardsRoughPresetsCfg()
+    actions: G1ActionPresetsCfg = G1ActionPresetsCfg()
     observations: G1ObservationsCfg = G1ObservationsCfg()
     scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
     terminations: G1TerminationsCfg = G1TerminationsCfg()
@@ -72,14 +72,10 @@ class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         ]
 
         self.video_recorders = [
-            VideoRecorderCfg(
-                source="visualizer:newton_gl",
-                output_dir=None,
-                video_length=200,
-                video_interval=2000
-            ),
+            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]
+        self.curriculum.command_vel = None
 
 
 @configclass

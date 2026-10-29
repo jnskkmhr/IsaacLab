@@ -18,6 +18,7 @@ __all__ = [
     "foot_height",
     "terrain_material_parameters",
     "action_rate_l2",
+    "action_rate_rate_l2",
     "energy",
     "feet_air_time",
     "feet_air_time_positive_biped",
@@ -66,6 +67,7 @@ from .observations import (
 from .rewards import (
     break_contact_penalty,
     action_rate_l2,
+    action_rate_rate_l2,
     energy,
     feet_air_time,
     feet_air_time_positive_biped,

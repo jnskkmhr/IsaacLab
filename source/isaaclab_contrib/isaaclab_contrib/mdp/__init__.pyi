@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "JointPositionRangeAction",
+    "JointPositionRangeActionCfg",
     "ThrustAction",
     "NavigationAction",
     "ThrustActionCfg",
@@ -11,6 +13,7 @@ __all__ = [
     "MirrorObservationTermCfg",
     "MirrorActionTermCfg",
     "MirrorJointPositionActionCfg",
+    "MirrorJointPositionRangeActionCfg",
     "MirrorAugmentation",
     "compute_mirrored_states",
     "mirror_identity",
@@ -19,11 +22,19 @@ __all__ = [
     "mirror_joints",
 ]
 
-from .actions import NavigationAction, NavigationActionCfg, ThrustAction, ThrustActionCfg
+from .actions import (
+    JointPositionRangeAction,
+    JointPositionRangeActionCfg,
+    NavigationAction,
+    NavigationActionCfg,
+    ThrustAction,
+    ThrustActionCfg,
+)
 from .symmetry import (
     MirrorActionTermCfg,
     MirrorAugmentation,
     MirrorJointPositionActionCfg,
+    MirrorJointPositionRangeActionCfg,
     MirrorObservationTermCfg,
     compute_mirrored_states,
     mirror_identity,

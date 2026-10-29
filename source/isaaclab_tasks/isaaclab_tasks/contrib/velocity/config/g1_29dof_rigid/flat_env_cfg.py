@@ -9,13 +9,13 @@ from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualiz
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.utils.configclass import configclass
 
-from .env_cfg import G1RewardsCfg
+from .env_cfg import G1RewardsFlatPresetsCfg
 from .rough_env_cfg import G1RoughEnvCfg
 
 
 @configclass
 class G1FlatEnvCfg(G1RoughEnvCfg):
-    rewards: G1RewardsCfg = G1RewardsCfg()
+    rewards: G1RewardsFlatPresetsCfg = G1RewardsFlatPresetsCfg()
 
     def __post_init__(self):
         # post init of parent
@@ -32,7 +32,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
 
         # curriculum settings
         self.curriculum.terrain_levels = None  # type: ignore
-        self.curriculum.command_vel = None # type: ignore
+        self.curriculum.command_vel = None  # type: ignore
 
         # no height scan
         self.scene.height_scanner = None  # type: ignore
@@ -122,10 +122,5 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]
         self.video_recorders = [
-            VideoRecorderCfg(
-                source="visualizer:newton_rtx",
-                output_dir=None,
-                video_length=200,
-                video_interval=2000
-                ),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
         ]

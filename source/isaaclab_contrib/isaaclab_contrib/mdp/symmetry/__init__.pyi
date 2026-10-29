@@ -8,6 +8,7 @@ __all__ = [
     "MirrorActionTermCfg",
     "MirrorAugmentation",
     "MirrorJointPositionActionCfg",
+    "MirrorJointPositionRangeActionCfg",
     "MirrorObservationTermCfg",
     "compute_mirrored_states",
     "mirror_identity",
@@ -24,4 +25,9 @@ from .symmetry import (
     mirror_quat,
     mirror_vec3,
 )
-from .symmetry_cfg import MirrorActionTermCfg, MirrorJointPositionActionCfg, MirrorObservationTermCfg
+from .symmetry_cfg import (
+    MirrorActionTermCfg,
+    MirrorJointPositionActionCfg,
+    MirrorJointPositionRangeActionCfg,
+    MirrorObservationTermCfg,
+)
