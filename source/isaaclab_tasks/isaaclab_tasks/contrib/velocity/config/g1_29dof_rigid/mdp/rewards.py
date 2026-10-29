@@ -721,7 +721,7 @@ class action_rate_rate_l2(ManagerTermBase):
         penalty = torch.sum(
             torch.square(action_rate[:, asset_cfg.joint_ids] - self.prev_action_rate[:, asset_cfg.joint_ids]), dim=1
         )
-        self.prev_action_rate = action_rate
+        self.prev_action_rate.copy_(action_rate)
         return penalty
 
     def reset(self, env_ids: torch.Tensor | None = None):

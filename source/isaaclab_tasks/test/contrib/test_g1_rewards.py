@@ -39,3 +39,12 @@ def test_action_penalties_select_joints_and_reset_episode_history():
     actions.action.zero_()
     actions.prev_action.zero_()
     torch.testing.assert_close(term(env, asset_cfg), torch.zeros(2))
+
+    # Playback may step under inference_mode and reset outside it. Keep the history
+    # buffer writable across both contexts rather than replacing it with an inference tensor.
+    with torch.inference_mode():
+        actions.action.fill_(1.0)
+        term(env, asset_cfg)
+    term.reset()
+    actions.action.zero_()
+    torch.testing.assert_close(term(env, asset_cfg), torch.zeros(2))
