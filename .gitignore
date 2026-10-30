@@ -42,6 +42,7 @@ docker/.container.cfg
 **/.neptune/*
 docker/artifacts/
 *.tmp
+wandb
 
 # Doc Outputs
 **/docs/_build/*
@@ -73,3 +74,13 @@ tests/
 # TacSL sensor
 **/tactile_record/*
 **/gelsight_r15_data/*
+
+# Robot asset and texture files (these are large files that should not be tracked in git)
+!source/isaaclab_assets/data/*/*.usd
+!source/isaaclab_assets/data/*/*/*.usd
+!source/isaaclab_assets/data/*/*/*/*.usd
+!source/isaaclab_assets/data/texture/**/*.png
+!source/isaaclab_assets/data/texture/**/*.jpg
+!source/isaaclab_assets/data/*/*/*/*/*/*.png
+!source/isaaclab_assets/data/policies/**/*.pt
+!source/isaaclab_assets/data/policies/**/*.onnx

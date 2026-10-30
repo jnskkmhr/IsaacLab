@@ -153,6 +153,118 @@ class RslRlCNNModelCfg(RslRlMLPModelCfg):
     """The configuration for the CNN(s)."""
 
 
+@configclass
+class RslRlMLPEncoderModelCfg(RslRlMLPModelCfg):
+    """Configuration for MLP Encoder model."""
+
+    class_name: str = "MLPEncoderModel"
+    """The model class name. Defaults to MLPEncoderModel."""
+    encoder_obs_set: str = MISSING
+    """The observation set for the encoder."""
+    encoder_output_dim: int = MISSING
+    """The output dimension of the encoder."""
+    encoder_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the encoder."""
+    encoder_activation: str = MISSING
+    """The activation function for the encoder."""
+    encoder_obs_normalization: bool = False
+    """Whether to use observation normalization for the encoder. Defaults to False."""
+
+
+@configclass
+class RslRlMLPAEModelCfg(RslRlMLPModelCfg):
+    """Configuration for MLP AutoEncoder model."""
+
+    class_name: str = "MLPAutoEncoderModel"
+    """The model class name. Defaults to MLPAutoEncoderModel."""
+    encoder_obs_set: str = MISSING
+    """The observation set for the encoder."""
+    encoder_output_dim: int = MISSING
+    """The output dimension of the encoder."""
+    encoder_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the encoder."""
+    encoder_activation: str = MISSING
+    """The activation function for the encoder."""
+    encoder_obs_normalization: bool = False
+    """Whether to use observation normalization for the encoder. Defaults to False."""
+    decoder_obs_set: str = MISSING
+    """The observation set for the decoder."""
+
+
+@configclass
+class RslRlMLPVAEModelCfg(RslRlMLPModelCfg):
+    """Configuration for MLP Variational AutoEncoder model."""
+
+    class_name: str = "MLPVAEModel"
+    """The model class name. Defaults to MLPVAEModel."""
+    encoder_obs_set: str = MISSING
+    """The observation set for the encoder."""
+    encoder_output_dim: int = MISSING
+    """The output dimension of the encoder."""
+    encoder_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the encoder."""
+    encoder_activation: str = MISSING
+    """The activation function for the encoder."""
+    encoder_obs_normalization: bool = False
+    """Whether to use observation normalization for the encoder. Defaults to False."""
+    decoder_obs_set: str = MISSING
+    """The observation set for the decoder."""
+
+
+@configclass
+class RslRlRNNEncoderModelCfg(RslRlMLPModelCfg):
+    """Configuration for RNN Encoder model."""
+
+    class_name: str = "RNNEncoderModel"
+    """The model class name. Defaults to RNNEncoderModel."""
+    encoder_obs_set: str = MISSING
+    """The observation set for the encoder."""
+    encoder_obs_normalization: bool = False
+    """Whether to use observation normalization for the encoder. Defaults to False."""
+    rnn_type: str = MISSING
+    """The type of RNN to use. Either "lstm" or "gru"."""
+    rnn_hidden_dim: int = MISSING
+    """The dimension of the RNN layers."""
+    rnn_num_layers: int = MISSING
+    """The number of RNN layers."""
+
+
+@configclass
+class RslRlTCNModelCfg(RslRlMLPModelCfg):
+    """Configuration for TCN model."""
+
+    class_name: str = "TCNModel"
+    """The model class name. Defaults to TCNModel."""
+    encoder_obs_set: str = MISSING
+    """The observation set for the encoder."""
+    encoder_output_dim: int = MISSING
+    """The output dimension of the encoder."""
+    encoder_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the encoder."""
+    encoder_activation: str = MISSING
+    """The activation function for the encoder."""
+    encoder_obs_normalization: bool = False
+    """Whether to use observation normalization for the encoder. Defaults to False."""
+
+
+@configclass
+class RslRlTCNAttentionModelCfg(RslRlMLPModelCfg):
+    """Configuration for TCN Attention model."""
+
+    class_name: str = "TCNAttentionModel"
+    """The model class name. Defaults to TCNAttentionModel."""
+    encoder_obs_set: str = MISSING
+    """The observation set for the encoder."""
+    encoder_output_dim: int = MISSING
+    """The output dimension of the encoder."""
+    encoder_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the encoder."""
+    encoder_activation: str = MISSING
+    """The activation function for the encoder."""
+    encoder_obs_normalization: bool = False
+    """Whether to use observation normalization for the encoder. Defaults to False."""
+
+
 ############################
 # Algorithm configurations #
 ############################

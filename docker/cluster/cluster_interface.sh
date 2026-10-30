@@ -166,13 +166,41 @@ case $command in
         # NOTE: we create the singularity image as non-root user to allow for more flexibility. If this causes
         # issues, remove the --fakeroot flag and open an issue on the IsaacLab repository.
         cd /$SCRIPT_DIR/exports
-        APPTAINER_NOHTTPS=1 apptainer build --sandbox --fakeroot isaac-lab-$profile.sif docker-daemon://isaac-lab-$profile:latest
+        # APPTAINER_NOHTTPS=1 apptainer build --sandbox --fakeroot isaac-lab-$profile.sif docker-daemon://isaac-lab-$profile:latest
+        APPTAINER_NOHTTPS=1 apptainer build --sandbox isaac-lab-$profile.sif docker-daemon://isaac-lab-$profile:latest
         # tar image (faster to send single file as opposed to directory with many files)
         tar -cvf /$SCRIPT_DIR/exports/isaac-lab-$profile.tar isaac-lab-$profile.sif
         # make sure target directory exists
         ssh $CLUSTER_LOGIN "mkdir -p $CLUSTER_SIF_PATH"
         # send image to cluster
         scp $SCRIPT_DIR/exports/isaac-lab-$profile.tar $CLUSTER_LOGIN:$CLUSTER_SIF_PATH/isaac-lab-$profile.tar
+        ;;
+    sync)
+        if [ $# -ge 1 ]; then
+            passed_profile=$1
+            if [ -f "$SCRIPT_DIR/../.env.$passed_profile" ]; then
+                profile=$passed_profile
+                shift
+            fi
+        fi
+        job_args="$@"
+        echo "[INFO] Executing job command"
+        [ -n "$profile" ] && echo -e "\tUsing profile: $profile"
+        [ -n "$job_args" ] && echo -e "\tJob arguments: $job_args"
+        source $SCRIPT_DIR/.env.cluster
+        # Get current date and time
+        current_datetime=$(date +"%Y%m%d_%H%M%S")
+        # Append current date and time to CLUSTER_ISAACLAB_DIR
+        CLUSTER_ISAACLAB_DIR="${CLUSTER_ISAACLAB_DIR}_${current_datetime}"
+        # Check if singularity image exists on the remote host
+        check_singularity_image_exists isaac-lab-$profile
+        # make sure target directory exists
+        ssh $CLUSTER_LOGIN "mkdir -p $CLUSTER_ISAACLAB_DIR"
+        # Sync Isaac Lab code
+        echo "[INFO] Syncing Isaac Lab code..."
+        # Calculate the IsaacLab root directory (two levels up from script directory)
+        ISAACLAB_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+        rsync -rh --exclude="*.git*" --exclude="wandb" --exclude=".vscode" --filter=':- .dockerignore' "$ISAACLAB_ROOT/" $CLUSTER_LOGIN:$CLUSTER_ISAACLAB_DIR
         ;;
     job)
         if [ $# -ge 1 ]; then

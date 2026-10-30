@@ -17,13 +17,30 @@ The following configurations are available:
 * :obj:`G1_29DOF_CFG`: G1 humanoid robot configured for locomanipulation tasks
 * :obj:`G1_INSPIRE_FTP_CFG`: G1 29DOF humanoid robot with Inspire 5-finger hand
 
+* :obj:`UNITREE_G1_29DOF_CFG`: G1 29DOF humanoid robot with real hardware parameters
+* :obj: `UNITREE_G1_29DOF_DELAY_CFG`: G1 29DOF humanoid robot with real hardware parameters and actuator delay
+* :obj: `UNITREE_G1_23DOF_CFG`: G1 23DOF humanoid robot with real hardware parameters
+* :obj: `UNITREE_G1_23DOF_DELAY_CFG`: G1 23DOF humanoid robot with real hardware parameters and actuator delay
+* :obj: `UNITREE_G1_29DOF_MIMIC_CFG`: G1 29DOF humanoid robot with PD gains from beyondmimic
+
+
 Reference: https://github.com/unitreerobotics/unitree_ros
 """
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ActuatorNetMLPCfg, DCMotorCfg, ImplicitActuatorCfg
+from isaaclab.actuators import ActuatorNetMLPCfg, DCMotorCfg, DelayedPDActuatorCfg, ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
+
+from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
+
+from .unitree_actuators import (
+    UnitreeActuatorCfg_N5010_16,  # noqa: F401
+    UnitreeActuatorCfg_N5020_16,
+    UnitreeActuatorCfg_N7520_14p3,
+    UnitreeActuatorCfg_N7520_22p5,
+    UnitreeActuatorCfg_W4010_25,
+)
 
 ##
 # Configuration - Actuators.
@@ -609,3 +626,834 @@ G1_INSPIRE_FTP_CFG.actuators["hands"] = ImplicitActuatorCfg(
     damping=0.2,
     armature=0.001,
 )
+
+
+"""
+G1 configuration aligned with actual hardware spec. 
+Configuration above uses USD file which does not match hardware configurations. 
+Gain parameters are adapted from 
+LeggedLab https://github.com/Hellod035/LeggedLab and 
+BeyondMimic https://github.com/HybridRobotics/whole_body_tracking
+"""
+
+UNITREE_G1_29DOF_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True, solver_position_iteration_count=4, solver_velocity_iteration_count=1
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.80),
+        joint_pos={
+            ".*_hip_pitch_joint": -0.20,
+            ".*_knee_joint": 0.42,
+            ".*_ankle_pitch_joint": -0.23,
+            ".*_elbow_joint": 0.87,
+            "left_shoulder_roll_joint": 0.18,
+            "left_shoulder_pitch_joint": 0.35,
+            "right_shoulder_roll_joint": -0.18,
+            "right_shoulder_pitch_joint": 0.35,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    soft_joint_pos_limit_factor=0.90,
+    actuators={
+        "legs": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_hip_yaw_joint",
+                ".*_hip_roll_joint",
+                ".*_hip_pitch_joint",
+                ".*_knee_joint",
+                ".*waist.*",
+            ],
+            effort_limit_sim={
+                ".*_hip_yaw_joint": 88.0,
+                ".*_hip_roll_joint": 139.0,
+                ".*_hip_pitch_joint": 88.0,
+                ".*_knee_joint": 139.0,
+                ".*waist_yaw_joint": 88.0,
+                ".*waist_roll_joint": 35.0,
+                ".*waist_pitch_joint": 35.0,
+            },
+            velocity_limit_sim={
+                ".*_hip_yaw_joint": 32.0,
+                ".*_hip_roll_joint": 20.0,
+                ".*_hip_pitch_joint": 32.0,
+                ".*_knee_joint": 20.0,
+                ".*waist_yaw_joint": 32.0,
+                ".*waist_roll_joint": 30.0,
+                ".*waist_pitch_joint": 30.0,
+            },
+            stiffness={
+                ".*_hip_yaw_joint": 150.0,
+                ".*_hip_roll_joint": 150.0,
+                ".*_hip_pitch_joint": 200.0,
+                ".*_knee_joint": 200.0,
+                ".*waist.*": 200.0,
+            },
+            damping={
+                ".*_hip_yaw_joint": 5.0,
+                ".*_hip_roll_joint": 5.0,
+                ".*_hip_pitch_joint": 5.0,
+                ".*_knee_joint": 5.0,
+                ".*waist.*": 5.0,
+            },
+            armature=0.01,
+        ),
+        "feet": ImplicitActuatorCfg(
+            joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+            effort_limit_sim={
+                ".*_ankle_pitch_joint": 35.0,
+                ".*_ankle_roll_joint": 35.0,
+            },
+            velocity_limit_sim={
+                ".*_ankle_pitch_joint": 30.0,
+                ".*_ankle_roll_joint": 30.0,
+            },
+            stiffness=20.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+        "shoulders": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_shoulder_pitch_joint",
+                ".*_shoulder_roll_joint",
+            ],
+            effort_limit_sim={
+                ".*_shoulder_pitch_joint": 25.0,
+                ".*_shoulder_roll_joint": 25.0,
+            },
+            velocity_limit_sim={
+                ".*_shoulder_pitch_joint": 37.0,
+                ".*_shoulder_roll_joint": 37.0,
+            },
+            stiffness=100.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+        "arms": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_shoulder_yaw_joint",
+                ".*_elbow_joint",
+            ],
+            effort_limit_sim={
+                ".*_shoulder_yaw_joint": 25.0,
+                ".*_elbow_joint": 25.0,
+            },
+            velocity_limit_sim={
+                ".*_shoulder_yaw_joint": 37.0,
+                ".*_elbow_joint": 37.0,
+            },
+            stiffness=50.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+        "wrist": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_wrist_.*",
+            ],
+            effort_limit_sim={
+                ".*_wrist_yaw_joint": 5.0,
+                ".*_wrist_roll_joint": 25.0,
+                ".*_wrist_pitch_joint": 5.0,
+            },
+            velocity_limit_sim={
+                ".*_wrist_yaw_joint": 22.0,
+                ".*_wrist_roll_joint": 37.0,
+                ".*_wrist_pitch_joint": 22.0,
+            },
+            stiffness=40.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+    },
+)
+
+UNITREE_G1_29DOF_DELAY_CFG = UNITREE_G1_29DOF_CFG.copy()  # type: ignore
+UNITREE_G1_29DOF_DELAY_CFG.actuators["legs"] = DelayedPDActuatorCfg(
+    joint_names_expr=[
+        ".*_hip_yaw_joint",
+        ".*_hip_roll_joint",
+        ".*_hip_pitch_joint",
+        ".*_knee_joint",
+        ".*waist.*",
+    ],
+    effort_limit_sim={
+        ".*_hip_yaw_joint": 88.0,
+        ".*_hip_roll_joint": 139.0,
+        ".*_hip_pitch_joint": 88.0,
+        ".*_knee_joint": 139.0,
+        ".*waist_yaw_joint": 88.0,
+        ".*waist_roll_joint": 35.0,
+        ".*waist_pitch_joint": 35.0,
+    },
+    velocity_limit_sim={
+        ".*_hip_yaw_joint": 32.0,
+        ".*_hip_roll_joint": 20.0,
+        ".*_hip_pitch_joint": 32.0,
+        ".*_knee_joint": 20.0,
+        ".*waist_yaw_joint": 32.0,
+        ".*waist_roll_joint": 30.0,
+        ".*waist_pitch_joint": 30.0,
+    },
+    stiffness={
+        ".*_hip_yaw_joint": 150.0,
+        ".*_hip_roll_joint": 150.0,
+        ".*_hip_pitch_joint": 200.0,
+        ".*_knee_joint": 200.0,
+        ".*waist.*": 200.0,
+    },
+    damping={
+        ".*_hip_yaw_joint": 5.0,
+        ".*_hip_roll_joint": 5.0,
+        ".*_hip_pitch_joint": 5.0,
+        ".*_knee_joint": 5.0,
+        ".*waist.*": 5.0,
+    },
+    armature=0.01,
+    min_delay=0,
+    max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+)
+
+UNITREE_G1_29DOF_DELAY_CFG.actuators["feet"] = DelayedPDActuatorCfg(
+    joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+    effort_limit_sim={
+        ".*_ankle_pitch_joint": 35.0,
+        ".*_ankle_roll_joint": 35.0,
+    },
+    velocity_limit_sim={
+        ".*_ankle_pitch_joint": 30.0,
+        ".*_ankle_roll_joint": 30.0,
+    },
+    stiffness=20.0,
+    damping=2.0,
+    armature=0.01,
+    min_delay=0,
+    max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+)
+
+"""
+G1 23DOF model.
+"""
+
+UNITREE_G1_23DOF_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_23dof_rev_1_0/g1_23dof_rev_1_0.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True, solver_position_iteration_count=4, solver_velocity_iteration_count=1
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.80),
+        joint_pos={
+            ".*_hip_pitch_joint": -0.1,
+            ".*_knee_joint": 0.3,
+            ".*_ankle_pitch_joint": -0.2,
+            ".*_elbow_joint": 0.97,
+            "left_shoulder_roll_joint": 0.25,
+            "left_shoulder_pitch_joint": 0.3,
+            "right_shoulder_roll_joint": -0.25,
+            "right_shoulder_pitch_joint": 0.3,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    soft_joint_pos_limit_factor=0.90,
+    actuators={
+        "legs": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_hip_yaw_joint",
+                ".*_hip_roll_joint",
+                ".*_hip_pitch_joint",
+                ".*_knee_joint",
+                ".*waist.*",
+            ],
+            effort_limit_sim={
+                ".*_hip_yaw_joint": 88.0,
+                ".*_hip_roll_joint": 139.0,
+                ".*_hip_pitch_joint": 88.0,
+                ".*_knee_joint": 139.0,
+                ".*waist_yaw_joint": 88.0,
+            },
+            velocity_limit_sim={
+                ".*_hip_yaw_joint": 32.0,
+                ".*_hip_roll_joint": 20.0,
+                ".*_hip_pitch_joint": 32.0,
+                ".*_knee_joint": 20.0,
+                ".*waist_yaw_joint": 32.0,
+            },
+            stiffness={
+                ".*_hip_yaw_joint": 150.0,
+                ".*_hip_roll_joint": 150.0,
+                ".*_hip_pitch_joint": 200.0,
+                ".*_knee_joint": 200.0,
+                ".*waist.*": 200.0,
+            },
+            damping={
+                ".*_hip_yaw_joint": 5.0,
+                ".*_hip_roll_joint": 5.0,
+                ".*_hip_pitch_joint": 5.0,
+                ".*_knee_joint": 5.0,
+                ".*waist.*": 5.0,
+            },
+            armature=0.01,
+        ),
+        "feet": ImplicitActuatorCfg(
+            joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+            effort_limit_sim={
+                ".*_ankle_pitch_joint": 35.0,
+                ".*_ankle_roll_joint": 35.0,
+            },
+            velocity_limit_sim={
+                ".*_ankle_pitch_joint": 30.0,
+                ".*_ankle_roll_joint": 30.0,
+            },
+            stiffness=20.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+        "shoulders": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_shoulder_pitch_joint",
+                ".*_shoulder_roll_joint",
+            ],
+            effort_limit_sim={
+                ".*_shoulder_pitch_joint": 25.0,
+                ".*_shoulder_roll_joint": 25.0,
+            },
+            velocity_limit_sim={
+                ".*_shoulder_pitch_joint": 37.0,
+                ".*_shoulder_roll_joint": 37.0,
+            },
+            stiffness=100.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+        "arms": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_shoulder_yaw_joint",
+                ".*_elbow_joint",
+            ],
+            effort_limit_sim={
+                ".*_shoulder_yaw_joint": 25.0,
+                ".*_elbow_joint": 25.0,
+            },
+            velocity_limit_sim={
+                ".*_shoulder_yaw_joint": 37.0,
+                ".*_elbow_joint": 37.0,
+            },
+            stiffness=50.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+        "wrist": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_wrist_.*",
+            ],
+            effort_limit_sim={
+                ".*_wrist_roll_joint": 25.0,
+            },
+            velocity_limit_sim={
+                ".*_wrist_roll_joint": 37.0,
+            },
+            stiffness=40.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+    },
+)
+
+UNITREE_G1_23DOF_DELAY_CFG = UNITREE_G1_23DOF_CFG.copy()  # type: ignore
+UNITREE_G1_23DOF_DELAY_CFG.actuators["legs"] = DelayedPDActuatorCfg(
+    joint_names_expr=[
+        ".*_hip_yaw_joint",
+        ".*_hip_roll_joint",
+        ".*_hip_pitch_joint",
+        ".*_knee_joint",
+        ".*waist.*",
+    ],
+    effort_limit_sim={
+        ".*_hip_yaw_joint": 88.0,
+        ".*_hip_roll_joint": 139.0,
+        ".*_hip_pitch_joint": 88.0,
+        ".*_knee_joint": 139.0,
+        ".*waist_yaw_joint": 88.0,
+    },
+    velocity_limit_sim={
+        ".*_hip_yaw_joint": 32.0,
+        ".*_hip_roll_joint": 20.0,
+        ".*_hip_pitch_joint": 32.0,
+        ".*_knee_joint": 20.0,
+        ".*waist_yaw_joint": 32.0,
+    },
+    stiffness={
+        ".*_hip_yaw_joint": 150.0,
+        ".*_hip_roll_joint": 150.0,
+        ".*_hip_pitch_joint": 200.0,
+        ".*_knee_joint": 200.0,
+        ".*waist.*": 200.0,
+    },
+    damping={
+        ".*_hip_yaw_joint": 5.0,
+        ".*_hip_roll_joint": 5.0,
+        ".*_hip_pitch_joint": 5.0,
+        ".*_knee_joint": 5.0,
+        ".*waist.*": 5.0,
+    },
+    armature=0.01,
+    min_delay=0,
+    max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+)
+
+UNITREE_G1_23DOF_DELAY_CFG.actuators["feet"] = DelayedPDActuatorCfg(
+    joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+    effort_limit_sim={
+        ".*_ankle_pitch_joint": 35.0,
+        ".*_ankle_roll_joint": 35.0,
+    },
+    velocity_limit_sim={
+        ".*_ankle_pitch_joint": 30.0,
+        ".*_ankle_roll_joint": 30.0,
+    },
+    stiffness=20.0,
+    damping=2.0,
+    armature=0.01,
+    min_delay=0,
+    max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+)
+
+
+"""
+G1 configuration with motor dynamics. 
+Note that this config does not work as well as config above.
+"""
+
+UNITREE_G1_23DOF_MotorDyn_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_23dof_rev_1_0/g1_23dof_rev_1_0.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True, solver_position_iteration_count=8, solver_velocity_iteration_count=4
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.8),
+        joint_pos={
+            ".*_hip_pitch_joint": -0.1,
+            ".*_knee_joint": 0.3,
+            ".*_ankle_pitch_joint": -0.2,
+            ".*_shoulder_pitch_joint": 0.3,
+            "left_shoulder_roll_joint": 0.25,
+            "right_shoulder_roll_joint": -0.25,
+            ".*_elbow_joint": 0.97,
+            "left_wrist_roll_joint": 0.15,
+            "right_wrist_roll_joint": -0.15,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    actuators={
+        "N7520-14.3": UnitreeActuatorCfg_N7520_14p3(
+            joint_names_expr=[".*_hip_pitch_.*", ".*_hip_yaw_.*", "waist_yaw_joint"],  # 5
+            effort_limit_sim=88,
+            velocity_limit_sim=32.0,
+            stiffness={
+                ".*_hip_.*": 100.0,
+                "waist_yaw_joint": 200.0,
+            },
+            damping={
+                ".*_hip_.*": 2.0,
+                "waist_yaw_joint": 5.0,
+            },
+            armature=0.01,
+        ),
+        "N7520-22.5": UnitreeActuatorCfg_N7520_22p5(
+            joint_names_expr=[".*_hip_roll_.*", ".*_knee_.*"],  # 4
+            effort_limit_sim=139,
+            velocity_limit_sim=20.0,
+            stiffness={
+                ".*_hip_roll_.*": 100.0,
+                ".*_knee_.*": 150.0,
+            },
+            damping={
+                ".*_hip_roll_.*": 2.0,
+                ".*_knee_.*": 4.0,
+            },
+            armature=0.01,
+        ),
+        "N5020-16": UnitreeActuatorCfg_N5020_16(
+            joint_names_expr=[".*_shoulder_.*", ".*_elbow_.*", ".*_wrist_roll_.*"],  # 10
+            effort_limit_sim=25,
+            velocity_limit_sim=37,
+            stiffness=40.0,
+            damping=1.0,
+            armature=0.01,
+        ),
+        "N5020-16-parallel": UnitreeActuatorCfg_N5020_16(
+            joint_names_expr=[".*ankle.*"],  # 4
+            effort_limit_sim=35,
+            velocity_limit_sim=30,
+            stiffness=40.0,
+            damping=2.0,
+            armature=0.01,
+        ),
+    },
+)
+
+
+UNITREE_G1_29DOF_MotorDyn_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True, solver_position_iteration_count=8, solver_velocity_iteration_count=4
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.78),
+        joint_pos={
+            ".*_hip_pitch_joint": -0.20,
+            ".*_knee_joint": 0.42,
+            ".*_ankle_pitch_joint": -0.23,
+            ".*_elbow_joint": 0.87,
+            "left_shoulder_roll_joint": 0.18,
+            "left_shoulder_pitch_joint": 0.35,
+            "right_shoulder_roll_joint": -0.18,
+            "right_shoulder_pitch_joint": 0.35,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    soft_joint_pos_limit_factor=0.9,
+    actuators={
+        "N7520-14.3": UnitreeActuatorCfg_N7520_14p3(
+            joint_names_expr=[
+                ".*_hip_pitch_joint",
+                ".*_hip_yaw_joint",
+                "waist_yaw_joint",
+            ],
+            effort_limit_sim=88.0,
+            velocity_limit_sim=32.0,
+            stiffness={
+                ".*_hip_pitch_joint": 200.0,
+                ".*_hip_yaw_joint": 150.0,
+                "waist_yaw_joint": 200.0,
+            },
+            damping={
+                ".*_hip_pitch_joint": 5.0,
+                ".*_hip_yaw_joint": 5.0,
+                "waist_yaw_joint": 5.0,
+            },
+            armature=0.01,
+            min_delay=0,  # physics time steps (min: 5.0*0=0.0ms)
+            max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+        ),
+        "N7520-22.5": UnitreeActuatorCfg_N7520_22p5(
+            joint_names_expr=[
+                ".*_hip_roll_joint",
+                ".*_knee_joint",
+            ],
+            effort_limit_sim=139.0,
+            velocity_limit_sim=20.0,
+            stiffness={
+                ".*_hip_roll_joint": 150.0,
+                ".*_knee_joint": 200.0,
+            },
+            damping={
+                ".*_hip_roll_joint": 5.0,
+                ".*_knee_joint": 5.0,
+            },
+            armature=0.01,
+            min_delay=0,  # physics time steps (min: 5.0*0=0.0ms)
+            max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+        ),
+        "N5020-16": UnitreeActuatorCfg_N5020_16(
+            joint_names_expr=[
+                ".*_ankle_.*",
+                "waist_roll_joint",
+                "waist_pitch_joint",
+                ".*_shoulder_.*",
+                ".*_elbow_.*",
+                ".*_wrist_roll.*",
+            ],
+            effort_limit_sim={
+                ".*_ankle_.*": 50.0,
+                "waist_roll_joint": 50.0,
+                "waist_pitch_joint": 50.0,
+                ".*_shoulder_pitch_joint": 25.0,
+                ".*_shoulder_roll_joint": 25.0,
+                ".*_shoulder_yaw_joint": 25.0,
+                ".*_elbow_.*": 25.0,
+                ".*_wrist_roll.*": 25.0,
+            },
+            velocity_limit_sim=37.0,
+            stiffness={
+                ".*_ankle_.*": 20.0,
+                "waist_roll_joint": 200.0,
+                "waist_pitch_joint": 200.0,
+                ".*_shoulder_pitch_joint": 100.0,
+                ".*_shoulder_roll_joint": 100.0,
+                ".*_shoulder_yaw_joint": 50.0,
+                ".*_elbow_.*": 50.0,
+                ".*_wrist_roll.*": 40.0,
+            },
+            damping={
+                ".*_ankle_.*": 2.0,
+                "waist_roll_joint": 5.0,
+                "waist_pitch_joint": 5.0,
+                ".*_shoulder_pitch_joint": 2.0,
+                ".*_shoulder_roll_joint": 2.0,
+                ".*_shoulder_yaw_joint": 2.0,
+                ".*_elbow_.*": 2.0,
+                ".*_wrist_roll.*": 2.0,
+            },
+            armature=0.01,
+            min_delay=0,  # physics time steps (min: 5.0*0=0.0ms)
+            max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+        ),
+        "W4010-25": UnitreeActuatorCfg_W4010_25(
+            joint_names_expr=[
+                ".*_wrist_pitch.*",
+                ".*_wrist_yaw.*",
+            ],
+            effort_limit_sim=5.0,
+            velocity_limit_sim=22.0,
+            stiffness=40.0,
+            damping=2.0,
+            armature=0.01,
+            min_delay=0,  # physics time steps (min: 5.0*0=0.0ms)
+            max_delay=4,  # physics time steps (max: 5.0*4=20.0ms)
+        ),
+    },
+)
+
+
+"""
+mimic policy
+"""
+
+ARMATURE_5020 = 0.003609725
+ARMATURE_7520_14 = 0.010177520
+ARMATURE_7520_22 = 0.025101925
+ARMATURE_4010 = 0.00425
+
+NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
+DAMPING_RATIO = 2.0
+
+STIFFNESS_5020 = ARMATURE_5020 * NATURAL_FREQ**2  # 14.25062309787429
+STIFFNESS_7520_14 = ARMATURE_7520_14 * NATURAL_FREQ**2  # 40.17923847137318
+STIFFNESS_7520_22 = ARMATURE_7520_22 * NATURAL_FREQ**2  # 99.09842777666113
+STIFFNESS_4010 = ARMATURE_4010 * NATURAL_FREQ**2  # 16.77832748089279
+
+DAMPING_5020 = 2.0 * DAMPING_RATIO * ARMATURE_5020 * NATURAL_FREQ  # 0.907222843292423
+DAMPING_7520_14 = 2.0 * DAMPING_RATIO * ARMATURE_7520_14 * NATURAL_FREQ  # 2.5578897650279457
+DAMPING_7520_22 = 2.0 * DAMPING_RATIO * ARMATURE_7520_22 * NATURAL_FREQ  # 6.3088018534966395
+DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ  # 1.06814150219
+
+UNITREE_G1_29DOF_MIMIC_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usd",
+        activate_contact_sensors=True,
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            retain_accelerations=False,
+            linear_damping=0.0,
+            angular_damping=0.0,
+            max_linear_velocity=1000.0,
+            max_angular_velocity=1000.0,
+            max_depenetration_velocity=1.0,
+        ),
+        articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=True, solver_position_iteration_count=4, solver_velocity_iteration_count=1
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.76),
+        joint_pos={
+            ".*_hip_pitch_joint": -0.312,
+            ".*_knee_joint": 0.669,
+            ".*_ankle_pitch_joint": -0.363,
+            ".*_elbow_joint": 0.6,
+            "left_shoulder_roll_joint": 0.2,
+            "left_shoulder_pitch_joint": 0.2,
+            "right_shoulder_roll_joint": -0.2,
+            "right_shoulder_pitch_joint": 0.2,
+            # ".*_elbow_joint": 0.87,
+            # "left_shoulder_roll_joint": 0.18,
+            # "left_shoulder_pitch_joint": 0.35,
+            # "right_shoulder_roll_joint": -0.18,
+            # "right_shoulder_pitch_joint": 0.35,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    soft_joint_pos_limit_factor=0.9,
+    actuators={
+        "legs": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_hip_yaw_joint",
+                ".*_hip_roll_joint",
+                ".*_hip_pitch_joint",
+                ".*_knee_joint",
+            ],
+            effort_limit_sim={
+                ".*_hip_yaw_joint": 88.0,
+                ".*_hip_roll_joint": 139.0,
+                ".*_hip_pitch_joint": 88.0,
+                ".*_knee_joint": 139.0,
+            },
+            velocity_limit_sim={
+                ".*_hip_yaw_joint": 32.0,
+                ".*_hip_roll_joint": 20.0,
+                ".*_hip_pitch_joint": 32.0,
+                ".*_knee_joint": 20.0,
+            },
+            stiffness={
+                ".*_hip_pitch_joint": STIFFNESS_7520_14,
+                ".*_hip_roll_joint": STIFFNESS_7520_22,
+                ".*_hip_yaw_joint": STIFFNESS_7520_14,
+                ".*_knee_joint": STIFFNESS_7520_22,
+            },
+            damping={
+                ".*_hip_pitch_joint": DAMPING_7520_14,
+                ".*_hip_roll_joint": DAMPING_7520_22,
+                ".*_hip_yaw_joint": DAMPING_7520_14,
+                ".*_knee_joint": DAMPING_7520_22,
+            },
+            armature={
+                ".*_hip_pitch_joint": ARMATURE_7520_14,
+                ".*_hip_roll_joint": ARMATURE_7520_22,
+                ".*_hip_yaw_joint": ARMATURE_7520_14,
+                ".*_knee_joint": ARMATURE_7520_22,
+            },
+        ),
+        "feet": ImplicitActuatorCfg(
+            effort_limit_sim=50.0,
+            velocity_limit_sim=37.0,
+            joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
+            stiffness=2.0 * STIFFNESS_5020,
+            damping=2.0 * DAMPING_5020,
+            armature=2.0 * ARMATURE_5020,
+        ),
+        "waist": ImplicitActuatorCfg(
+            effort_limit_sim=50,
+            velocity_limit_sim=37.0,
+            joint_names_expr=["waist_roll_joint", "waist_pitch_joint"],
+            stiffness=2.0 * STIFFNESS_5020,
+            damping=2.0 * DAMPING_5020,
+            armature=2.0 * ARMATURE_5020,
+        ),
+        "waist_yaw": ImplicitActuatorCfg(
+            effort_limit_sim=88,
+            velocity_limit_sim=32.0,
+            joint_names_expr=["waist_yaw_joint"],
+            stiffness=STIFFNESS_7520_14,
+            damping=DAMPING_7520_14,
+            armature=ARMATURE_7520_14,
+        ),
+        "arms": ImplicitActuatorCfg(
+            joint_names_expr=[
+                ".*_shoulder_pitch_joint",
+                ".*_shoulder_roll_joint",
+                ".*_shoulder_yaw_joint",
+                ".*_elbow_joint",
+                ".*_wrist_roll_joint",
+                ".*_wrist_pitch_joint",
+                ".*_wrist_yaw_joint",
+            ],
+            effort_limit_sim={
+                ".*_shoulder_pitch_joint": 25.0,
+                ".*_shoulder_roll_joint": 25.0,
+                ".*_shoulder_yaw_joint": 25.0,
+                ".*_elbow_joint": 25.0,
+                ".*_wrist_roll_joint": 25.0,
+                ".*_wrist_pitch_joint": 5.0,
+                ".*_wrist_yaw_joint": 5.0,
+            },
+            velocity_limit_sim={
+                ".*_shoulder_pitch_joint": 37.0,
+                ".*_shoulder_roll_joint": 37.0,
+                ".*_shoulder_yaw_joint": 37.0,
+                ".*_elbow_joint": 37.0,
+                ".*_wrist_roll_joint": 37.0,
+                ".*_wrist_pitch_joint": 22.0,
+                ".*_wrist_yaw_joint": 22.0,
+            },
+            stiffness={
+                ".*_shoulder_pitch_joint": STIFFNESS_5020,
+                ".*_shoulder_roll_joint": STIFFNESS_5020,
+                ".*_shoulder_yaw_joint": STIFFNESS_5020,
+                ".*_elbow_joint": STIFFNESS_5020,
+                ".*_wrist_roll_joint": STIFFNESS_5020,
+                ".*_wrist_pitch_joint": STIFFNESS_4010,
+                ".*_wrist_yaw_joint": STIFFNESS_4010,
+            },
+            damping={
+                ".*_shoulder_pitch_joint": DAMPING_5020,
+                ".*_shoulder_roll_joint": DAMPING_5020,
+                ".*_shoulder_yaw_joint": DAMPING_5020,
+                ".*_elbow_joint": DAMPING_5020,
+                ".*_wrist_roll_joint": DAMPING_5020,
+                ".*_wrist_pitch_joint": DAMPING_4010,
+                ".*_wrist_yaw_joint": DAMPING_4010,
+            },
+            armature={
+                ".*_shoulder_pitch_joint": ARMATURE_5020,
+                ".*_shoulder_roll_joint": ARMATURE_5020,
+                ".*_shoulder_yaw_joint": ARMATURE_5020,
+                ".*_elbow_joint": ARMATURE_5020,
+                ".*_wrist_roll_joint": ARMATURE_5020,
+                ".*_wrist_pitch_joint": ARMATURE_4010,
+                ".*_wrist_yaw_joint": ARMATURE_4010,
+            },
+        ),
+    },
+)
+
+UNITREE_G1_29DOF_MIMIC_ACTION_SCALE = {}
+for a in UNITREE_G1_29DOF_MIMIC_CFG.actuators.values():
+    e = a.effort_limit_sim
+    s = a.stiffness
+    names = a.joint_names_expr
+    if not isinstance(e, dict):
+        e = {n: e for n in names}
+    if not isinstance(s, dict):
+        s = {n: s for n in names}
+    for n in names:
+        if n in e and n in s and s[n]:
+            UNITREE_G1_29DOF_MIMIC_ACTION_SCALE[n] = 0.25 * e[n] / s[n]  # type: ignore

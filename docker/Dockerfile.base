@@ -84,7 +84,8 @@ RUN touch /bin/nvidia-smi && \
     touch /bin/nvidia-cuda-mps-server && \
     touch /etc/localtime && \
     mkdir -p /var/run/nvidia-persistenced && \
-    touch /var/run/nvidia-persistenced/socket
+    touch /var/run/nvidia-persistenced/socket && \
+    mkdir -p /storage
 
 # installing Isaac Lab dependencies
 # use pip caching to avoid reinstalling large packages

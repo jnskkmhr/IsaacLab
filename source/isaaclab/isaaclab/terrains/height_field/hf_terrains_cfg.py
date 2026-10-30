@@ -184,3 +184,22 @@ class HfSteppingStonesTerrainCfg(HfTerrainBaseCfg):
 
     platform_width: float = 1.0
     """The width of the square platform at the center of the terrain. Defaults to 1.0."""
+
+
+@configclass
+class HfFlatHolesTerrainCfg(HfTerrainBaseCfg):
+    """Configuration for a flat terrain with randomly placed square holes."""
+
+    function = hf_terrains.flat_holes_terrain
+
+    hole_width_range: tuple[float, float] = MISSING
+    """The minimum and maximum width of the square holes (in m)."""
+
+    num_holes: int = MISSING
+    """The number of holes to generate."""
+
+    holes_depth: float = -10.0
+    """The depth of the holes (negative height). Defaults to -10.0."""
+
+    platform_width: float = 1.0
+    """The width of the square platform at the center of the terrain. Defaults to 1.0."""

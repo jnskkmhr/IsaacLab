@@ -435,3 +435,55 @@ def stepping_stones_terrain(difficulty: float, cfg: hf_terrains_cfg.HfSteppingSt
     hf_raw[x1:x2, y1:y2] = 0
     # round off the heights to the nearest vertical step
     return np.rint(hf_raw).astype(np.int16)
+
+
+@height_field_to_mesh
+def flat_holes_terrain(difficulty: float, cfg: hf_terrains_cfg.HfFlatHolesTerrainCfg) -> np.ndarray:
+    """Generate a flat terrain with randomly placed square holes.
+
+    The terrain is a flat surface (height 0) with randomly placed square holes of depth
+    :obj:`cfg.holes_depth`. The holes have widths sampled uniformly from :obj:`cfg.hole_width_range`.
+    A flat platform of width :obj:`cfg.platform_width` is kept at the center.
+
+    Args:
+        difficulty: The difficulty of the terrain. This is a value between 0 and 1.
+        cfg: The configuration for the terrain.
+
+    Returns:
+        The height field of the terrain as a 2D numpy array with discretized heights.
+        The shape of the array is (width, length), where width and length are the number of points
+        along the x and y axis, respectively.
+    """
+    # switch parameters to discrete units
+    # -- terrain
+    width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
+    length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
+    # -- holes
+    holes_depth = int(cfg.holes_depth / cfg.vertical_scale)
+    hole_width_min = int(cfg.hole_width_range[0] / cfg.horizontal_scale)
+    hole_width_max = int(cfg.hole_width_range[1] / cfg.horizontal_scale)
+    # -- center platform
+    platform_width = int(cfg.platform_width / cfg.horizontal_scale)
+
+    # create a flat terrain
+    hf_raw = np.zeros((width_pixels, length_pixels))
+
+    # generate the holes
+    for _ in range(cfg.num_holes):
+        # sample hole size (square)
+        hole_w = np.random.randint(hole_width_min, hole_width_max + 1)
+        # sample position
+        x_start = np.random.randint(0, max(width_pixels - hole_w, 1))
+        y_start = np.random.randint(0, max(length_pixels - hole_w, 1))
+        # carve the hole
+        hf_raw[x_start : x_start + hole_w, y_start : y_start + hole_w] = holes_depth
+
+    # clear the center platform
+    x1 = (width_pixels - platform_width) // 2
+    x2 = (width_pixels + platform_width) // 2
+    y1 = (length_pixels - platform_width) // 2
+    y2 = (length_pixels + platform_width) // 2
+    hf_raw[x1:x2, y1:y2] = 0
+
+    # round off the heights to the nearest vertical step
+    return np.rint(hf_raw).astype(np.int16)
