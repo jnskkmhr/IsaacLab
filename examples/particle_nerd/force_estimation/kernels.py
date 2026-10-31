@@ -7,6 +7,10 @@
 
 import warp as wp
 
+from particle_nerd.shovel.sdf import surface as sdf_surface
+
+wp.set_module_options({"enable_backward": False, "max_unroll": 0})
+
 
 @wp.func
 def geometry(point: wp.vec3d, pose: wp.transform, size: wp.vec3, shape: int):
@@ -143,6 +147,10 @@ def prepare_contacts(
     particle_mass: wp.array(dtype=float),
     dt: float,
     effective_scale: float,
+    horiz_scale: float,
+    up_scale: float,
+    tangent_scale: float,
+    normal_power: float,
     stabilization: float,
     flags: wp.array(dtype=int),
     frames: wp.array(dtype=wp.mat33d),
@@ -151,9 +159,20 @@ def prepare_contacts(
     compliance: wp.array(dtype=wp.mat33d),
     material: wp.array(dtype=wp.vec3d),
     gap_speed: wp.array(dtype=wp.float64),
+    fixed_material_velocity: bool,
+    sdf: wp.array3d(dtype=float),
+    sdf_origin: wp.vec3,
+    sdf_spacing: float,
 ):
     i = wp.tid()
     distance, normal, point = geometry(wp.vec3d(x[i]), pose[body], sizes[body], shapes[body])
+    if shapes[body] == 3:
+        rotation = wp.transform_get_rotation(pose[body])
+        local = wp.transform_point(wp.transform_inverse(pose[body]), x[i])
+        sdf_distance, sdf_normal = sdf_surface(local, sdf, sdf_origin, sdf_spacing)
+        distance = wp.float64(sdf_distance)
+        normal = wp.vec3d(wp.quat_rotate(rotation, sdf_normal))
+        point = wp.vec3d(x[i]) - distance * normal
     velocity = wp.vec3d(v[i]) + wp.transpose(gradients[i]) * (point - wp.vec3d(x[i]))
     arm = point - wp.vec3d(wp.transform_get_translation(pose[body]))
     surface = free[0] + wp.cross(free[1], arm)
@@ -178,8 +197,24 @@ def prepare_contacts(
         angular = wp.mat33d(a0[0], a0[1], a0[2], a1[0], a1[1], a1[2], a2[0], a2[1], a2[2])
         respond = inverse[0] * wp.transpose(angular)
         k = frame * wp.transpose(frame) / wp.float64(mass) + angular * respond
-        slack = wp.float64(1.0) / (wp.float64(particle_mass[i]) * wp.float64(effective_scale))
-        k += wp.mat33d(slack, 0.0, 0.0, 0.0, slack, 0.0, 0.0, 0.0, slack)
+        slack_n = wp.float64(0.0)
+        slack_t = wp.float64(0.0)
+        if not fixed_material_velocity:
+            nz = n[2]
+            up_part = wp.pow(wp.max(nz, wp.float64(0.0)), wp.float64(normal_power))
+            down_part = wp.pow(wp.max(-nz, wp.float64(0.0)), wp.float64(normal_power))
+            horiz_part = wp.max(wp.float64(0.0), wp.float64(1.0) - up_part - down_part)
+            eff_n = wp.max(
+                wp.float64(effective_scale) * up_part
+                + wp.float64(horiz_scale) * horiz_part
+                + wp.float64(up_scale) * down_part,
+                wp.float64(0.5),
+            )
+            eff_t = wp.max(wp.float64(tangent_scale), wp.float64(0.5))
+            pm = wp.float64(particle_mass[i])
+            slack_n = wp.float64(1.0) / (pm * eff_n)
+            slack_t = wp.float64(1.0) / (pm * eff_t)
+        k += wp.mat33d(slack_n, 0.0, 0.0, 0.0, slack_t, 0.0, 0.0, 0.0, slack_t)
         frames[i] = frame
         angular_jacobian[i] = angular
         response[i] = respond
@@ -195,6 +230,75 @@ def compact_contacts(flags: wp.array(dtype=int), offsets: wp.array(dtype=int), i
     i = wp.tid()
     if flags[i] != 0:
         ids[offsets[i] - 1] = i
+
+
+@wp.kernel
+def initialize_contact_warmstart(
+    offsets: wp.array(dtype=int),
+    ids: wp.array(dtype=int),
+    frames: wp.array(dtype=wp.mat33d),
+    response: wp.array(dtype=wp.mat33d),
+    cached_world_impulses: wp.array(dtype=wp.vec3d),
+    free: wp.array(dtype=wp.vec3d),
+    mass: float,
+    friction: float,
+    impulses: wp.array(dtype=wp.vec3d),
+    initial_velocity: wp.array(dtype=wp.vec3d),
+):
+    # Match by persistent material-particle index (one rigid body per estimator).
+    # Cache world vectors, because the tangent frame can change between steps.
+    lane = wp.tid()
+    count = offsets[offsets.shape[0] - 1]
+    linear_impulse = wp.vec3d(0.0)
+    angular_delta = wp.vec3d(0.0)
+    k = lane
+    while k < count:
+        i = ids[k]
+        impulse = frames[i] * cached_world_impulses[i]
+        impulse[0] = wp.max(impulse[0], wp.float64(0.0))
+        tangent = wp.vec2d(impulse[1], impulse[2])
+        radius = wp.float64(friction) * impulse[0]
+        length = wp.length(tangent)
+        if length > radius:
+            tangent *= radius / length
+        impulse[1] = tangent[0]
+        impulse[2] = tangent[1]
+        impulses[i] = impulse
+        linear_impulse += wp.transpose(frames[i]) * impulse
+        angular_delta += response[i] * impulse
+        k += 128
+    linear = wp.vec3d(
+        wp.tile_extract(wp.tile_sum(wp.tile(linear_impulse[0])), 0),
+        wp.tile_extract(wp.tile_sum(wp.tile(linear_impulse[1])), 0),
+        wp.tile_extract(wp.tile_sum(wp.tile(linear_impulse[2])), 0),
+    )
+    angular = wp.vec3d(
+        wp.tile_extract(wp.tile_sum(wp.tile(angular_delta[0])), 0),
+        wp.tile_extract(wp.tile_sum(wp.tile(angular_delta[1])), 0),
+        wp.tile_extract(wp.tile_sum(wp.tile(angular_delta[2])), 0),
+    )
+    if lane == 0:
+        initial_velocity[0] = free[0] + linear / wp.float64(mass)
+        initial_velocity[1] = free[1] + angular
+
+
+@wp.kernel
+def cache_contact_impulses(
+    flags: wp.array(dtype=int),
+    frames: wp.array(dtype=wp.mat33d),
+    impulses: wp.array(dtype=wp.vec3d),
+    stats: wp.array(dtype=wp.float64),
+    tolerance: wp.float64,
+    cached_world_impulses: wp.array(dtype=wp.vec3d),
+):
+    i = wp.tid()
+    value = wp.vec3d(0.0)
+    if flags[i] != 0 and stats[2] <= tolerance:
+        candidate = wp.transpose(frames[i]) * impulses[i]
+        if wp.isfinite(candidate[0]) and wp.isfinite(candidate[1]) and wp.isfinite(candidate[2]):
+            value = candidate
+    # Separated contacts and unconverged solves must not seed a later contact.
+    cached_world_impulses[i] = value
 
 
 @wp.func
@@ -238,6 +342,29 @@ def apply_wrenches(
 
 
 @wp.kernel
+def apply_damped_wrenches(
+    material: wp.array(dtype=wp.spatial_vector),
+    damping_world: wp.array(dtype=wp.spatial_vector),
+    ref_velocity: wp.array(dtype=wp.spatial_vector),
+    current_velocity: wp.array(dtype=wp.spatial_vector),
+    external: wp.array(dtype=wp.spatial_vector),
+    output: wp.array(dtype=wp.spatial_vector),
+):
+    i = wp.tid()
+    dv = current_velocity[i] - ref_velocity[i]
+    d = damping_world[i]
+    damp = wp.spatial_vector(
+        d[0] * dv[0],
+        d[1] * dv[1],
+        d[2] * dv[2],
+        d[3] * dv[3],
+        d[4] * dv[4],
+        d[5] * dv[5],
+    )
+    output[i] = material[i] - damp + external[i]
+
+
+@wp.kernel
 def solve_contacts_parallel(
     offsets: wp.array(dtype=int),
     ids: wp.array(dtype=int),
@@ -251,6 +378,10 @@ def solve_contacts_parallel(
     free: wp.array(dtype=wp.vec3d),
     mass: float,
     effective_scale: float,
+    horiz_scale: float,
+    up_scale: float,
+    tangent_scale: float,
+    normal_power: float,
     friction: float,
     dt: float,
     max_iterations: int,
@@ -259,6 +390,8 @@ def solve_contacts_parallel(
     wrench: wp.array(dtype=wp.spatial_vector),
     body: int,
     stats: wp.array(dtype=wp.float64),
+    fixed_material_velocity: bool,
+    jacobi_relaxation: float,
 ):
     # One cooperative block handles all contacts, with strided work per lane.
     # Relaxed Jacobi solves the same contact fixed point as ordered PGS; the
@@ -271,7 +404,11 @@ def solve_contacts_parallel(
     torque = wp.vec3d(0.0)
     residual = wp.float64(0.0)
     iterations = int(0)
-    relaxation = wp.float64(0.1)
+    relaxation = wp.float64(jacobi_relaxation)
+    if fixed_material_velocity:
+        # With no material mobility, every contact acts on the same six body
+        # velocities. Limit simultaneous Jacobi corrections as contacts grow.
+        relaxation = wp.float64(1.0) / wp.float64(wp.max(count, 10))
     if count > 0:
         for iteration in range(max_iterations):
             local_delta = wp.vec3d(0.0)
@@ -285,8 +422,24 @@ def solve_contacts_parallel(
                 respond = response[i]
                 matrix = compliance[i]
                 old = impulses[i]
-                slack = wp.float64(1.0) / (wp.float64(effective_scale) * wp.float64(particle_mass[i]))
-                relative = frame * linear + aj * spin - material[i] + old * slack
+                slack_n = wp.float64(0.0)
+                slack_t = wp.float64(0.0)
+                if not fixed_material_velocity:
+                    nz = frame[0, 2]
+                    up_part = wp.pow(wp.max(nz, wp.float64(0.0)), wp.float64(normal_power))
+                    down_part = wp.pow(wp.max(-nz, wp.float64(0.0)), wp.float64(normal_power))
+                    horiz_part = wp.max(wp.float64(0.0), wp.float64(1.0) - up_part - down_part)
+                    eff_n = wp.max(
+                        wp.float64(effective_scale) * up_part
+                        + wp.float64(horiz_scale) * horiz_part
+                        + wp.float64(up_scale) * down_part,
+                        wp.float64(0.5),
+                    )
+                    eff_t = wp.max(wp.float64(tangent_scale), wp.float64(0.5))
+                    pm = wp.float64(particle_mass[i])
+                    slack_n = wp.float64(1.0) / (eff_n * pm)
+                    slack_t = wp.float64(1.0) / (eff_t * pm)
+                relative = frame * linear + aj * spin - material[i] + wp.vec3d(old[0] * slack_n, old[1] * slack_t, old[2] * slack_t)
                 normal = wp.max(wp.float64(0.0), old[0] - (relative[0] + gap[i]) / matrix[0, 0])
                 dn = normal - old[0]
                 # Apply the local normal correction only when solving this
@@ -294,8 +447,7 @@ def solve_contacts_parallel(
                 increment = wp.vec3d(dn, 0.0, 0.0)
                 local_linear = linear + wp.transpose(frame) * increment / wp.float64(mass)
                 local_angular = spin + respond * increment
-                normal_state = wp.vec3d(normal, old[1], old[2])
-                relative = frame * local_linear + aj * local_angular - material[i] + normal_state * slack
+                relative = frame * local_linear + aj * local_angular - material[i] + wp.vec3d(normal * slack_n, old[1] * slack_t, old[2] * slack_t)
                 rhs = wp.vec2d(
                     matrix[1, 1] * old[1] + matrix[1, 2] * old[2] - relative[1],
                     matrix[2, 1] * old[1] + matrix[2, 2] * old[2] - relative[2],

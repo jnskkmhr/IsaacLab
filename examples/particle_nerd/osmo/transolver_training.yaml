@@ -1,0 +1,67 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 4
+      cpu: 16
+      memory: 128Gi
+      storage: 250Gi
+      platform: ovx-l40s
+  tasks:
+  - name: train
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    command: [bash, -c]
+    args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/particle-gnn "{{output}}/model"
+      cd "{{input:0}}"
+      sha256sum --check bundle.sha256
+      tar -xzf bundle.tar.gz -C /tmp/particle-gnn
+      cp /tmp/particle-gnn/bundle/snapshot.json "{{output}}/snapshot.json"
+      export PARTICLE_OUTPUT="{{output}}"
+      export PARTICLE_DATA="{{input:1}}"
+      bash /tmp/particle-gnn/bundle/isaaclab/examples/particle_nerd/osmo/bootstrap.sh \
+        bash -c '
+          set -euo pipefail
+          python -m particle_nerd.transolver.train --help
+          torchrun --standalone --nproc_per_node=4 --module particle_nerd.transolver.train \
+            --data "$PARTICLE_DATA" --output "$PARTICLE_OUTPUT/model" --steps {{ training_steps }} --rollout-seconds {{ rollout_seconds }} --loss-mode {{ loss_mode }}
+          python -m particle_nerd.transolver.evaluate --data "$PARTICLE_DATA" \
+            --checkpoint "$PARTICLE_OUTPUT/model/best.pt" \
+            --output "$PARTICLE_OUTPUT/evaluation" --steps 250 --mode all
+          profile_episode=$(find "$PARTICLE_DATA" -name episode-00453-attempt-0.hdf5 -print -quit)
+          test -n "$profile_episode"
+          python -m particle_nerd.transolver.profile --checkpoint "$PARTICLE_OUTPUT/model/best.pt" \
+            --episode "$profile_episode" --output "$PARTICLE_OUTPUT/profile.json" --steps 100
+        '
+    environment:
+      HEADLESS: "1"
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: all
+      NCCL_DEBUG: WARN
+      TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+    inputs:
+    - url: "{{ source_url }}"
+    - url: "{{ dataset_url }}"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}"
+    checkpoint:
+    - path: "{{output}}/model"
+      url: "{{ output_url }}/{{workflow_id}}/model"
+      frequency: 5m
+      regex: '.*\.(pt|json|jsonl|csv)$'
+default-values:
+  workflow_name: particle-transolver
+  training_steps: 10000
+  rollout_seconds: 0.5
+  loss_mode: weighted
+  source_url: ""
+  dataset_url: ""
+  output_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-gnn/runs

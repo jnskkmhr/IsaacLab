@@ -1,0 +1,130 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 4
+      cpu: 16
+      memory: 128Gi
+      storage: 250Gi
+      platform: ovx-l40s
+  tasks:
+  - name: train
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    command: [bash, -c]
+    args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/particle-gnn "{{output}}/model"
+      cd "{{input:0}}"
+      sha256sum --check bundle.sha256
+      tar -xzf bundle.tar.gz -C /tmp/particle-gnn
+      cp /tmp/particle-gnn/bundle/snapshot.json "{{output}}/snapshot.json"
+      export PARTICLE_OUTPUT="{{output}}"
+      export PARTICLE_DATA="{{input:1}}"
+      export PARTICLE_INITIAL_CHECKPOINT="{{input:2}}/best.pt"
+      bash /tmp/particle-gnn/bundle/isaaclab/examples/particle_nerd/osmo/bootstrap.sh \
+        bash -c '
+          set -euo pipefail
+          python /tmp/prepare_shovel_dataset.py "$PARTICLE_DATA" /tmp/shovel-training-data \
+            "$PARTICLE_OUTPUT/dataset_manifest.json" {{ num_episodes }}
+          export PARTICLE_DATA=/tmp/shovel-training-data
+          python -m particle_nerd.transolver.train --help
+          torchrun --standalone --nproc_per_node=4 --module particle_nerd.transolver.train \
+            --data "$PARTICLE_DATA" --output "$PARTICLE_OUTPUT/model" \
+            --initialize "$PARTICLE_INITIAL_CHECKPOINT" \
+            --steps {{ training_steps }} --rollout-seconds {{ rollout_seconds }} --loss-mode {{ loss_mode }}
+          for split in validation test; do
+            python -m particle_nerd.transolver.evaluate --data "$PARTICLE_DATA" \
+              --checkpoint "$PARTICLE_OUTPUT/model/best.pt" \
+              --output "$PARTICLE_OUTPUT/evaluation/$split" --steps 250 \
+              --mode all --split "$split" --all-episodes
+          done
+        '
+    files:
+    - path: /tmp/prepare_shovel_dataset.py
+      contents: |
+        import hashlib
+        import json
+        import sys
+        from pathlib import Path
+
+        source, target, report = map(Path, sys.argv[1:4])
+        expected = int(sys.argv[4])
+        records = {}
+        skipped = duplicates = 0
+        for path in sorted(source.rglob("*.campaign.json")):
+            record = json.loads(path.read_text())
+            data = path.parent / record["file"]
+            if not data.is_file():
+                skipped += 1
+                continue
+            index = int(record["index"])
+            if index in records:
+                previous, previous_data, _ = records[index]
+                if previous != record:
+                    raise ValueError(f"Conflicting episode record {index}")
+                def digest(filename):
+                    with filename.open("rb") as stream:
+                        return hashlib.file_digest(stream, "sha256").hexdigest()
+                if data.stat().st_size != previous_data.stat().st_size or digest(data) != digest(previous_data):
+                    raise ValueError(f"Conflicting HDF5 contents for episode {index}")
+                duplicates += 1
+                continue
+            if record["split"] not in ("train", "validation", "test"):
+                raise ValueError(f"Invalid split for episode {index}")
+            records[index] = record, data, path
+        if set(records) != set(range(expected)):
+            raise ValueError(f"Expected IDs 0..{expected-1}; found {len(records)}; missing {sorted(set(range(expected))-set(records))}")
+        splits = {name: sorted(i for i, (r, _, _) in records.items() if r["split"] == name)
+                  for name in ("train", "validation", "test")}
+        if any(not ids for ids in splits.values()):
+            raise ValueError("Every train/validation/test split must be nonempty")
+        for name, ids in splits.items():
+            for other, others in splits.items():
+                if name != other and set(ids) & set(others):
+                    raise ValueError(f"Overlapping splits {name} and {other}")
+        target.mkdir(parents=True, exist_ok=False)
+        for index, (record, data, path) in sorted(records.items()):
+            directory = target / f"episode-{index:05d}"
+            directory.mkdir()
+            local_data = directory / record["file"]
+            local_data.parent.mkdir(parents=True, exist_ok=True)
+            local_data.symlink_to(data.resolve())
+            (directory / path.name).write_text(json.dumps(record, indent=2) + "\n")
+        summary = dict(unique_episodes=len(records), skipped_checkpoint_only_records=skipped,
+                       identical_duplicates=duplicates, splits=splits)
+        report.write_text(json.dumps(summary, indent=2) + "\n")
+        print(json.dumps(summary), flush=True)
+    environment:
+      HEADLESS: "1"
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: all
+      NCCL_DEBUG: WARN
+      TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+    inputs:
+    - url: "{{ source_url }}"
+    - url: "{{ dataset_url }}"
+    - url: "{{ initialize_url }}"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}"
+    checkpoint:
+    - path: "{{output}}/model"
+      url: "{{ output_url }}/{{workflow_id}}/model"
+      frequency: 5m
+      regex: '.*\.(pt|json|jsonl|csv)$'
+default-values:
+  workflow_name: particle-shovel-transolver
+  num_episodes: 128
+  training_steps: 1000
+  rollout_seconds: 0.5
+  loss_mode: balanced
+  source_url: ""
+  dataset_url: ""
+  initialize_url: ""
+  output_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-gnn/runs

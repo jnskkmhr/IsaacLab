@@ -19,11 +19,27 @@ from particle_nerd.g1 import DEFAULT_POLICY, MATERIAL_KEYS
 
 
 def configure(cfg, num_envs):
-    """Use a 3 x 3 x 0.3 m flat sand bed and the native 50 Hz policy."""
+    """Use a 3 x 3 x 0.3 m fully enclosed flat sand bed and the native 50 Hz policy."""
     cfg.scene.num_envs = num_envs
     cfg.scene.sand.spawn.lower = (-1.5, -1.5, -0.3)
     cfg.scene.sand.spawn.upper = (1.5, 1.5, 0.0)
     cfg.scene.__post_init__()  # Refit native fixed ground and retaining walls.
+    cfg.scene.approach_platform = None
+    cfg.scene.approach_platform_visual = None
+    # Make all four retaining walls (including the -X back wall) and floor form a fully enclosed tray
+    wall = 0.1
+    wall_height = 0.4  # From z = -0.3 m floor to z = +0.1 m (10 cm above the z = 0 sand surface)
+    wall_z = -0.3 + wall_height / 2
+    cfg.scene.bed_wall_front.spawn.size = (wall, 3.0 + 2 * wall, wall_height)
+    cfg.scene.bed_wall_front.init_state.pos = (1.5 + wall / 2, 0.0, wall_z)
+    cfg.scene.bed_wall_front.spawn.visible = True
+    cfg.scene.bed_wall_left.spawn.size = (3.0 + 2 * wall, wall, wall_height)
+    cfg.scene.bed_wall_left.init_state.pos = (0.0, 1.5 + wall / 2, wall_z)
+    cfg.scene.bed_wall_right.spawn.size = (3.0 + 2 * wall, wall, wall_height)
+    cfg.scene.bed_wall_right.init_state.pos = (0.0, -(1.5 + wall / 2), wall_z)
+    cfg.scene.approach_bank.spawn.size = (wall, 3.0 + 2 * wall, wall_height)
+    cfg.scene.approach_bank.init_state.pos = (-(1.5 + wall / 2), 0.0, wall_z)
+    cfg.scene.approach_bank.spawn.visible = True
     cfg.scene.robot.init_state.pos = (0.0, 0.0, 0.76)
     cfg.episode_length_s = 6.0
     cfg.video_recorders = []
@@ -135,6 +151,7 @@ def main():
 
     task = "IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play"
     cfg = configure(parse_env_cfg(task, num_envs=args.num_envs), args.num_envs)
+    cfg.episode_length_s = args.duration + 1.0
     cfg.seed = 120000 + args.shard
     saved = json.loads(args.checkpoint.with_name("wandb_config.json").read_text())
     launcher = dict(vars(args), visualizer=[] if args.headless else (args.visualizer or ["newton_rtx"]))

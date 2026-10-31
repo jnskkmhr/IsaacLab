@@ -17,33 +17,104 @@ import numpy as np
 import torch
 import warp as wp
 
+from particle_nerd.data_collection.trajectories import PATHS, drag_target_offset
 
-def main():
-    from isaaclab.app import add_launcher_args, launch_simulation
 
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--case", choices=("rest", "push-spin", "drag-lift", "long-push", "continuous-drag"), required=True)
-    p.add_argument("--output", type=Path, required=True)
-    p.add_argument("--duration", type=float, default=5.0)
-    p.add_argument("--body-mass", type=float, default=7.5)
-    p.add_argument("--name", help="Output name; defaults to the motion case")
-    p.add_argument("--seed", type=int, help="Independent episode seed")
-    p.add_argument("--randomize-motion", action="store_true", help="Randomize sustained push/drag parameters")
-    add_launcher_args(p)
-    args = p.parse_args()
-    if args.duration <= 0:
-        p.error("Duration must be positive")
+def configure_drag_path(cfg, args, sustained):
+    """Configure controlled path tests without changing existing campaign defaults."""
+    if args.drag_path == "training":
+        return
+    if args.case != "continuous-drag" or args.duration <= 1.25:
+        raise ValueError("Named drag paths require continuous-drag and duration >1.25 s")
+    # Only the initial box state and external dragging command change.
+    cfg.events.randomize_box.params["pose_range"] = {key: (0.0, 0.0) for key in ("x", "y", "z", "roll", "pitch", "yaw")}
+    cfg.events.randomize_box.params["velocity_range"] = {
+        key: (0.0, 0.0) for key in ("x", "y", "z", "roll", "pitch", "yaw")
+    }
+    cfg.scene.body5.init_state.pos = (0.0, 0.0, 0.60)
+    sustained.update(
+        active_interval_s=[0.25, args.duration - 0.25],
+        anchor_local_m=[0.0, 0.0, 0.0],
+        named_path=args.drag_path,
+        lead_in_s=0.75,
+        initialization="Settle at bed center; bounded force moves box toward path start",
+        path_direction=args.path_direction,
+        horizontal_span_m=[0.76, 0.76 if args.drag_path == "wide-circle" else 0.52],
+        target_time_parameter="quintic smoothstep over active interval",
+        vertical_target_change_m=-0.02,
+    )
+
+
+def configure_airborne_release(cfg, args):
+    """Hold an initially stationary box clear of the material during preparation."""
+    if args.case == "airborne":
+        cfg.scene.body5.init_state.pos = (0.0, 0.0, 0.75)
+        for key in ("pose_range", "velocity_range"):
+            cfg.events.randomize_box.params[key] = {
+                axis: (0.0, 0.0) for axis in ("x", "y", "z", "roll", "pitch", "yaw")
+            }
+
+
+def support_box_before_release(command, args, step, release_step):
+    """Compensate box gravity during material preparation, with no support after release."""
+    if args.case == "airborne" and step < release_step:
+        command[0, 2] = args.body_mass * 9.81
+
+
+def set_airborne_launch_velocity(env, args, step, release_step):
+    """Assign the box's initial launch velocity once, at the evaluation boundary."""
+    if args.case == "airborne" and step == release_step:
+        env.scene["body5"].write_root_velocity_to_sim_index(
+            root_velocity=torch.tensor([list(args.launch_velocity) + [0.0, 0.0, 0.0]], device=env.device)
+        )
+        from isaaclab_newton.physics import NewtonManager
+
+        NewtonManager.forward()
+
+
+def configure_body_mass(args, p):
+    """Use measured shovel mass/inertia; retain the box mass option."""
+    asset_metadata = None
+    if args.geometry == "shovel":
+        from particle_nerd.shovel.asset import ASSET_DIR
+
+        asset_metadata = json.loads((ASSET_DIR / "metadata.json").read_text())
+        if args.body_mass is not None and not np.isclose(args.body_mass, asset_metadata["body_mass_kg"]):
+            p.error("Shovel uses the reference asset's measured mass and inertia")
+    if args.body_mass is None:
+        args.body_mass = asset_metadata["body_mass_kg"] if asset_metadata else 7.5
     if not np.isfinite(args.body_mass) or args.body_mass <= 0:
         p.error("Body mass must be finite and positive")
-    args.output.mkdir(parents=True, exist_ok=True)
-    stem = args.output / (args.name or args.case)
-    if stem.with_suffix(".hdf5").exists() or stem.with_suffix(".partial.hdf5").exists():
-        raise FileExistsError(stem)
+    return asset_metadata
 
-    from isaaclab_newton.physics import NewtonManager
 
+def validate_rigid_asset(model, args, asset_metadata):
+    """Reject silently changed imported geometry or inertia before recording."""
+    from newton import GeoType, ShapeFlags
+
+    colliding = (model.shape_flags.numpy() & int(ShapeFlags.COLLIDE_SHAPES | ShapeFlags.COLLIDE_PARTICLES)) != 0
+    shape_types = model.shape_type.numpy()[colliding]
+    num_envs = getattr(args, "num_envs", 1)
+    assert model.body_count == num_envs
+    # Viewers may retain extra visual-only meshes; validate physical geometry.
+    assert int(colliding.sum()) == (1 + 66 * num_envs if asset_metadata else 1 + num_envs), (
+        int(colliding.sum()),
+        model.shape_label,
+    )
+    np.testing.assert_allclose(model.body_mass.numpy(), np.full(num_envs, args.body_mass), rtol=1e-6)
+    assert sum(shape_types == int(GeoType.PLANE)) == 1
+    if asset_metadata:
+        np.testing.assert_allclose(model.body_com.numpy(), np.zeros((num_envs, 3)), atol=1e-7)
+        np.testing.assert_allclose(
+            model.body_inertia.numpy(), np.tile(asset_metadata["body_inertia"], (num_envs, 1, 1)), atol=1e-6
+        )
+    else:
+        assert sum(shape_types == int(GeoType.BOX)) == num_envs
+
+
+def create_collection_env_cfg(geometry, body_mass, seed, *, bed_size=(1.0, 1.0, 0.5)):
+    """Shared open-ground MPM/MJWarp scene for dataset collection and interactive play."""
     from isaaclab.assets import AssetBaseCfg
-    from isaaclab.envs import ManagerBasedEnv
     from isaaclab.managers import ActionTermCfg, RecorderManagerBaseCfg
     from isaaclab.sim import GroundPlaneCfg
     from isaaclab.sim.spawners.materials import UsdPhysicsRigidBodyMaterialCfg
@@ -52,15 +123,12 @@ def main():
     from particle_nerd.data_collection.scene_cfg import configure_collection_scene
     from particle_nerd.data_collection.terms.actions import BodyWrenchAction
 
-    case_id = {"rest": 0, "push-spin": 1, "drag-lift": 2, "long-push": 0, "continuous-drag": 0}[args.case]
-    seed = 41001 + case_id if args.seed is None else args.seed
-    rng = np.random.default_rng(seed)
     cfg = ParticleEnvCfg()
     cfg.seed = seed
     cfg.scene.num_envs = 1
     cfg.recorders = RecorderManagerBaseCfg()
     cfg.actions.wrench = ActionTermCfg(class_type=BodyWrenchAction, asset_name="body5")
-    metadata = configure_collection_scene(cfg, "small", 0.04, (1.0, 1.0, 0.5), 1.25)
+    metadata = configure_collection_scene(cfg, "small", 0.04, bed_size, 1.25)
     for i in range(5):
         setattr(cfg.scene, f"body{i}", None)
     cfg.scene.ground = AssetBaseCfg(
@@ -70,8 +138,9 @@ def main():
             physics_material=UsdPhysicsRigidBodyMaterialCfg(static_friction=0.6, dynamic_friction=0.6),
         ),
     )
-    cfg.scene.sand.spawn.lower = (-0.5, -0.5, 0.0)
-    cfg.scene.sand.spawn.upper = (0.5, 0.5, 0.5)
+    length, width, depth = bed_size
+    cfg.scene.sand.spawn.lower = (-length / 2, -width / 2, 0.0)
+    cfg.scene.sand.spawn.upper = (length / 2, width / 2, depth)
     cfg.events.reset_material.params.update(jitter_fraction=0.2, particle_spacing=metadata["particle_spacing_m"])
     cfg.events.randomize_box.params["pose_range"].update(
         x=(-0.08, 0.08), y=(-0.08, 0.08), z=(0.0, 0.06), roll=(-0.25, 0.25), pitch=(-0.25, 0.25), yaw=(-3.14, 3.14)
@@ -83,8 +152,20 @@ def main():
             strict=True,
         )
     )
-    cfg.scene.body5.init_state.pos = (0.0, 0.0, 0.60)
-    cfg.scene.body5.spawn.mass_props.mass = args.body_mass
+    cfg.scene.body5.init_state.pos = (0.0, 0.0, depth + 0.10)
+    cfg.scene.body5.spawn.mass_props.mass = body_mass
+    if geometry == "shovel":
+        from isaaclab.sim import UsdFileCfg
+
+        from particle_nerd.shovel.asset import ASSET_DIR
+
+        old = cfg.scene.body5.spawn
+        cfg.scene.body5.spawn = UsdFileCfg(
+            usd_path=str(ASSET_DIR / "shovel.usda"),
+            rigid_props=old.rigid_props,
+            collision_props=old.collision_props,
+            physics_material=UsdPhysicsRigidBodyMaterialCfg(static_friction=0.5, dynamic_friction=0.5),
+        )
     coupling = cfg.sim.physics.solver_cfg
     coupling.entries[0].bodies = [r"/World/envs/env_.*/Body5"]
     coupling.proxies[0].bodies = [r"/World/envs/env_.*/Body5"]
@@ -96,9 +177,49 @@ def main():
         container_walls=False,
         tray_motion=None,
         ground_z_m=0.0,
-        initial_material_surface_z_m=0.5,
+        initial_material_surface_z_m=depth,
         voxel_size_m=0.04,
     )
+    return cfg, metadata
+
+
+def main():
+    from isaaclab.app import add_launcher_args, launch_simulation
+
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--case", choices=("rest", "push-spin", "drag-lift", "long-push", "continuous-drag", "airborne"), required=True
+    )
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--duration", type=float, default=5.0)
+    p.add_argument("--body-mass", type=float, default=None)
+    p.add_argument("--geometry", choices=("box", "shovel"), default="box")
+    p.add_argument("--name", help="Output name; defaults to the motion case")
+    p.add_argument("--seed", type=int, help="Independent episode seed")
+    p.add_argument("--randomize-motion", action="store_true", help="Randomize sustained push/drag parameters")
+    p.add_argument("--drag-path", choices=("training", *PATHS), default="training")
+    p.add_argument("--path-direction", type=int, choices=(-1, 1), default=1)
+    p.add_argument("--launch-velocity", nargs=3, type=float, default=(0.0, 0.0, 0.0), metavar=("VX", "VY", "VZ"))
+    add_launcher_args(p)
+    args = p.parse_args()
+    if args.duration <= 0:
+        p.error("Duration must be positive")
+    asset_metadata = configure_body_mass(args, p)
+    args.output.mkdir(parents=True, exist_ok=True)
+    stem = args.output / (args.name or args.case)
+    if stem.with_suffix(".hdf5").exists() or stem.with_suffix(".partial.hdf5").exists():
+        raise FileExistsError(stem)
+
+    from isaaclab_newton.physics import NewtonManager
+
+    from isaaclab.envs import ManagerBasedEnv
+
+    case_id = {"rest": 0, "push-spin": 1, "drag-lift": 2, "long-push": 0, "continuous-drag": 0, "airborne": 0}[
+        args.case
+    ]
+    seed = 41001 + case_id if args.seed is None else args.seed
+    rng = np.random.default_rng(seed)
+    cfg, metadata = create_collection_env_cfg(args.geometry, args.body_mass, seed)
     material = {
         k: getattr(cfg.scene.sand.spawn.material, k)
         for k in (
@@ -172,11 +293,14 @@ def main():
             horizontal_angle_rad=float(rng.uniform(-np.pi, np.pi)),
             anchor_local_m=rng.uniform([-0.05, -0.05, 0.015], [0.05, 0.05, 0.035]).tolist(),
         )
+    configure_drag_path(cfg, args, sustained)
+    configure_airborne_release(cfg, args)
     anchor_local = torch.tensor(sustained["anchor_local_m"], device="cuda:0")
     dt = cfg.sim.dt
     post_steps = round(args.duration / dt)
     max_settle_steps = round(5.0 / dt)
-    settled_step = None
+    # Legacy field also marks the rollout start for airborne evaluation.
+    settled_step = round(2.0 / dt) if args.case == "airborne" else None
     stable_steps = 0
     rows = {
         k: []
@@ -190,6 +314,8 @@ def main():
             "time_s",
         )
     }
+    if args.drag_path != "training":
+        rows["drag_target_position"] = []
     partial = stem.with_suffix(".partial.hdf5")
     started = time.perf_counter()
     with launch_simulation(cfg, args):
@@ -200,13 +326,7 @@ def main():
             solver = entry.solver
             # Existing host-loop fallback; solver kernels and physical states remain on GPU.
             solver._use_cuda_graph = False
-            from newton import GeoType
-
-            shape_types = model.shape_type.numpy()
-            assert model.body_count == 1 and model.shape_count == 2
-            np.testing.assert_allclose(model.body_mass.numpy(), [args.body_mass], rtol=1e-6)
-            assert sum(shape_types == int(GeoType.PLANE)) == 1
-            assert sum(shape_types == int(GeoType.BOX)) == 1
+            validate_rigid_asset(model, args, asset_metadata)
             assert np.any(solver.collider_body_index.numpy() == -1)
             assert model.particle_count == 16384, model.particle_count
             feedback = next(
@@ -271,6 +391,8 @@ def main():
                     if settled_step is None and step >= max_settle_steps:
                         raise RuntimeError("Box failed to settle within 5 seconds; no perturbations applied")
                     command.zero_()
+                    support_box_before_release(command, args, step, settled_step)
+                    named_target = q[:3].copy()
                     if settled_step is not None:
                         t = (step - settled_step) * dt
                         if (
@@ -310,11 +432,18 @@ def main():
                                         + sustained["drag_vertical_amplitude_m"] * np.sin(2 * angle),
                                     ]
                                 )
+                                if args.drag_path != "training":
+                                    interval = sustained["active_interval_s"]
+                                    offset = drag_target_offset(
+                                        args.drag_path, elapsed, interval[1] - interval[0], args.path_direction
+                                    )
                                 az = sustained["horizontal_angle_rad"]
                                 offset[:2] = (
                                     np.array([[np.cos(az), -np.sin(az)], [np.sin(az), np.cos(az)]]) @ offset[:2]
                                 )
                                 target = drag_origin + torch.as_tensor(offset, dtype=torch.float32, device=env.device)
+                                if args.drag_path != "training":
+                                    named_target = target.cpu().numpy().copy()
                                 arm = quat_apply(pose[3:][None], anchor_local[None])[0]
                                 point_velocity = velocity[:3] + torch.cross(velocity[3:], arm, dim=0)
                                 force = args.body_mass * (
@@ -345,6 +474,8 @@ def main():
                             force *= 45.0 / force.norm().clamp_min(45.0)
                             command[0, :3] = force
                             command[0, 3:] = torch.cross(arm, force, dim=0)
+                    if args.drag_path != "training":
+                        rows["drag_target_position"].append(named_target)
                     rows["external_wrench"].append(command[0].cpu().numpy().copy())
                     rows["applied_feedback_wrench"].append(feedback.numpy()[0].copy())
                     env.step(command)
@@ -361,6 +492,7 @@ def main():
                     rows["material_on_body_wrench"].append(torch.cat((force, torque)).cpu().numpy())
                     rows["ground_on_material_force"].append((-impulse[~moving].sum(0) / dt).cpu().numpy())
                     step += 1
+                    set_airborne_launch_velocity(env, args, step, settled_step)
                     q, qd = record(step)
                     if settled_step is None:
                         supported = (
@@ -393,8 +525,11 @@ def main():
                     material=material,
                     particle_count=n,
                     body_mass_kg=args.body_mass,
-                    body_size_m=[0.12, 0.12, 0.08],
-                    body_contact_friction=0.6,
+                    geometry=args.geometry,
+                    body_size_m=asset_metadata["body_size_m"] if asset_metadata else [0.12, 0.12, 0.08],
+                    body_inertia=model.body_inertia.numpy()[0].tolist(),
+                    body_contact_friction=0.5 if asset_metadata else 0.6,
+                    geometry_metadata=asset_metadata,
                     initial_body_pose=initial_q.tolist(),
                     initial_body_velocity=initial_qd.tolist(),
                     dt=dt,
@@ -405,11 +540,18 @@ def main():
                     solver=solver.solver,
                     settled_step=settled_step,
                     settled_time_s=settled_step * dt,
-                    settled_criterion=(
+                    settled_criterion="Airborne release after 2 s material preparation; box is not settled"
+                    if args.case == "airborne"
+                    else (
                         "Body speed <0.02 m/s and angular speed <0.2 rad/s, supported by sand (>10% "
                         "of body weight), sustained 0.3 s after initial 0.5 s"
                     ),
                     post_settle_duration_s=post_steps * dt,
+                    evaluation_start="airborne release" if args.case == "airborne" else "settled box",
+                    release_step=settled_step if args.case == "airborne" else None,
+                    requested_launch_velocity=list(args.launch_velocity) if args.case == "airborne" else None,
+                    release_body_pose=rows["body_pose"][settled_step].tolist(),
+                    release_body_velocity=rows["body_velocity"][settled_step].tolist(),
                     total_steps=step,
                     jitter_fraction=0.2,
                     min_particle_center_z_m=min_particle_z,
@@ -434,7 +576,10 @@ def main():
                     },
                     source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                     status="complete",
-                    physics="MPM particles + MJWarp dynamic box; no GNN or estimated force feedback",
+                    physics=(
+                        f"MPM particles + MJWarp dynamic {args.geometry}; "
+                        "no learned particle or estimated force feedback"
+                    ),
                 )
                 f.attrs["manifest"] = json.dumps(report)
             partial.replace(stem.with_suffix(".hdf5"))

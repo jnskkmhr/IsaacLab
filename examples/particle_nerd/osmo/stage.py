@@ -16,6 +16,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def _installed(name):
+    try:
+        metadata.distribution(name)
+    except metadata.PackageNotFoundError:
+        return False
+    return True
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--isaaclab", type=Path, default=Path(__file__).resolve().parents[3])
@@ -31,6 +39,12 @@ def main():
     # kitless Newton launches. Keep the complete small launcher config set.
     shutil.copytree(args.isaaclab / "apps", bundle / "isaaclab/apps", ignore=ignore)
     shutil.copytree(args.isaaclab / "examples/particle_nerd", bundle / "isaaclab/examples/particle_nerd", ignore=ignore)
+    if (args.isaaclab / "examples/particle_nerd_batch").is_dir():
+        shutil.copytree(
+            args.isaaclab / "examples/particle_nerd_batch",
+            bundle / "isaaclab/examples/particle_nerd_batch",
+            ignore=ignore,
+        )
     for filename in ("LICENSE", "VERSION"):
         if (args.isaaclab / filename).is_file():
             shutil.copy2(args.isaaclab / filename, bundle / "isaaclab" / filename)
@@ -54,7 +68,6 @@ def main():
         "torch",
         "mujoco",
         "mujoco-warp",
-        "usd-core",
         "h5py",
         "gymnasium",
         "prettytable",
@@ -70,16 +83,22 @@ def main():
         "packaging",
         "pillow",
         "matplotlib",
-        "cbor2",
         "lazy-loader",
-        "leapp",
         "onnx",
-        "onnxruntime",
         "typing-extensions",
         "einops",
         "omniverseclient",
         "requests",
     ]
+    # Some tested environments provide pxr through usd-exchange instead of
+    # usd-core. Preserve the installed provider rather than substituting one.
+    usd_providers = [name for name in ("usd-core", "usd-exchange") if _installed(name)]
+    if not usd_providers:
+        raise RuntimeError("No installed USD provider: expected usd-core or usd-exchange")
+    names.extend(usd_providers)
+    # These extras are not required by particle collection/training. Freeze
+    # them when present without making a lean, tested environment unstageable.
+    names.extend(name for name in ("cbor2", "leapp", "onnxruntime") if _installed(name))
     versions = {name: metadata.version(name) for name in names}
     (bundle / "requirements.txt").write_text(
         "\n".join(f"{name}=={version}" for name, version in versions.items()) + "\n"

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Render coupled G1 runs or particle predictions with recorded G1 motion in Newton RTX."""
+"""Render coupled G1 runs or particle predictions with recorded G1 motion with Newton OpenGL or RTX."""
 
 import argparse
 import io
@@ -22,7 +22,41 @@ from PIL import Image, ImageDraw, ImageFont
 from particle_nerd.g1.collect import configure
 
 
+def set_reference_force_limits(axes, reference_trace):
+    """Use one force range from the reference MPM run for both feet and both models."""
+    force = reference_trace["foot_wrench"][:, :, 2]
+    low, high = min(0.0, float(force.min())), max(0.0, float(force.max()))
+    padding = 0.05 * max(high - low, 1.0)
+    for ax in axes:
+        ax.set_ylim(low - padding, high + padding)
+    print("MPM_GRF_Y_LIMITS", low - padding, high + padding, flush=True)
+
+
+def native_view_settings(cfg, viz):
+    """Read task-owned resolution; only select the requested headless renderer."""
+    native_rtx = viz == "newton_rtx"
+    if native_rtx:
+        cfg.sim.visualizer_cfgs = [v for v in cfg.sim.visualizer_cfgs if v.visualizer_type == "newton_rtx"]
+        visual = cfg.sim.visualizer_cfgs[0]
+        visual.headless = True
+
+    selected_visual = next(v for v in cfg.sim.visualizer_cfgs if v.visualizer_type == viz)
+    selected_visual.origin_type = "world"
+    selected_visual.origin_track_path = None
+    panel_width, height = selected_visual.window.size
+    return native_rtx, panel_width, height
+
+
 def main():
+    import sys
+
+    frozen_tasks = (
+        Path.home()
+        / "isaac/particle_nerd/experiments/recurrent-05s-20261021/g1-source-stage/source/source/isaaclab_tasks"
+    )
+    if frozen_tasks.is_dir() and str(frozen_tasks) not in sys.path:
+        sys.path.insert(0, str(frozen_tasks))
+
     p = argparse.ArgumentParser(description=__doc__)
     inputs = p.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--reference", type=Path)
@@ -31,6 +65,7 @@ def main():
     p.add_argument("--prediction", type=Path)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--preview", action="store_true")
+    p.add_argument("--viz", choices=("newton_gl", "newton_rtx"), default="newton_rtx")
     args = p.parse_args()
     data = []
     geometry = None
@@ -72,7 +107,7 @@ def main():
             data.append((meta, dict(np.load(path / "snapshots.npz")), dict(np.load(path / "trace.npz"))))
     import gymnasium as gym
     from isaaclab_newton.physics import NewtonManager
-    from newton.viewer import ViewerRTX
+    from newton.viewer import ViewerGL
 
     from isaaclab.app import launch_simulation
 
@@ -82,11 +117,22 @@ def main():
     task = "IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play"
     cfg = configure(parse_env_cfg(task, num_envs=1), 1)
     cfg.sim.physics.load_visual_shapes = True
-    width, height, top, chart_height = 640 * len(data), 480, 80, 240
+    top, chart_height = 80, 240
+    native_rtx, panel_width, height = native_view_settings(cfg, args.viz)
+    width = panel_width * len(data)
     fig, axes = plt.subplots(1, 2, figsize=(width / 100, chart_height / 100), dpi=100)
     fig.subplots_adjust(left=0.07, right=0.98, bottom=0.22, top=0.86, wspace=0.40)
     colors = ["#365e7c", "#bc703d"]
-    labels = ["MPM reference", "Particle NeRD + analytical forces"]
+    labels = [
+        "MPM reference",
+        {
+            "transolver_total_body_impulse": "Particle NeRD + learned body impulses",
+            "transolver_physics_contact_impulse": "Particle NeRD + physics-structured contact head",
+        }.get(
+            (data[1][0].get("estimator") or {}).get("method") if len(data) > 1 else None,
+            "Particle NeRD + analytical forces",
+        ),
+    ]
     if args.particle_evaluation:
         labels = ["MPM particles | recorded G1", "Particle NeRD | same recorded G1"]
         rows = report["metrics"]
@@ -109,6 +155,7 @@ def main():
             for foot, ax in enumerate(axes):
                 ax.plot(trace["time_s"], trace["foot_wrench"][:, foot, 2], label=labels[i], color=colors[i], lw=1.2)
                 ax.set(ylabel="Sand force on foot [N]", title=["Left foot", "Right foot"][foot])
+        set_reference_force_limits(axes, data[0][2])
     for ax in axes:
         ax.set_xlabel("Recorded time [s]" if args.particle_evaluation else "Time [s]")
         ax.tick_params(labelsize=8)
@@ -129,7 +176,9 @@ def main():
     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 17)
     small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 13)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with launch_simulation(cfg.sim, dict(headless=True, device="cuda:0", visualizer=[])):
+    with launch_simulation(
+        cfg.sim, dict(headless=True, device="cuda:0", visualizer=["newton_rtx"] if native_rtx else [])
+    ):
         env = gym.make(task, cfg=cfg)
         viewer, writer = None, None
         try:
@@ -158,20 +207,23 @@ def main():
                     raise ValueError("Replay geometry does not match recorded bodies/particles")
                 if "body_labels" in meta and list(model.body_label) != meta["body_labels"]:
                     raise ValueError("Replay body ordering does not match recorded bodies")
-            state = model.state()
-            viewer = ViewerRTX(
-                width=640, height=height, headless=True, fps=25, environment="studio", async_rendering=False
-            )
-            viewer.set_model(model)
-            viewer.show_particles = False
-            viewer.show_collision = False
-            viewer.show_visual = True
-            viewer.set_camera(wp.vec3(3.5, -4, 2.4))
-            viewer.camera.look_at((0, 0, 0.15))
-            particle_colors = wp.full(
-                model.particle_count, wp.vec3(0.32, 0.24, 0.21), dtype=wp.vec3, device=model.device
-            )
-            frames = min(len(d[1]["time_s"]) for d in data)
+            if native_rtx:
+                # Use the task's authored USD materials, lights, particle widths and camera.
+                visualizer = env.unwrapped.sim.visualizers[0]
+                state = NewtonManager.get_state_0()
+            else:
+                state = model.state()
+                viewer = ViewerGL(width=panel_width, height=height, headless=True)
+                viewer.set_model(model)
+                viewer.show_particles = False
+                viewer.show_collision = False
+                viewer.show_visual = True
+                viewer.set_camera(wp.vec3(3.5, -4, 2.4))
+                viewer.camera.look_at((0, 0, 0.15))
+                particle_colors = wp.full(
+                    model.particle_count, wp.vec3(0.32, 0.24, 0.21), dtype=wp.vec3, device=model.device
+                )
+            frames = max(len(d[1]["time_s"]) for d in data)
             indices = [min(50, frames - 1)] if args.preview else range(frames)
             if not args.preview:
                 writer = subprocess.Popen(
@@ -209,18 +261,38 @@ def main():
                 frame = Image.new("RGB", (width, total_height), "#f7f9f7")
                 draw = ImageDraw.Draw(frame)
                 for i, (meta, snap, _) in enumerate(data):
+                    if k >= len(snap["time_s"]):
+                        draw.text(
+                            (i * panel_width + 20, top + 40),
+                            (
+                                f"{labels[i]} ended at {snap['time_s'][-1]:.2f} s "
+                                f"({meta.get('outcome', 'end of recording')})"
+                            ),
+                            font=font,
+                            fill=colors[i],
+                        )
+                        continue
                     t = float(snap["time_s"][k])
                     state.body_q.assign(snap["body_pose"][k])
                     state.particle_q.assign(snap["particle_position"][k])
-                    for _ in range(8 if k == indices[0] else 2):
+                    if native_rtx:
+                        NewtonManager._mark_transforms_changed()
+                        NewtonManager._mark_particles_dirty()
+                        env.unwrapped.scene.update(0.04)
+                        visualizer._camera_tracking_step = -1
+                        visualizer.update_camera_tracking()
+                        visualizer._render_frame()
+                        pixels = visualizer._viewer.get_frame().numpy()
+                    else:
                         viewer.begin_frame(t)
                         viewer.log_state(state)
                         viewer.log_points("sand", state.particle_q, radii=0.010, colors=particle_colors)
                         viewer.end_frame()
-                    frame.paste(Image.fromarray(viewer.get_frame().numpy()).convert("RGB"), (i * 640, top))
-                    draw.text((i * 640 + 14, 12), labels[i], font=font, fill=colors[i])
+                        pixels = viewer.get_frame().numpy()
+                    frame.paste(Image.fromarray(pixels).convert("RGB"), (i * panel_width, top))
+                    draw.text((i * panel_width + 14, 12), labels[i], font=font, fill=colors[i])
                     draw.text(
-                        (i * 640 + 14, 35),
+                        (i * panel_width + 14, 35),
                         f"{'Recorded' if args.particle_evaluation else 'Dynamic'} G1 | 3 x 3 m sand | t = {t:.2f} s",
                         font=font,
                         fill="#23383e",
@@ -230,7 +302,7 @@ def main():
                     else:
                         outcome = meta["outcome"].replace("_", " ")
                         status = f"Recorded run: {meta['duration_s']:.2f} s ({outcome})"
-                    draw.text((i * 640 + 14, 59), status, font=small_font, fill="#566970")
+                    draw.text((i * panel_width + 14, 59), status, font=small_font, fill="#566970")
                 frame.paste(chart, (0, top + height))
                 for (x, y, w, h), (xmin, xmax) in zip(bounds, limits, strict=True):
                     px = x + (t - xmin) / max(xmax - xmin, 0.01) * w

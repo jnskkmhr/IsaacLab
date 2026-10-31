@@ -51,6 +51,8 @@ def validate(path):
         np.testing.assert_allclose(applied[1:], f["material_on_body_wrench"][:-1], atol=0.01, rtol=1e-4)
         residual = m["body_mass_kg"] * np.diff(f["body_velocity"][:, :3], axis=0) / m["dt"]
         residual -= applied[:, :3] + f["external_wrench"][:, :3] + [0.0, 0.0, -9.81 * m["body_mass_kg"]]
+        if m.get("release_step") is not None:
+            residual = residual[m["release_step"] :]
         # Direct ground/box rigid contact can contribute a force absent from
         # the MPM recorder. Keep such an episode, but label the residual honestly.
         return dict(
@@ -65,6 +67,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--episodes", type=int, default=1000)
+    p.add_argument("--geometry", choices=("box", "shovel"), default="box")
     p.add_argument("--shard", type=int, default=0)
     p.add_argument("--shards", type=int, default=1)
     args = p.parse_args()
@@ -84,6 +87,11 @@ def main():
             continue
         for attempt in range(3):
             spec = specification(index, attempt)
+            if args.geometry == "shovel":
+                from particle_nerd.shovel.asset import ASSET_DIR
+
+                spec["mass_kg"] = json.loads((ASSET_DIR / "metadata.json").read_text())["body_mass_kg"]
+                spec["geometry"] = "shovel"
             attempt_name = f"{name}-attempt-{attempt}"
             path = out / f"{attempt_name}.hdf5"
             if not path.exists():
@@ -91,6 +99,8 @@ def main():
                     sys.executable,
                     "-m",
                     "particle_nerd.data_collection.collect",
+                    "--geometry",
+                    args.geometry,
                     "--case",
                     spec["case"],
                     "--body-mass",

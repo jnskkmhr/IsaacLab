@@ -29,6 +29,9 @@ import numpy as np
 import warp as wp
 
 from particle_nerd.force_estimation import kernels
+from particle_nerd.force_estimation.body_velocity import initialize_body_velocity_solve
+
+wp.set_module_options({"enable_backward": False, "max_unroll": 0})
 
 
 @wp.kernel
@@ -67,6 +70,10 @@ def _prepare_contacts(
     particle_mass: wp.array(dtype=float),
     dt: float,
     effective_scale: float,
+    horiz_scale: float,
+    up_scale: float,
+    tangent_scale: float,
+    normal_power: float,
     stabilization: float,
     margin: float,
     flags: wp.array(dtype=int),
@@ -105,8 +112,21 @@ def _prepare_contacts(
         angular = wp.mat33d(a0[0], a0[1], a0[2], a1[0], a1[1], a1[2], a2[0], a2[1], a2[2])
         respond = inverse[0] * wp.transpose(angular)
         k = frame * wp.transpose(frame) / wp.float64(mass) + angular * respond
-        slack = wp.float64(1.0) / (wp.float64(particle_mass[i]) * wp.float64(effective_scale))
-        k += wp.mat33d(slack, 0.0, 0.0, 0.0, slack, 0.0, 0.0, 0.0, slack)
+        nz = n[2]
+        up_part = wp.pow(wp.max(nz, wp.float64(0.0)), wp.float64(normal_power))
+        down_part = wp.pow(wp.max(-nz, wp.float64(0.0)), wp.float64(normal_power))
+        horiz_part = wp.max(wp.float64(0.0), wp.float64(1.0) - up_part - down_part)
+        eff_n = wp.max(
+            wp.float64(effective_scale) * up_part
+            + wp.float64(horiz_scale) * horiz_part
+            + wp.float64(up_scale) * down_part,
+            wp.float64(0.5),
+        )
+        eff_t = wp.max(wp.float64(tangent_scale), wp.float64(0.5))
+        pm = wp.float64(particle_mass[i])
+        slack_n = wp.float64(1.0) / (pm * eff_n)
+        slack_t = wp.float64(1.0) / (pm * eff_t)
+        k += wp.mat33d(slack_n, 0.0, 0.0, 0.0, slack_t, 0.0, 0.0, 0.0, slack_t)
         frames[i] = frame
         angular_jacobian[i] = angular
         response[i] = respond
@@ -137,6 +157,12 @@ class G1ProxyEstimator:
         stabilization=0.01,
         contact_offset=0.0,
         relaxation=0.1,
+        contact_solver="jacobi",
+        horiz_mass_scale=None,
+        up_mass_scale=None,
+        tangent_mass_scale=None,
+        normal_power=None,
+        particles_per_env=None,
     ):
         if iterations < 1 or effective_mass_scale <= 0 or gradient_radius <= 0 or gradient_contact_band <= 0:
             raise ValueError("Iterations, effective mass and gradient distances must be positive")
@@ -144,6 +170,10 @@ class G1ProxyEstimator:
             raise ValueError("Contact offset must be finite and nonnegative")
         if not np.isfinite(relaxation) or not 0 < relaxation <= 1:
             raise ValueError("Contact relaxation must be finite and in (0, 1]")
+        if contact_solver not in ("jacobi", "body_velocity", "rft_body_velocity"):
+            raise ValueError("contact_solver must be jacobi, body_velocity, or rft_body_velocity")
+        self.contact_solver = contact_solver
+        self.use_body_velocity = contact_solver in ("body_velocity", "rft_body_velocity")
         self.relaxation = float(relaxation)
         self.contact_offset = float(contact_offset)
         self.model = mpm_solver.model
@@ -152,10 +182,16 @@ class G1ProxyEstimator:
             raise ValueError("Provide distinct proxy body indices")
         self.iteration_limit = int(iterations)
         self.effective_scale = float(effective_mass_scale)
+        rft_default = contact_solver == "rft_body_velocity"
+        self.horiz_scale = float(horiz_mass_scale if horiz_mass_scale is not None else (8.0 if rft_default else self.effective_scale))
+        self.up_scale = float(up_mass_scale if up_mass_scale is not None else (2.0 if rft_default else self.effective_scale))
+        self.tangent_scale = float(tangent_mass_scale if tangent_mass_scale is not None else (4.0 if rft_default else self.effective_scale))
+        self.normal_power = float(normal_power if normal_power is not None else (3.0 if rft_default else 1.0))
         self.gradient_radius = float(gradient_radius)
         self.contact_band = float(gradient_contact_band)
         self.stabilization = float(stabilization)
         self.n = self.model.particle_count
+        self.particles_per_env = int(particles_per_env) if particles_per_env is not None else self.n
         self.device = self.model.device
         self.dt = None
         self.captured = False
@@ -189,7 +225,15 @@ class G1ProxyEstimator:
             self.input_velocity = wp.empty(self.model.body_count, dtype=wp.spatial_vector)
             self.wrench = wp.zeros(len(self.body_ids), dtype=wp.spatial_vector)
             self.grid = wp.HashGrid(128, 128, 128)
-            self.grid.reserve(self.n)
+            self.grid.reserve(self.particles_per_env)
+            shared_bufs = {}
+            for name in ("gradients", "frames", "angular", "response", "compliance"):
+                shared_bufs[name] = wp.empty(self.particles_per_env, dtype=wp.mat33d)
+            for name in ("flags", "offsets", "ids"):
+                shared_bufs[name] = wp.empty(self.particles_per_env, dtype=int)
+            for name in ("material", "impulses"):
+                shared_bufs[name] = wp.empty(self.particles_per_env, dtype=wp.vec3d)
+            shared_bufs["gap"] = wp.empty(self.particles_per_env, dtype=wp.float64)
             self.feet = []
             for body in self.body_ids:
                 selected = np.flatnonzero(
@@ -216,14 +260,10 @@ class G1ProxyEstimator:
                 foot["center"] = wp.empty(1, dtype=wp.vec3d)
                 foot["free"] = wp.empty(2, dtype=wp.vec3d)
                 foot["inverse"] = wp.empty(1, dtype=wp.mat33d)
-                for name in ("gradients", "frames", "angular", "response", "compliance"):
-                    foot[name] = wp.empty(self.n, dtype=wp.mat33d)
-                for name in ("flags", "offsets", "ids"):
-                    foot[name] = wp.empty(self.n, dtype=int)
-                for name in ("material", "impulses"):
-                    foot[name] = wp.empty(self.n, dtype=wp.vec3d)
-                foot["gap"] = wp.empty(self.n, dtype=wp.float64)
+                foot.update(shared_bufs)
                 foot["stats"] = wp.zeros(3, dtype=wp.float64)
+                foot["initial_velocity"] = wp.empty(2, dtype=wp.vec3d)
+                foot["bv_stats"] = wp.zeros(3, dtype=wp.float64)
                 self.feet.append(foot)
                 self.metadata["feet"].append(
                     {
@@ -253,9 +293,13 @@ class G1ProxyEstimator:
         """Use predicted next particle velocities; compute forces on the GPU."""
         if not self.captured:
             raise RuntimeError("capture must precede evaluate for every step")
-        self.grid.build(self.x, self.gradient_radius)
-        self.wrench.zero_()
         for index, f in enumerate(self.feet):
+            env_idx = index // 2
+            p_start = env_idx * self.particles_per_env
+            p_end = p_start + self.particles_per_env
+            x_env = self.x[p_start:p_end]
+            v_env = state_out.particle_qd[p_start:p_end]
+            self.grid.build(x_env, self.gradient_radius)
             wp.launch(
                 _prepare_proxy,
                 1,
@@ -276,13 +320,13 @@ class G1ProxyEstimator:
             )
             wp.launch(
                 kernels.fit_gradients,
-                self.n,
+                self.particles_per_env,
                 [
                     self.grid.id,
-                    self.x,
-                    state_out.particle_qd,
+                    x_env,
+                    v_env,
                     self.gradient_radius,
-                    f["gradients"],
+                    f["gradients"][: self.particles_per_env],
                     f["surface_pose"],
                     f["sizes"],
                     f["shapes"],
@@ -293,56 +337,106 @@ class G1ProxyEstimator:
             )
             wp.launch(
                 _prepare_contacts,
-                self.n,
+                self.particles_per_env,
                 [
-                    self.x,
-                    state_out.particle_qd,
-                    f["gradients"],
+                    x_env,
+                    v_env,
+                    f["gradients"][: self.particles_per_env],
                     f["surface_pose"],
                     f["sizes"],
                     f["center"],
                     f["free"],
                     f["inverse"],
                     f["mass"],
-                    self.model.particle_mass,
+                    self.model.particle_mass[p_start:p_end],
                     self.dt,
                     self.effective_scale,
+                    self.horiz_scale,
+                    self.up_scale,
+                    self.tangent_scale,
+                    self.normal_power,
                     self.stabilization,
                     f["margin"],
-                    f["flags"],
-                    f["frames"],
-                    f["angular"],
-                    f["response"],
-                    f["compliance"],
-                    f["material"],
-                    f["gap"],
+                    f["flags"][: self.particles_per_env],
+                    f["frames"][: self.particles_per_env],
+                    f["angular"][: self.particles_per_env],
+                    f["response"][: self.particles_per_env],
+                    f["compliance"][: self.particles_per_env],
+                    f["material"][: self.particles_per_env],
+                    f["gap"][: self.particles_per_env],
                 ],
                 device=self.device,
             )
-            wp.utils.array_scan(f["flags"], f["offsets"], inclusive=True)
-            wp.launch(kernels.compact_contacts, self.n, [f["flags"], f["offsets"], f["ids"]], device=self.device)
-            f["impulses"].zero_()
+            wp.utils.array_scan(
+                f["flags"][: self.particles_per_env], f["offsets"][: self.particles_per_env], inclusive=True
+            )
+            wp.launch(
+                kernels.compact_contacts,
+                self.particles_per_env,
+                [
+                    f["flags"][: self.particles_per_env],
+                    f["offsets"][: self.particles_per_env],
+                    f["ids"][: self.particles_per_env],
+                ],
+                device=self.device,
+            )
+            initial_vel = f["free"]
+            if self.use_body_velocity:
+                wp.launch(
+                    initialize_body_velocity_solve,
+                    128,
+                    [
+                        f["offsets"][: self.particles_per_env],
+                        f["ids"][: self.particles_per_env],
+                        f["frames"][: self.particles_per_env],
+                        f["angular"][: self.particles_per_env],
+                        f["response"][: self.particles_per_env],
+                        f["material"][: self.particles_per_env],
+                        f["gap"][: self.particles_per_env],
+                        self.model.particle_mass[p_start:p_end],
+                        f["free"],
+                        f["mass"],
+                        self.effective_scale,
+                        self.horiz_scale,
+                        self.up_scale,
+                        self.tangent_scale,
+                        self.normal_power,
+                        f["friction"],
+                        f["impulses"][: self.particles_per_env],
+                        f["initial_velocity"],
+                        f["bv_stats"],
+                    ],
+                    device=self.device,
+                    block_dim=128,
+                )
+                initial_vel = f["initial_velocity"]
+            else:
+                f["impulses"].zero_()
             wp.launch(
                 kernels.solve_contacts_parallel,
                 128,
                 [
-                    f["offsets"],
-                    f["ids"],
-                    f["frames"],
-                    f["angular"],
-                    f["response"],
-                    f["compliance"],
-                    f["material"],
-                    f["gap"],
-                    self.model.particle_mass,
-                    f["free"],
+                    f["offsets"][: self.particles_per_env],
+                    f["ids"][: self.particles_per_env],
+                    f["frames"][: self.particles_per_env],
+                    f["angular"][: self.particles_per_env],
+                    f["response"][: self.particles_per_env],
+                    f["compliance"][: self.particles_per_env],
+                    f["material"][: self.particles_per_env],
+                    f["gap"][: self.particles_per_env],
+                    self.model.particle_mass[p_start:p_end],
+                    initial_vel,
                     f["mass"],
                     self.effective_scale,
+                    self.horiz_scale,
+                    self.up_scale,
+                    self.tangent_scale,
+                    self.normal_power,
                     f["friction"],
                     self.dt,
                     self.iteration_limit,
                     wp.float64(1.0e-9),
-                    f["impulses"],
+                    f["impulses"][: self.particles_per_env],
                     self.wrench,
                     index,
                     f["stats"],

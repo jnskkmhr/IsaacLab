@@ -35,7 +35,14 @@ import json
 import torch
 import warp as wp
 wp.init()
-print(json.dumps({"runtime_versions": {n: m.version(n) for n in ("newton", "warp-lang", "torch", "mujoco", "mujoco-warp", "numpy", "usd-core")}, "gpu": torch.cuda.get_device_name(0)}, indent=2))
+versions = {n: m.version(n) for n in ("newton", "warp-lang", "torch", "mujoco", "mujoco-warp", "numpy")}
+for provider in ("usd-core", "usd-exchange"):
+    try:
+        versions[provider] = m.version(provider)
+    except m.PackageNotFoundError:
+        pass
+from pxr import Usd
+print(json.dumps({"runtime_versions": versions, "usd_version": Usd.GetVersion(), "gpu": torch.cuda.get_device_name(0)}, indent=2))
 assert torch.cuda.is_available()
 PY
 exec "$@"

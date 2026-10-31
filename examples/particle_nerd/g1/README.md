@@ -3,6 +3,17 @@
 The G1 examples use the current native G1 MPM task in `~/isaac/IsaacLab`.
 The model is Transolver. No GNN, region selector, or MPM correction network is used.
 
+## G1 visual appearance
+
+Use `~/isaac/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/contrib/g1_29dof_mpm`
+as the visual reference for every G1 recording. Use the native task visualizer,
+including authored robot/testbed materials, sky lighting, particle widths and
+color, and camera configuration. Do not substitute standalone-viewer lighting,
+particle radii, or colors. Do not override `window.size`: read the task
+configuration directly (currently 1920 × 1080 per view). RTX replay uses the
+simulation-owned USD stage. GRF plots use identical limits for both methods and
+both feet, calculated from the MPM reference.
+
 ## Runtime
 
 Use the native IsaacLab checkout's runtime and only overlay these example modules:
@@ -89,6 +100,28 @@ per-foot `contact_stats`: contact count, iterations used, and maximum unrelaxed
 impulse correction (N s). These diagnostics copy to the CPU for recording; they
 are not part of a simulation throughput benchmark.
 
+## Run the contact-loss sinkage pilot
+
+This checkpoint was fine-tuned on training trajectory 1 using the same 0.5-second recurrent horizon.
+It restored sand support in six exploratory dynamic scenarios, including 20-second standing.
+Full-data retraining is in progress; this is not a claim of material or terrain generalization.
+See the [measurements and native RTX videos](https://jnskkmhr.github.io/particle-nerd-plan/g1-sinkage-investigation.html).
+
+Use this worktree's runtime for the frozen G1 task used in these evaluations:
+
+```bash
+cd ~/isaac/IsaacLab-particle-nerd
+PYTHONPATH="$PWD/examples" uv run --no-sync python -m particle_nerd.g1.play \
+  --checkpoint "$HOME/isaac/particle_nerd/experiments/g1-contact-training-20261028/local-direct-contact/step-100.pt" \
+  --schedule "$HOME/isaac/particle_nerd/experiments/g1-evaluation-20s-mass50/commands.json" \
+  --trial 2 --seed 120000 --duration 20 --settle-steps 60 --active-k auto \
+  --effective-mass-scale 100 --iterations 200 --contact-relaxation 0.02 \
+  --contact-solver rft_body_velocity --viz newton_rtx --output /tmp/g1-contact-loss-pilot
+```
+
+This uses particle NeRD and the unchanged analytical estimator after the existing 60-step initial MPM settling.
+The robot remains dynamic. The native workspace boundary may terminate the run before 20 seconds.
+
 ## Record reference data
 
 ```bash
@@ -108,13 +141,22 @@ not be interpreted as total actuator torque.
 ```bash
 uv run --no-sync python -m torch.distributed.run --standalone --nproc_per_node=4 \
   -m particle_nerd.g1.train --data /path/to/data --output /path/to/model \
-  --steps 2000 --rollout-steps 2 --validation-samples 50
+  --steps 1000 --rollout-seconds 0.5 --stride 1 --validation-samples 50
 ```
 
 The trainer streams HDF5 windows; it does not load the complete dataset into RAM.
 All particles are processed. The validation split selects `best.pt`; the test
-split is not used for training or checkpoint selection. Two-step training and
-validation cover 10 ms, so long rollouts must be evaluated separately.
+split is not used for training or checkpoint selection. The default recurrent
+horizon is **0.5 seconds: 100 predictions at the 5 ms timestep**. Predicted particle
+positions feed all subsequent steps without resets or detachment. The loss covers
+all 100 predictions. Activation checkpointing recomputes neural-network activations
+during backpropagation to reduce GPU memory; it does not shorten the horizon.
+`run.json` records the resolved step count and horizon. Trajectories too short to
+supply a complete window are excluded from window sampling and reported in evaluation.
+
+Use the existing collected dataset for this training command. No reference simulation
+or data collection is part of training. Initialize continuation runs with
+`--initialize /path/to/existing-g1-best.pt`.
 
 ## Evaluate particle motion with recorded robot geometry
 
@@ -133,7 +175,7 @@ This measures particle prediction; it is not closed-loop robot simulation.
 ```bash
 uv run --no-sync python -m particle_nerd.g1.render \
   --particle-evaluation /tmp/g1-particle-evaluation \
-  --output /tmp/g1-recorded-motion.mp4
+  --output /tmp/g1-recorded-motion.mp4 --viz newton_rtx
 ```
 
 Left: recorded MPM particles. Right: autoregressive particle NeRD predictions.
@@ -147,11 +189,11 @@ file has moved. This replay does not advance physics or apply force feedback.
 ```bash
 uv run --no-sync python -m particle_nerd.g1.render \
   --reference /tmp/g1-reference --prediction /tmp/g1-learned \
-  --output /tmp/g1-comparison.mp4
+  --output /tmp/g1-comparison.mp4 --viz newton_rtx
 ```
 
-Newton RTX renders the saved states without advancing physics. Both views use
-brown particles, a 10 mm display radius, and identical cameras. The chart shows
+The native G1 RTX visualizer renders saved states without advancing physics.
+Both views retain task-authored materials, particle widths and camera settings. The chart shows
 vertical force exerted by sand on each robot foot. Omit `--prediction` for a
 reference-only video. `--preview` writes one JPEG instead of the video.
 
@@ -192,3 +234,23 @@ The mandatory [dataset audit](osmo/audit_dataset.py) checks every recorded numer
 value, trajectory IDs, splits, rates, and geometry before training. It also exports
 measured pelvis paths at 10 Hz. Checkpoint selection uses validation trajectories;
 short-horizon test metrics are computed only after selection.
+
+## Train with contact-region position supervision
+
+Add these options to the existing G1 training command:
+
+```bash
+--contact-loss-weight 0.5 --contact-band 0.02
+```
+
+The loss gives equal weight to the existing moving/stationary position objective and the mean
+position error of reference particles within 2 cm of either foot collision box. The contact band
+matches this G1 task's foot collision margin; it is a training parameter, not an inference clamp.
+Membership uses the reference next-step particle position and recorded current foot pose.
+Keep `--rollout-seconds 0.5 --stride 1 --active-k auto --anchor-m 512 --settled-frame 150`.
+
+Validation reports both `balanced_rmse_m` and `contact_region_rmse_m`. `best.pt` minimizes
+`selection_score_rmse_m`, the square root of their weighted mean squared errors.
+The default contact-loss weight is zero, preserving the previous training objective and checkpoint
+selection. The weight and distance are saved in `run.json` and checkpoint configuration.
+No inference change is required to use a checkpoint trained with this loss.

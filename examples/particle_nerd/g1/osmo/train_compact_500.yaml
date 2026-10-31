@@ -1,0 +1,180 @@
+workflow:
+  name: particle-g1-compact-confining
+  resources:
+    default:
+      cpu: 16
+      gpu: 8
+      memory: 128Gi
+      platform: ovx-l40s
+      storage: 1500Gi
+  tasks:
+  - args:
+    - |
+      set -euo pipefail
+      mkdir -p /tmp/g1-nerd "{{output}}/model"
+      exec > >(tee -a "{{output}}/runtime.log") 2>&1
+      cd "{{input:0}}"
+      sha256sum --check source.sha256
+      tar -xzf source.tar.gz -C /tmp/g1-nerd
+      cd /tmp/g1-nerd/source
+      unset PYTHONPATH VIRTUAL_ENV DISPLAY
+      export PATH="/tmp/g1-uv:$PATH"
+      if ! command -v uv >/dev/null; then
+        curl --fail --location --retry 3 https://astral.sh/uv/0.12.12/install.sh | sh
+      fi
+      uv sync --locked --extra rsl-rl
+      export PYTHONPATH="$PWD/examples"
+      cp deployment/snapshot.json "{{output}}/snapshot.json"
+      uv run --no-sync python deployment/audit_dataset.py \
+        --data "{{input:1}}" --schedule deployment/commands.json \
+        --expected-limit 500 --workers 8 \
+        --output "{{output}}/dataset-audit.json"
+
+      test -f "{{input:2}}/last.pt"
+      sha256sum "{{input:2}}/last.pt" > "{{output}}/initial-checkpoint.sha256"
+
+      uv run --no-sync torchrun --standalone --nproc_per_node=8 \
+        --module particle_nerd.g1.train \
+        --data "{{input:1}}" --output "{{output}}/smoke" \
+        --initialize "{{input:2}}/last.pt" --steps 2 --rollout-seconds 0.5 --stride 1 \
+        --learning-rate 0.00005 --evaluate-every 2 --validation-samples 2 \
+        --active-k "{{ active_k }}" --anchor-m {{ anchor_m }} --settled-frame {{ settled_frame }} \
+        --contact-loss-weight 0.5 --contact-band 0.02 --pushforward-steps {{ pushforward_steps }} --seed 20261029
+      uv run --no-sync python /tmp/check_g1_horizon.py "{{output}}/smoke/run.json"
+
+      uv run --no-sync torchrun --standalone --nproc_per_node=8 \
+        --module particle_nerd.g1.train \
+        --data "{{input:1}}" --output "{{output}}/model" \
+        --initialize "{{input:2}}/last.pt" --steps {{ training_steps }} --rollout-seconds 0.5 --stride 1 \
+        --learning-rate 0.00005 --evaluate-every 100 --validation-samples 50 \
+        --active-k "{{ active_k }}" --anchor-m {{ anchor_m }} --settled-frame {{ settled_frame }} \
+        --contact-loss-weight 0.5 --contact-band 0.02 --pushforward-steps {{ pushforward_steps }} --seed 20261029
+      uv run --no-sync python /tmp/check_g1_horizon.py "{{output}}/model/run.json"
+      uv run --no-sync python /tmp/evaluate_g1_recurrent.py "{{input:1}}" "{{input:2}}/last.pt" "{{output}}"
+    checkpoint:
+    - frequency: 5m
+      path: '{{output}}/model'
+      regex: .*\.(pt|json|jsonl)$
+      url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261027/training/{{workflow_id}}/model
+    command:
+    - bash
+    - -c
+    environment:
+      HEADLESS: '1'
+      NCCL_DEBUG: WARN
+      NVIDIA_DRIVER_CAPABILITIES: all
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '1'
+      PYOPENGL_PLATFORM: egl
+      PYTHONUNBUFFERED: '1'
+      TORCH_NCCL_ASYNC_ERROR_HANDLING: '1'
+      UV_INSTALL_DIR: /tmp/g1-uv
+      UV_NO_MODIFY_PATH: '1'
+      UV_PROJECT_ENVIRONMENT: /tmp/g1-venv
+      UV_PYTHON: '3.12'
+      UV_PYTHON_PREFERENCE: only-managed
+    image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+    inputs:
+    - url: '{{ source_url }}'
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261020/collection/particle-g1-collect-500-1/
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261028/contact-training/particle-g1-direct-contact-1/model/
+    name: train
+    outputs:
+    - url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-g1-nerd/20261027/training/{{workflow_id}}
+    files:
+    - path: /tmp/check_g1_horizon.py
+      contents: |
+        import json, sys
+        from pathlib import Path
+        r = json.loads(Path(sys.argv[1]).read_text())
+        assert r["arguments"]["rollout_steps"] == 100, r["arguments"]
+        assert abs(r["arguments"]["rollout_seconds"] - 0.5) < 1e-10, r["arguments"]
+        assert abs(r["config"]["dt"] - 0.005) < 1e-10, r["config"]
+        assert r["config"]["active_k"] is not None and r["config"]["active_k"] > 0, r["config"]
+        assert r["config"]["confining_boundary"] is True, r["config"]
+        assert r["config"]["settled_frame"] >= 60, r["config"]
+        print("VERIFIED: 100 autoregressive steps x 0.005s = 0.5s with settled_frame, active compaction & confining boundary", flush=True)
+    - path: /tmp/evaluate_g1_recurrent.py
+      contents: |
+        import hashlib, json, sys, subprocess
+        from pathlib import Path
+        import numpy as np
+        import torch
+        import warp as wp
+        from particle_nerd.g1.data import Episodes
+        from particle_nerd.g1.train import validate
+        from particle_nerd.transolver.model import ParticleTransolver
+
+        torch.set_num_threads(2)
+        torch.cuda.set_device(0)
+        wp.init()
+        data_root, initial, output = map(Path, sys.argv[1:])
+        run = json.loads((output / "model/run.json").read_text())
+        settled_frame = int(run["config"].get("settled_frame", 60))
+        test = Episodes(data_root, "test", stride=1, settled_frame=settled_frame)
+        expected = {t["trial_id"] for t in json.loads(Path("deployment/commands.json").read_text())["trials"] if t["split"] == "test"}
+        assert {r["index"] for r in test.records} == expected
+        assert not expected.intersection(run["train_ids"] + run["validation_ids"])
+        eligible = [r for r in test.records if r["frames"] > test.first_frame + 100 * test.stride]
+        excluded = sorted(expected - {r["index"] for r in eligible})
+        test.records = eligible
+        active_k = run["config"].get("active_k")
+        anchor_m = run["config"].get("anchor_m", 512)
+        for label, checkpoint in [("initial", initial), ("new", output / "model/best.pt")]:
+            saved = torch.load(checkpoint, map_location="cuda:0", weights_only=False)
+            model = ParticleTransolver(**saved["config"]["model"]).to("cuda:0")
+            model.load_state_dict(saved["model"], strict=True)
+            metrics = validate(model, test, 100, len(test.records), "cuda:0", active_k=active_k, anchor_m=anchor_m)
+            assert all(np.isfinite(value).all() for value in metrics.values())
+            report = dict(
+                checkpoint_step=saved["step"],
+                checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+                split="test",
+                trial_ids=sorted(r["index"] for r in test.records),
+                excluded_too_short=excluded,
+                prediction_steps=100,
+                timestep_s=test.dt,
+                horizon_s=0.5,
+                settled_frame=settled_frame,
+                active_k=active_k,
+                anchor_m=anchor_m,
+                sampling_seed=42027,
+                windows_per_trajectory=1,
+                scope="Autoregressive particles conditioned on recorded G1 motion (settled_frame=60, compact + confining boundary)",
+                metrics=metrics,
+            )
+            (output / f"test-metrics-{label}.json").write_text(json.dumps(report, indent=2) + "\n")
+            print("TEST_METRICS", label, json.dumps(report), flush=True)
+            del model, saved
+            torch.cuda.empty_cache()
+            for trial in (2, 106, 306):
+                record = next(r for r in test.records if r["index"] == trial)
+                subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "particle_nerd.g1.evaluate",
+                        "--checkpoint",
+                        str(checkpoint),
+                        "--episode",
+                        str(record["path"]),
+                        "--output",
+                        str(output / "evaluation" / label / f"test-{trial}"),
+                        "--duration",
+                        "5",
+                        "--active-k",
+                        str(active_k),
+                        "--anchor-m",
+                        str(anchor_m),
+                        "--settled-frame",
+                        str(settled_frame),
+                    ],
+                    check=True,
+                )
+default-values:
+  source_url: ""
+  training_steps: 1000
+  active_k: "auto"
+  anchor_m: 512
+  settled_frame: 150
+  pushforward_steps: 100

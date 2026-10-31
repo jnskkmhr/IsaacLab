@@ -1,0 +1,658 @@
+{
+  "geometry": "shovel",
+  "body_mass_kg": 20.50647082113913,
+  "body_inertia": [
+    [
+      0.13237391412258148,
+      -8.281032748413963e-09,
+      0.13422220945358276
+    ],
+    [
+      -8.281032748413963e-09,
+      1.08860445022583,
+      1.5943195652567965e-09
+    ],
+    [
+      0.13422220945358276,
+      1.5943195652567965e-09,
+      1.1717381477355957
+    ]
+  ],
+  "body_com": [
+    0,
+    0,
+    0
+  ],
+  "original_local_com": [
+    -0.0717223584651947,
+    -1.4978476237104132e-09,
+    0.012100918218493462
+  ],
+  "body_size_m": [
+    1.1600000858306885,
+    0.31949999928474426,
+    0.22349999845027924
+  ],
+  "blade_length_m": 0.6,
+  "blade_width_m": 0.32,
+  "blade_thickness_m": 0.014,
+  "body_contact_friction": 0.5,
+  "sdf_spacing_m": 0.005,
+  "sdf_origin": [
+    -0.8782776594161987,
+    -0.3097500205039978,
+    -0.19110092520713806
+  ],
+  "sdf_shape": [
+    293,
+    125,
+    106
+  ],
+  "shapes": [
+    {
+      "name": "shovel_blade_visual",
+      "visual": true,
+      "color": [
+        0.2,
+        0.21,
+        0.22
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_0",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_1",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_2",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_3",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_4",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_5",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_6",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_7",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_8",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_9",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_10",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_11",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_12",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_13",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_14",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_15",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_16",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_17",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_18",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_19",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_20",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_21",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_22",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_23",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_24",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_25",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_26",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_27",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_28",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_29",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_30",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_31",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_32",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_33",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_34",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_35",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_36",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_37",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_38",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_39",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_40",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_41",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_42",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_43",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_44",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_45",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_46",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_47",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_48",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_49",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_50",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_51",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_52",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_53",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_54",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_55",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_56",
+      "visual": false,
+      "color": [
+        0.4,
+        0.8,
+        0.9333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_57",
+      "visual": false,
+      "color": [
+        0.13333333333333333,
+        0.5333333333333333,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_58",
+      "visual": false,
+      "color": [
+        0.8,
+        0.7333333333333333,
+        0.26666666666666666
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_59",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.4,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_60",
+      "visual": false,
+      "color": [
+        0.6666666666666666,
+        0.2,
+        0.4666666666666667
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_61",
+      "visual": false,
+      "color": [
+        0.9333333333333333,
+        0.6,
+        0.2
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_62",
+      "visual": false,
+      "color": [
+        0.0,
+        0.6,
+        0.5333333333333333
+      ]
+    },
+    {
+      "name": "shovel_blade_collision_63",
+      "visual": false,
+      "color": [
+        0.26666666666666666,
+        0.4666666666666667,
+        0.6666666666666666
+      ]
+    },
+    {
+      "name": "shovel_neck",
+      "visual": false,
+      "color": [
+        0.2,
+        0.21,
+        0.22
+      ]
+    },
+    {
+      "name": "shovel_wooden_handle",
+      "visual": false,
+      "color": [
+        0.57,
+        0.34,
+        0.14
+      ]
+    }
+  ],
+  "source": "newton/examples/mpm_moving_patch_beta/impl/shovel.py",
+  "source_sha256": "1bce0f4431cb17110583087baf763b5fdaa4de319417c2f922d2b4bcfb3f4968"
+}
