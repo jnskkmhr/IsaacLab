@@ -61,3 +61,14 @@ class G1PPORunnerCfg(CompositionalRunnerCfg):
     logger = "wandb"
     wandb_project = "g1_mimic_perception_goal_condition"
     experiment_name = "g1_mimic_perception_goal_condition"
+
+
+@configclass
+class G1StairsFinetunePPORunnerCfg(G1PPORunnerCfg):
+    """Reuse both pretrained networks with a smaller initial fine-tuning learning rate."""
+
+    experiment_name = "g1_mimic_perception_goal_condition_stairs_finetune"
+    wandb_project = "g1_mimic_perception_goal_condition_stairs_finetune"
+
+    def __post_init__(self):
+        self.algorithm.learning_rate = 1.0e-4

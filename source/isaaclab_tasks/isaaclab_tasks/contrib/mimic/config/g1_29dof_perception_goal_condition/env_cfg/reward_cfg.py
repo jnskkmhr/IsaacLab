@@ -66,6 +66,26 @@ class G1RewardsCfg:
         },
     )
 
+    task_motion_style = RewTerm(
+        func=goal_mdp.TaskMotionStyle,
+        weight=2.0,
+        params={
+            "command_name": "motion",
+            "body_names": [
+                "left_ankle_roll_link",
+                "right_ankle_roll_link",
+                "left_wrist_yaw_link",
+                "right_wrist_yaw_link",
+            ],
+            "joint_pos_std": 0.35,
+            "joint_vel_std": 1.5,
+            "body_pos_std": 0.15,
+            "phase_rates": (0.5, 0.75, 1.0, 1.25),
+            "stationary_velocity_threshold": 0.1,
+        },
+    )
+    """Preserve local limb motion in task episodes without matching global reference pose."""
+
     goal_progress = RewTerm(func=goal_mdp.goal_progress, weight=2.0)
     """Reward decreasing root-to-destination distance in task episodes."""
     goal_position = RewTerm(func=goal_mdp.goal_position, weight=4.0, params={"std": 2.0})
@@ -74,6 +94,15 @@ class G1RewardsCfg:
     """Align destination heading after reaching its position."""
     goal_settle = RewTerm(func=goal_mdp.goal_settle, weight=-0.5)
     """Penalize base motion near the destination; leave the jump unconstrained."""
+    goal_joint_deviation = RewTerm(
+        func=goal_mdp.goal_joint_deviation_l1,
+        weight=-1.0,
+        params={
+            "command_name": "motion",
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+        },
+    )
+    """Encourage the default joint pose in supported task episodes at the goal position."""
 
     alive_reward = RewTerm(func=mdp.is_alive, weight=1.0)
 

@@ -30,6 +30,7 @@ class GoalMotionCommand(MotionCommand):
         self.goal_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self._finished_task = torch.zeros_like(self.is_imitation)
         self._finished_success = torch.zeros_like(self.is_imitation)
+        self.task_reset_difficulty = torch.zeros(self.num_envs, device=self.device)
         self.foot_ids = env.scene["contact_forces"].find_bodies(".*_ankle_roll_link")[0]
         self.metrics = {
             name: torch.zeros(self.num_envs, device=self.device)
@@ -45,6 +46,11 @@ class GoalMotionCommand(MotionCommand):
             max((self._env.common_step_counter - self.cfg.warmup_steps) / self.cfg.transition_steps, 0.0), 1.0
         )
         return 1.0 - fraction * (1.0 - self.cfg.final_imitation_probability)
+
+    @property
+    def reset_randomization_scale(self) -> float:
+        """Ramp task position/yaw variation after the imitation warmup."""
+        return min(max((self._env.common_step_counter - self.cfg.warmup_steps) / self.cfg.transition_steps, 0.0), 1.0)
 
     @property
     def goal_error(self) -> torch.Tensor:
@@ -97,12 +103,26 @@ class GoalMotionCommand(MotionCommand):
             self.motion._body_pos_w[frames, self.motion_root_body_index] + self._env.scene.env_origins[pending]
         )
         self.goal_quat_w[pending] = math_utils.yaw_quat(self.motion._body_quat_w[frames, self.motion_root_body_index])
-        # The endpoint lies on the landing platform. Keep this variation small enough
-        # to remain on that platform; do not move the terrain or reference trajectory.
+        # Task destinations can be shifted into the landing interior in the final
+        # reference heading frame. Imitation destinations remain at the endpoint.
+        task_mask = ~self.is_imitation[pending]
+        offset = torch.tensor(self.cfg.task_goal_offset, device=self.device).expand(len(pending), -1)
+        scale = torch.ones(len(pending), 1, device=self.device)
+        if self.cfg.task_reset_curriculum:
+            scale = self.task_reset_difficulty[pending, None]
+            initial_offset = torch.tensor(self.cfg.task_goal_offset_initial, device=self.device)
+            offset = torch.lerp(initial_offset, offset, scale)
+        self.goal_pos_w[pending] += math_utils.quat_apply(self.goal_quat_w[pending], offset) * task_mask[:, None]
         noise = torch.empty(len(pending), 2, device=self.device).uniform_(
             -self.cfg.goal_position_noise, self.cfg.goal_position_noise
         )
-        self.goal_pos_w[pending, :2] += noise * (~self.is_imitation[pending]).unsqueeze(-1)
+        self.goal_pos_w[pending, :2] += noise * scale * task_mask.unsqueeze(-1)
+
+    def _resample_command(self, env_ids):
+        super()._resample_command(env_ids)
+        # The first termination check precedes the first reference update.
+        self.body_pos_relative_w[env_ids] = self.body_pos_w[env_ids]
+        self.body_quat_relative_w[env_ids] = self.body_quat_w[env_ids]
 
     def reset(self, env_ids=None):
         if env_ids is None:
@@ -160,6 +180,20 @@ class GoalMotionCommandCfg(MotionCommandCfg):
     """Uniform initial yaw displacement in radians, only in task episodes."""
     goal_position_noise: float = 0.2
     """Uniform destination XY displacement in meters, only in task episodes."""
+    task_start_offset: tuple[float, float, float] | None = None
+    """Standing-start offset from the first reference root in its yaw frame; None keeps reference resets."""
+    task_goal_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """Task goal displacement from the reference endpoint in its yaw frame, in meters."""
+    task_reset_curriculum: bool = False
+    """Blend reference resets into standing resets using per-environment task success instead of elapsed steps."""
+    task_goal_offset_initial: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """Task goal offset at zero reset difficulty; interpolation reaches task_goal_offset at full difficulty."""
+    task_velocity_range: dict[str, tuple[float, float]] = {}
+    """Task root velocity ranges in the initial yaw frame (m/s and rad/s); joint velocities stay zero."""
+    task_velocity_probability: float = 0.5
+    """Fraction of standing task resets receiving velocity noise; others remain exactly stationary."""
+    task_velocity_start_step: int = 240_000
+    """Start velocity randomization after the position/yaw ramp; ramp over transition_steps."""
     position_tolerance: float = 0.35
     height_tolerance: float = 0.25
     heading_tolerance: float = 0.4

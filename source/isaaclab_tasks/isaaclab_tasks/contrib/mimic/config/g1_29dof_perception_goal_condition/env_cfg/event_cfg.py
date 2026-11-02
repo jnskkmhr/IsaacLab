@@ -65,7 +65,7 @@ class G1EventCfg:
     # They ask the command term for this episode's start frame and place the robot on it. Drop them and
     # the robot starts wherever the previous episode left it, with no relation to the reference.
     reset_joints = EventTerm(
-        func=mimic_mdp.reset_joint_state_from_reference,
+        func=goal_mdp.reset_joint_state,
         mode="reset",
         params={"command_name": "motion", "position_range": (-0.1, 0.1)},
     )

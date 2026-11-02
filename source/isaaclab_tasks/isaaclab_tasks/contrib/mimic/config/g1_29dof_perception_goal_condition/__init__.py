@@ -12,6 +12,26 @@ from . import agents
 ##
 
 gym.register(
+    id="IsaacContrib-Mimic-G1-29dof-Perception-Goal-Condition-Stairs-Finetune",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.finetune_env_cfg:StairsFinetuneEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1StairsFinetunePPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="IsaacContrib-Mimic-G1-29dof-Perception-Goal-Condition-Stairs-Finetune-Play",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.finetune_env_cfg:StairsFinetuneEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1StairsFinetunePPORunnerCfg",
+    },
+)
+
+gym.register(
     id="IsaacContrib-Mimic-G1-29dof-Perception-Goal-Condition",
     entry_point="isaaclab_tasks.contrib.mimic.utils.motion_env:MotionTrackingEnv",
     disable_env_checker=True,
@@ -28,5 +48,26 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.mimic_env_cfg:EnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1PPORunnerCfg",
+    },
+)
+
+
+gym.register(
+    id="IsaacContrib-Mimic-G1-29dof-Perception-Goal-Condition-Stairs-Mixed-Finetune",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.finetune_env_cfg:MixedStairsFinetuneEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1StairsFinetunePPORunnerCfg",
+    },
+)
+
+gym.register(
+    id="IsaacContrib-Mimic-G1-29dof-Perception-Goal-Condition-Stairs-Mixed-Finetune-Play",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.finetune_env_cfg:MixedStairsFinetuneEnvCfg_PLAY",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1StairsFinetunePPORunnerCfg",
     },
 )

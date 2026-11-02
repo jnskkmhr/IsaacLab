@@ -1,0 +1,38 @@
+{
+  "source_file": "../supplied_stairs/motion.npz",
+  "source_sha256": "c653f9d651e5fc1fafda1b8b0b13c8b2b7bcd9e0cf7c144162b0d756db909b19",
+  "source_repository_commit": "b3132f98549f506647654a1c1bfd89410eb147ec",
+  "platform_width_m": 2.5,
+  "rotation_center_m": [
+    2.275282621383667,
+    -0.021535057574510574,
+    0.0
+  ],
+  "yaw_degrees": [
+    0,
+    90,
+    180,
+    270
+  ],
+  "terrain_id": "kimodo_supplied_stairs_pyramid",
+  "step_front_x_m": [
+    0.004840195178985596,
+    0.23193848133087158,
+    0.4274681806564331,
+    0.6511518955230713,
+    0.8332019448280334,
+    1.025282621383667
+  ],
+  "step_surface_z_m": [
+    0.17859025299549103,
+    0.4058542251586914,
+    0.6216964721679688,
+    0.784445583820343,
+    0.9744656085968018,
+    1.1481502056121826
+  ],
+  "joint_trajectory_modified": false,
+  "frame_count": 174,
+  "fps": 50.0,
+  "dynamic_tracking_validated": false
+}

@@ -91,11 +91,27 @@ class G1CommandsCfg:
         body_names=BODY_NAMES,
         anchor_body_name="torso_link",
         terrain_mode="motion",
-        motion_files=[str(MOTION_DATA_DIR / "parc" / "jump_001" / "motion.npz")],
+        # Uniform motion sampling selects a cardinal approach to the same pyramid.
+        motion_files=[
+            str(MOTION_DATA_DIR / "kimodo" / "supplied_stairs_pyramid_stand" / "motion_yaw_000.npz"),
+            str(MOTION_DATA_DIR / "kimodo" / "supplied_stairs_pyramid_stand" / "motion_yaw_090.npz"),
+            str(MOTION_DATA_DIR / "kimodo" / "supplied_stairs_pyramid_stand" / "motion_yaw_180.npz"),
+            str(MOTION_DATA_DIR / "kimodo" / "supplied_stairs_pyramid_stand" / "motion_yaw_270.npz"),
+            # str(MOTION_DATA_DIR / "parc" / "jump_001" / "motion.npz"),
+        ],
         warmup_steps=120_000,
         transition_steps=120_000,
         final_imitation_probability=0.5,
-        initial_position_noise=0.4,
-        initial_yaw_noise=3.14/6,
-        goal_position_noise=0.2,
+        # Expand toward standing starts only after successful, non-failing task episodes.
+        task_reset_curriculum=True,
+        task_start_offset=(-0.9, 0.0, 0.0),
+        initial_position_noise=0.3,
+        initial_yaw_noise=0.3,
+        # Shift the reference endpoint safely into the 2.5 m square landing.
+        task_goal_offset=(0.75, 0.0, 0.0),
+        task_goal_offset_initial=(0.2, 0.0, 0.0),
+        goal_position_noise=0.35,
+        task_velocity_start_step=240_000,
+        task_velocity_probability=0.5,
+        task_velocity_range={"x": (-0.15, 0.15), "y": (-0.15, 0.15), "yaw": (-0.2, 0.2)},
     )

@@ -1,0 +1,26 @@
+{
+  "model": "Kimodo-G1-RP-v1",
+  "retargeting": "official Kimodo G1 joint projection; no SOMA/GMR",
+  "source_type": "supplied_example",
+  "source_file": "/tmp/skill-chaining-kimodo/kimodo/assets/demo/examples/kimodo-g1-rp/07_text_terrain/motion.npz",
+  "source_sha256": "a1c2920338a8ecaa0f8c25a24f06bdca88db8b406c33a68930a459d64f6beda8",
+  "source_generation_settings": {
+    "text": "A person begins walking up the stairs",
+    "duration": 3.5,
+    "num_samples": 1,
+    "seed": 44,
+    "diffusion_steps": 100,
+    "cfg": {
+      "enabled": true,
+      "text_weight": 2.0,
+      "constraint_weight": 2.0
+    }
+  },
+  "kimodo_revision": "e1c219c99b4b94ba48be1fb6a1cbc64ecee4c954",
+  "fps": 30.0,
+  "target_robot": "UNITREE_G1_29DOF_BALL_HAND_CFG",
+  "export_asset": "source/isaaclab_assets/data/unitree/g1_29dof_box_foot_ball_hand/g1_29dof_box_foot_ball_hand.usda",
+  "export_asset_sha256": "5a82189df73de1f96dc2e302f4112a4956b72b71dc79bddd5f6a5c5aabbfdc2d",
+  "dynamic_tracking_validated": false,
+  "source_joint_trajectory_modified": false
+}

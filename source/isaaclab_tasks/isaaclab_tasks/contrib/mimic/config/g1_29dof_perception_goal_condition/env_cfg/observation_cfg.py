@@ -176,17 +176,17 @@ class G1ObservationsCfg:
             mirror_params={"joint_names": JOINT_NAMES},
         )
         reference_phase = ObsTerm(
-            func=mimic_mdp.motion_phase, params={"command_name": "motion"}, mirror=mirror_identity
+            func=goal_mdp.reference_phase, params={"command_name": "motion"}, mirror=mirror_identity
         )
 
         # privileged observations (for critic only)
         motion_anchor_pos_b = ObsTerm(
-            func=mimic_mdp.motion_anchor_pos_b,
+            func=goal_mdp.motion_anchor_pos_b,
             params={"command_name": "motion"},
             mirror=mirror_vec3,
         )
         motion_anchor_ori_b = ObsTerm(
-            func=mimic_mdp.motion_anchor_ori_b,
+            func=goal_mdp.motion_anchor_ori_b,
             params={"command_name": "motion"},
             mirror=mirror_rotation_6d,
         )

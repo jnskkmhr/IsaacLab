@@ -5,7 +5,12 @@
 
 
 from .commands import *  # noqa: F401, F403
+from .curriculums import *  # noqa: F401, F403
 from .events import *  # noqa: F401, F403
 from .observations import *  # noqa: F401, F403
 from .rewards import *  # noqa: F401, F403
+from .stair_commands import *  # noqa: F401, F403
 from .terminations import *  # noqa: F401, F403
+
+from .mixed_stair_commands import *  # noqa: F401, F403
+from .stair_terrains import *  # noqa: F401, F403

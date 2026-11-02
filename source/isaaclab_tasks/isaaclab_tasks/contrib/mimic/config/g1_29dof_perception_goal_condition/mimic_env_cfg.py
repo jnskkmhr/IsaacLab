@@ -9,6 +9,9 @@ from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
+from isaaclab.visualizers import WindowCfg
+
+from isaaclab_tasks.contrib.mimic.utils.motion_paired_terrain_cfg import configure_scene_motion_paired_terrain
 
 ##
 # Pre-defined configs
@@ -28,7 +31,7 @@ from .env_cfg import (
 
 @configclass
 class EnvCfg(ManagerBasedRLEnvCfg):
-    """Goal-conditioned jumping with imitation and task episodes on paired terrain."""
+    """Goal-conditioned motion with imitation and task episodes on paired terrain."""
 
     sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())
 
@@ -48,6 +51,10 @@ class EnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.episode_length_s = 10.0
+        self.rewards.goal_progress = None
+        configure_scene_motion_paired_terrain(self.scene, self.commands.motion.motion_files)
+        # Include randomized standing starts and the full foot footprint on the ground patch.
+        self.scene.terrain.patch_margin = 2.0
 
         # simulation settings
         self.sim.dt = 1 / 200
@@ -62,7 +69,18 @@ class EnvCfg(ManagerBasedRLEnvCfg):
 
         self.scene.ghost.enabled = False
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(12.0, 0.0, 3.0)),
+            NewtonGLVisualizerCfg(
+                eye=(3.0, -4.0, 2.0),
+                lookat=(0.0, 0.0, 0.3),
+                origin_type="asset",
+                origin_track_path="robot",
+                origin_env_index=0,
+                window=WindowCfg(size=(960, 540)),
+                max_visible_envs=50,
+                visible_env_indices=None,
+                randomly_sample_visible_envs=False,
+                enable_live_plots=False,
+            ),
             # KitVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
         ]
 
@@ -81,6 +99,9 @@ class EnvCfg_PLAY(EnvCfg):
         super().__post_init__()
         self.scene.num_envs = 1
         self.commands.motion.imitation_probability = 0.0
+        self.commands.motion.task_reset_curriculum = False
+        self.commands.motion.warmup_steps = -self.commands.motion.transition_steps
+        self.curriculum.task_resets = None
         self.events.reset_joints.params["position_range"] = (0.0, 0.0)
         self.observations.policy.enable_corruption = False
 
@@ -93,10 +114,16 @@ class EnvCfg_PLAY(EnvCfg):
             #     streaming_view=False,
             # ),
             NewtonRTXVisualizerCfg(
-                eye=(0.0, -3.0, 0.5),
-                lookat=(0.0, 0.0, 0.0),
+                eye=(3.0, -4.0, 2.0),
+                lookat=(0.0, 0.0, 0.3),
                 origin_type="asset",
                 origin_track_path="robot",
+                origin_env_index=0,
+                window=WindowCfg(size=(960, 540)),
+                max_visible_envs=1,
+                visible_env_indices=[0],
+                randomly_sample_visible_envs=False,
+                enable_live_plots=False,
                 # headless=True,
             ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
