@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+"""Standard RSL-RL PPO matching the legacy moving-patch training configuration."""
+
 from isaaclab.utils.configclass import configclass
 
 from isaaclab_contrib.mdp import compute_mirrored_states
@@ -12,6 +14,8 @@ from isaaclab_rl.rsl_rl import RslRlMLPModelCfg, RslRlOnPolicyRunnerCfg, RslRlPp
 
 @configclass
 class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+    """Train independent MLP actor and critic heads with standard PPO."""
+
     num_steps_per_env = 24
     max_iterations = 20_000
     save_interval = 500
@@ -50,17 +54,13 @@ class G1MovingPatchPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     )
     logger = "wandb"
 
-    # wandb_project = "g1_29dof_rigid_flat_ppo"
-    # experiment_name = "g1_29dof_rigid_flat_ppo"
-
-    wandb_project = "g1_29dof_soft_flat_ppo"
-    experiment_name = "g1_29dof_soft_flat_ppo"
+    wandb_project = "g1_29dof_mpm_terrain"
+    experiment_name = "g1_29dof_mpm_terrain"
 
 
 @configclass
 class G1MixedTerrainPPORunnerCfg(G1MovingPatchPPORunnerCfg):
     """Keep the existing actor/critic contract and separate mixed-terrain training logs."""
 
-    # experiment_name = "g1_29dof_mpm_mixed_terrain"
-    # wandb_project = "g1_29dof_mpm_mixed_terrain"
-    pass
+    wandb_project = "g1_29dof_mpm_mixed_terrain"
+    experiment_name = "g1_29dof_mpm_mixed_terrain"

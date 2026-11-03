@@ -18,7 +18,14 @@ from isaaclab.envs.mdp.actions import JointPositionActionCfg
 from isaaclab.managers import ActionTermCfg, ObservationTermCfg
 from isaaclab.utils.configclass import configclass
 
-__all__ = ["MirrorObservationTermCfg", "MirrorActionTermCfg", "MirrorJointPositionActionCfg"]
+from isaaclab_contrib.mdp.actions import JointPositionRangeActionCfg
+
+__all__ = [
+    "MirrorObservationTermCfg",
+    "MirrorActionTermCfg",
+    "MirrorJointPositionActionCfg",
+    "MirrorJointPositionRangeActionCfg",
+]
 
 
 @configclass
@@ -52,3 +59,8 @@ class MirrorActionTermCfg(ActionTermCfg):
 @configclass
 class MirrorJointPositionActionCfg(JointPositionActionCfg, MirrorActionTermCfg):
     """Joint position actions with a configurable reflection of raw policy actions."""
+
+
+@configclass
+class MirrorJointPositionRangeActionCfg(JointPositionRangeActionCfg, MirrorJointPositionActionCfg):
+    """Joint-limit-derived position actions with reflection in raw policy coordinates."""

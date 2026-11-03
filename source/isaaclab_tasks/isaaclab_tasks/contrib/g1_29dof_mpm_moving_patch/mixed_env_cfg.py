@@ -2,22 +2,23 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-"""Equal-sized rigid-ground and MPM-ground groups for one G1 policy."""
+"""Fixed rigid-ground and MPM-ground assignments for one G1 policy."""
 
 import math
 
-from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+import isaaclab.envs.mdp as mdp
+from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg  # noqa: F401
 from isaaclab.utils import configclass
 
 from .env_cfg import (
-    FLAT_TERRAINS_CFG,
-    ROUGH_TERRAINS_CFG,
+    FLAT_TERRAINS_CFG,  # noqa: F401
+    ROUGH_TERRAINS_CFG,  # noqa: F401
     ROUGH_TERRAINS_DIFFICULT_CFG,
-    SLOPE_TERRAINS_CFG,
-    WAVE_TERRAINS_CFG,
+    SLOPE_TERRAINS_CFG,  # noqa: F401
+    WAVE_TERRAINS_CFG,  # noqa: F401
 )
 from .env_cfg.mixed_scene_cfg import G1MixedTerrainSceneCfg
-from .env_cfg.physics_cfg import MPM_ENTRY, G1PhysicsProxyCfg
+from .env_cfg.physics_cfg import G1PhysicsProxyCfg
 from .env_cfg.scene_cfg import FOOT_CONTACT_MARGIN
 from .mdp.curriculums import terrain_levels_vel
 from .mixed_env import outside_contact_region, randomize_mpm_material
@@ -30,7 +31,7 @@ from .util.visualizer import (
 
 @configclass
 class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
-    """Use contiguous, equal-sized MPM and rigid groups, fixed across resets."""
+    """Assign contiguous MPM and rigid groups on the original terrain grid."""
 
     scene: G1MixedTerrainSceneCfg = G1MixedTerrainSceneCfg(num_envs=64, env_spacing=4.0)
 
@@ -54,11 +55,6 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
             if term is not None:
                 term.func = randomize_mpm_material
 
-        self.curriculum.command_vel.params["velocity_stages"] = [
-                {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-                {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.5), "ang_vel_z": (-1.0, 1.0)},
-            ]
-
     def validate_config(self) -> None:
         if self.foot_contact_margin_range is not None:
             raise ValueError(
@@ -71,24 +67,20 @@ class G1MixedTerrainEnvCfg(G1MovingPatchEnvCfg):
         if self.scene.num_envs < 2 or self.scene.num_envs % 2:
             raise ValueError("Mixed terrain requires an even num_envs >= 2 (half MPM, half rigid).")
         super().validate_config()
-        # Keep the same foot-proxy layout in every world so Newton can compact the MPM model.
-        # Worlds without particles produce no MPM reaction force.
-        for entry in self.sim.physics.solver_cfg.entries:
-            if entry.name == MPM_ENTRY:
-                entry.solver_cfg.max_active_cell_count //= 2
-                entry.solver_cfg.max_leaf_node_count //= 2
-                entry.solver_cfg.max_lower_node_count //= 2
-                entry.solver_cfg.max_upper_node_count = max(32, entry.solver_cfg.max_upper_node_count // 2)
 
 
 @configclass
 class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
-    """Play one environment of each ground type without pushes or observation noise."""
+    """Play fixed MPM and rigid groups without pushes or observation noise."""
 
     def __post_init__(self) -> None:
         super().__post_init__()
         self.scene.num_envs = 2
         self.observations.policy.enable_corruption = False
+        self.observations.policy.projected_gravity.func = mdp.projected_gravity
+        self.observations.policy.projected_gravity.params = {}
+        self.curriculum.gravity_roll_bias = None
+        self.curriculum.gravity_pitch_bias = None
         self.events.push_robot = None
         for visualizer_cfg in self.sim.visualizer_cfgs:
             visualizer_cfg.headless = False
@@ -109,19 +101,24 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (1, 1)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.0, 0.0)
-        self.commands.base_velocity.rel_standing_envs = 0.5
+        # self.commands.base_velocity.rel_standing_envs = 0.
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                # follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
+                origin_env_index=0,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]

@@ -68,24 +68,40 @@ def reward_feet_pitch_contact_hybrid(
     soft_contact_sensor_name: str = "physics_callback",
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Penalize foot pitch angle only at the moment of first contact.
+    """Penalize squared foot pitch throughout rigid or soft contact, including touchdown.
 
-    During swing the penalty is zero, so knee flexion is not penalized.
-    At touchdown, pitch² is penalized to encourage flat foot landings.
+    Swing feet contribute zero. Each foot's contact state comes from the active
+    rigid or soft contact solver.
     """
-    rigid_contact_sensor: ContactSensor = env.scene.sensors[rigid_contact_sensor_cfg.name]
-    soft_contact_sensor = env.action_manager.get_term(soft_contact_sensor_name).contact_solver
+    contact = _feet_in_contact_hybrid(env, rigid_contact_sensor_cfg, soft_contact_sensor_name)
+    _, feet_pitch, _ = _feet_rpy(env, asset_cfg=asset_cfg)
+    return torch.sum(torch.square(feet_pitch) * contact.float(), dim=-1)
 
-    rigid_first_contact = rigid_contact_sensor.compute_first_contact(env.step_dt)[
-        :, rigid_contact_sensor_cfg.body_ids
-    ]  # [B, N]
-    soft_first_contact = soft_contact_sensor.compute_first_contact(env.step_dt)  # [B, N]
-    first_contact = torch.where(soft_contact_sensor.data.is_sensor_active, soft_first_contact, rigid_first_contact)
 
-    _, feet_pitch, _ = _feet_rpy(env, asset_cfg=asset_cfg)  # [B, N_feet]
+def feet_trailing_distance_l2_hybrid(
+    env: ManagerBasedRLEnv,
+    max_trailing_distance: float,
+    rigid_contact_sensor_cfg: SceneEntityCfg,
+    asset_cfg: SceneEntityCfg,
+    soft_contact_sensor_name: str = "physics_callback",
+) -> torch.Tensor:
+    """Penalize contacting feet farther behind the pelvis than the allowed distance.
 
-    # penalize pitch² only on the landing step
-    return torch.sum(torch.square(feet_pitch) * first_contact.float(), dim=-1)
+    Measure foot body origins relative to the robot root along its horizontal
+    forward axis (yaw only). The allowance is in meters; the returned cost is
+    the sum of squared excess distances in square meters. Swing feet contribute
+    zero. Asset and contact-sensor body selections must follow the soft solver's
+    foot order.
+    """
+    asset = env.scene[asset_cfg.name]
+    foot_offset_w = asset.data.body_pos_w.torch[:, asset_cfg.body_ids] - asset.data.root_pos_w.torch[:, None, :]
+    root_yaw = math_utils.yaw_quat(asset.data.root_quat_w.torch)
+    foot_offset_b = math_utils.quat_apply_inverse(
+        root_yaw[:, None, :].expand(-1, foot_offset_w.shape[1], -1), foot_offset_w
+    )
+    excess_distance = torch.clamp(-foot_offset_b[..., 0] - max_trailing_distance, min=0.0)
+    contact = _feet_in_contact_hybrid(env, rigid_contact_sensor_cfg, soft_contact_sensor_name)
+    return torch.where(contact, excess_distance.square(), 0.0).sum(dim=-1)
 
 
 def feet_air_time_positive_biped_hybrid(

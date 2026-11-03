@@ -18,12 +18,42 @@ import torch
 
 from isaaclab.assets import Articulation
 from isaaclab.managers import ManagerTermBase, RewardTermCfg, SceneEntityCfg
-from isaaclab.utils.math import euler_xyz_from_quat, quat_apply
+from isaaclab.utils.math import euler_xyz_from_quat, quat_apply, quat_apply_inverse, yaw_quat
 
 from isaaclab_tasks.contrib.velocity.config import vel_mdp
 
 if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
+
+
+def joint_action_l2(
+    env: G1MovingPatchEnv,
+    asset_cfg: SceneEntityCfg,
+    action_name: str = "joint_pos",
+) -> torch.Tensor:
+    """Penalize squared raw actions for the selected articulation joints.
+
+    Joint names map the resolved articulation indices to the action term's order.
+    The penalty uses actions before scaling and adding the default joint pose.
+
+    Args:
+        env: Environment instance.
+        asset_cfg: Articulation and joints whose actions are penalized.
+        action_name: Joint-position action term supplying the raw actions.
+
+    Returns:
+        Sum of squared selected actions, shape ``(num_envs,)``.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    action_term = env.action_manager.get_term(action_name)
+    if action_term.cfg.asset_name != asset_cfg.name:
+        raise ValueError(f"Action term '{action_name}' does not control asset '{asset_cfg.name}'.")
+    if isinstance(asset_cfg.joint_ids, slice):
+        joint_names = asset.joint_names[asset_cfg.joint_ids]
+    else:
+        joint_names = [asset.joint_names[index] for index in asset_cfg.joint_ids]
+    action_ids = [action_term._joint_names.index(name) for name in joint_names]
+    return torch.sum(torch.square(action_term.raw_actions[:, action_ids]), dim=-1)
 
 
 def foot_clearance_reward(
@@ -40,11 +70,13 @@ def foot_clearance_reward(
 
     Arguments match :func:`vel_mdp.foot_clearance_reward`. The scanner sees the
     supporting floor in sand environments and the walking surface in rigid ones.
-    The particle asset occupies the first ``sand.num_instances`` environments;
-    in the sand-only task this includes every environment.
+    Mixed terrain uses its sampled MPM environment mask; the sand-only task applies
+    the correction to every environment.
     """
-    offset = torch.zeros((env.num_envs, 1), device=env.device)
-    offset[: env.scene["sand"].num_instances] = ground_height_offset
+    offset = ground_height_offset
+    mpm_env_mask = getattr(env.scene.terrain, "mpm_env_mask", None)
+    if mpm_env_mask is not None:
+        offset = mpm_env_mask.unsqueeze(1) * ground_height_offset
     return vel_mdp.foot_clearance_reward(
         env,
         target_height=target_height,
@@ -55,6 +87,34 @@ def foot_clearance_reward(
         height_sensor_cfg=height_sensor_cfg,
         ground_height_offset=offset,
     )
+
+
+class feet_slide(ManagerTermBase):
+    """Penalize world-XY foot speed during contact with MPM or rigid ground.
+
+    Contact uses the task's combined MPM reaction and MJWarp ground-contact forces,
+    thresholded by ``foot_contact_force_threshold``. Swing feet contribute zero.
+    Selected foot velocities are matched to the contact buffer's body ordering.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: G1MovingPatchEnv):
+        super().__init__(cfg, env)
+        asset_cfg = cfg.params["asset_cfg"]
+        self._asset: Articulation = env.scene[asset_cfg.name]
+        tracked_ids, _ = self._asset.find_bodies(env.cfg.foot_body_expr, preserve_order=True)
+        selected_ids = (
+            list(range(self._asset.num_bodies))[asset_cfg.body_ids]
+            if isinstance(asset_cfg.body_ids, slice)
+            else asset_cfg.body_ids
+        )
+        self._contact_ids = torch.tensor(
+            [tracked_ids.index(body_id) for body_id in selected_ids], dtype=torch.long, device=env.device
+        )
+
+    def __call__(self, env: G1MovingPatchEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+        foot_velocity = self._asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids, :2]
+        contact = env.foot_contact[:, self._contact_ids]
+        return (torch.linalg.vector_norm(foot_velocity, dim=-1) * contact).sum(dim=-1)
 
 
 def reward_soft_landing(
@@ -152,6 +212,27 @@ def no_fly(
     airborne = torch.sum(env.foot_contact, dim=-1) < 0.5
     command_speed = torch.norm(env.command_manager.get_command(command_name)[:, :2], dim=1)
     return airborne.float() * (command_speed < velocity_threshold).float()
+
+
+def feet_trailing_distance_l2(
+    env: G1MovingPatchEnv,
+    max_trailing_distance: float,
+    asset_cfg: SceneEntityCfg,
+) -> torch.Tensor:
+    """Penalize contacting feet farther behind the pelvis than the allowed distance.
+
+    Measure foot body origins relative to the robot root along its horizontal
+    forward axis (yaw only). The allowance is in meters; the returned cost is
+    the sum of squared excess distances in square meters. Swing feet contribute
+    zero. Select foot bodies in the environment's contact-buffer order. Contact
+    includes both rigid and MPM support in mixed-terrain environments.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    foot_offset_w = asset.data.body_pos_w.torch[:, asset_cfg.body_ids] - asset.data.root_pos_w.torch[:, None, :]
+    root_yaw = yaw_quat(asset.data.root_quat_w.torch)
+    foot_offset_b = quat_apply_inverse(root_yaw[:, None, :].expand(-1, foot_offset_w.shape[1], -1), foot_offset_w)
+    excess_distance = torch.clamp(-foot_offset_b[..., 0] - max_trailing_distance, min=0.0)
+    return torch.where(env.foot_contact.bool(), excess_distance.square(), 0.0).sum(dim=-1)
 
 
 def feet_pitch_contact(

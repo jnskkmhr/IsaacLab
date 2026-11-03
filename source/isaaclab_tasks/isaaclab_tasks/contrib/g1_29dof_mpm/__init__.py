@@ -13,44 +13,21 @@ from . import agents
 # Register Gym environments.
 ##
 
-gym.register(
-    id="IsaacContrib-Velocity-Sand-G1-29dof-MPM",
-    entry_point=f"{__name__}.g1_mpm_env:G1MPMEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.g1_mpm_env_cfg:G1MPMEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1MPMPPORunnerCfg",
-    },
-)
-
-gym.register(
-    id="IsaacContrib-Velocity-Sand-G1-29dof-MPM-Play",
-    entry_point=f"{__name__}.g1_mpm_env:G1MPMEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.g1_mpm_env_cfg:G1MPMEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1MPMPPORunnerCfg",
-    },
-)
-
-for suffix, cfg_name in (("", "G1RoughMPMEnvCfg"), ("-Play", "G1RoughMPMEnvCfg_PLAY")):
-    gym.register(
-        id=f"IsaacContrib-Velocity-Sand-Rough-G1-29dof-MPM{suffix}",
-        entry_point=f"{__name__}.g1_mpm_env:G1MPMEnv",
-        disable_env_checker=True,
-        kwargs={
-            "env_cfg_entry_point": f"{__name__}.g1_mpm_env_cfg:{cfg_name}",
-            "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1MPMPPORunnerCfg",
-        },
-    )
-
-for suffix, cfg_name in (("", "G1TiltingMPMEnvCfg"), ("-Play", "G1TiltingMPMEnvCfg_PLAY")):
-    gym.register(
-        id=f"IsaacContrib-Balance-Sand-G1-29dof-MPM-Tilting{suffix}",
-        entry_point=f"{__name__}.g1_mpm_env:G1TiltingMPMEnv",
-        disable_env_checker=True,
-        kwargs={
-            "env_cfg_entry_point": f"{__name__}.g1_mpm_env_cfg:{cfg_name}",
-            "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1MPMPPORunnerCfg",
-        },
-    )
+for task_id, cfg_name, env_class in (
+    ("IsaacContrib-Velocity-Sand-Flat-G1-29dof-MPM", "G1MPMEnvCfg", "G1MPMEnv"),
+    ("IsaacContrib-Velocity-Sand-Ascending-G1-29dof-MPM", "G1RoughMPMEnvCfg", "G1MPMEnv"),
+    ("IsaacContrib-Velocity-Sand-Descending-G1-29dof-MPM", "G1DescendingMPMEnvCfg", "G1MPMEnv"),
+    ("IsaacContrib-Velocity-Sand-Dune-G1-29dof-MPM", "G1DuneMPMEnvCfg", "G1MPMEnv"),
+    ("IsaacContrib-Balance-Sand-Tilting-G1-29dof-MPM", "G1TiltingMPMEnvCfg", "G1TiltingMPMEnv"),
+    ("IsaacContrib-Velocity-Sand-Tilting-G1-29dof-MPM", "G1WalkingTiltingMPMEnvCfg", "G1TiltingMPMEnv"),
+):
+    for suffix, cfg_suffix in (("", ""), ("-Play", "_PLAY")):
+        gym.register(
+            id=f"{task_id}{suffix}",
+            entry_point=f"{__name__}.g1_mpm_env:{env_class}",
+            disable_env_checker=True,
+            kwargs={
+                "env_cfg_entry_point": f"{__name__}.g1_mpm_env_cfg:{cfg_name}{cfg_suffix}",
+                "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1MPMPPORunnerCfg",
+            },
+        )

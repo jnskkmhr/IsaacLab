@@ -5,7 +5,6 @@
 
 """Standalone G1 assets, geometry and material configuration for moving terrain."""
 
-import math
 from typing import NamedTuple
 
 from isaaclab_newton.assets import MPMObjectCfg
@@ -13,20 +12,16 @@ from isaaclab_newton.sim.schemas import NewtonCollisionCfg
 from isaaclab_newton.sim.spawners.mpm import MPMGridCfg, MPMParticleMaterialCfg
 
 import isaaclab.sim as sim_utils
-import isaaclab.terrains as terrain_gen
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
+from isaaclab.sensors import RayCasterCfg, patterns
 from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
-from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-from isaaclab_tasks.utils.presets import MultiBackendRendererCfg
-
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
-from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg, TexturedTerrainImporterCfg
+from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg
 from . import terrain_cfg
 
 VOXEL_SIZE = 0.04
@@ -40,6 +35,7 @@ FOOT_CONTACT_MARGIN = VOXEL_SIZE * 0.5
 
 class StripMaterialPreset(NamedTuple):
     """Material values for one particle strip."""
+
     density: float
     young_modulus: float
     friction: float
@@ -75,6 +71,7 @@ MATERIAL_PRESETS = {
 
 MATERIAL_NAME = "sand"
 
+
 @configclass
 class G1MovingPatchSceneCfg(InteractiveSceneCfg):
     """G1, shared terrain, particles and lights for the moving-patch task."""
@@ -97,9 +94,7 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             particles_per_cell=1.25,
             jitter=0.05,
             # jitter=0.004,
-            material=MPMParticleMaterialCfg(
-                **MATERIAL_PRESETS[MATERIAL_NAME]._asdict()
-            ),
+            material=MPMParticleMaterialCfg(**MATERIAL_PRESETS[MATERIAL_NAME]._asdict()),
             floor_thickness=0.1,
             show_boundary_particles=False,
             visual_color=(0.72, 0.55, 0.34),
@@ -119,6 +114,20 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
             },
         ),
     )
+
+    # robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.replace(  # type: ignore
+    #     prim_path="{ENV_REGEX_NS}/Robot",
+    #     spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.spawn.replace(  # type: ignore
+    #         collision_props={
+    #             r"/.*_ankle_roll_link/.*": [
+    #                 NewtonCollisionCfg(
+    #                     contact_margin=FOOT_CONTACT_MARGIN,
+    #                     contact_gap=0.0,
+    #                 ),
+    #             ],
+    #         },
+    #     ),
+    # )
 
     height_scanner = RayCasterCfg(
         # the URDF importer nests bodies along the kinematic tree, so match the leaf name anywhere

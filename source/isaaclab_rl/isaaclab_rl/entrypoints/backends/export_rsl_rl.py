@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-from collections.abc import Mapping
 from typing import Any
 
 import torch
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 torch.jit._state.disable()
 
 import gymnasium as gym
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+from rsl_rl.runners import DistillationRunner, OffPolicyRunner, OnPolicyRunner
 
 from isaaclab.utils import to_dict
 from isaaclab.utils.assets import retrieve_file_path
@@ -154,24 +153,23 @@ def export_rsl_rl_agent(args_cli: argparse.Namespace, env_cfg: Any, agent_cfg: R
 
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode=None)
     try:
-        # only the observation groups consumed by the actor are exported; critic and teacher groups are dropped
-        obs_groups_cfg = getattr(agent_cfg, "obs_groups", None)
-        if isinstance(obs_groups_cfg, Mapping):
-            required_obs_groups = set(obs_groups_cfg.get("actor", ["policy"]))
-        else:
-            required_obs_groups = {"policy"}
-        policy_node_name = prepare_export_env(env, args_cli, required_obs_groups=required_obs_groups)
+        if agent_cfg.class_name == "OffPolicyRunner":
+            env.unwrapped.cfg.compute_final_obs = True
         env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
         logger.info(f"Loading model checkpoint from: {resume_path}")
         if agent_cfg.class_name == "OnPolicyRunner":
             runner = OnPolicyRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
+        elif agent_cfg.class_name == "OffPolicyRunner":
+            runner = OffPolicyRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
         elif agent_cfg.class_name == "DistillationRunner":
             runner = DistillationRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
         else:
             raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
         runner.load(resume_path)
         policy = runner.get_inference_policy(device=env.unwrapped.device)
+        # The constructed policy resolves dependencies such as compositional command inputs.
+        policy_node_name = prepare_export_env(env, args_cli, required_obs_groups=set(policy.obs_groups))
         recurrent = is_actor_recurrent_policy(policy)
 
         save_path = resolve_export_save_path(args_cli, "rsl_rl", log_dir)

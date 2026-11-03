@@ -4,19 +4,20 @@
 # SPDX-License-Identifier: BSD-3-Clause
 import math
 
+import isaaclab.envs.mdp as mdp
 from isaaclab.managers import CurriculumTermCfg as CurrTerm
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 
-from .. import mdp
+from .. import mdp as mpm_mdp
 
 
 @configclass
 class G1CurriculumCfg:
     """Curriculum terms for the MDP."""
 
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)  # type: ignore
+    terrain_levels = CurrTerm(func=mpm_mdp.terrain_levels_vel)  # type: ignore
 
     command_vel = CurrTerm(
         func=g1_mdp.commands_vel,  # type: ignore
@@ -27,6 +28,33 @@ class G1CurriculumCfg:
                 {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.7), "ang_vel_z": (-0.7, 0.7)},
                 {"step": 15000 * 24, "lin_vel_x": (-1.0, 2.5), "ang_vel_z": (-1.0, 1.0)},
             ],
+        },
+    )
+
+    gravity_roll_bias = CurrTerm(
+        func=mdp.modify_term_cfg,
+        params={
+            "address": "observations.policy.projected_gravity.params.roll_bias_range",
+            "modify_fn": mdp.linear_ramp,
+            "modify_params": {
+                "initial_value": (0.0, 0.0),
+                "final_value": (-math.radians(3.0), math.radians(3.0)),
+                "start_step": 0,
+                "end_step": 5000 * 24,
+            },
+        },
+    )
+    gravity_pitch_bias = CurrTerm(
+        func=mdp.modify_term_cfg,
+        params={
+            "address": "observations.policy.projected_gravity.params.pitch_bias_range",
+            "modify_fn": mdp.linear_ramp,
+            "modify_params": {
+                "initial_value": (0.0, 0.0),
+                "final_value": (-math.radians(3.0), math.radians(3.0)),
+                "start_step": 0,
+                "end_step": 5000 * 24,
+            },
         },
     )
 

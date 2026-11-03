@@ -155,7 +155,7 @@ class G1CurriculumCfg:
             "weight_1": 8.0,
             "step_0": 0,
             "step_1": 15000 * 24,
-        }
+        },
     )
 
     # feet_air_time_weight = CurrTerm(
@@ -179,3 +179,27 @@ class G1CurriculumCfg:
     #         "step_1": 15000 * 24,
     #     }
     # )
+
+
+@configclass
+class G1FlatCurriculumCfg(G1CurriculumCfg):
+    """Flat soft-terrain curriculum matching run 4blqnxbi."""
+
+    track_lin_vel_std = None
+    track_ang_vel_std = None
+    track_heading_std = None
+    track_lin_vel_weight = None
+    track_heading_weight = None
+
+    track_lin_vel = CurrTerm(
+        func=g1_mdp.modify_reward_std,
+        params={"term_name": "track_lin_vel_xy", "std": 0.25, "num_steps": 20000 * 24},
+    )
+    track_ang_vel = CurrTerm(
+        func=g1_mdp.modify_reward_std,
+        params={"term_name": "track_ang_vel_z", "std": 0.25, "num_steps": 20000 * 24},
+    )
+    track_heading = CurrTerm(
+        func=g1_mdp.modify_reward_std,
+        params={"term_name": "track_heading", "std": 0.25, "num_steps": 20000 * 24},
+    )

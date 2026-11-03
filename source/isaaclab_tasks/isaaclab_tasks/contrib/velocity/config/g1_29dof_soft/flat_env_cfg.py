@@ -16,12 +16,14 @@ from isaaclab.utils.configclass import configclass
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.events import reset_root_state_uniform_on_ground
 
 from . import mdp
-from .env_cfg import G1PhysicsCfg, G1RewardsCfg
+from .env_cfg import G1FlatCurriculumCfg, G1FlatSceneCfg, G1PhysicsCfg, G1RewardsCfg
 from .rough_env_cfg import G1RoughEnvCfg
 
 
 @configclass
 class G1FlatEnvCfg(G1RoughEnvCfg):
+    scene: G1FlatSceneCfg = G1FlatSceneCfg(num_envs=4096, env_spacing=2.5)
+    curriculum: G1FlatCurriculumCfg = G1FlatCurriculumCfg()
     rewards: G1RewardsCfg = G1RewardsCfg()
     sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
 
@@ -41,6 +43,7 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
 
         # Preserve the original flat RFT surface and reset height.
         self.actions.physics_callback.terrain_name = None
+        self.actions.physics_callback.enable_ema_filter = False
         self.events.reset_base.func = reset_root_state_uniform_on_ground
 
         # make curriculum soft terrain
@@ -50,6 +53,9 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         self.scene.height_scanner = None  # type: ignore
         self.observations.policy.height_scan = None  # type: ignore
         self.observations.critic.height_scan = None  # type: ignore
+
+        # Match material sampling from run 4blqnxbi.
+        self.events.randomize_stiffness.params["stiffness_range"] = (0.1, 0.9)
 
         # edit randomization
         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
@@ -74,10 +80,10 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
         # self.curriculum.command_vel = None # type: ignore
 
         # edit command range
-        # self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
+        self.commands.base_velocity.ranges.lin_vel_x = (-1.0, 1.5)
         # self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         # self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
-        # self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
+        self.commands.base_velocity.ranges.heading = (-math.pi, math.pi)
         self.commands.base_velocity.debug_vis = False
 
         # disable for non rough terrain
@@ -126,7 +132,7 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
 
         self.commands.base_velocity.heading_command = False
-        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.rel_standing_envs = 1.0
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
         self.commands.base_velocity.debug_vis = True
 
@@ -159,9 +165,9 @@ class G1FlatEnvCfg_PLAY(G1FlatEnvCfg):
             NewtonRTXVisualizerCfg(
                 eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
-                streaming_view=False,
+                # origin_type="asset",
+                # origin_track_path="robot",
+                # streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
         ]

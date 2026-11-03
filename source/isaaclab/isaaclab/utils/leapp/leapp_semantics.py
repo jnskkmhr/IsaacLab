@@ -16,6 +16,9 @@ import warp as wp
 
 from ..array import convert_to_torch
 
+# LEAPP 0.7 forces PTX compilation on import for portable Warp exports. Loading
+# semantic metadata must preserve the simulation's compiler settings instead.
+_warp_compile_options = (wp.config.cuda_output, wp.config.ptx_target_arch)
 try:
     from leapp import InputKindEnum, OutputKindEnum
 except ImportError:
@@ -35,6 +38,9 @@ except ImportError:
 
     InputKindEnum = _LeappEnumSentinel()  # type: ignore[assignment,misc]
     OutputKindEnum = _LeappEnumSentinel()  # type: ignore[assignment,misc]
+finally:
+    wp.config.cuda_output, wp.config.ptx_target_arch = _warp_compile_options
+    del _warp_compile_options
 
 
 @dataclass(frozen=True)

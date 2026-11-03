@@ -78,3 +78,13 @@ class G1SceneCfg(InteractiveSceneCfg):
             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
         ),
     )
+
+
+@configclass
+class G1FlatSceneCfg(G1SceneCfg):
+    """Flat soft-terrain scene with the historical robot spawn height."""
+
+    robot: ArticulationCfg = UNITREE_G1_29DOF_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/Robot",
+        init_state=UNITREE_G1_29DOF_CFG.init_state.replace(pos=(0.0, 0.0, 0.76)),
+    )

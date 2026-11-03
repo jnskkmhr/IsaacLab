@@ -7,6 +7,7 @@
 
 import math
 
+import isaaclab.envs.mdp as mdp
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
@@ -15,11 +16,7 @@ from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
-    FLAT_TERRAINS_CFG,
-    ROUGH_TERRAINS_CFG,
     ROUGH_TERRAINS_DIFFICULT_CFG,
-    SLOPE_TERRAINS_CFG,
-    WAVE_TERRAINS_CFG,
     G1ActionsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,
@@ -31,7 +28,7 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .util.solver_setting import configure_sparse_mpm_capacities
-from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchKitVisualizerCfg, MovingPatchRTXVisualizerCfg
+from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchRTXVisualizerCfg
 
 
 @configclass
@@ -105,9 +102,7 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0), show_particles=True),
-            MovingPatchRTXVisualizerCfg(
-                eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True, 
-            ),
+            # MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
         self.video_recorders = [
@@ -126,6 +121,10 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
+        self.observations.policy.projected_gravity.func = mdp.projected_gravity
+        self.observations.policy.projected_gravity.params = {}
+        self.curriculum.gravity_roll_bias = None
+        self.curriculum.gravity_pitch_bias = None
 
         generator = ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = SLOPE_TERRAINS_CFG
@@ -155,24 +154,28 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
-        # self.commands.base_velocity.debug_vis = False
+        self.commands.base_velocity.debug_vis = False
 
         self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                origin_type="asset",
+                origin_track_path="robot",
+                streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+                eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                follow_body_path="/World/envs/env_0/Robot/Geometry/pelvis",
+                # origin_type="asset",
+                # origin_track_path="robot",
+                streaming_view=False,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=1000, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=1000, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]

@@ -28,29 +28,7 @@ from .particles import MovingPatchParticles
 
 
 class MovingPatchParticleRendering:
-    """Filter the standard particle batch and optionally follow a robot body."""
-
-    def log_state(self, state):
-        """Render particles and track the configured body's world position."""
-        super().log_state(state)
-        visualizer = self.moving_patch_visualizer
-        body_path = visualizer.cfg.follow_body_path
-        if body_path is None or self.model is None:
-            return
-
-        follow_key = (id(self.model), body_path)
-        if getattr(self, "_follow_body_key", None) != follow_key:
-            self._follow_body_index = self.model.body_label.index(body_path)
-            self._follow_body_key = follow_key
-
-        body_position = state.body_q[self._follow_body_index : self._follow_body_index + 1].numpy()[0, :3]
-        eye = tuple(body_position + np.asarray(visualizer.cfg.eye))
-        target = tuple(body_position + np.asarray(visualizer.cfg.lookat))
-        eye_offset, target_offset = visualizer.cfg.eye, visualizer.cfg.lookat
-        try:
-            visualizer.set_camera_view(eye, target)
-        finally:
-            visualizer.cfg.eye, visualizer.cfg.lookat = eye_offset, target_offset
+    """Filter the standard particle batch for moving-patch visibility."""
 
     def _log_particles(self, state):
         patch = getattr(self.moving_patch_visualizer, "moving_patch_particle", None)
@@ -236,12 +214,6 @@ class MovingPatchGLVisualizerCfg(NewtonGLVisualizerCfg):
 
     class_type: type = MovingPatchGLVisualizer
 
-    follow_body_path: str | None = None
-    """Body prim path to follow, or ``None`` for a fixed camera.
-
-    When set, ``eye`` and ``lookat`` are world-axis offsets from the body's position.
-    The camera follows translation without rotating with the body.
-    """
     show_particles: bool = True
 
 
@@ -251,10 +223,4 @@ class MovingPatchRTXVisualizerCfg(NewtonRTXVisualizerCfg):
 
     class_type: type = MovingPatchRTXVisualizer
 
-    follow_body_path: str | None = None
-    """Body prim path to follow, or ``None`` for a fixed camera.
-
-    When set, ``eye`` and ``lookat`` are world-axis offsets from the body's position.
-    The camera follows translation without rotating with the body.
-    """
     show_particles: bool = True

@@ -10,6 +10,8 @@ contact terms are served by the reaction wrench that the coupler feeds back from
 to the proxy feet, and the terrain-material term keeps the soft-contact layout as a placeholder.
 """
 
+import math
+
 from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.configclass import configclass
@@ -39,9 +41,12 @@ class PolicyCfg(ObsGroup):
         scale=0.25,
     )
     projected_gravity = ObsTerm(
-        func=mdp.projected_gravity,
+        func=mdp.bias_projected_gravity,
         mirror=mirror_vec3,
-        noise=Unoise(n_min=-0.05, n_max=0.05),
+        params={
+            "roll_bias_range": (-math.radians(3.0), math.radians(3.0)),
+            "pitch_bias_range": (-math.radians(3.0), math.radians(3.0)),
+        },
     )
     joint_pos = ObsTerm(
         func=mdp.joint_pos_rel,

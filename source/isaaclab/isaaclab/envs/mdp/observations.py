@@ -12,6 +12,7 @@ the observation introduced by the function.
 from __future__ import annotations
 
 import functools
+import math
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -86,6 +87,67 @@ def projected_gravity(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEnt
     """Gravity projection on the asset's root frame."""
     asset: RigidObject = env.scene[asset_cfg.name]
     return asset.data.projected_gravity_b.torch
+
+
+class bias_projected_gravity(ManagerTermBase):
+    """Gravity observed with an episode-long roll/pitch orientation bias.
+
+    Independent uniform offsets are sampled per environment at reset. Ranges are read from
+    the live term configuration at every reset, so :class:`modify_term_cfg` curricula affect
+    new episodes without changing the bias in ongoing episodes. All angles are in radians.
+
+    The error rotation is composed on the right of the true root orientation (local root
+    axes): ``q_observed = q_root * q_error``. Applying its inverse to the true projected
+    gravity preserves the vector norm. This does not change the robot state or model an IMU
+    estimator. Optional Gaussian angular noise is sampled on each observation evaluation.
+
+    This term's randomness is independent of ``ObservationGroupCfg.enable_corruption``.
+    Use :func:`projected_gravity` for clean playback and policy export.
+    """
+
+    def __init__(self, cfg: ObservationTermCfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        self._bias = torch.zeros((env.num_envs, 2), device=env.device)
+        self.reset()
+
+    def reset(self, env_ids: Sequence[int] | torch.Tensor | slice | None = None) -> None:
+        """Resample only the selected environments using the current curriculum ranges."""
+        if env_ids is None:
+            env_ids = slice(None)
+        count = self._bias[env_ids].shape[0]
+        for axis, name in enumerate(("roll_bias_range", "pitch_bias_range")):
+            lower, upper = self.cfg.params[name]
+            if not math.isfinite(lower) or not math.isfinite(upper) or lower > upper:
+                raise ValueError(f"{name} must contain finite, ordered bounds. Got {(lower, upper)}.")
+            self._bias[env_ids, axis] = math_utils.sample_uniform(lower, upper, (count,), self.device)
+
+    def __call__(
+        self,
+        env: ManagerBasedEnv,
+        asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+        roll_bias_range: tuple[float, float] = (0.0, 0.0),
+        pitch_bias_range: tuple[float, float] = (0.0, 0.0),
+        roll_noise_std: float = 0.0,
+        pitch_noise_std: float = 0.0,
+    ) -> torch.Tensor:
+        """Return biased projected gravity with shape ``(num_envs, 3)``.
+
+        Args:
+            env: The environment.
+            asset_cfg: Asset whose root-frame gravity is observed.
+            roll_bias_range: Uniform roll bounds, applied when an environment resets [rad].
+            pitch_bias_range: Uniform pitch bounds, applied when an environment resets [rad].
+            roll_noise_std: Standard deviation of independent roll noise per evaluation [rad].
+            pitch_noise_std: Standard deviation of independent pitch noise per evaluation [rad].
+        """
+        if any(not math.isfinite(std) or std < 0.0 for std in (roll_noise_std, pitch_noise_std)):
+            raise ValueError("Roll/pitch noise standard deviations must be finite and nonnegative.")
+        angles = self._bias
+        if roll_noise_std > 0.0 or pitch_noise_std > 0.0:
+            std = angles.new_tensor((roll_noise_std, pitch_noise_std))
+            angles = angles + torch.randn_like(angles) * std
+        error_quat = math_utils.quat_from_euler_xyz(angles[:, 0], angles[:, 1], torch.zeros_like(angles[:, 0]))
+        return math_utils.quat_apply_inverse(error_quat, projected_gravity(env, asset_cfg))
 
 
 @generic_io_descriptor(

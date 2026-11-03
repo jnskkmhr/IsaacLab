@@ -58,6 +58,40 @@ class MeshXSlopeTerrainCfg(SubTerrainBaseCfg):
     """Rise/run at difficulty 0 and 1. Negative values descend along +X."""
 
 
+def x_dune_terrain(difficulty: float, cfg: MeshXDuneTerrainCfg) -> tuple[list[trimesh.Trimesh], np.ndarray]:
+    """Create cosine-shaped dune ridges with a level, zero-height negative-X entrance."""
+    length, width = cfg.size
+    height = cfg.height_range[0] + difficulty * (cfg.height_range[1] - cfg.height_range[0])
+    if not math.isfinite(height) or height < 0.0:
+        raise ValueError("Dune height must be finite and non-negative [m].")
+    if not isinstance(cfg.num_waves, int) or cfg.num_waves < 1:
+        raise ValueError("num_waves must be a positive integer.")
+    if not math.isfinite(cfg.horizontal_scale) or cfg.horizontal_scale <= 0.0:
+        raise ValueError("horizontal_scale must be positive and finite [m].")
+    count = max(math.ceil(length / cfg.horizontal_scale), 8 * cfg.num_waves) + 1
+    x = np.linspace(0.0, length, count)
+    z = 0.5 * height * (1.0 - np.cos(2.0 * math.pi * cfg.num_waves * x / length))
+    vertices = np.column_stack((np.repeat(x, 2), np.tile([0.0, width], count), np.repeat(z, 2)))
+    a = 2 * np.arange(count - 1)
+    faces = np.concatenate((np.column_stack((a, a + 2, a + 3)), np.column_stack((a, a + 3, a + 1))))
+    mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+    origin = np.array((length / 2, width / 2, np.interp(length / 2, x, z)))
+    return [mesh], origin
+
+
+@configclass
+class MeshXDuneTerrainCfg(SubTerrainBaseCfg):
+    """Smooth dune ridges along X, with no height-field quantization or slope correction."""
+
+    function = x_dune_terrain
+    height_range: tuple[float, float] = (0.1, 0.3)
+    """Trough-to-crest height at difficulty 0 and 1 [m]."""
+    num_waves: int = 2
+    """Number of complete ridges over the bed length."""
+    horizontal_scale: float = 0.05
+    """Maximum separation between mesh vertices along X [m]."""
+
+
 def generate_terrain_particles(
     cfg: TerrainMPMGridCfg,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, trimesh.Trimesh]:

@@ -51,8 +51,6 @@ class G1PhysicsProxyCfg(NewtonCfg):
                     integrator="implicitfast",
                     cone="pyramidal",
                     impratio=1.0,
-                    # Falls can create hundreds of rigid contacts. Pyramidal friction
-                    # expands each contact into multiple constraint rows.
                     nconmax=300,
                     njmax=1000,
                     iterations=100,

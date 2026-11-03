@@ -12,7 +12,7 @@ import contextlib
 import logging
 import os
 
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+from rsl_rl.runners import DistillationRunner, OffPolicyRunner, OnPolicyRunner
 
 from isaaclab.app import add_launcher_args, launch_simulation
 from isaaclab.envs import DirectMARLEnvCfg
@@ -163,10 +163,14 @@ def run(argv: list[str]) -> None:
             cleanup.callback(lambda: close_env(env))
 
             screen.stage("Loading policy")
+            if agent_cfg.class_name == "OffPolicyRunner":
+                env.unwrapped.cfg.compute_final_obs = True
             env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
             logger.info(f"Loading model checkpoint from: {resume_path}")
             if agent_cfg.class_name == "OnPolicyRunner":
                 runner = OnPolicyRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
+            elif agent_cfg.class_name == "OffPolicyRunner":
+                runner = OffPolicyRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
             elif agent_cfg.class_name == "DistillationRunner":
                 runner = DistillationRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
             else:

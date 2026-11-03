@@ -20,7 +20,7 @@ overrides = [
     { name = "fsspec", specifier = ">=2026.6.0" },
     { name = "mujoco", specifier = "~=3.15.0" },
     { name = "mujoco-warp", specifier = "~=3.15.0" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=f0c4a970ce003cd5df72054efdb073a459fd5dbe" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numpy", specifier = ">=2" },
     { name = "packaging", specifier = ">=20,<27" },
@@ -752,6 +752,14 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/4c/13/7d740c5849255756bc17888787313b61fd38a0a8304fc4f073dfc46122aa/comm-0.2.3.tar.gz", hash = "sha256:2dc8048c10962d55d7ad693be1e7045d891b7ce8d999c97963a5e3e99c055971", size = 6319, upload-time = "2025-07-25T14:02:04.452Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/97/891a0971e1e4a8c5d2b20bbe0e524dc04548d2307fee33cdeba148fd4fc7/comm-0.2.3-py3-none-any.whl", hash = "sha256:c615d91d75f7f04f095b30d1c1711babd43bdc6419c1be9886a85f2f4e489417", size = 7294, upload-time = "2025-07-25T14:02:02.896Z" },
+]
+
+[[package]]
+name = "compositional-rsl-rl"
+version = "0.2.0.dev5"
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=c7d5a51c0cdf861f386c259f8bf42018e26c2a26#c7d5a51c0cdf861f386c259f8bf42018e26c2a26" }
+dependencies = [
+    { name = "rsl-rl-lib" },
 ]
 
 [[package]]
@@ -1789,6 +1797,7 @@ dependencies = [
     { name = "alphashape" },
     { name = "botocore" },
     { name = "coacd" },
+    { name = "compositional-rsl-rl" },
     { name = "daqp", marker = "sys_platform != 'win32'" },
     { name = "einops" },
     { name = "fast-simplification" },
@@ -1994,6 +2003,7 @@ requires-dist = [
     { name = "av", marker = "extra == 'rlinf'", specifier = ">=12.3.0" },
     { name = "botocore" },
     { name = "coacd", specifier = ">=1.0.7" },
+    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=c7d5a51c0cdf861f386c259f8bf42018e26c2a26" },
     { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.1" },
     { name = "daqp", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')", specifier = "==0.8.5" },
     { name = "decord2", marker = "extra == 'rlinf'" },
@@ -2043,7 +2053,7 @@ requires-dist = [
     { name = "meshio", specifier = ">=5.3.5" },
     { name = "moviepy", marker = "extra == 'video'", specifier = ">=1.0.3,<2.0.0.dev0" },
     { name = "myst-parser", marker = "extra == 'dev'" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=f0c4a970ce003cd5df72054efdb073a459fd5dbe" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numba", specifier = ">=0.63.1" },
     { name = "numpy", specifier = ">=2" },
@@ -2083,8 +2093,8 @@ requires-dist = [
     { name = "rich", marker = "extra == 'sb3'" },
     { name = "rl-games", marker = "extra == 'rl-games'", git = "https://github.com/isaac-sim/rl_games.git?rev=5cf4f9ff07e9a01bbefd167cf19b6804b294b51c" },
     { name = "robomimic", marker = "sys_platform == 'linux' and extra == 'mimic'", git = "https://github.com/ARISE-Initiative/robomimic.git?rev=v0.4.0" },
-    { name = "rsl-rl-lib", specifier = "==5.5.1" },
-    { name = "rsl-rl-lib", marker = "extra == 'rsl-rl'", specifier = "==5.5.1" },
+    { name = "rsl-rl-lib" },
+    { name = "rsl-rl-lib", marker = "extra == 'rsl-rl'" },
     { name = "scipy", specifier = ">=1.11.0" },
     { name = "skrl", marker = "extra == 'skrl'", specifier = ">=2.1.0" },
     { name = "skrl", extras = ["jax"], marker = "extra == 'skrl-jax'", specifier = ">=2.1.0" },
@@ -3451,7 +3461,7 @@ wheels = [
 [[package]]
 name = "newton"
 version = "1.8.0.dev0"
-source = { git = "https://github.com/jnskkmhr/newton.git?branch=jnskkmhr%2Ffix-coupler-solver-param-sync#af06def4d33557eb2bfedfd6c7ed487cbb44ef6f" }
+source = { git = "https://github.com/jnskkmhr/newton.git?rev=f0c4a970ce003cd5df72054efdb073a459fd5dbe#f0c4a970ce003cd5df72054efdb073a459fd5dbe" }
 dependencies = [
     { name = "warp-lang" },
 ]
@@ -5077,8 +5087,8 @@ wheels = [
 
 [[package]]
 name = "rsl-rl-lib"
-version = "5.5.1"
-source = { registry = "https://pypi.org/simple" }
+version = "5.5.1+supermimic.2"
+source = { git = "https://github.com/jnskkmhr/rsl_rl.git?rev=7ba0bf043113698cac5fc82a20605ebe00176bd6#7ba0bf043113698cac5fc82a20605ebe00176bd6" }
 dependencies = [
     { name = "gitpython" },
     { name = "numpy" },
@@ -5087,10 +5097,6 @@ dependencies = [
     { name = "tensorboard" },
     { name = "tensordict" },
     { name = "torch" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/97/0e/142a31e8124255ec9276516c49c6fbe1497f2146ea384a92b81d23e3c525/rsl_rl_lib-5.5.1.tar.gz", hash = "sha256:50129065b35c69735ea197343321145a400af8c1b5fe9a28116fdaf1890fab43", size = 68077, upload-time = "2026-09-09T11:28:51.656Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f7/d3/0d4d446c61cb61377802c9e4366cfab8a6c378b9dbcaaad376dcc152c03c/rsl_rl_lib-5.5.1-py3-none-any.whl", hash = "sha256:bdb6382e21c62ddc2b47a37f39318486d0dfde234c7d446bfd42be482ecbd6ea", size = 100035, upload-time = "2026-09-09T11:28:50.331Z" },
 ]
 
 [[package]]

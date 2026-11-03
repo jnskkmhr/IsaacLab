@@ -20,8 +20,6 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import ManagerTermBase, RewardTermCfg, SceneEntityCfg
 from isaaclab.utils.math import euler_xyz_from_quat, quat_apply, quat_apply_inverse
 
-from ..env_cfg.scene_cfg import SAND_BED_SIZE
-
 if TYPE_CHECKING:
     from ..g1_mpm_env import G1MPMEnv
 
@@ -34,7 +32,7 @@ def base_height_above_testbed(env: G1MPMEnv, target_height: float) -> torch.Tens
         tray.data.body_quat_w.torch[:, tray_id],
         env.scene["robot"].data.root_pos_w.torch - tray.data.body_pos_w.torch[:, tray_id],
     )
-    return (root_in_tray[:, 2] - SAND_BED_SIZE[2] - target_height).square()
+    return (root_in_tray[:, 2] - env.cfg.scene.testbed.spawn.sand_bed_size[2] - target_height).square()
 
 
 def feet_air_time_positive_biped(

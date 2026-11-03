@@ -110,17 +110,20 @@ def break_contact_penalty(
         recovery_tilt=recovery_tilt,
     )
 
-def standing_foot_motion(
+
+def stance_foot_velocity_l2(
     env: ManagerBasedRLEnv,
     command_name: str,
     asset_cfg: SceneEntityCfg,
     command_threshold: float = 0.05,
 ) -> torch.Tensor:
-    """Penalize squared world-frame foot speed when linear and yaw commands are near zero.
+    """Penalize foot motion at near-zero commands, with less cost during root motion.
 
-    All three velocity components contribute, including vertical motion during steps in place.
-    The heading quaternion in the G1 command is ignored. Unlike a joint-position penalty, this
-    term allows the robot to settle into different standing poses on uneven terrain.
+    All three world-frame foot velocity components contribute, including vertical steps.
+    The heading quaternion in the command is ignored. The cost is multiplied by
+    ``exp(-(root_linear_speed + root_angular_speed)**2)``, using the root velocities
+    expressed in the body frame. This retains the full cost at rest and relaxes it
+    during recovery motion without prescribing a fixed standing joint pose.
     """
     command = env.command_manager.get_command(command_name)
     standing = (torch.linalg.vector_norm(command[:, :2], dim=-1) < command_threshold) & (
@@ -128,7 +131,33 @@ def standing_foot_motion(
     )
     asset: Articulation = env.scene[asset_cfg.name]
     foot_velocity = asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids]
-    return foot_velocity.square().sum(dim=(1, 2)) * standing
+    velocity_magnitude = torch.linalg.vector_norm(asset.data.root_lin_vel_b.torch, dim=-1)
+    velocity_magnitude += torch.linalg.vector_norm(asset.data.root_ang_vel_b.torch, dim=-1)
+    recovery_weight = torch.exp(-velocity_magnitude.square())
+    return foot_velocity.square().sum(dim=(1, 2)) * standing * recovery_weight
+
+
+# def stance_foot_velocity_l2(
+#     env: ManagerBasedRLEnv,
+#     command_name: str,
+#     asset_cfg: SceneEntityCfg,
+#     command_threshold: float = 0.05,
+# ) -> torch.Tensor:
+#     """Penalize foot motion at near-zero commands, with less cost during root motion.
+
+#     All three world-frame foot velocity components contribute, including vertical steps.
+#     The heading quaternion in the command is ignored. The cost is multiplied by
+#     ``exp(-(root_linear_speed + root_angular_speed)**2)``, using the root velocities
+#     expressed in the body frame. This retains the full cost at rest and relaxes it
+#     during recovery motion without prescribing a fixed standing joint pose.
+#     """
+#     command = env.command_manager.get_command(command_name)
+#     standing = (torch.linalg.vector_norm(command[:, :2], dim=-1) < command_threshold) & (
+#         command[:, 2].abs() < command_threshold
+#     )
+#     asset: Articulation = env.scene[asset_cfg.name]
+#     foot_velocity = asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids]
+#     return foot_velocity.square().sum(dim=(1, 2)) * standing
 
 
 def fly(
@@ -663,11 +692,40 @@ action
 """
 
 
-def action_rate_l2(env: ManagerBasedRLEnv, joint_idx: list[int]) -> torch.Tensor:
-    """Penalize the rate of change of the actions using L2 squared kernel."""
+def action_rate_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize squared action differences for the selected joints.
+
+    Action columns must follow the articulation joint order.
+    """
     return torch.sum(
-        torch.square(env.action_manager.action[:, joint_idx] - env.action_manager.prev_action[:, joint_idx]), dim=1
+        torch.square(
+            env.action_manager.action[:, asset_cfg.joint_ids] - env.action_manager.prev_action[:, asset_cfg.joint_ids]
+        ),
+        dim=1,
     )
+
+
+class action_rate_rate_l2(ManagerTermBase):
+    """Penalize squared second action differences for the selected joints.
+
+    Action columns must follow the articulation joint order. As in Agile, differences
+    are not divided by the time step.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        self.prev_action_rate = torch.zeros_like(env.action_manager.action)
+
+    def __call__(self, env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+        action_rate = env.action_manager.action - env.action_manager.prev_action
+        penalty = torch.sum(
+            torch.square(action_rate[:, asset_cfg.joint_ids] - self.prev_action_rate[:, asset_cfg.joint_ids]), dim=1
+        )
+        self.prev_action_rate = action_rate
+        return penalty
+
+    def reset(self, env_ids: torch.Tensor | None = None):
+        self.prev_action_rate[slice(None) if env_ids is None else env_ids] = 0.0
 
 
 """
