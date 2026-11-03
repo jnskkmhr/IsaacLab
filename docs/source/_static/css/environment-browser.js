@@ -104,6 +104,8 @@
             ["IsaacContrib-PickPlace-Locomanipulation-G1-Abs", "", "", "isaacsim_rtx,newton_renderer,ovrtx", "", "environment-previews/g1_pick_place_locomanipulation.jpg"],
             ["IsaacContrib-Place-Mug-Agibot-Left-Arm-RmpFlow", "", "isaacsim_physx", "", "", "environment-previews/agibot_place_mug.jpg"],
             ["IsaacContrib-Place-Toy2Box-Agibot-Right-Arm-RmpFlow", "", "isaacsim_physx", "", "", "environment-previews/agibot_place_toy.jpg"],
+            ["IsaacContrib-Push-Box-G1-29dof-MPM", "rsl_rl", "", "", ""],
+            ["IsaacContrib-Push-Box-G1-29dof-MPM-Play", "rsl_rl", "", "", ""],
             ["IsaacContrib-Reach-OpenArm", "rl_games,rsl_rl,skrl", "", "", "", "environment-previews/openarm_uni_reach.jpg"],
             ["IsaacContrib-Reach-OpenArmBi", "rl_games,rsl_rl", "", "", "", "environment-previews/openarm_bi_reach.jpg"],
             ["IsaacContrib-Reorient-Cube-Shadow-OpenAI-FF-Direct", "rl_games,rsl_rl,skrl", "isaacsim_physx,newton_mjwarp,ovphysx", "", "", "environment-previews/shadow_cube.jpg"],
@@ -149,6 +151,8 @@
             ["IsaacContrib-Velocity-Rough-Digit", "rsl_rl", "isaacsim_physx,newton_mjwarp", "", "", "tasks/locomotion/agility_digit_rough.jpg"],
             ["IsaacContrib-Velocity-Rough-UnitreeA1", "rsl_rl,skrl,sb3", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/a1_rough.jpg"],
             ["IsaacContrib-Velocity-Rough-UnitreeGo1", "rsl_rl,skrl", "isaacsim_physx,newton_kamino,newton_mjwarp,ovphysx", "", "", "tasks/locomotion/go1_rough.jpg"],
+            ["IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch-ParticleCache", "rsl_rl", "mjwarp_mpm_admm,mjwarp_mpm_direct,mjwarp_mpm_proxy", "", "", "environment-previews/g1_mpm_particle_cache.png"],
+            ["IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch-ParticleCache-Play", "rsl_rl", "mjwarp_mpm_admm,mjwarp_mpm_direct,mjwarp_mpm_proxy", "", "", "environment-previews/g1_mpm_particle_cache.png"],
         ];
         // END-AUTO-GENERATED: environment-browser-task-rows
 

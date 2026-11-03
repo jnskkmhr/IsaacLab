@@ -23,7 +23,7 @@ repos:
       - id: check-yaml
         # OSMO workflow specs are Jinja templates, so they only become valid
         # YAML once the submission-time parameters have been substituted.
-        exclude: '^(docker/cluster/osmo_multi_gpu_workflow|osmo/osmo_multi_gpu)\.yaml$'
+        exclude: '^(docker/cluster/osmo_multi_gpu_workflow|osmo/(osmo_multi_gpu|flash_sac_g1))\.yaml$'
       - id: check-merge-conflict
         # These verbatim license headings contain a literal "=======" separator.
         exclude: '^docs/licenses/dependencies/(mujoco|llvmlite|numba)-license\.txt$'
@@ -57,7 +57,8 @@ repos:
           - --license-filepath
           - .github/LICENSE_HEADER.txt
           - --use-current-year
-        exclude: "source/isaaclab_mimic/|scripts/imitation_learning/isaaclab_mimic/"
+        exclude: >-
+          source/isaaclab_mimic/|scripts/imitation_learning/isaaclab_mimic/|source/isaaclab_tasks/isaaclab_tasks/contrib/g1_29dof_mpm_moving_patch_particle_cache/util/felix/
   # Apache 2.0 license for mimic files
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.5
