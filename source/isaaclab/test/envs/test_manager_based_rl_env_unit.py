@@ -102,3 +102,125 @@ def test_obs_space_follows_clip_constraint():
             assert term_space.shape == expected_shapes[term_name]
             assert np.all(term_space.low == low)
             assert np.all(term_space.high == high)
+
+
+@pytest.mark.parametrize("boundary", ["auto", "manual", "continuing"])
+def test_every_step_observations_precede_resets_and_events(boundary):
+    """Capture stateless physical successors before resets, command changes and pushes."""
+    import torch
+
+    from isaaclab.managers import ObservationGroupCfg, ObservationManager, ObservationTermCfg
+
+    env = object.__new__(ManagerBasedRLEnv)
+    env._is_closed = True
+    env.cfg = SimpleNamespace(
+        decimation=1,
+        sim=SimpleNamespace(render_interval=1, dt=0.01),
+        compute_final_obs=False,
+        final_obs_every_step=True,
+        action_noise_model=None,
+        observation_noise_model=None,
+        num_rerenders_on_reset=0,
+        events=True,
+        wait_for_textures=False,
+    )
+    state = torch.tensor([[10.0], [20.0]])
+    command = torch.tensor([[1.0], [2.0]])
+    reset_calls = []
+    manual_reset = boundary == "manual"
+    ui_request = [manual_reset]
+
+    def consume_reset():
+        return ui_request.pop() if ui_request else False
+
+    def observe():
+        return state
+
+    def reset(ids):
+        reset_calls.append(ids.clone() if isinstance(ids, torch.Tensor) else ids)
+        state[ids] = -1
+
+    def event(**kwargs):
+        state.add_(1000)
+
+    env.sim = SimpleNamespace(
+        device="cpu",
+        is_rendering=False,
+        is_playing=lambda: True,
+        consume_reset_request=consume_reset,
+        step=lambda **kwargs: state.add_(1),
+        forward=lambda: None,
+    )
+    env.scene = SimpleNamespace(num_envs=2, write_data_to_sim=lambda: None, update=lambda **kwargs: None)
+    env.render_enabled = False
+    env.has_rtx_sensors = False
+    env.video_recorders = []
+    env._physics_handles_decimation = False
+    env._sim_step_counter = env.common_step_counter = 0
+    env.episode_length_buf = torch.zeros(2, dtype=torch.long)
+    env.reset_buf = torch.zeros(2, dtype=torch.bool)
+    env.reset_terminated = torch.zeros(2, dtype=torch.bool)
+    env.reset_time_outs = torch.zeros(2, dtype=torch.bool)
+    env._reset_idx = reset
+    env.event_manager = SimpleNamespace(active_terms=["interval"], available_modes=["interval"], apply=event)
+    done = torch.tensor([boundary == "auto", False])
+    timeout = torch.zeros(2, dtype=torch.bool)
+    reward = torch.zeros(2)
+
+    def managed_observe(env):
+        return observe()
+
+    group = ObservationGroupCfg()
+    group.value = ObservationTermCfg(func=managed_observe)
+    goal = ObservationGroupCfg()
+    goal.command = ObservationTermCfg(func=lambda env: command)
+    env.observation_manager = ObservationManager({"policy": group, "goal": goal}, env)
+    env.recorder_manager = SimpleNamespace(
+        active_terms=[],
+        record_pre_step=lambda: None,
+        record_post_physics_decimation_step=lambda: None,
+        record_pre_reset=lambda ids: None,
+        record_post_reset=lambda ids: None,
+    )
+    env.action_manager = SimpleNamespace(process_action=lambda action: None, apply_action=lambda: None)
+    env.termination_manager = SimpleNamespace(compute=lambda: done.clone(), terminated=done, time_outs=timeout)
+    env.reward_manager = SimpleNamespace(compute=lambda **kwargs: reward)
+    env.command_manager = SimpleNamespace(compute=lambda **kwargs: command.add_(100))
+    env.extras = {"final_obs": {"policy": torch.full_like(state, -999)}, "final_obs_every_step": True}
+    actions = torch.zeros(2, 1)
+    _, _, terminated, _, extras = env.step(actions)
+    captured = extras
+    has_boundary = boundary != "continuing"
+    final = captured["final_obs"]
+    terminal = final["policy"]
+    final_goal = final["goal"]
+    torch.testing.assert_close(terminal, torch.tensor([[11.0], [21.0]]))
+    torch.testing.assert_close(final_goal, torch.tensor([[1.0], [2.0]]))
+    assert captured.get("final_obs_every_step") is True
+    assert len(reset_calls) == int(has_boundary)
+    if has_boundary:
+        assert reset_calls[0].tolist() == ([0, 1] if manual_reset else [0])
+    assert terminated.tolist() == [has_boundary, manual_reset]
+    expected_post = torch.tensor([[999.0 if has_boundary else 1011.0], [999.0 if manual_reset else 1021.0]])
+    torch.testing.assert_close(state, expected_post)
+    torch.testing.assert_close(command, torch.tensor([[101.0], [102.0]]))
+    done.zero_()
+    env.step(actions)
+    captured = env.extras
+    final = captured["final_obs"]
+    physical = final["policy"]
+    torch.testing.assert_close(physical, expected_post + 1)
+    assert captured["final_obs_every_step"] is True
+    if boundary == "continuing":
+        # A public reset is not a physical transition, even with every-step capture enabled.
+        env.reset()
+    elif boundary == "manual":
+        env.scene.reset_to = lambda *args, **kwargs: None
+        env.reset_to({})
+    else:
+        env.cfg.compute_final_obs = env.cfg.final_obs_every_step = False
+        env.step(actions)
+    captured = env.extras
+    assert "final_obs_every_step" not in captured
+    torch.testing.assert_close(terminal, torch.tensor([[11.0], [21.0]]))
+    torch.testing.assert_close(final_goal, torch.tensor([[1.0], [2.0]]))

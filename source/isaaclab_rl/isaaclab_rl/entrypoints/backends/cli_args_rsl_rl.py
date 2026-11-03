@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 def checkpoint_load_cfg(
-    resume_optimizer_state: bool, *, runner_class: str = "OnPolicyRunner"
+    resume_optimizer_state: bool, *, runner_class: str = "OnPolicyRunner", algorithm_class: str = ""
 ) -> dict[str, bool] | None:
     """Select checkpoint models while optionally keeping the newly configured policy optimizer.
 
@@ -29,12 +29,15 @@ def checkpoint_load_cfg(
     Args:
         resume_optimizer_state: Whether to restore the checkpoint's policy optimizer state and learning rate.
         runner_class: Runner owning the checkpoint models.
+        algorithm_class: Algorithm owning additional checkpoint models.
 
     Returns:
         Native RSL-RL load selection, or None for its ordinary checkpoint behavior.
     """
     if resume_optimizer_state:
         return None
+    if algorithm_class.rsplit(":", 1)[-1] in {"SuperMimic", "CompositionalSuperMimic"}:
+        return {"actor": True, "critic": True, "world_model": True, "optimizer": False, "iteration": True}
     if runner_class == "OffPolicyRunner":
         return {"actor": True, "critic": True, "optimizer": resume_optimizer_state, "iteration": resume_optimizer_state}
     if runner_class == "DistillationRunner":

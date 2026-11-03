@@ -152,7 +152,6 @@ def run(argv: list[str]) -> None:
 
 def _run(args_cli: argparse.Namespace) -> None:
     """Execute RSL-RL training with parsed arguments."""
-    process_started = time.perf_counter()
     with startup_screen(args_cli, num_stages=3) as screen:
         env_cfg, agent_cfg = resolve_task_config(args_cli.task, args_cli.agent)
         pre_launch_video_config(env_cfg, args_cli)
@@ -224,7 +223,9 @@ def _run(args_cli: argparse.Namespace) -> None:
                 runner.load(
                     resume_path,
                     load_cfg=cli_args.checkpoint_load_cfg(
-                        args_cli.resume_optimizer_state, runner_class=agent_cfg.class_name
+                        args_cli.resume_optimizer_state,
+                        runner_class=agent_cfg.class_name,
+                        algorithm_class=agent_cfg.algorithm.class_name,
                     ),
                     map_location=agent_cfg.device,
                 )
@@ -238,7 +239,6 @@ def _run(args_cli: argparse.Namespace) -> None:
                 runner.learn(
                     num_learning_iterations=agent_cfg.max_iterations,
                     init_at_random_ep_len=agent_cfg.init_at_random_ep_len,
-                    **({"process_started": process_started} if isinstance(runner, OffPolicyRunner) else {}),
                 )
                 print(f"Training time: {round(time.time() - start_time, 2)} seconds")
                 # the RL library creates the process group but never destroys it, which torch warns about at exit

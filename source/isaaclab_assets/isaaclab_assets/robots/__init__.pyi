@@ -58,6 +58,7 @@ __all__ = [
     "G1_29DOF_CFG",
     "UNITREE_G1_29DOF_CFG",
     "UNITREE_G1_29DOF_BOX_FOOT_CFG",
+    "UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain",
     "G1_INSPIRE_FTP_CFG",
     "UR10_CFG",
     "UR10e_CFG",
@@ -70,12 +71,12 @@ __all__ = [
 ]
 
 from .agibot import AGIBOT_A2D_CFG
-from .agility import LEG_JOINT_NAMES, ARM_JOINT_NAMES, DIGIT_V4_CFG
+from .agility import ARM_JOINT_NAMES, DIGIT_V4_CFG, LEG_JOINT_NAMES
 from .allegro import ALLEGRO_HAND_CFG
 from .ant import ANT_CFG
 from .anymal import (
-    ANYDRIVE_3_SIMPLE_ACTUATOR_CFG,
     ANYDRIVE_3_LSTM_ACTUATOR_CFG,
+    ANYDRIVE_3_SIMPLE_ACTUATOR_CFG,
     ANYMAL_B_CFG,
     ANYMAL_C_CFG,
     ANYMAL_D_CFG,
@@ -84,21 +85,22 @@ from .anymal import (
 from .cart_double_pendulum import CART_DOUBLE_PENDULUM_CFG
 from .cartpole import CARTPOLE_CFG
 from .cassie import CASSIE_CFG
+from .flexiv import FLEXIV_RIZON4S_CFG, FLEXIV_RIZON4S_GRAV_GRIPPER_CFG
+from .fourbar_pole import FOURBAR_POLE_CFG
 from .fourier import GR1T2_CFG, GR1T2_HIGH_PD_CFG
 from .franka import (
-    FRANKA_PANDA_CFG,
     FRANKA_MINIMAL_CFG,
+    FRANKA_PANDA_CFG,
+    FRANKA_PANDA_HIGH_PD_CFG,
     FRANKA_PANDA_LEGACY_CFG,
     FRANKA_PANDA_LEGACY_HIGH_PD_CFG,
-    FRANKA_PANDA_HIGH_PD_CFG,
     FRANKA_PANDA_MENAGERIE_CFG,
     FRANKA_ROBOTIQ_GRIPPER_CFG,
 )
-from .fourbar_pole import FOURBAR_POLE_CFG
 from .galbot import GALBOT_ONE_CHARLIE_CFG
 from .humanoid import HUMANOID_CFG
 from .humanoid_28 import HUMANOID_28_CFG
-from .kinova import KINOVA_JACO2_N7S300_CFG, KINOVA_JACO2_N6S300_CFG, KINOVA_GEN3_N7_CFG
+from .kinova import KINOVA_GEN3_N7_CFG, KINOVA_JACO2_N6S300_CFG, KINOVA_JACO2_N7S300_CFG
 from .kuka_allegro import KUKA_ALLEGRO_CFG
 from .pick_and_place import PICK_AND_PLACE_CFG
 from .quadcopter import CRAZYFLIE_CFG
@@ -106,27 +108,27 @@ from .ridgeback_franka import RIDGEBACK_FRANKA_PANDA_CFG
 from .sawyer import SAWYER_CFG
 from .shadow_hand import SHADOW_HAND_CFG, SHADOW_HAND_NEWTON_CFG, SHADOW_HAND_PHYSX_CFG
 from .so101 import SO101_CFG, SO101_HIGH_PD_CFG
-from .spot import joint_parameter_lookup, SPOT_CFG
+from .spot import SPOT_CFG, joint_parameter_lookup
 from .unitree import (
+    G1_29DOF_CFG,
+    G1_CFG,
+    G1_INSPIRE_FTP_CFG,
+    G1_MINIMAL_CFG,
     GO1_ACTUATOR_CFG,
-    UNITREE_A1_CFG,
-    UNITREE_GO1_CFG,
-    UNITREE_GO2_CFG,
     H1_CFG,
     H1_MINIMAL_CFG,
-    G1_CFG,
-    G1_MINIMAL_CFG,
-    G1_29DOF_CFG,
-    UNITREE_G1_29DOF_CFG,
+    UNITREE_A1_CFG,
     UNITREE_G1_29DOF_BOX_FOOT_CFG,
-    G1_INSPIRE_FTP_CFG,
+    UNITREE_G1_29DOF_CFG,
+    UNITREE_GO1_CFG,
+    UNITREE_GO2_CFG,
+    UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain,
 )
 from .universal_robots import (
     UR10_CFG,
-    UR10e_CFG,
     UR10_LONG_SUCTION_CFG,
     UR10_SHORT_SUCTION_CFG,
-    UR10e_ROBOTIQ_GRIPPER_CFG,
+    UR10e_CFG,
     UR10e_ROBOTIQ_2F_85_CFG,
+    UR10e_ROBOTIQ_GRIPPER_CFG,
 )
-from .flexiv import FLEXIV_RIZON4S_CFG, FLEXIV_RIZON4S_GRAV_GRIPPER_CFG

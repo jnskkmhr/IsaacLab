@@ -1055,3 +1055,13 @@ UNITREE_G1_29DOF_CFG = ArticulationCfg(
 )
 
 UNITREE_G1_29DOF_BOX_FOOT_CFG = UNITREE_G1_29DOF_CFG.replace(spawn=spawn_box_foot_robot_usd)
+
+UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain = UNITREE_G1_29DOF_BOX_FOOT_CFG.copy()
+UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.actuators["waist"].stiffness = {
+    "waist_roll_joint": 4.0 * STIFFNESS_5020,
+    "waist_pitch_joint": 4.0 * STIFFNESS_5020,
+}
+UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.actuators["waist"].damping = {
+    "waist_roll_joint": 4.0 * DAMPING_5020,
+    "waist_pitch_joint": 4.0 * DAMPING_5020,
+}

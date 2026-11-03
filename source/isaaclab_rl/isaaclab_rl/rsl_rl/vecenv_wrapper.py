@@ -164,7 +164,7 @@ class RslRlVecEnvWrapper(VecEnv):
         # this is only needed for infinite horizon tasks
         if not self.unwrapped.cfg.is_finite_horizon:
             extras["time_outs"] = truncated
-        if self.unwrapped.cfg.compute_final_obs:
+        if self.unwrapped.cfg.compute_final_obs or getattr(self.unwrapped.cfg, "final_obs_every_step", False):
             extras["terminated"] = terminated | truncated if self.unwrapped.cfg.is_finite_horizon else terminated
             extras["truncated"] = truncated
             # Capture is optional, and extras may persist between calls. Only this step's resets are valid.
