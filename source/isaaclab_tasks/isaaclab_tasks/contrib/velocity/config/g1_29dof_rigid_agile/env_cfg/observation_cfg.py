@@ -15,6 +15,7 @@ import isaaclab_tasks.core.velocity.mdp as mdp
 
 from ..mdp import symmetry
 from .action_cfg import CONTROLLED_JOINT_NAMES
+from .scene_cfg import G1SceneCfg
 
 
 @configclass
@@ -80,6 +81,25 @@ class CriticCfg(ObsGroup):
 
 
 @configclass
+class HeightScanCfg(ObsGroup):
+    """Current terrain scan for the critic, without policy history stacking."""
+
+    height_scan = ObsTerm(
+        func=mdp.height_scan,
+        params={"sensor_cfg": SceneEntityCfg("height_scanner")},
+        clip=(-1.0, 1.0),
+        mirror=symmetry.mirror_height_scan,
+        mirror_params={"pattern_cfg": G1SceneCfg().height_scanner.pattern_cfg},
+    )
+
+    def __post_init__(self):
+        self.history_length = 1
+        self.enable_corruption = False
+        self.concatenate_terms = True
+
+
+@configclass
 class G1ObservationsCfg:
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
+    height_scan: HeightScanCfg = HeightScanCfg()

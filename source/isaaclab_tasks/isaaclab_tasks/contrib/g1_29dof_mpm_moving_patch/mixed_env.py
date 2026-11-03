@@ -125,8 +125,8 @@ def outside_contact_region(
 ) -> torch.Tensor:
     """Keep robots in their contact region without restricting movement between difficulty rows."""
     outside = root_outside_workspace(env, margin=margin, asset_cfg=asset_cfg)
-    # The two identical terrain grids meet at world Y=0 after the generator centers the combined mesh.
-    split_y = 0.0
+    generator = env.cfg.scene.terrain.terrain_generator
+    split_y = (generator.num_cols // 2 - generator.num_cols / 2) * generator.size[1]
     half_patch_width = env.cfg.scene.terrain.moving_patch_terrain.total_patch_size[1] / 2
     y = env.scene[asset_cfg.name].data.root_pos_w.torch[:, 1]
     mpm = env.scene.terrain.mpm_env_mask

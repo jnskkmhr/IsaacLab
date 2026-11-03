@@ -51,3 +51,28 @@ class G1CurriculumCfg:
             "use_log_space": False,
         },
     )
+
+    # Approximate native run s2wibgue in collection steps, including replay warmup.
+    # Fixed step schedules preserve its progression independently of training throughput.
+    command_vel = CurrTerm(
+        func=g1_mdp.ramp_command_range,
+        params={
+            "command_name": "base_velocity",
+            "range_name": "lin_vel_x",
+            "range_0": (-0.5, 0.5),
+            "range_1": (-0.5, 1.0),
+            "step_0": 12_200,
+            "step_1": 25_100,
+        },
+    )
+
+    increase_contact_regularization = CurrTerm(
+        func=g1_mdp.update_reward_weight_step,
+        params={
+            "reward_name": "smooth_interval_loading",
+            "start_step": 12_600,
+            "num_steps": 13_300,
+            "terminal_weight": -5.0,
+            "use_log_space": True,
+        },
+    )

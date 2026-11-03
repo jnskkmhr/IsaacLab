@@ -12,7 +12,6 @@ the curriculum introduced by the function.
 from __future__ import annotations
 
 import math
-import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypedDict
 
@@ -376,206 +375,29 @@ class update_reward_weight_step(ManagerTermBase):
             return new_weight
 
 
-class ContactRewardStage:
-    def __init__(
-        self,
-        reward_manager,
-        *,
-        term_name,
-        final_weight,
-        initial_fraction=0.1,
-        start_seconds,
-        ramp_seconds,
-    ):
-        if (
-            not isinstance(term_name, str)
-            or not term_name.startswith("smooth_")
-            or type(final_weight) not in (int, float)
-            or not math.isfinite(final_weight)
-            or final_weight >= 0
-            or type(initial_fraction) not in (int, float)
-            or not math.isfinite(initial_fraction)
-            or not 0 < initial_fraction <= 1
-        ):
-            raise ValueError("Invalid contact reward stage")
-        if (
-            type(start_seconds) not in (int, float)
-            or not math.isfinite(start_seconds)
-            or start_seconds < 0
-            or type(ramp_seconds) not in (int, float)
-            or not math.isfinite(ramp_seconds)
-            or ramp_seconds <= 0
-        ):
-            raise ValueError("Invalid contact reward time schedule")
-        self.manager = reward_manager
-        self.term_name = term_name
-        self.final_weight = float(final_weight)
-        self.initial_fraction = float(initial_fraction)
-        self.start_seconds, self.ramp_seconds = start_seconds, ramp_seconds
-        self.clock_origin = self.elapsed_seconds = None
-        self.progress = 0.0
-        self.completed_steps = None
-        self.weight = self.final_weight * self.initial_fraction
-        if self.manager.get_term_cfg(term_name).weight != self.weight:
-            raise ValueError("Native contact reward must start at declared initial weight")
-
-    def start_clock(self, origin):
-        """Bind once at the runner's training-loop start, excluding setup/queue time."""
-        if (
-            type(origin) not in (int, float)
-            or not math.isfinite(origin)
-            or self.clock_origin is not None
-            or self.completed_steps is not None
-        ):
-            raise ValueError("Contact curriculum clock must be bound once before collection")
-        self.clock_origin = origin
-
-    def before_collection(self, completed_steps, elapsed_seconds: float | None = None):
-        if (
-            type(completed_steps) is not int
-            or completed_steps < 0
-            or self.completed_steps is not None
-            and completed_steps <= self.completed_steps
-        ):
-            raise ValueError("Contact stage requires strictly increasing completed collection steps")
-        if self.clock_origin is None:
-            raise ValueError("Bind contact curriculum clock before collection")
-        elapsed = time.perf_counter() - self.clock_origin if elapsed_seconds is None else elapsed_seconds
-        if (
-            not math.isfinite(elapsed)
-            or elapsed < 0
-            or self.elapsed_seconds is not None
-            and elapsed < self.elapsed_seconds
-        ):
-            raise ValueError("Contact curriculum requires a monotonic elapsed clock")
-        self.elapsed_seconds = elapsed
-        fraction = min(max((elapsed - self.start_seconds) / self.ramp_seconds, 0.0), 1.0)
-        scale = self.initial_fraction ** (1 - fraction)
-        weight = self.final_weight * scale
-        cfg = self.manager.get_term_cfg(self.term_name)
-        if cfg.weight != self.weight:
-            raise ValueError("Contact weight was changed outside its declared stage")
-        if weight != self.weight:
-            cfg.weight = weight
-            self.manager.set_term_cfg(self.term_name, cfg)
-        self.weight, self.completed_steps = weight, completed_steps
-        self.progress = fraction
-        return weight
-
-    def state(self):
-        return {
-            "term_name": self.term_name,
-            "weight": self.weight,
-            "final_weight": self.final_weight,
-            "fraction": self.weight / self.final_weight,
-            "completed_steps_before_collection": self.completed_steps,
-            "clock": "training_wall_seconds",
-            "elapsed_seconds": self.elapsed_seconds,
-            "start_seconds": self.start_seconds,
-            "ramp_seconds": self.ramp_seconds,
-            "interpolation": "logarithmic",
-            "ramp_progress": self.progress,
-            "initial_weight": self.final_weight * self.initial_fraction,
-            "multiplier": self.weight / (self.final_weight * self.initial_fraction),
-            "semantics": "Weight frozen before collection and its updates; stored n-step costs relabeled",
-        }
+def ramp_command_range(
+    env: ManagerBasedRLEnv,
+    env_ids: Sequence[int],
+    command_name: str,
+    range_name: str,
+    range_0: tuple[float, float],
+    range_1: tuple[float, float],
+    step_0: int,
+    step_1: int,
+) -> dict[str, float]:
+    """Linearly change a command sampling range using the environment step counter."""
+    del env_ids  # The sampling range is shared by all environments.
+    if step_1 <= step_0:
+        raise ValueError("Command ramp requires step_1 > step_0")
+    alpha = min(max((env.common_step_counter - step_0) / (step_1 - step_0), 0.0), 1.0)
+    bounds = tuple((1.0 - alpha) * initial + alpha * final for initial, final in zip(range_0, range_1))
+    ranges = env.command_manager.get_term(command_name).cfg.ranges
+    setattr(ranges, range_name, bounds)
+    return {f"{range_name}_min": bounds[0], f"{range_name}_max": bounds[1]}
 
 
-class ForwardCommandStage:
-    def __init__(
-        self,
-        term,
-        *,
-        initial_max=0.5,
-        final_max=1.0,
-        start_fraction=1 / 3,
-        ramp_fraction=1 / 3,
-    ):
-        values = (initial_max, final_max, start_fraction, ramp_fraction)
-        if (
-            any(type(v) not in (int, float) or not math.isfinite(v) for v in values)
-            or not 0 < initial_max < final_max
-            or not 0 <= start_fraction < 1
-            or not 0 < ramp_fraction <= 1 - start_fraction
-        ):
-            raise ValueError("Invalid forward command schedule")
-        if type(term).__name__ != "UniformNullVelocityCommand":
-            raise ValueError("Expected native UniformNullVelocityCommand sampling")
-        self.term = term
-        self.initial_max, self.final_max = initial_max, final_max
-        self.start_fraction, self.ramp_fraction = start_fraction, ramp_fraction
-        self.maximum = initial_max
-        self.origin = self.duration = self.elapsed = self.completed_steps = None
-        self.progress = 0.0
-        self._validate_ranges()
-
-    def _validate_ranges(self):
-        ranges = self.term.cfg.ranges
-        if (
-            tuple(ranges.lin_vel_x) != (-0.5, self.maximum)
-            or tuple(ranges.lin_vel_y) != (-0.5, 0.5)
-            or tuple(ranges.ang_vel_z) != (-1.0, 1.0)
-            or self.term.cfg.heading_command
-        ):
-            raise ValueError("Unexpected command bounds or external command-range mutation")
-
-    def start_clock(self, origin, duration_seconds):
-        if (
-            self.origin is not None
-            or any(type(v) not in (int, float) or not math.isfinite(v) for v in (origin, duration_seconds))
-            or duration_seconds <= 0
-        ):
-            raise ValueError("Bind command clock once to a positive remaining training budget")
-        self.origin, self.duration = origin, duration_seconds
-
-    def before_collection(self, completed_steps, elapsed_seconds: float | None = None):
-        if (
-            self.origin is None
-            or type(completed_steps) is not int
-            or completed_steps < 0
-            or self.completed_steps is not None
-            and completed_steps <= self.completed_steps
-        ):
-            raise ValueError("Bind clock before strictly increasing command-stage collection steps")
-        elapsed = time.perf_counter() - self.origin if elapsed_seconds is None else elapsed_seconds
-        if not math.isfinite(elapsed) or elapsed < 0 or self.elapsed is not None and elapsed < self.elapsed:
-            raise ValueError("Command curriculum requires monotonic elapsed time")
-        self._validate_ranges()
-        progress = min(max((elapsed / self.duration - self.start_fraction) / self.ramp_fraction, 0.0), 1.0)
-        maximum = self.initial_max + progress * (self.final_max - self.initial_max)
-        # The native term reads these bounds on its next reset or timed resample.
-        # Never overwrite the active command, observation history, or stored replay.
-        self.term.cfg.ranges.lin_vel_x = (-0.5, maximum)
-        self.maximum, self.progress = maximum, progress
-        self.elapsed, self.completed_steps = elapsed, completed_steps
-        return maximum
-
-    def state(self):
-        result = {
-            "clock": "training_wall_seconds",
-            "elapsed_seconds": self.elapsed,
-            "training_budget_seconds": self.duration,
-            "start_fraction": self.start_fraction,
-            "ramp_fraction": self.ramp_fraction,
-            "initial_max": self.initial_max,
-            "final_max": self.final_max,
-            "lin_vel_x_min": -0.5,
-            "lin_vel_x_max": self.maximum,
-            "lin_vel_y_min": -0.5,
-            "lin_vel_y_max": 0.5,
-            "ang_vel_z_min": -1.0,
-            "ang_vel_z_max": 1.0,
-            "ramp_progress": self.progress,
-            "completed_steps_before_collection": self.completed_steps,
-            "semantics": (
-                "Linear range expansion at native reset/timed resampling; existing commands and replay unchanged"
-            ),
-        }
-        return result
-
-
-class ReplayRewardCurriculum:
-    """Agile's collection-time curricula and sample-time n-step reward relabeling.
+class ReplayRewardRelabeling:
+    """Relabel sampled n-step rewards with weights owned by the environment curriculum.
 
     Captures reward-manager components without reevaluating stateful rewards.
     Weights are captured before stepping because reset curricula can change them
@@ -584,59 +406,42 @@ class ReplayRewardCurriculum:
 
     sum_keys = ("rewards", "stationary_reward", "smoothing_terms", "contact_terms")
 
-    def __init__(self, env, command_curriculum_seconds: float | None = None):
+    def __init__(self, env):
         self.env = env.unwrapped
         self.manager = self.env.reward_manager
-        self.command_curriculum_seconds = command_curriculum_seconds
         self.smoothing_names = ("action_rate", "action_rate_rate")
         self.smoothing_indices = [self.manager.active_terms.index(name) for name in self.smoothing_names]
-        self.contact_index = self.manager.active_terms.index("smooth_interval_loading")
-        self.contact = ContactRewardStage(
-            self.manager,
-            term_name="smooth_interval_loading",
-            final_weight=-5.0,
-            initial_fraction=0.1,
-            start_seconds=1200.0,
-            ramp_seconds=1200.0,
+        self.contact_name = "smooth_interval_loading"
+        self.contact_index = (
+            self.manager.active_terms.index(self.contact_name)
+            if self.contact_name in self.manager.active_terms
+            else None
         )
-        self.command = ForwardCommandStage(self.env.command_manager.get_term("base_velocity"))
-
-    def start(self, remaining_seconds: float | None) -> None:
-        duration = self.command_curriculum_seconds or remaining_seconds
-        if duration is None or duration <= 0:
-            raise ValueError("Agile command curriculum requires a positive training time budget.")
-        origin = time.perf_counter()
-        self.contact.start_clock(origin)
-        self.command.start_clock(origin, duration)
+        if self.contact_index is None:
+            self.sum_keys = ("rewards", "stationary_reward", "smoothing_terms")
 
     def before_collection(self, collection_step: int) -> None:
-        elapsed = None
-        if torch.distributed.is_initialized() and torch.distributed.get_world_size() > 1:
-            # All ranks use the lead collector's elapsed time for reward/command ramps.
-            clock = torch.tensor(
-                time.perf_counter() - self.contact.clock_origin, device=self.env.device, dtype=torch.float64
-            )
-            torch.distributed.broadcast(clock, src=0)
-            elapsed = clock.item()
-        self.command.before_collection(collection_step, elapsed_seconds=elapsed)
-        self.contact.before_collection(collection_step, elapsed_seconds=elapsed)
+        # Reset-time curricula may change these weights after the step's reward is computed.
         self.collection_weights = tuple(self.manager.get_term_cfg(name).weight for name in self.smoothing_names)
+        if self.contact_index is not None:
+            self.contact_weight = self.manager.get_term_cfg(self.contact_name).weight
 
     def process_transition(self, transition):
         weighted = self.manager._step_reward[:, self.smoothing_indices].detach() * self.env.step_dt
-        contact = self.manager._step_reward[:, self.contact_index].detach() * self.env.step_dt
-        transition["stationary_reward"] = transition["rewards"] - weighted.sum(-1) - contact
+        transition["stationary_reward"] = transition["rewards"] - weighted.sum(-1)
         transition["smoothing_terms"] = weighted / weighted.new_tensor(self.collection_weights)
-        transition["contact_terms"] = contact / self.contact.weight
+        if self.contact_index is not None:
+            contact = self.manager._step_reward[:, self.contact_index].detach() * self.env.step_dt
+            transition["stationary_reward"] = transition["stationary_reward"] - contact
+            transition["contact_terms"] = contact / self.contact_weight
         return transition
 
     def process_batch(self, batch):
         weights = tuple(self.manager.get_term_cfg(name).weight for name in self.smoothing_names)
         terms = batch["smoothing_terms"]
-        batch["rewards"] = (
-            batch["stationary_reward"]
-            + terms[:, 0] * weights[0]
-            + terms[:, 1] * weights[1]
-            + batch["contact_terms"] * self.contact.weight
-        )
+        batch["rewards"] = batch["stationary_reward"] + terms[:, 0] * weights[0] + terms[:, 1] * weights[1]
+        if self.contact_index is not None:
+            batch["rewards"] = (
+                batch["rewards"] + batch["contact_terms"] * self.manager.get_term_cfg(self.contact_name).weight
+            )
         return batch

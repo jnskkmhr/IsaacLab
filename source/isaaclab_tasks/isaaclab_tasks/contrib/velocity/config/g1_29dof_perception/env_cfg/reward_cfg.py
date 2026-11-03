@@ -40,9 +40,15 @@ class G1RewardsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="(?!.*ankle.*).*"), "threshold": 1.0},
     )
 
-    action_rate_l2_lower_body = RewTerm(func=g1_mdp.action_rate_l2, weight=-0.01, params={"joint_idx": list(range(12))})
+    action_rate_l2_lower_body = RewTerm(
+        func=g1_mdp.action_rate_l2,
+        weight=-0.01,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_(hip|knee|ankle).*_joint"])},
+    )
     action_rate_l2_upper_body = RewTerm(
-        func=g1_mdp.action_rate_l2, weight=-0.05, params={"joint_idx": list(range(12, 29))}
+        func=g1_mdp.action_rate_l2,
+        weight=-0.05,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["(waist|.*_shoulder|.*_elbow|.*_wrist).*_joint"])},
     )
     energy = RewTerm(func=g1_mdp.energy, weight=-0.001)
     dof_vel_l2 = RewTerm(func=mdp.joint_vel_l2, weight=-0.0002)

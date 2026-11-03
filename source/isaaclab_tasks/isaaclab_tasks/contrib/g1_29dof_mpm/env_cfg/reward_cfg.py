@@ -52,12 +52,12 @@ class G1RewardsCfg:
     action_rate_l2_lower_body = RewTerm(
         func=g1_mdp.action_rate_l2,
         weight=-0.01,
-        params={"joint_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_(hip|knee|ankle).*_joint"])},
     )
     action_rate_l2_upper_body = RewTerm(
         func=g1_mdp.action_rate_l2,
         weight=-0.05,
-        params={"joint_idx": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["(waist|.*_shoulder|.*_elbow|.*_wrist).*_joint"])},
     )
 
     base_height = RewTerm(

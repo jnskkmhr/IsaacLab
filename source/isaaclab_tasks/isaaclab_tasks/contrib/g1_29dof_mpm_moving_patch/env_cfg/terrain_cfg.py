@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 import math
 
 import isaaclab.terrains as terrain_gen
@@ -48,7 +53,7 @@ SLOPE_TERRAINS_CFG = TerrainGeneratorCfg(
         #     slope_range=(0.4, 0.4), platform_width=2.0, border_width=0.25
         # ),
         "hf_pyramid_slope_inv": terrain_gen.HfInvertedPyramidSlopedTerrainCfg(
-            slope_range=(math.pi * (20.0/180.0), math.pi * (20.0/180.0)), platform_width=2.0, border_width=0.25
+            slope_range=(math.pi * (20.0 / 180.0), math.pi * (20.0 / 180.0)), platform_width=2.0, border_width=0.25
         ),
     },
 )
@@ -66,7 +71,7 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
     sub_terrains={
         "wave": terrain_gen.HfWaveTerrainCfg(
             proportion=0.2,
-            amplitude_range=(0.05, 0.4),
+            amplitude_range=(0.1, 0.4),
             num_waves=4,
             border_width=0.25,
         ),

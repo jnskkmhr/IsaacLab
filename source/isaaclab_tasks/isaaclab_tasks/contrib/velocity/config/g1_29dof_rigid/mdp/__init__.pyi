@@ -18,6 +18,7 @@ __all__ = [
     "foot_height",
     "terrain_material_parameters",
     "action_rate_l2",
+    "action_rate_rate_l2",
     "energy",
     "feet_air_time",
     "feet_air_time_positive_biped",
@@ -46,8 +47,9 @@ __all__ = [
     "terrain_out_of_bounds",
 ]
 
-from .commands import *
-from .events import reset_root_state_uniform_on_ground
+from isaaclab.envs.mdp import *  # noqa: F403 -- mirror the runtime module's public re-exports
+
+from .commands import *  # noqa: F403 -- mirror the runtime module's public re-exports
 from .curriculums import (
     commands_vel,
     modify_reward_param,
@@ -56,6 +58,7 @@ from .curriculums import (
     ramp_reward_weight,
     terrain_levels_vel,
 )
+from .events import reset_root_state_uniform_on_ground
 from .observations import (
     foot_air_time,
     foot_contact,
@@ -64,8 +67,9 @@ from .observations import (
     terrain_material_parameters,
 )
 from .rewards import (
-    break_contact_penalty,
     action_rate_l2,
+    action_rate_rate_l2,
+    break_contact_penalty,
     energy,
     feet_air_time,
     feet_air_time_positive_biped,
@@ -74,8 +78,6 @@ from .rewards import (
     foot_clearance_reward,
     foot_force,
     foot_touch_down_angle_penalty,
-    stance_foot_angle_penalty,
-    stance_foot_velocity_l2,
     reward_feet_pitch,
     reward_feet_pitch_contact,
     reward_feet_pitch_diff,
@@ -86,10 +88,11 @@ from .rewards import (
     reward_foot_distance,
     reward_foot_lateral_symmetry,
     reward_soft_landing,
+    stance_foot_angle_penalty,
+    stance_foot_velocity_l2,
     track_ang_vel_z_world_exp,
     track_heading_world_exp,
     track_lin_vel_xy_yaw_frame_exp,
     variable_posture_l1,
 )
 from .terminations import root_height_below_minimum_adaptive, terrain_out_of_bounds
-from isaaclab.envs.mdp import *

@@ -279,7 +279,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         Returns:
             The Newton body indices, shape ``(num_envs, len(foot_names))``.
         """
-        pattern = re.compile(r"^/World/envs/env_(\d+)/Robot/.*/([^/]+)$")
+        pattern = re.compile(r"^/World/envs/env_(\d+)/Robot/(?:.*/)?([^/]+)$")
         body_ids = torch.full((self.num_envs, len(foot_names)), -1, dtype=torch.long, device=self.device)
         name_to_column = {name: column for column, name in enumerate(foot_names)}
         for body_id, label in enumerate(NewtonManager.get_model().body_label):

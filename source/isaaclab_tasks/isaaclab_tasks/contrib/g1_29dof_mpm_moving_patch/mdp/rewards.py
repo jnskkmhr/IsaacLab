@@ -26,6 +26,36 @@ if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
 
 
+def joint_action_l2(
+    env: G1MovingPatchEnv,
+    asset_cfg: SceneEntityCfg,
+    action_name: str = "joint_pos",
+) -> torch.Tensor:
+    """Penalize squared raw actions for the selected articulation joints.
+
+    Joint names map the resolved articulation indices to the action term's order.
+    The penalty uses actions before scaling and adding the default joint pose.
+
+    Args:
+        env: Environment instance.
+        asset_cfg: Articulation and joints whose actions are penalized.
+        action_name: Joint-position action term supplying the raw actions.
+
+    Returns:
+        Sum of squared selected actions, shape ``(num_envs,)``.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    action_term = env.action_manager.get_term(action_name)
+    if action_term.cfg.asset_name != asset_cfg.name:
+        raise ValueError(f"Action term '{action_name}' does not control asset '{asset_cfg.name}'.")
+    if isinstance(asset_cfg.joint_ids, slice):
+        joint_names = asset.joint_names[asset_cfg.joint_ids]
+    else:
+        joint_names = [asset.joint_names[index] for index in asset_cfg.joint_ids]
+    action_ids = [action_term._joint_names.index(name) for name in joint_names]
+    return torch.sum(torch.square(action_term.raw_actions[:, action_ids]), dim=-1)
+
+
 def foot_clearance_reward(
     env: G1MovingPatchEnv,
     target_height: float,
@@ -57,6 +87,34 @@ def foot_clearance_reward(
         height_sensor_cfg=height_sensor_cfg,
         ground_height_offset=offset,
     )
+
+
+class feet_slide(ManagerTermBase):
+    """Penalize world-XY foot speed during contact with MPM or rigid ground.
+
+    Contact uses the task's combined MPM reaction and MJWarp ground-contact forces,
+    thresholded by ``foot_contact_force_threshold``. Swing feet contribute zero.
+    Selected foot velocities are matched to the contact buffer's body ordering.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: G1MovingPatchEnv):
+        super().__init__(cfg, env)
+        asset_cfg = cfg.params["asset_cfg"]
+        self._asset: Articulation = env.scene[asset_cfg.name]
+        tracked_ids, _ = self._asset.find_bodies(env.cfg.foot_body_expr, preserve_order=True)
+        selected_ids = (
+            list(range(self._asset.num_bodies))[asset_cfg.body_ids]
+            if isinstance(asset_cfg.body_ids, slice)
+            else asset_cfg.body_ids
+        )
+        self._contact_ids = torch.tensor(
+            [tracked_ids.index(body_id) for body_id in selected_ids], dtype=torch.long, device=env.device
+        )
+
+    def __call__(self, env: G1MovingPatchEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+        foot_velocity = self._asset.data.body_lin_vel_w.torch[:, asset_cfg.body_ids, :2]
+        contact = env.foot_contact[:, self._contact_ids]
+        return (torch.linalg.vector_norm(foot_velocity, dim=-1) * contact).sum(dim=-1)
 
 
 def reward_soft_landing(

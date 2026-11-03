@@ -8,7 +8,8 @@
 Cloned from the soft-contact task. A granular bed exerts no force on a rigid contact sensor, so
 the gait terms are rebuilt on the contact state that the coupler feeds back from the MPM entry to
 the proxy feet. The contact impulse term penalizes touchdown force magnitude using this same
-contact state. Terms requiring per-shape contact data, ``undesired_contacts`` and ``feet_slide``, are dropped.
+contact state. Foot sliding uses the combined MPM and MJWarp contact state.
+``undesired_contacts`` remains disabled because it requires contact data for other bodies.
 """
 
 import math
@@ -51,16 +52,33 @@ class G1RewardsCfg:
     style rewards
     """
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
+    # action_l2_waist = RewTerm(
+    #     func=mpm_mdp.joint_action_l2,
+    #     weight=-0.05,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=["waist_(roll|pitch)_joint"]),
+    #         "action_name": "joint_pos",
+    #     },
+    # )
     action_rate_l2_lower_body = RewTerm(
         func=g1_mdp.action_rate_l2,
-        weight=-0.01,
-        params={"joint_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]},
+        # weight=-0.01,
+        weight=-0.05,
+        # weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_(hip|knee|ankle).*_joint"])},
     )
     action_rate_l2_upper_body = RewTerm(
         func=g1_mdp.action_rate_l2,
         weight=-0.05,
-        params={"joint_idx": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]},
+        # weight=-0.25,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["(waist|.*_shoulder|.*_elbow|.*_wrist).*_joint"])},
     )
+
+    # action_rate_rate_l2 = RewTerm(
+    #     func=g1_mdp.action_rate_rate_l2,
+    #     weight=-0.025,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"])},
+    # )
 
     # -- base penalties
     base_height = RewTerm(
@@ -69,11 +87,15 @@ class G1RewardsCfg:
         params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
-    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
+    lin_vel_z_l2 = RewTerm(
+        func=mdp.lin_vel_z_l2,
+        # weight=-1.0,
+        weight=-0.25,
+    )
     ang_vel_xy_l2 = RewTerm(
         func=mdp.ang_vel_xy_l2,
-        weight=-0.05,
-        # weight=-0.2,
+        # weight=-0.05,
+        weight=-0.25,
     )
 
     """
@@ -229,15 +251,11 @@ class G1RewardsCfg:
         },
     )
 
-    # # Allow normal stance travel before penalizing feet too far behind the pelvis.
-    # feet_trailing_distance = RewTerm(
-    #     func=mpm_mdp.feet_trailing_distance_l2,
-    #     weight=-2.0,
-    #     params={
-    #         "max_trailing_distance": 0.3,
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link", preserve_order=True),
-    #     },
-    # )
+    feet_slide = RewTerm(
+        func=mpm_mdp.feet_slide,
+        weight=-0.25,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link", preserve_order=True)},
+    )
 
     contact_impulse = RewTerm(
         func=mpm_mdp.reward_soft_landing,

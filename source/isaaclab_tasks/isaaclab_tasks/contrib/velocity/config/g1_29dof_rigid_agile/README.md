@@ -1,6 +1,6 @@
-## Moviepy install 
+## Moviepy install
 Need this for video logging
-```bash 
+```bash
 pip install 'moviepy<2'
 ```
 
@@ -23,16 +23,24 @@ This task follows Agile's
 - The reference rough terrain, terrain progression, reset and dynamics randomization,
   command sampling, contact sensors, and termination conditions.
 - The same observation histories, reward terms, and initial reward weights. The actor
-  receives 270 values; the critic receives those plus 85 privileged values and fifteen
-  candidate actions before its independent residual encoder.
+  receives 270 values; the FlashSAC critic receives those plus 85 privileged values,
+  nine terrain heights, and fifteen candidate actions before its independent residual encoder.
+  The terrain heights are an intentional extension of Agile: a separate `height_scan`
+  observation group with history length 1, also supplied to the PPO critic. The torso-mounted,
+  yaw-aligned scanner samples a 0.2 × 0.2 m grid at 0.1 m spacing once per control step.
+- An additional foot-clearance reward matches `g1_29dof_rigid`'s rough-terrain term:
+  weight 5.0, target clearance 0.1 m above the standing ankle-link height (0.03539 m),
+  measured relative to the torso scanner's mean terrain height and weighted by horizontal foot speed.
 - Independent 128/256-wide residual actor/critic features with two blocks, a squashed
   Gaussian policy, and two categorical Q estimates with 101 bins on [-5, 5].
-- Reward smoothing ramps by collection step; contact penalties and forward command
-  bounds ramp by wall time. Replay stores reward components and reconstructs sampled
+- Reward smoothing, contact penalties, and forward command bounds are environment
+  `CurriculumTermCfg` terms in `env_cfg/curriculum_cfg.py`, evaluated on resets using
+  `env.common_step_counter`. Contact and command ramps run from step 5,000 to 10,000;
+  this intentionally replaces Agile's wall-time schedule. Replay stores reward components and reconstructs sampled
   n-step rewards using the current weights, including past transitions.
 - Seed 1, 2,048 environments, 200 Hz physics, 50 Hz control, and 30-second episodes.
-  The default training budget is 3,500 seconds including setup. Checkpoints are saved
-  every 5,000 learner updates and at the end. Video recording is disabled by default.
+  Training runs for 100,000 iterations by default (`--max_iterations` overrides this).
+  Checkpoints are saved every 1,250 iterations and at the end. Video recording is disabled by default.
 
 ```bash
 uv run --extra wandb isaaclab train --rl_library rsl_rl \
@@ -43,7 +51,7 @@ uv run --extra wandb isaaclab train --rl_library rsl_rl \
 The existing `Flat` task ID is retained for compatibility, but now uses Agile's reference
 terrain, just like the `Rough` ID. Append `-Play` for playback. Select `--logger tensorboard`
 when W&B logging is unnecessary. The ordinary `rsl_rl_cfg_entry_point` still selects PPO;
-the wall-clock budget and replay reward curricula above belong to the FlashSAC entry point.
+the iteration settings and replay reward curricula above belong to the FlashSAC entry point.
 
 ## Validation
 
@@ -51,7 +59,7 @@ The resolved scene, actions, events, commands, terminations, curricula, and simu
 configuration were compared against the native Agile task before the waist-yaw and delayed implicit actuator changes,
 excluding visualization and adapter metadata. A simulator smoke test checks zero collision margins, final observations,
 symmetry augmentation, and replay reward reconstruction. Native and ported randomized
-joint trajectories and curriculum schedules are compared directly.
+joint trajectories and the original curriculum schedules were compared directly before converting the curricula to collection steps.
 
 A 600-second run with 2,048 environments verified improving returns and episode lengths
 for the original fourteen-action setup. The fifteen-action setup with BeyondMimic delayed
@@ -67,12 +75,13 @@ across the two training backends.
 ## OSMO
 
 `osmo/flash_sac_g1.yaml` uses the workflow/task name `isaac_flash_sac_g1` and
-`isaac-lab-l40s-03`. It defaults to one GPU, 4,096 environments, W&B logging,
-and `--video --viz newton_gl`. No `env.video_recorders` override is passed.
-Submit through `osmo/run_multinode.sh` to upload the checkout and assets.
+`isaac-lab-l40s-03`. It defaults to one GPU. Pass task, agent, environment count,
+logging, and visualization flags through `--set-string args="..."`.
+Submit through `osmo/run_multinode.sh` to upload the checkout and assets; see
+`osmo/osmo_flash_sac_training.md` for complete commands.
 
-Set `num_gpu=4 num_envs=1024` for one synchronized policy across four GPUs; `num_envs=1024`
-means 1,024 environments per GPU. The launcher selects `train_multigpu` for
+Set `num_gpu=4` and pass `--num_envs 1024` inside `args` for one synchronized policy
+across four GPUs with 1,024 environments per GPU. The launcher selects `train_multigpu` for
 multiple GPUs. Replay capacity, warmup transitions, and minibatch size are per
 GPU; algorithm and curriculum steps count synchronized vector collections.
-Contact and command ramps use rank zero's elapsed training time on every rank.
+Contact and command ramps are environment curriculum terms using each rank's environment step counter.

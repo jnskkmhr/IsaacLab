@@ -39,7 +39,7 @@ class G1RoughPPORunnerCfg(CompositionalRunnerCfg):
             distribution_cfg=ActorHeadCfg.GaussianDistributionCfg(init_std=1.0),
         ),
         critic=CriticHeadCfg(
-            input=["critic"],
+            input=["critic", "height_scan"],
             hidden_dims=[512, 256, 128],
             activation="elu",
             obs_normalization=False,
@@ -98,7 +98,7 @@ class G1FlatPPORunnerRecurrentCfg(G1FlatPPORunnerCfg):
             rnn_num_layers=1,
         ),
         critic=RecurrentCriticHeadCfg(
-            input=["critic"],
+            input=["critic", "height_scan"],
             hidden_dims=[128, 128, 128],
             activation="elu",
             obs_normalization=False,

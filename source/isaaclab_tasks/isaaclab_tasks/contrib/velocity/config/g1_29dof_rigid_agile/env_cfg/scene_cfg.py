@@ -28,6 +28,35 @@ from ..mdp.actuators import DelayedDCMotorCfg, DelayedImplicitActuatorCfg
 from .terrain_cfg import MEDIUM_ROUGH_TERRAIN_CFG
 
 
+@sim_utils.clone
+def spawn_g1_with_convex_feet(
+    prim_path: str,
+    cfg: sim_utils.UsdFileCfg,
+    translation: tuple[float, float, float] | None = None,
+    orientation: tuple[float, float, float, float] | None = None,
+    **kwargs,
+) -> Any:
+    """Replace G1's foot spheres with convex hulls of its foot meshes before cloning."""
+    from pxr import Usd, UsdGeom, UsdPhysics  # noqa: PLC0415
+
+    prim = sim_utils.spawn_from_usd(prim_path, cfg, translation, orientation, **kwargs)
+    stage = prim.GetStage()
+    for name in FEET_LINK_NAMES:
+        foot_path = f"{prim_path}/{name}"
+        sim_utils.make_uninstanceable(foot_path, stage=stage)
+        foot = stage.GetPrimAtPath(foot_path)
+        meshes = [p for p in Usd.PrimRange(foot) if p.IsA(UsdGeom.Mesh) and "/visuals/" in str(p.GetPath())]
+        if len(meshes) != 1:
+            raise RuntimeError(f"Expected one visual foot mesh under {foot_path}, found {len(meshes)}.")
+        for shape in Usd.PrimRange(foot):
+            if shape.HasAPI(UsdPhysics.CollisionAPI):
+                UsdPhysics.CollisionAPI(shape).CreateCollisionEnabledAttr(False)
+        mesh = meshes[0]
+        UsdPhysics.CollisionAPI.Apply(mesh).CreateCollisionEnabledAttr(True)
+        UsdPhysics.MeshCollisionAPI.Apply(mesh).CreateApproximationAttr("convexHull")
+    return prim
+
+
 @configclass
 class SelectiveSelfCollisionArticulationCfg(ArticulationCfg):
     """Apply task-scoped collision filters to Newton's imported model builder.
@@ -167,6 +196,7 @@ G1_29DOF_DELAYED_DC_MOTOR = SelectiveSelfCollisionArticulationCfg(
     self_collision_filter_body_pairs=_COLLISION_FILTERS,
     newton_collision_shape_margin=0.0,
     spawn=sim_utils.UsdFileCfg(
+        func=spawn_g1_with_convex_feet,
         usd_path=G1_USD_PATH,
         # Disable hands to accelerate training.
         variants={"Physics": "PhysX", "left_hand": "None", "right_hand": "None"},
@@ -380,6 +410,11 @@ class G1SceneCfg(InteractiveSceneCfg):
     )
 
     robot = G1_29DOF_BeyondMimic_delay.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    # robot = G1_29DOF_DELAYED_DC_MOTOR.replace(
+    #     prim_path="{ENV_REGEX_NS}/Robot",
+    #     spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.copy(),
+    # )
+    # robot = G1_29DOF_BeyondMimic_delay.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
     contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True)
 
@@ -393,8 +428,18 @@ class G1SceneCfg(InteractiveSceneCfg):
         ),
     )
 
+    height_scanner = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/.*torso_link",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0)),
+        ray_alignment="yaw",
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=(0.2, 0.2)),
+        mesh_prim_paths=["/World/ground"],
+        global_world_only=True,
+        debug_vis=False,
+    )
+
     height_measurement_sensor = RayCasterCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/pelvis",
+        prim_path="{ENV_REGEX_NS}/Robot/.*pelvis",
         offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
         ray_alignment="yaw",
         pattern_cfg=patterns.GridPatternCfg(resolution=0.05, size=(0.0, 0.0)),
@@ -405,7 +450,7 @@ class G1SceneCfg(InteractiveSceneCfg):
     )
 
     height_measurement_sensor_left_foot = RayCasterCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/left_ankle_roll_link",
+        prim_path="{ENV_REGEX_NS}/Robot/.*left_ankle_roll_link",
         offset=RayCasterCfg.OffsetCfg(pos=(0.01, 0.0, 1.0)),
         ray_alignment="yaw",
         pattern_cfg=patterns.GridPatternCfg(resolution=0.05, size=(0.2, 0.1)),
@@ -414,7 +459,7 @@ class G1SceneCfg(InteractiveSceneCfg):
         max_distance=5.0,
     )
     height_measurement_sensor_right_foot = RayCasterCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/right_ankle_roll_link",
+        prim_path="{ENV_REGEX_NS}/Robot/.*right_ankle_roll_link",
         offset=RayCasterCfg.OffsetCfg(pos=(0.01, 0.0, 1.0)),
         ray_alignment="yaw",
         pattern_cfg=patterns.GridPatternCfg(resolution=0.05, size=(0.2, 0.1)),

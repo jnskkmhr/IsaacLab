@@ -195,4 +195,4 @@ class G1RewardsCfg:
 
 @configclass
 class G1RewardsRoughCfg(G1RewardsCfg):
-    """The reference uses the same reward terms on flat and rough terrain."""
+    """Shared flat and rough reward terms, including terrain-relative foot clearance."""

@@ -24,11 +24,9 @@ class G1CurriculumCfg:
         params={
             "command_name": "base_velocity",
             "velocity_stages": [
-                # {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-                # {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.7), "ang_vel_z": (-0.7, 0.7)},
-                # {"step": 15000 * 24, "lin_vel_x": (-1.0, 2.5), "ang_vel_z": (-1.0, 1.0)},
                 {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-                {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.5), "ang_vel_z": (-1.0, 1.0)},
+                {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.7), "ang_vel_z": (-0.7, 0.7)},
+                {"step": 15000 * 24, "lin_vel_x": (-1.0, 2.5), "ang_vel_z": (-1.0, 1.0)},
             ],
         },
     )
@@ -40,7 +38,7 @@ class G1CurriculumCfg:
             "modify_fn": mdp.linear_ramp,
             "modify_params": {
                 "initial_value": (0.0, 0.0),
-                "final_value": (-math.radians(5.0), math.radians(5.0)),
+                "final_value": (-math.radians(3.0), math.radians(3.0)),
                 "start_step": 0,
                 "end_step": 5000 * 24,
             },
@@ -53,7 +51,7 @@ class G1CurriculumCfg:
             "modify_fn": mdp.linear_ramp,
             "modify_params": {
                 "initial_value": (0.0, 0.0),
-                "final_value": (-math.radians(5.0), math.radians(5.0)),
+                "final_value": (-math.radians(3.0), math.radians(3.0)),
                 "start_step": 0,
                 "end_step": 5000 * 24,
             },

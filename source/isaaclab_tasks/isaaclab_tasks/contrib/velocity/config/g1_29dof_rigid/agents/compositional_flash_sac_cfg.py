@@ -32,15 +32,16 @@ class G1FlashSACNetworksCfg(NetworkCfg):
 class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
     """Reference residual actor and categorical Q ensemble for the rough-terrain observation groups."""
 
+    seed = 1
     num_steps_per_env = 1
-    updates_per_step = 4
-    n_step = 3
-    batch_size = 2048
-    # Keep replay bounded with the task's ten-frame observation histories.
-    replay_capacity = 100_000
-    replay_max_bytes = 3 * 1024**3
+    updates_per_step = 8
+    n_step = 1
+    batch_size = 8192
+    # Allow one million transitions with the rigid task's observation histories.
+    replay_capacity = 1_000_000
+    replay_max_bytes = 16 * 1024**3
     warmup_transitions = 100_000
-    max_iterations = 100_000
+    max_iterations = 50_000
     save_interval = 1000
 
     networks = G1FlashSACNetworksCfg(
@@ -77,15 +78,16 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
             ),
         ),
     )
-    # Learner hyperparameters from agile/algorithms/flash_sac/learner.py:FlashSACConfig.
+    # Update schedule, discount, target averaging, and learning rate match Holosoma FastSAC.
+    # Retain the Agile network, exploration, and reward-normalization settings.
     algorithm = CompositionalFlashSACAlgorithmCfg(
         # Append env.num_actions internally before encoding the critic inputs.
         critic_action_input="critic_encoder",
-        gamma=0.99,
-        target_tau=0.01,
-        actor_update_period=2,
+        gamma=0.97,
+        target_tau=0.125,
+        actor_update_period=4,
         learning_rate=3e-4,
-        final_learning_rate=1.5e-4,
+        final_learning_rate=3e-4,
         decay_updates=100_000,
         num_bins=101,
         value_max=5.0,

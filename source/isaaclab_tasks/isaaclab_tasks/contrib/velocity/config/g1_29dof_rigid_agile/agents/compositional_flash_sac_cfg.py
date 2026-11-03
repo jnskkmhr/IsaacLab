@@ -33,23 +33,22 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
     """Reference residual actor and categorical Q ensemble for the rough-terrain observation groups."""
 
     seed = 1
-    max_time_s = 3500.0
-    save_interval_updates = 5000
     replay_cfg = {
         "class_name": (
-            "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid_agile.mdp.curriculums:ReplayRewardCurriculum"
+            "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid_agile.mdp.curriculums:ReplayRewardRelabeling"
         ),
     }
     num_steps_per_env = 1
     updates_per_step = 4
+    # updates_per_step = 2 #CHANGE
     n_step = 3
     batch_size = 2048
     # Match Agile capacity, subject to its 3 GiB allocation budget.
     replay_capacity = 1_000_000
     replay_max_bytes = 3 * 1024**3
     warmup_transitions = 100_000
-    max_iterations = 1_000_000_000
-    save_interval = 1250  # 5000 learner updates after warmup.
+    max_iterations = 100_000
+    save_interval = 1250
 
     networks = G1FlashSACNetworksCfg(
         actor_encoder=ResidualNetworkCfg(
@@ -58,7 +57,8 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
             num_blocks=2,
         ),
         critic_encoder=ResidualNetworkCfg(
-            input=["policy", "critic"],
+            # input=["policy", "critic"],
+            input=["policy", "critic", "height_scan"],
             output_dim=256,
             num_blocks=2,
             num_ensembles=2,
@@ -90,6 +90,7 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
         # Append env.num_actions internally before encoding the critic inputs.
         critic_action_input="critic_encoder",
         gamma=0.99,
+        # gamma=0.98, #CHANGE
         target_tau=0.01,
         actor_update_period=2,
         learning_rate=3e-4,
@@ -110,6 +111,7 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
                     "start_step": 5000,
                     "end_step": 10000,
                     "start_value": 1.0,
+                    # "end_value": 2.0, #CHANGE
                     "end_value": 4.0,
                 },
             ),
@@ -127,11 +129,3 @@ class G1RoughFlashSACRunnerCfg(CompositionalOffPolicyRunnerCfg):
     logger = "wandb"
     wandb_project = "g1_29dof_rigid_agile_rough_flash_sac"
     experiment_name = "g1_29dof_rigid_agile_rough_flash_sac"
-
-
-@configclass
-class G1FlatFlashSACRunnerCfg(G1RoughFlashSACRunnerCfg):
-    """Use the same observation contract with separate flat-terrain training logs."""
-
-    wandb_project = "g1_29dof_rigid_agile_flat_flash_sac"
-    experiment_name = "g1_29dof_rigid_agile_flat_flash_sac"

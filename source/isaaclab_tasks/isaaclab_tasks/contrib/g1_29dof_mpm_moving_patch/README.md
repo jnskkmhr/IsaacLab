@@ -45,6 +45,25 @@ uv run --with wandb isaaclab train --rl_library rsl_rl \
   --experiment_name g1_29dof_mpm_rough_ppo
 ```
 
+## Standard RSL-RL PPO comparison
+
+The default agent remains compositional PPO. Select `agents/rsl_rl_ppo_cfg.py` with
+`--agent rsl_rl_standard_cfg_entry_point` to use standard RSL-RL PPO with the legacy MLP sizes,
+observation groups, PPO hyperparameters, and symmetry augmentation:
+
+```bash
+uv run --no-sync --with wandb isaaclab train --rl_library rsl_rl \
+  --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain \
+  --agent rsl_rl_standard_cfg_entry_point \
+  --num_envs 64 --viz newton_gl --video
+```
+
+This selector also works for the sand-only moving-patch task and both `-Play` registrations.
+Use the same starting checkpoint and environment overrides when comparing agents. Standard PPO
+loads the policy, optimizer, and runner iteration according to the existing CLI load flags; it does
+not restore the environment curriculum counter or terrain difficulty. Compositional-only
+`agent.env_interface` overrides do not apply to this configuration.
+
 ## Resume curriculum progress
 
 The moving-patch and mixed-terrain tasks use `agents/compositional_ppo_cfg.py`: independent
@@ -98,16 +117,18 @@ uv run --with wandb isaaclab play --rl_library rsl_rl \
 
 # Moving patch terrain with mixed rigid ground
 
-With `--num_envs 1`, the environment uses MPM. For larger batches, before scene
-assets are created, the cloner independently samples each environment's contact
-type: `0 = rigid`, `1 = MPM`. Set `mpm_ratio` to the MPM probability
-(default `0.5`); rigid terrain has probability `1 - mpm_ratio`. For example,
-append `env.mpm_ratio=0.75` to a train/play command for a 75% MPM probability.
-This is an independent random draw, so `0.5` gives an equal split on average,
-not an exact half-and-half count. The environment seed controls the draw, and
-membership stays fixed across episode resets. Odd counts are supported.
-The single-environment MPM override applies regardless of `mpm_ratio`.
-A draw containing only rigid worlds advances MJWarp without MPM particles or coupling interfaces.
+The mixed task uses the terrain generation and fixed environment allocation from
+run `k9mk7koh`. It requires an even `num_envs >= 2`: the first half of environments
+use MPM and the second half use rigid ground. With 64 environments, IDs 0–31 use
+MPM and IDs 32–63 use rigid ground. Membership stays fixed across episode resets.
+
+The standard generator creates one terrain grid. Its first half of columns support
+MPM; the remaining columns support rigid ground. With the default five columns,
+MPM receives two columns and rigid ground receives three, so the groups see different
+terrain types. Geometry is not duplicated. The MPM support surface is lowered by the
+particle-bed depth; the rigid walking surface stays at its generated height.
+The rough-terrain wave amplitude range is 0.1–0.4 m. Updated reward weights are retained
+for comparison against the earlier run.
 
 ## Training
 
@@ -122,7 +143,7 @@ uv run --with wandb isaaclab train --rl_library rsl_rl \
 ```bash
 uv run --with wandb isaaclab play --rl_library rsl_rl \
   --task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain-Play \
-  --num_envs 1 --wandb_run xxx
+  --num_envs 2 --wandb_run xxx
 ```
 ## Roll/pitch observation bias in moving-patch training
 

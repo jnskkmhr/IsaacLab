@@ -13,6 +13,7 @@ __all__ = [
     "rewards",
     "symmetry",
     "ramp_reward_weight",
+    "ramp_command_range",
     "command_tracking_width",
     "tracking_reward",
     "track_lin_vel_xy_command_width",
@@ -39,7 +40,12 @@ __all__ = [
 from . import rewards, symmetry
 from .actions import RandomActionCfg, TrapezoidalVelocityProfileCfg
 from .commands.commands_cfg import UniformNullVelocityCommandCfg
-from .curriculums import ramp_reward_weight, terrain_levels_vel_curriculum, update_reward_weight_step
+from .curriculums import (
+    ramp_command_range,
+    ramp_reward_weight,
+    terrain_levels_vel_curriculum,
+    update_reward_weight_step,
+)
 from .rewards import (
     SmoothContactObserver,
     action_rate_l2,

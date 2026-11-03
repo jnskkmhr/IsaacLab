@@ -130,12 +130,16 @@ MEDIUM_ROUGH_TERRAIN_CFG = TerrainGeneratorCfg(
             grid_height_range=(0.0, 0.04),
             platform_width=0.1,
         ),
+        # Match Agile's effective spacing; current generators preserve child defaults.
         "random_rough_small": HfRandomUniformTerrainDifficultyCfg(
             proportion=0.2,
+            horizontal_scale=0.4,
             noise_range=(0.01, 0.2),
             noise_step=0.1,
             border_width=0.4,
         ),
-        "wave_small": terrain_gen.HfWaveTerrainCfg(proportion=0.2, amplitude_range=(0.01, 0.25), num_waves=3),
+        "wave_small": terrain_gen.HfWaveTerrainCfg(
+            proportion=0.2, horizontal_scale=0.4, amplitude_range=(0.01, 0.25), num_waves=3
+        ),
     },
 )

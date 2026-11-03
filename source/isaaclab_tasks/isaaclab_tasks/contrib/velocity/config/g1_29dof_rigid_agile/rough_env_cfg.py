@@ -7,6 +7,8 @@
 # Adapted from Agile. Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES.
 # SPDX-License-Identifier: Apache-2.0
 
+from isaaclab_visualizers.newton import NewtonGLVisualizerCfg
+
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
@@ -40,6 +42,9 @@ class G1RoughEnvCfg(ManagerBasedRLEnvCfg):
     seed: int = 1
 
     def __post_init__(self):
+        self.sim.visualizer_cfgs = [
+            NewtonGLVisualizerCfg(origin_type="asset", origin_track_path="robot", eye=(3.0, -3.0, 1.5))
+        ]
         self.decimation = 4
         self.sim.dt = 0.005
         self.sim.render_interval = self.decimation
@@ -53,6 +58,7 @@ class G1RoughEnvCfg(ManagerBasedRLEnvCfg):
             self.scene.height_measurement_sensor_right_foot,
         ):
             sensor.update_period = self.sim.dt
+        self.scene.height_scanner.update_period = self.decimation * self.sim.dt
         self.video_recorders = []
 
 
@@ -61,3 +67,8 @@ class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.scene.num_envs = 50
+        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+        self.curriculum.command_vel = None

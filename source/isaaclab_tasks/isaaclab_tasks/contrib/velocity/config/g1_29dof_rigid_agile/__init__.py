@@ -12,28 +12,6 @@ from . import agents
 ##
 
 gym.register(
-    id="IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Agile",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.flat_env_cfg:G1FlatEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1FlatPPORunnerCfg",
-        "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1FlatFlashSACRunnerCfg",
-    },
-)
-
-gym.register(
-    id="IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Agile-Play",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.flat_env_cfg:G1FlatEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1FlatPPORunnerCfg",
-        "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1FlatFlashSACRunnerCfg",
-    },
-)
-
-gym.register(
     id="IsaacContrib-Velocity-Rough-G1-29dof-Rigid-Agile",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
@@ -41,6 +19,7 @@ gym.register(
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughEnvCfg",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1RoughPPORunnerCfg",
         "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1RoughFlashSACRunnerCfg",
+        "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1RoughFastSACRunnerCfg",
     },
 )
 
@@ -52,5 +31,19 @@ gym.register(
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1RoughPPORunnerCfg",
         "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1RoughFlashSACRunnerCfg",
+        "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1RoughFastSACRunnerCfg",
+    },
+)
+
+
+gym.register(
+    id="IsaacContrib-Velocity-Rough-G1-29dof-Rigid-Agile-SuperMimic",
+    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.supermimic_env_cfg:G1RoughSuperMimicEnvCfg",
+        "rsl_rl_supermimic_cfg_entry_point": (
+            f"{agents.__name__}.compositional_supermimic_cfg:G1RoughSuperMimicRunnerCfg"
+        ),
     },
 )
