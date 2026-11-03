@@ -1,3 +1,8 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Copyright (c) 2022-2026, Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
@@ -5,6 +10,7 @@
 
 # Submit through run_multinode.sh to upload the current checkout and assets.
 # One shared policy; num_gpu selects the number of synchronized learner replicas.
+# Task, agent, environment count, logging, and visualization are passed through args.
 workflow:
   name: isaac_flash_sac_g1
   pool: isaac-lab-l40s-03
@@ -58,14 +64,11 @@ workflow:
         uv sync --extra wandb --extra video
 {% endif %}
 {% if num_gpu > 1 %}
-        uv run --no-sync isaaclab train_multigpu --num_gpus {{ num_gpu }} --rl_library rsl_rl \
+        train_command=(isaaclab train_multigpu --num_gpus {{ num_gpu }})
 {% else %}
-        uv run --no-sync isaaclab train --rl_library rsl_rl \
+        train_command=(isaaclab train)
 {% endif %}
-          --task IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Agile \
-          --agent rsl_rl_flash_sac_cfg_entry_point \
-          --num_envs {{ num_envs }} --logger {{ logger }} --video --viz newton_gl \
-          {{ args }}
+        uv run --no-sync "${train_command[@]}" {{ args }}
     inputs:
     - url: "{{ source_url }}"
     - url: "{{ assets_url }}"
@@ -86,8 +89,6 @@ default-values:
   num_cpu: 8
   memory: 64
   storage: 88
-  num_envs: 4096
-  logger: wandb
   uv_version: 0.12.12
   args: ""
   wandb_credential: ""
