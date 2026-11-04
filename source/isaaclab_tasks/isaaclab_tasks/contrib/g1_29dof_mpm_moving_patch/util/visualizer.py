@@ -137,6 +137,7 @@ class MovingPatchRTXVisualizer(NewtonRTXVisualizer):
     def _create_viewer(self, **kwargs) -> MovingPatchViewerRTX:
         viewer = MovingPatchViewerRTX(**kwargs)
         viewer.moving_patch_visualizer = self
+        viewer.show_particles = self.cfg.show_particles
         return viewer
 
 

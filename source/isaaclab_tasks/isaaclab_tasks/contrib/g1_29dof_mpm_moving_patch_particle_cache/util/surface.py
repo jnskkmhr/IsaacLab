@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import warp as wp
 
-from .felix.paged_sand_isosurface import ISO_SKIRT_CELLS, IsoCache, IsoSurface
+from .paged_sand_isosurface import ISO_SKIRT_CELLS, IsoCache, IsoSurface
 from .surface_kernel import blend_surface_boundary
 
 
@@ -38,13 +38,12 @@ class ParticleCacheSurface:
         self.background_normals = None
 
     def _surface_level(self, world):
-        """Estimate the relaxed bed top from the template's upper particle layer."""
+        """Estimate the bed top from the cache's reference particle positions."""
         cache = self.patch.cache
-        key = cache.templates.keys[world]
+        key, reference = cache.surface_reference(world)
         previous = self.surface_levels.get(world)
         if previous is None or previous[0] != key:
-            begin = world * cache.template_count
-            heights = cache.templates.q[begin : begin + cache.template_count].numpy()[:, 2]
+            heights = reference.numpy()[:, 2]
             layers = max(1, round(self.patch.terrain.particle_depth / (2.0 * cache.radius)))
             top_count = max(1, round(len(heights) / layers))
             level = float(np.partition(heights, -top_count)[-top_count:].mean()) + cache.radius
@@ -96,7 +95,7 @@ class ParticleCacheSurface:
             self.background_shape = (len(x), len(y))
             self.background_origin = lower * size
         points, faces, tiles = self.background
-        # Predict the height of untouched sand using the same relaxed template
+        # Predict the height of untouched sand using the same reference particles
         # that will populate it. Different worlds can have different materials.
         if self.background_levels != (tuple(worlds), levels):
             visual_points = wp.to_torch(points).clone()

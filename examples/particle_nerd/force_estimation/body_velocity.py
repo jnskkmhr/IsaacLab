@@ -80,9 +80,7 @@ def _rft_mobilities(
     down_part = wp.pow(wp.max(-nz, wp.float64(0.0)), wp.float64(power_z))
     horiz_part = wp.max(wp.float64(0.0), wp.float64(1.0) - up_part - down_part)
     eff_n = wp.max(
-        wp.float64(kappa_vert) * up_part
-        + wp.float64(kappa_horiz) * horiz_part
-        + wp.float64(kappa_up) * down_part,
+        wp.float64(kappa_vert) * up_part + wp.float64(kappa_horiz) * horiz_part + wp.float64(kappa_up) * down_part,
         wp.float64(0.5),
     )
     eff_t = wp.max(wp.float64(kappa_tan), wp.float64(0.5))
@@ -188,12 +186,14 @@ def initialize_body_velocity_solve(
                 local_force += b * impulse
                 local_jacobian += b * derivative * j
                 k += 128
+            tf = wp.tile_sum(wp.tile(local_force), axis=1)
+            tj = wp.tile_sum(wp.tile(local_jacobian), axis=2)
             force = vec6d(0.0)
             jacobian = mat66d(0.0)
             for r in range(6):
-                force[r] = wp.tile_extract(wp.tile_sum(wp.tile(local_force[r])), 0)
+                force[r] = wp.tile_extract(tf, r)
                 for c in range(6):
-                    jacobian[r, c] = -wp.tile_extract(wp.tile_sum(wp.tile(local_jacobian[r, c])), 0)
+                    jacobian[r, c] = -wp.tile_extract(tj, r, c)
                 jacobian[r, r] += wp.float64(1.0)
             residual = q - origin - force
             error = wp.length(residual)
@@ -232,9 +232,10 @@ def initialize_body_velocity_solve(
                     spin = response[i] * impulse
                     local_candidate += vec6d(linear[0], linear[1], linear[2], spin[0], spin[1], spin[2])
                     k += 128
+                tc = wp.tile_sum(wp.tile(local_candidate), axis=1)
                 candidate_force = vec6d(0.0)
                 for r in range(6):
-                    candidate_force[r] = wp.tile_extract(wp.tile_sum(wp.tile(local_candidate[r])), 0)
+                    candidate_force[r] = wp.tile_extract(tc, r)
                 new_error = wp.length(candidate - origin - candidate_force)
                 if new_error < error * (wp.float64(1.0) - wp.float64(1e-4) * alpha):
                     q = candidate
@@ -271,9 +272,10 @@ def initialize_body_velocity_solve(
         spin = response[i] * impulse
         local_force += vec6d(linear[0], linear[1], linear[2], spin[0], spin[1], spin[2])
         k += 128
+    tf_final = wp.tile_sum(wp.tile(local_force), axis=1)
     force = vec6d(0.0)
     for r in range(6):
-        force[r] = wp.tile_extract(wp.tile_sum(wp.tile(local_force[r])), 0)
+        force[r] = wp.tile_extract(tf_final, r)
     # Keep the original solver as a cold-start fallback if the initializer stalls.
     final_error = wp.length(q - origin - force)
     fallback = not wp.isfinite(final_error) or final_error > wp.float64(1e-8)

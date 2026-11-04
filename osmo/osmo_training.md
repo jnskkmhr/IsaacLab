@@ -19,14 +19,14 @@ export osmo_node="isaac-lab-l40s-03"
 export platform="ovx-l40s"
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --pool "$osmo_node" \
-  --set num_nodes=40 num_gpu=1 \
+  --set num_nodes=8 num_gpu=1 \
   --set-string \
     platform="$platform" \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/mpm-moving-patch/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video --wandb_project g1_29dof_soft_flat_ppo"
+    args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 256 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video --wandb_project g1_29dof_soft_flat_ppo"
 
-# train from scratch 
+# train from scratch
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --pool isaac-lab-l40-07 \
   --set num_nodes=40 num_gpu=1 \
@@ -55,7 +55,7 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
     args="--task IsaacContrib-Velocity-G1-29dof-MPM-MovingPatch-MixedTerrain --num_envs 64 --logger wandb --viz newton_gl --video"
 
 
-# resume training 
+# resume training
 export osmo_node="isaac-lab-l40s-03"
 export platform="ovx-l40s"
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
@@ -80,7 +80,7 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
 ```
 
 
-```bash 
+```bash
 export osmo_node="isaac-lab-l40-07"
 export platform="ovx-l40"
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \

@@ -41,9 +41,14 @@ class PhysicsAttention(nn.Module):
         values = self.project_values(x).view(environments, n, self.heads, self.width).transpose(1, 2)
         logits = self.project_slices(geometry)
         weights = (logits.float() / self.temperature.clamp(0.5, 5)).softmax(-1)
-        weighted = weights if multiplicity is None else weights * multiplicity[:, None, :, None].float()
-        normalized = weighted / (weighted.sum(-2, keepdim=True) + 0.01)
-        tokens = normalized.transpose(-2, -1).to(values.dtype) @ values
+        w_t = weights.transpose(-2, -1).to(values.dtype)
+        if multiplicity is None:
+            denom = weights.sum(-2).unsqueeze(-1) + 0.01
+            tokens = ((w_t @ values).float() / denom).to(values.dtype)
+        else:
+            m_col = multiplicity[:, None, :, None].to(values.dtype)
+            denom = (w_t @ m_col).float() + 0.01
+            tokens = ((w_t @ (values * m_col)).float() / denom).to(values.dtype)
         q, k, v = self.qkv(tokens).chunk(3, -1)
         attended = F.scaled_dot_product_attention(q, k, v)
         points = weights.to(attended.dtype) @ attended

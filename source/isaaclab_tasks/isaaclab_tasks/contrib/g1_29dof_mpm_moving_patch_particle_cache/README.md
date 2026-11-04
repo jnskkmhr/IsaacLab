@@ -18,16 +18,16 @@ The paged-sand example is on Felix Meyer's `fmeyer/mpm-paged-sand` branch,
 than the repository's `main` branch at the time of this implementation.
 The reference revision is `3e4f29ecf369bf66aeb93e73c9b4f9bd59bf6e7f`.
 
-* `util/felix/paged_sand_isosurface.py` contains his tiled marching-cubes,
+* `util/paged_sand_isosurface.py` contains his tiled marching-cubes,
   particle splatting, surface normals, seam/skirt kernels and the GPU `IsoCache` mesh pool.
-* `util/felix/settled_template.py` adapts his offline PIC relaxation and
+* `util/settled_template.py` adapts his offline PIC relaxation and
   frictionless mirror-wall construction. Fresh tiles mirror particle positions
   and constitutive tensors in alternating X/Y tiles.
 * The task retains its GPU particle-state store and per-environment ownership.
   It does **not** replace this with Felix's single-scene host chunk store.
 
 The reference files retain their Apache-2.0 attribution and license. Local
-adaptations and their reasons are listed in `util/felix/README.md`.
+adaptations and their reasons are listed in [util/NOTICE.md](util/NOTICE.md).
 
 ## Run
 

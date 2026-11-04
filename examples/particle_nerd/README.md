@@ -2,6 +2,9 @@
 
 This is the maintained source directory for `ParticleTransolver`, active particle compaction (`K` active particles + `M` quadrature anchors), the GPU analytical/RFT contact-force estimator, and the IsaacLab data collectors and dynamic runners for Box, Shovel, and G1.
 
+For the mathematical formulation, training objectives, and coupling assumptions, read the
+[Particle NeRD methodology](documentation/methodology.rst).
+
 For teammates and coding agents, start with the [agent handoff](agent/README.md) for implementation context, architecture details, and validation boundaries.
 
 ## Source layout

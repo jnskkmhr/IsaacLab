@@ -439,7 +439,12 @@ def solve_contacts_parallel(
                     pm = wp.float64(particle_mass[i])
                     slack_n = wp.float64(1.0) / (eff_n * pm)
                     slack_t = wp.float64(1.0) / (eff_t * pm)
-                relative = frame * linear + aj * spin - material[i] + wp.vec3d(old[0] * slack_n, old[1] * slack_t, old[2] * slack_t)
+                relative = (
+                    frame * linear
+                    + aj * spin
+                    - material[i]
+                    + wp.vec3d(old[0] * slack_n, old[1] * slack_t, old[2] * slack_t)
+                )
                 normal = wp.max(wp.float64(0.0), old[0] - (relative[0] + gap[i]) / matrix[0, 0])
                 dn = normal - old[0]
                 # Apply the local normal correction only when solving this
@@ -447,7 +452,12 @@ def solve_contacts_parallel(
                 increment = wp.vec3d(dn, 0.0, 0.0)
                 local_linear = linear + wp.transpose(frame) * increment / wp.float64(mass)
                 local_angular = spin + respond * increment
-                relative = frame * local_linear + aj * local_angular - material[i] + wp.vec3d(normal * slack_n, old[1] * slack_t, old[2] * slack_t)
+                relative = (
+                    frame * local_linear
+                    + aj * local_angular
+                    - material[i]
+                    + wp.vec3d(normal * slack_n, old[1] * slack_t, old[2] * slack_t)
+                )
                 rhs = wp.vec2d(
                     matrix[1, 1] * old[1] + matrix[1, 2] * old[2] - relative[1],
                     matrix[2, 1] * old[1] + matrix[2, 2] * old[2] - relative[2],
@@ -460,16 +470,10 @@ def solve_contacts_parallel(
                 local_spin += respond * change
                 local_residual = wp.max(local_residual, wp.max(wp.abs(dn), wp.length(delta_t)))
                 k += 128
-            delta = wp.vec3d(
-                wp.tile_extract(wp.tile_sum(wp.tile(local_delta[0])), 0),
-                wp.tile_extract(wp.tile_sum(wp.tile(local_delta[1])), 0),
-                wp.tile_extract(wp.tile_sum(wp.tile(local_delta[2])), 0),
-            )
-            ds = wp.vec3d(
-                wp.tile_extract(wp.tile_sum(wp.tile(local_spin[0])), 0),
-                wp.tile_extract(wp.tile_sum(wp.tile(local_spin[1])), 0),
-                wp.tile_extract(wp.tile_sum(wp.tile(local_spin[2])), 0),
-            )
+            td = wp.tile_sum(wp.tile(local_delta), axis=1)
+            ts = wp.tile_sum(wp.tile(local_spin), axis=1)
+            delta = wp.vec3d(wp.tile_extract(td, 0), wp.tile_extract(td, 1), wp.tile_extract(td, 2))
+            ds = wp.vec3d(wp.tile_extract(ts, 0), wp.tile_extract(ts, 1), wp.tile_extract(ts, 2))
             residual = wp.tile_extract(wp.tile_max(wp.tile(local_residual)), 0)
             linear += delta / wp.float64(mass)
             spin += ds
@@ -484,16 +488,10 @@ def solve_contacts_parallel(
             local_total += wp.transpose(frames[i]) * impulses[i]
             local_torque += wp.transpose(angular[i]) * impulses[i]
             k += 128
-        total = wp.vec3d(
-            wp.tile_extract(wp.tile_sum(wp.tile(local_total[0])), 0),
-            wp.tile_extract(wp.tile_sum(wp.tile(local_total[1])), 0),
-            wp.tile_extract(wp.tile_sum(wp.tile(local_total[2])), 0),
-        )
-        torque = wp.vec3d(
-            wp.tile_extract(wp.tile_sum(wp.tile(local_torque[0])), 0),
-            wp.tile_extract(wp.tile_sum(wp.tile(local_torque[1])), 0),
-            wp.tile_extract(wp.tile_sum(wp.tile(local_torque[2])), 0),
-        )
+        ttot = wp.tile_sum(wp.tile(local_total), axis=1)
+        ttor = wp.tile_sum(wp.tile(local_torque), axis=1)
+        total = wp.vec3d(wp.tile_extract(ttot, 0), wp.tile_extract(ttot, 1), wp.tile_extract(ttot, 2))
+        torque = wp.vec3d(wp.tile_extract(ttor, 0), wp.tile_extract(ttor, 1), wp.tile_extract(ttor, 2))
     if lane == 0:
         wrench[body] = wp.spatial_vector(wp.vec3(total / wp.float64(dt)), wp.vec3(torque / wp.float64(dt)))
         stats[0] = wp.float64(count)

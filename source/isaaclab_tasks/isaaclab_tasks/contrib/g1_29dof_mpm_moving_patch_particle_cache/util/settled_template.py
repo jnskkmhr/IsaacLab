@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 The Newton Developers
 # SPDX-License-Identifier: Apache-2.0
 
-"""Adapted from Felix Meyer's paged-MPM settle_template (see README.md).
+"""Adapted from Felix Meyer's paged-MPM settle_template (see NOTICE.md).
 
 Uses the task's sampled positions and material rather than the example's lattice.
 The mirrored frictionless-wall construction and full constitutive-state transfer

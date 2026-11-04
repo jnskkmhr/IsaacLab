@@ -26,7 +26,9 @@ def main():
         pkg_dir = frozen_source / pkg
         if pkg_dir.is_dir() and str(pkg_dir) not in sys.path:
             sys.path.insert(0, str(pkg_dir))
-    for mod in [k for k in list(sys.modules) if k == "isaaclab" or k.startswith("isaaclab.") or k.startswith("isaaclab_")]:
+    for mod in [
+        k for k in list(sys.modules) if k == "isaaclab" or k.startswith("isaaclab.") or k.startswith("isaaclab_")
+    ]:
         del sys.modules[mod]
 
     from isaaclab.app import add_launcher_args, launch_simulation
@@ -35,8 +37,17 @@ def main():
     p.add_argument("--checkpoint", type=Path, help="G1 particle checkpoint; omit for MPM")
     p.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     p.add_argument("--output", type=Path, required=True)
-    p.add_argument("--num-envs", "--num_envs", dest="num_envs", type=int, default=1, help="Number of parallel G1 environments")
-    p.add_argument("--env-spacing", "--env_spacing", dest="env_spacing", type=float, default=5.0, help="Distance between G1 environment origins [m]")
+    p.add_argument(
+        "--num-envs", "--num_envs", dest="num_envs", type=int, default=1, help="Number of parallel G1 environments"
+    )
+    p.add_argument(
+        "--env-spacing",
+        "--env_spacing",
+        dest="env_spacing",
+        type=float,
+        default=5.0,
+        help="Distance between G1 environment origins [m]",
+    )
     p.add_argument("--schedule", type=Path)
     p.add_argument("--trial", type=int, default=1)
     p.add_argument(
@@ -53,7 +64,9 @@ def main():
         metavar=("VX", "VY", "WZ"),
         help="Optional second velocity command after --switch-time [lin_vel_x, lin_vel_y, ang_vel_z]",
     )
-    p.add_argument("--switch-time", type=float, default=None, help="Time in seconds to switch from --command to --command-end")
+    p.add_argument(
+        "--switch-time", type=float, default=None, help="Time in seconds to switch from --command to --command-end"
+    )
     p.add_argument(
         "--initial-pose",
         type=float,
@@ -86,7 +99,14 @@ def main():
         help="Active particle selection ('none'/'all' to disable, 'auto' for heuristic, or integer cap)",
     )
     p.add_argument("--video", action="store_true", help="Record an MP4 video to <output>/video.mp4 during play")
-    p.add_argument("--video_length", "--video-length", dest="video_length", type=int, default=None, help="Video length in 50 Hz policy steps")
+    p.add_argument(
+        "--video_length",
+        "--video-length",
+        dest="video_length",
+        type=int,
+        default=None,
+        help="Video length in 50 Hz policy steps",
+    )
     p.add_argument(
         "--settle-steps",
         type=int,
@@ -114,7 +134,7 @@ def main():
     cfg = configure(parse_env_cfg(task, num_envs=args.num_envs), args.num_envs)
     cfg.scene.env_spacing = args.env_spacing
     cfg.seed = args.seed
-    cfg.sim.physics.use_cuda_graph = args.checkpoint is None
+    cfg.sim.physics.use_cuda_graph = True
     cfg.sim.physics.load_visual_shapes = True
     cfg.episode_length_s = args.duration + 1
     for viz in cfg.sim.visualizer_cfgs:
@@ -185,9 +205,7 @@ def main():
                 robot.write_joint_state_to_sim(init_joint_pos, init_joint_vel)
                 raw.action_manager.reset()
                 raw.observation_manager.reset()
-            settled_sand_z = float(
-                wp.to_torch(NewtonManager.get_state_0().particle_q)[:88360, 2].quantile(0.98).item()
-            )
+            settled_sand_z = float(wp.to_torch(NewtonManager.get_state_0().particle_q)[:88360, 2].quantile(0.98).item())
             spawn_z = 0.76 if settle_steps == 0 else (0.76 + min(0.0, settled_sand_z + 0.015))
             pose = robot.data.root_state_w.torch.clone()
             pose[:, :3] = raw.scene.env_origins + torch.tensor(

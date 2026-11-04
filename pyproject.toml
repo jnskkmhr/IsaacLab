@@ -439,8 +439,8 @@ egl-probe = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 compositional-rsl-rl = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git", rev = "c7d5a51c0cdf861f386c259f8bf42018e26c2a26" }
 # Official Warp nightly includes the multi-environment cell lookup fix.
 warp-lang = { index = "nvidia" }
-# Branch-default Newton plus triangle-box contact and inactive-particle state fixes.
-newton = { git = "https://github.com/jnskkmhr/newton.git", rev = "f0c4a970ce003cd5df72054efdb073a459fd5dbe" }
+# Newton with triangle-box contact, inactive-particle state, and mesh-contact progress synchronization fixes.
+newton = { git = "https://github.com/jnskkmhr/newton.git", rev = "e1feec68109c49aae8d5cfb59e8a933d7fa19ad9" }
 omniverseclient = { index = "pypi-public" }
 ovphysx = { index = "pypi-public" }
 ovrtx = { index = "pypi-public" }

@@ -40,6 +40,7 @@ def material_features(manifest, particle_mass, particle_radius, dt=0.02):
         dtype=np.float32,
     )
 
+
 # Existing simulation modules disable backward globally; rollout training needs it here.
 wp.set_module_options({"enable_backward": True})
 
@@ -123,6 +124,74 @@ def collider_features(
     surface = x - distance * normal
     linear = wp.vec3(velocities[j, 0], velocities[j, 1], velocities[j, 2])
     angular = wp.vec3(velocities[j, 3], velocities[j, 4], velocities[j, 5])
+    relative = linear + wp.cross(angular, surface - center) - (x - previous) / dt
+    gap = distance - 0.02 * material[11]
+    pairs[i, j, 0] = wp.clamp(gap / support, -1.0, 1.0)
+    for a in range(3):
+        pairs[i, j, 1 + a] = normal[a]
+        pairs[i, j, 4 + a] = relative[a]
+    pairs[i, j, 7] = friction[j]
+    influence[i, j] = wp.max(0.0, 1.0 - wp.max(gap, 0.0) / support)
+
+
+@wp.kernel
+def collider_features_batched(
+    history: wp.array3d(dtype=float),
+    poses: wp.array3d(dtype=float),
+    velocities: wp.array3d(dtype=float),
+    kinds: wp.array(dtype=int),
+    sizes: wp.array2d(dtype=float),
+    friction: wp.array(dtype=float),
+    material: wp.array(dtype=float),
+    particles_per_env: int,
+    dt: float,
+    support: float,
+    sdf: wp.array3d(dtype=float),
+    sdf_origin: wp.vec3,
+    sdf_spacing: float,
+    pairs: wp.array3d(dtype=float),
+    influence: wp.array2d(dtype=float),
+):
+    i, j = wp.tid()
+    env = i // particles_per_env
+    h = history.shape[1]
+    x = wp.vec3(history[i, h - 1, 0], history[i, h - 1, 1], history[i, h - 1, 2])
+    previous = wp.vec3(history[i, h - 2, 0], history[i, h - 2, 1], history[i, h - 2, 2])
+    center = wp.vec3(poses[env, j, 0], poses[env, j, 1], poses[env, j, 2])
+    rotation = wp.quat(poses[env, j, 3], poses[env, j, 4], poses[env, j, 5], poses[env, j, 6])
+    local = wp.quat_rotate_inv(rotation, x - center)
+    normal = wp.vec3(0.0, 0.0, 1.0)
+    distance = local[2]
+    if kinds[j] == 1:
+        q = wp.vec3(wp.abs(local[0]) - sizes[j, 0], wp.abs(local[1]) - sizes[j, 1], wp.abs(local[2]) - sizes[j, 2])
+        outside = wp.vec3(wp.max(q[0], 0.0), wp.max(q[1], 0.0), wp.max(q[2], 0.0))
+        length = wp.length(outside)
+        distance = length + wp.min(wp.max(q[0], wp.max(q[1], q[2])), 0.0)
+        axis = int(0)
+        if q[1] > q[axis]:
+            axis = 1
+        if q[2] > q[axis]:
+            axis = 2
+        normal = wp.vec3(0.0)
+        for a in range(3):
+            sign = float(1.0)
+            if local[a] < 0.0:
+                sign = -1.0
+            if length > 1.0e-8:
+                normal[a] = sign * outside[a] / length
+            elif a == axis:
+                normal[a] = sign
+    elif kinds[j] == 2:
+        length = wp.length(local)
+        distance = length - sizes[j, 0]
+        if length > 1.0e-8:
+            normal = local / length
+    elif kinds[j] == 3:
+        distance, normal = sdf_surface(local, sdf, sdf_origin, sdf_spacing)
+    normal = wp.quat_rotate(rotation, normal)
+    surface = x - distance * normal
+    linear = wp.vec3(velocities[env, j, 0], velocities[env, j, 1], velocities[env, j, 2])
+    angular = wp.vec3(velocities[env, j, 3], velocities[env, j, 4], velocities[env, j, 5])
     relative = linear + wp.cross(angular, surface - center) - (x - previous) / dt
     gap = distance - 0.02 * material[11]
     pairs[i, j, 0] = wp.clamp(gap / support, -1.0, 1.0)
@@ -277,4 +346,114 @@ def features(
         raise ValueError("Collider kinds must be int32; physical inputs must be float32")
     if sdf is None:
         sdf = sdf_tensors(str(history.device), "none")
+    if not history.requires_grad:
+        n, h = history.shape[:2]
+        device = str(history.device)
+        nodes_t = torch.empty((n, 16 + 3 * h), dtype=torch.float32, device=history.device)
+        pairs_t = torch.empty((n, len(poses), 8), dtype=torch.float32, device=history.device)
+        influence_t = torch.empty((n, len(poses)), dtype=torch.float32, device=history.device)
+        hist = wp.from_torch(history, requires_grad=False)
+        nodes = wp.from_torch(nodes_t, requires_grad=False)
+        pairs = wp.from_torch(pairs_t, requires_grad=False)
+        influence = wp.from_torch(influence_t, requires_grad=False)
+        torch_stream = torch.cuda.current_stream(history.device)
+        warp_stream = wp.get_stream(device)
+        if warp_stream.cuda_stream != torch_stream.cuda_stream:
+            warp_stream = wp.stream_from_torch(torch_stream)
+        with wp.ScopedStream(warp_stream):
+            wp.launch(
+                particle_features,
+                n,
+                [hist, wp.from_torch(material), dt, wp.vec3(*origin), wp.vec3(*gravity), nodes],
+                device=device,
+            )
+            if len(poses):
+                wp.launch(
+                    collider_features,
+                    (n, len(poses)),
+                    [
+                        hist,
+                        wp.from_torch(poses),
+                        wp.from_torch(velocities),
+                        wp.from_torch(kinds),
+                        wp.from_torch(sizes),
+                        wp.from_torch(friction),
+                        wp.from_torch(material),
+                        dt,
+                        support,
+                        wp.from_torch(sdf[0]),
+                        wp.vec3(*sdf[1]),
+                        sdf[2],
+                        pairs,
+                        influence,
+                    ],
+                    device=device,
+                )
+        return nodes_t, pairs_t, influence_t
     return _Features.apply(*tensors, dt, support, origin, gravity, *sdf)
+
+
+def features_batched(
+    history_env,
+    poses_env,
+    velocities_env,
+    kinds,
+    sizes,
+    friction,
+    material,
+    dt=0.005,
+    support=0.07,
+    origin=(0.0, 0.0, 0.0),
+    gravity=(0.0, 0.0, -9.81),
+    sdf=None,
+):
+    """Single-launch batched GPU feature extraction for [E, M, H, 3] particle histories."""
+    num_envs, m_pts, h_len, _ = history_env.shape
+    n_tot = num_envs * m_pts
+    n_col = len(kinds)
+    device = str(history_env.device)
+    if sdf is None:
+        sdf = sdf_tensors(device, "none")
+    hist_flat = history_env.reshape(n_tot, h_len, 3).contiguous()
+    nodes_t = torch.empty((num_envs, m_pts, 16 + 3 * h_len), dtype=torch.float32, device=history_env.device)
+    pairs_t = torch.empty((num_envs, m_pts, n_col, 8), dtype=torch.float32, device=history_env.device)
+    inf_t = torch.empty((num_envs, m_pts, n_col), dtype=torch.float32, device=history_env.device)
+    hist_wp = wp.from_torch(hist_flat, requires_grad=False)
+    nodes_wp = wp.from_torch(nodes_t.view(n_tot, -1), requires_grad=False)
+    pairs_wp = wp.from_torch(pairs_t.view(n_tot, n_col, 8), requires_grad=False)
+    inf_wp = wp.from_torch(inf_t.view(n_tot, n_col), requires_grad=False)
+    torch_stream = torch.cuda.current_stream(history_env.device)
+    warp_stream = wp.get_stream(device)
+    if warp_stream.cuda_stream != torch_stream.cuda_stream:
+        warp_stream = wp.stream_from_torch(torch_stream)
+    with wp.ScopedStream(warp_stream):
+        wp.launch(
+            particle_features,
+            n_tot,
+            [hist_wp, wp.from_torch(material), dt, wp.vec3(*origin), wp.vec3(*gravity), nodes_wp],
+            device=device,
+        )
+        if n_col:
+            wp.launch(
+                collider_features_batched,
+                (n_tot, n_col),
+                [
+                    hist_wp,
+                    wp.from_torch(poses_env.contiguous()),
+                    wp.from_torch(velocities_env.contiguous()),
+                    wp.from_torch(kinds),
+                    wp.from_torch(sizes),
+                    wp.from_torch(friction),
+                    wp.from_torch(material),
+                    m_pts,
+                    dt,
+                    support,
+                    wp.from_torch(sdf[0]),
+                    wp.vec3(*sdf[1]),
+                    sdf[2],
+                    pairs_wp,
+                    inf_wp,
+                ],
+                device=device,
+            )
+    return nodes_t, pairs_t, inf_t

@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import warp as wp
 
-from .felix.settled_template import SettledTemplates
 from .kernel import (
     ParticleState,
     apply_transitions,
@@ -26,6 +25,7 @@ from .kernel import (
     save_particles,
 )
 from .particle_sampling import sample_particle_tile
+from .settled_template import SettledTemplates
 
 if TYPE_CHECKING:
     import newton
@@ -109,6 +109,11 @@ class ParticleStateCache:
             "flags": patch.model.particle_flags,
         }.items():
             setattr(self.live, name, array)
+
+    def surface_reference(self, world: int) -> tuple[object, wp.array]:
+        """Return a revision key and reference positions relative to the terrain [m]."""
+        begin = world * self.template_count
+        return self.templates.keys[world], self.templates.q[begin : begin + self.template_count]
 
     @property
     def cached_particle_counts(self) -> tuple[int, ...]:

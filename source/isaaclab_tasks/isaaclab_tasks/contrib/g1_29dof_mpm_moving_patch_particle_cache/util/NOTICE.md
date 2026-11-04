@@ -1,9 +1,12 @@
-# Reference code attribution
+# Paged-sand code attribution
 
 Source: [NVIDIA-dev/devtech-newton-examples](https://github.com/NVIDIA-dev/devtech-newton-examples/tree/fmeyer/mpm-paged-sand),
 branch `fmeyer/mpm-paged-sand`, commit `3e4f29ecf369bf66aeb93e73c9b4f9bd59bf6e7f`.
 Author of the paged-sand example: Felix Meyer. The original SPDX copyright is
-The Newton Developers; the source license is Apache-2.0 (included as `LICENSE`).
+The Newton Developers; the source license is Apache-2.0 (included as
+[LICENSE.paged-sand](LICENSE.paged-sand)). This notice and that license apply to
+`paged_sand_isosurface.py` and `settled_template.py`; other utility modules retain
+their own SPDX license declarations.
 
 `paged_sand_isosurface.py` was copied from `examples/mpm/paged_sand_isosurface.py`.
 Local changes expose the already-supported particle-volume splat weight through
