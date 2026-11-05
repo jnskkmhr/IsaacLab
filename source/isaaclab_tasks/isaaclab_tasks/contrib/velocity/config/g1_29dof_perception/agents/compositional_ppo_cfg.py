@@ -15,7 +15,6 @@ from isaaclab.utils.configclass import configclass
 
 from isaaclab_contrib.mdp import compute_mirrored_states
 
-
 """
 network backbone config
 """
@@ -162,3 +161,46 @@ class G1AMEPPORunnerCfg(CompositionalRunnerCfg):
     logger = "wandb"
     experiment_name = "g1_29dof_perception_ame"
     wandb_project = "g1_29dof_perception_ame"
+
+
+@configclass
+class G1AMEPretrainedPPORunnerCfg(G1AMEPPORunnerCfg):
+    """Load and freeze the existing AME term without changing its inputs or architecture."""
+
+    run_name = "encoder_pretrained"
+    networks = G1AMEPPORunnerCfg().networks
+    networks.map_encoder.frozen = True
+    networks.map_encoder.pretrained_cfg = {
+        "path": "???",
+        "state_dict_key": "network_state_dict",
+        "prefix": "terms.map_encoder.",
+        "strict": True,
+    }
+
+
+@configclass
+class G1AMEFinetunePPORunnerCfg(G1AMEPretrainedPPORunnerCfg):
+    """Load the same AME term and train it with the existing PPO settings."""
+
+    run_name = "encoder_finetune"
+    networks = G1AMEPretrainedPPORunnerCfg().networks
+    networks.map_encoder.frozen = False
+
+
+@configclass
+class G1CNNPretrainedPPORunnerCfg(G1CNNPPORunnerCfg):
+    """Load and freeze the existing CNN term without changing its inputs or architecture."""
+
+    run_name = "encoder_pretrained"
+    networks = G1CNNPPORunnerCfg().networks
+    networks.map_encoder.frozen = True
+    networks.map_encoder.pretrained_cfg = G1AMEPretrainedPPORunnerCfg().networks.map_encoder.pretrained_cfg
+
+
+@configclass
+class G1CNNFinetunePPORunnerCfg(G1CNNPretrainedPPORunnerCfg):
+    """Load the same CNN term and train it with the existing PPO settings."""
+
+    run_name = "encoder_finetune"
+    networks = G1CNNPretrainedPPORunnerCfg().networks
+    networks.map_encoder.frozen = False

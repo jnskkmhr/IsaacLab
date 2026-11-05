@@ -14,6 +14,15 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionEnvCfg",
         "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1AMEPPORunnerCfg",
+        "rsl_rl_encoder_train_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1AMEPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_pretrained_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1AMEPretrainedPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_finetune_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1AMEFinetunePPORunnerCfg"
+        ),
     },
 )
 
@@ -24,6 +33,15 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1AMEPPORunnerCfg",
+        "rsl_rl_encoder_train_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1AMEPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_pretrained_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1AMEPretrainedPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_finetune_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1AMEFinetunePPORunnerCfg"
+        ),
     },
 )
 
@@ -34,6 +52,15 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionCNNEnvCfg",
         "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1CNNPPORunnerCfg",
+        "rsl_rl_encoder_train_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1CNNPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_pretrained_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1CNNPretrainedPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_finetune_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1CNNFinetunePPORunnerCfg"
+        ),
     },
 )
 
@@ -44,5 +71,14 @@ gym.register(
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughPerceptionCNNEnvCfg_PLAY",
         "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1CNNPPORunnerCfg",
+        "rsl_rl_encoder_train_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1CNNPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_pretrained_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1CNNPretrainedPPORunnerCfg"
+        ),
+        "rsl_rl_encoder_finetune_cfg_entry_point": (
+            f"{__name__}.agents.compositional_ppo_cfg:G1CNNFinetunePPORunnerCfg"
+        ),
     },
 )
