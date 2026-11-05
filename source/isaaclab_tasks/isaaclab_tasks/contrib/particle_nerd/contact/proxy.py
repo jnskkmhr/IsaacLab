@@ -571,6 +571,9 @@ class ProxyEstimator:
                 )
                 self._batch_flags_flat = wp.empty(total_foot_k, dtype=int, device=self.device)
                 self._batch_offsets_flat = wp.empty(total_foot_k, dtype=int, device=self.device)
+                # Compaction writes per-body counts into offsets. Keep its global
+                # prefix sums separate so neighboring blocks cannot overwrite them.
+                self._batch_scan_offsets_flat = wp.empty(total_foot_k, dtype=int, device=self.device)
                 self._batch_ids_flat = wp.empty(total_foot_k, dtype=int, device=self.device)
                 self._batch_frames_flat = wp.empty(total_foot_k, dtype=wp.mat33d, device=self.device)
                 self._batch_angular_flat = wp.empty(total_foot_k, dtype=wp.mat33d, device=self.device)
@@ -722,14 +725,14 @@ class ProxyEstimator:
                 ],
                 device=self.device,
             )
-            wp.utils.array_scan(self._batch_flags_flat, self._batch_offsets_flat, inclusive=True)
+            wp.utils.array_scan(self._batch_flags_flat, self._batch_scan_offsets_flat, inclusive=True)
             wp.launch(
                 compact_contacts_batched,
                 (num_feet, k_eval),
                 [
                     self._problems,
                     self._batch_flags_flat,
-                    self._batch_offsets_flat,
+                    self._batch_scan_offsets_flat,
                 ],
                 device=self.device,
             )

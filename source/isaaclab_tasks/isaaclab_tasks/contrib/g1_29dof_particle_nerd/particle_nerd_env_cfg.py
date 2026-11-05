@@ -184,14 +184,14 @@ class G1ParticleNeRDEnvCfg_PLAY(G1ParticleNeRDEnvCfg):
 
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(
-                eye=(2.0, -3.0, 0.5),
+                eye=(1.4, -1.4, 0.5),
                 lookat=(0.0, 0.0, 0.0),
                 origin_type="asset",
                 origin_track_path="robot",
                 streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
-                eye=(2.0, -3.0, 0.5),
+                eye=(1.4, -1.4, 0.5),
                 lookat=(0.0, 0.0, 0.0),
                 origin_type="asset",
                 origin_track_path="robot",

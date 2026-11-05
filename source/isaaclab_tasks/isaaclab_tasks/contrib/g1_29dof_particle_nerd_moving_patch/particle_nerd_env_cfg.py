@@ -163,7 +163,7 @@ class G1ParticleNeRDEnvCfg_PLAY(G1ParticleNeRDEnvCfg):
                 streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
-                show_particles=False,
+                # show_particles=False,
                 # eye=(-2.0, -0.0, 0.5),
                 # lookat=(0.0, 0.0, 0.0),
                 eye=(-0.0, -25.0, 5.0),
@@ -171,7 +171,7 @@ class G1ParticleNeRDEnvCfg_PLAY(G1ParticleNeRDEnvCfg):
                 # origin_type="asset",
                 # origin_track_path="robot",
                 # streaming_view=False,
-                headless=True,
+                # headless=True,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]

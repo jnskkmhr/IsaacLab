@@ -1,6 +1,8 @@
 ```bash
-export osmo_node="isaac-lab-l40s-03"
-export platform="ovx-l40s"
+# export osmo_node="isaac-lab-l40s-03"
+# export platform="ovx-l40s"
+export osmo_node="isaac-lab-l40-07"
+export platform="ovx-l40"
 bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --pool "$osmo_node" \
   --set num_nodes=8 num_gpu=1 \

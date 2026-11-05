@@ -31,7 +31,7 @@ def test_mixed_contact_recycling_and_independent_resets(monkeypatch):
     monkeypatch.setattr(SolverImplicitMPM, "__init__", forbidden)
     monkeypatch.setattr(SolverImplicitMPM, "step", forbidden)
     task = "IsaacContrib-Velocity-G1-29dof-ParticleNeRD-MovingPatch-MixedTerrain-Play"
-    cfg, _ = resolve_task_config(task, "rsl_rl_cfg_entry_point")
+    cfg, _ = resolve_task_config(task, "rsl_rl_cfg_entry_point", overrides=[])
     cfg.scene.num_envs = 4
     cfg.scene.terrain.terrain_generator = FLAT_TERRAINS_CFG.replace(num_cols=2)
     cfg.sim.visualizer_cfgs = []
@@ -119,6 +119,16 @@ def test_mixed_contact_recycling_and_independent_resets(monkeypatch):
 
             with monkeypatch.context() as probe:
                 probe.setattr(estimator, "evaluate", compare_contacts)
+
+                # Force successive bodies to compact on the same CUDA block. This
+                # exposes prefix-scan input/output aliasing independent of scheduling.
+                def limit_compaction_blocks(*args, **kwargs):
+                    kernel = kwargs.get("kernel", args[0] if args else None)
+                    if kernel.key == "compact_contacts_batched":
+                        kwargs["max_blocks"] = 1
+                    return original_launch(*args, **kwargs)
+
+                probe.setattr(wp, "launch", limit_compaction_blocks)
                 env.step(action)
             assert torch.stack(contact_counts).sum() > 0, "Force equivalence must include material contacts"
             feedback = wp.to_torch(env._coupling_forces)[env._foot_body_ids[2:]]
