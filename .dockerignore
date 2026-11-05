@@ -17,6 +17,8 @@ docs/
 # ignore docker
 docker/cluster/exports/
 docker/.container.cfg
+# ignore local demo and benchmark archive
+/video/
 # ignore recordings
 recordings/
 # ignore __pycache__

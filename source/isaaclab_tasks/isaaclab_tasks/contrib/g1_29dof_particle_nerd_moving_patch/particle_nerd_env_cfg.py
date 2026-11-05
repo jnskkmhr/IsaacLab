@@ -100,10 +100,11 @@ class G1ParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
 
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0)),
+            MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0), show_particles=False),
             MovingPatchRTXVisualizerCfg(
                 eye=(-50.0, -15.0, 5.0),
                 lookat=(-10.0, 0.0, 0.0),
+                show_particles=False,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
         ]
@@ -124,10 +125,10 @@ class G1ParticleNeRDEnvCfg_PLAY(G1ParticleNeRDEnvCfg):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
 
-        # generator = terrain_cfg.ROUGH_TERRAINS_DIFFICULT_CFG
+        generator = terrain_cfg.ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = terrain_cfg.SLOPE_TERRAINS_CFG
         # generator = terrain_cfg.WAVE_TERRAINS_CFG
-        generator = terrain_cfg.FLAT_TERRAINS_CFG
+        # generator = terrain_cfg.FLAT_TERRAINS_CFG
 
         self.scene.terrain.terrain_generator = generator
 
@@ -154,6 +155,7 @@ class G1ParticleNeRDEnvCfg_PLAY(G1ParticleNeRDEnvCfg):
         self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(
+                show_particles=False,
                 eye=(-2.0, -0.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
                 origin_type="asset",
@@ -162,16 +164,19 @@ class G1ParticleNeRDEnvCfg_PLAY(G1ParticleNeRDEnvCfg):
             ),
             MovingPatchRTXVisualizerCfg(
                 show_particles=False,
-                eye=(-2.0, -0.0, 0.5),
+                # eye=(-2.0, -0.0, 0.5),
+                # lookat=(0.0, 0.0, 0.0),
+                eye=(-0.0, -25.0, 5.0),
                 lookat=(0.0, 0.0, 0.0),
                 # origin_type="asset",
                 # origin_track_path="robot",
                 # streaming_view=False,
+                headless=True,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=1000, video_interval=2000),
+            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=1000, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
         ]

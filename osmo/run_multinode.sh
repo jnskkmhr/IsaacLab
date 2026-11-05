@@ -103,18 +103,22 @@ fi
 warp_wheel_input="${warp_wheel_url:+$warp_wheel_url/wheels/}"
 asset_url="${output_url%/}/assets/$asset_version"
 snapshot_url="${output_url%/}/snapshots/$(date -u +%Y%m%dT%H%M%SZ)-${snapshot##*.}"
+# Transfer code as one object: directory downloads can silently omit individual files.
+mkdir "$snapshot/archive"
+tar -czf "$snapshot/archive/source.tar.gz" -C "$snapshot/source" .
+source_sha256=$(sha256sum "$snapshot/archive/source.tar.gz" | cut -d ' ' -f 1)
 # OSMO replaces repeated --set-string groups; insert into the existing group.
 submit_args=()
 has_set_string=false
 for arg in "$@"; do
     submit_args+=("$arg")
     if [[ "$arg" == --set-string ]]; then
-        submit_args+=("assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_input")
+        submit_args+=("assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "source_sha256=$source_sha256" "warp_wheel_url=$warp_wheel_input")
         has_set_string=true
     fi
 done
 if ! "$has_set_string"; then
-    submit_args+=(--set-string "assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_input")
+    submit_args+=(--set-string "assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "source_sha256=$source_sha256" "warp_wheel_url=$warp_wheel_input")
 fi
 if "$dry_run"; then
     osmo workflow submit "$workflow" "${submit_args[@]}"
@@ -145,6 +149,6 @@ upload_cached "$snapshot/assets/data" "$asset_url"
 if [[ -n "$warp_wheel_url" ]]; then
     upload_cached "$snapshot/wheels" "$warp_wheel_url"
 fi
-echo "Uploading code snapshot ($(du -sh --apparent-size "$snapshot/source" | cut -f1)) to $snapshot_url..."
-osmo data upload "$snapshot_url/" "$snapshot/source"
+echo "Uploading code archive ($(du -sh --apparent-size "$snapshot/archive/source.tar.gz" | cut -f1)) to $snapshot_url..."
+osmo data upload "$snapshot_url/source/" "$snapshot/archive/source.tar.gz"
 osmo workflow submit "$workflow" "${submit_args[@]}" --format-type json

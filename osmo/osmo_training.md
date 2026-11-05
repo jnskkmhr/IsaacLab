@@ -123,28 +123,34 @@ not copy local edits. This workflow adds submission-time syncing:
 
 1. The helper snapshots the checkout, including local edits and new files.
    It applies `.dockerignore` and `.gitignore` exclusion filters and excludes root
-   `data/` and `.env*` files. Logs, virtual environments, and credentials stay local.
+   `data/`, `video/`, and `.env*` files. Logs, virtual environments, and credentials stay local.
 2. The helper separates `source/isaaclab_assets/data` and hashes its contents. Assets
    are uploaded directly with `osmo data upload` to `<output_url>/assets/<hash>/`
    only when that version is missing. A completion marker prevents reuse of partial
    uploads. Changing assets creates a new version; code edits reuse the existing one.
-3. The helper uploads the code snapshot directly with `osmo data upload` to a
-   unique `<output_url>/snapshots/<submission-id>/source/` directory. It submits
-   the workflow only after both uploads succeed; no staging task is needed.
-4. OSMO provides every trainer with the same code snapshot and cached assets as
-   separate inputs. Assets are restored at their original repository path.
+3. The helper packs the code into `source.tar.gz` and uploads that single object
+   with `osmo data upload` to `<output_url>/snapshots/<submission-id>/source/`.
+   It passes the archive SHA-256 in the workflow spec and submits only after both
+   uploads succeed; no staging task is needed.
+4. OSMO provides every trainer with the same code archive and cached assets as
+   separate inputs. Each trainer verifies the archive SHA-256 before extracting
+   it, then restores assets at their original repository path. A missing or
+   corrupted archive fails before dependency installation or training.
 5. Each training task installs the locked uv environment and invokes
    `uv run isaaclab train_multigpu` with the supplied `args`.
 
 The submission command is unchanged. The first submission uploads the assets;
 subsequent submissions skip that upload until asset contents change. Trainers still
-download assets from storage for each run. With the current checkout, the code
-upload is about 47 MB instead of 533 MB including assets. `--dry-run` computes the
-asset URL and renders the workflow without uploading or submitting anything.
+download assets from storage for each run. `--dry-run` builds the local archive,
+computes its checksum and the asset URL, and renders the workflow without
+uploading or submitting anything.
 
-There is no tar archive or fixed source URL to update. Submit again to include later
-edits; a running job retains its submitted snapshot. The helper uses ordinary rsync
-only for preparing the local snapshot; remote transfers use `osmo data upload`.
+Submit again to include later edits; a running job retains its submitted snapshot.
+The archive avoids incomplete source trees observed with OSMO directory downloads,
+where an object was listed remotely and downloadable individually but omitted
+from a directory download. The helper uses ordinary rsync only for preparing the
+local snapshot; remote transfers use `osmo data upload`. The workflow templates
+still accept legacy directory inputs when `source_sha256` is empty.
 This avoids the OSMO 6.3.1 rsync client bug that can report success without uploading
 files. Submission output is saved under `logs/osmo/submit-*.log`.
 

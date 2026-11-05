@@ -53,7 +53,13 @@ workflow:
         if ! command -v uv >/dev/null; then
           curl --fail --location --retry 3 https://astral.sh/uv/{{ uv_version }}/install.sh | sh
         fi
+{% if source_sha256 %}
+        printf '%s  %s\n' '{{ source_sha256 }}' '{{input:0}}/source.tar.gz' | sha256sum --check --strict
+        mkdir -p /tmp/isaaclab
+        tar -xzf "{{input:0}}/source.tar.gz" -C /tmp/isaaclab
+{% else %}
         cp -a "{{input:0}}" /tmp/isaaclab
+{% endif %}
         cp -a "{{input:1}}" /tmp/isaaclab/source/isaaclab_assets/data
         cd /tmp/isaaclab
         ln -s "{{output}}/logs" logs
@@ -96,4 +102,5 @@ default-values:
   output_url: ""
   assets_url: ""
   source_url: ""
+  source_sha256: ""
   warp_wheel_url: ""

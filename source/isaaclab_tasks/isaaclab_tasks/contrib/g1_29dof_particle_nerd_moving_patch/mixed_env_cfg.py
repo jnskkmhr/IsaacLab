@@ -70,6 +70,7 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
 
         self.sim.visualizer_cfgs = [
             MovingPatchGLVisualizerCfg(
+                show_particles=False,
                 eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
                 origin_type="asset",
@@ -77,6 +78,7 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
                 streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
+                show_particles=False,
                 eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
                 # origin_type="asset",
