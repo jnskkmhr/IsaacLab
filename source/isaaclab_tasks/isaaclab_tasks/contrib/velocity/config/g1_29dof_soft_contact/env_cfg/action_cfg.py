@@ -11,13 +11,13 @@ from isaaclab_contrib.mdp import (
     mirror_identity,
 )
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
-from isaaclab_tasks.contrib.velocity.soft_contact import (
+from isaaclab_tasks.contrib.soft_contact import (
     BoxColliderCfg,
     PhysicsCallbackActionCfg,
     PlaneColliderCfg,
     SphereColliderCfg,
 )
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 
 """
 collider geometry

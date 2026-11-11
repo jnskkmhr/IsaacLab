@@ -6,7 +6,7 @@
 import isaaclab.envs.mdp as mdp
 from isaaclab.utils import configclass
 
-from isaaclab_tasks.contrib.velocity.soft_contact import BoxColliderCfg, PhysicsCallbackActionCfg
+from isaaclab_tasks.contrib.soft_contact import BoxColliderCfg, PhysicsCallbackActionCfg
 
 JOINT_NAMES = [
     "left_hip_pitch_joint",

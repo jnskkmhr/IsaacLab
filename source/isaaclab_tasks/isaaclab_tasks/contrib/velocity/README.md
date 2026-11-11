@@ -12,7 +12,7 @@ Original upstream Isaac Lab contributed environments are preserved. Only the cus
 
 The PhysX recipe matches the task and PPO settings from `4blqnxbi`; the Lab/Isaac Sim/software stack is newer and the 4096-environment batch is distributed across four GPUs. See the linked task README for installation, Kit USD library setup, video recording and OSMO launch commands.
 
-Shared analytical RFT code now lives in `velocity/soft_contact`. Terrain reset/query helpers and shared agent configurations also live under `velocity`, so retained task imports do not require the removed MPM or mimic task directories. Tests belonging to removed custom task families remain as historical source; the original upstream task tests retain their environments.
+Shared analytical RFT code lives in `contrib/soft_contact`. Terrain reset/query helpers and shared agent configurations also live under `velocity`, so retained task imports do not require the removed MPM or mimic task directories. Tests belonging to removed custom task families remain as historical source; the original upstream task tests retain their environments.
 
 No checkpoints, training logs, benchmark outputs or credentials are included.
 
