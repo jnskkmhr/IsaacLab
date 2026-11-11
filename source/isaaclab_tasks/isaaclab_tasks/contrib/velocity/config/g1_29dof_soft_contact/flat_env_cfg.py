@@ -25,7 +25,31 @@ class G1FlatEnvCfg(G1RoughEnvCfg):
     scene: G1FlatSceneCfg = G1FlatSceneCfg(num_envs=4096, env_spacing=2.5)
     curriculum: G1FlatCurriculumCfg = G1FlatCurriculumCfg()
     rewards: G1RewardsCfg = G1RewardsCfg()
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
+    sim: SimulationCfg = SimulationCfg(
+        physics=G1PhysicsCfg(),  # type: ignore
+        visualizer_cfgs=[
+            NewtonGLVisualizerCfg(
+                headless=True,
+                eye=(4.0, -4.0, 3.0),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                origin_env_index=0,
+                focal_length=12.0,
+                streaming_view=False,
+            ),
+            NewtonRTXVisualizerCfg(
+                headless=True,
+                eye=(4.0, -4.0, 3.0),
+                lookat=(0.0, 0.0, 0.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                origin_env_index=0,
+                focal_length=12.0,
+                streaming_view=False,
+            ),
+        ],
+    )
 
     def __post_init__(self):
         # post init of parent
