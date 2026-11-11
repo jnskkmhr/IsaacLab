@@ -3,123 +3,88 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import math
+"""Manager-based G1 locomotion on rigid rough terrain."""
 
 from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
 
+from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
-from isaaclab.utils.configclass import configclass
+from isaaclab.utils import configclass
 
-from isaaclab_tasks.core.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
-
-##
-# Pre-defined configs
-##
-from .env_cfg import (
-    G1ActionPresetsCfg,
-    G1CommandsCfg,
-    G1CurriculumCfg,
-    G1EventCfg,
-    G1ObservationsCfg,
-    G1PhysicsCfg,
-    G1RewardsRoughPresetsCfg,
-    G1SceneCfg,
-    G1TerminationsCfg,
-)
+from .env_cfg.action_cfg import G1RoughActionsCfg
+from .env_cfg.commands_cfg import G1RoughCommandsCfg
+from .env_cfg.curriculum_cfg import G1RoughCurriculumCfg, G1RoughCurriculumCfg_PLAY
+from .env_cfg.event_cfg import G1RoughEventCfg, G1RoughEventCfg_PLAY
+from .env_cfg.observation_cfg import G1RoughObservationsCfg, G1RoughObservationsCfg_PLAY
+from .env_cfg.physics_cfg import G1RoughPhysicsCfg
+from .env_cfg.reward_cfg import G1RewardsRoughCfg
+from .env_cfg.scene_cfg import G1RoughSceneCfg
+from .env_cfg.termination_cfg import G1RoughTerminationsCfg
 
 
 @configclass
-class G1RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
-    # physics settings owned by the task instead of inherited from the velocity base env
-    sim: SimulationCfg = SimulationCfg(physics=G1PhysicsCfg())  # type: ignore
-    rewards: G1RewardsRoughPresetsCfg = G1RewardsRoughPresetsCfg()
-    actions: G1ActionPresetsCfg = G1ActionPresetsCfg()
-    observations: G1ObservationsCfg = G1ObservationsCfg()
-    scene: G1SceneCfg = G1SceneCfg(num_envs=4096, env_spacing=2.5)
-    terminations: G1TerminationsCfg = G1TerminationsCfg()
-    curriculum: G1CurriculumCfg = G1CurriculumCfg()
-    events: G1EventCfg = G1EventCfg()
-    commands: G1CommandsCfg = G1CommandsCfg()
+class G1RoughEnvCfg(ManagerBasedRLEnvCfg):
+    """Rigid-contact locomotion using task-local component configurations."""
+
+    scene: G1RoughSceneCfg = G1RoughSceneCfg(num_envs=1280, env_spacing=4.0)
+    sim: SimulationCfg = SimulationCfg(
+        dt=0.005,
+        render_interval=4,
+        use_newton_actuators=True,
+        physics=G1RoughPhysicsCfg().newton_mjwarp,
+        visualizer_cfgs=[
+            NewtonGLVisualizerCfg(
+                eye=(3.0, 3.0, 2.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                headless=True,
+            ),
+            NewtonRTXVisualizerCfg(
+                eye=(3.0, 3.0, 2.0),
+                origin_type="asset",
+                origin_track_path="robot",
+                headless=True,
+            ),
+        ],
+    )
+    observations: G1RoughObservationsCfg = G1RoughObservationsCfg()
+    actions: G1RoughActionsCfg = G1RoughActionsCfg()
+    commands: G1RoughCommandsCfg = G1RoughCommandsCfg()
+    rewards: G1RewardsRoughCfg = G1RewardsRoughCfg()
+    terminations: G1RoughTerminationsCfg = G1RoughTerminationsCfg()
+    events: G1RoughEventCfg = G1RoughEventCfg()
+    curriculum: G1RoughCurriculumCfg = G1RoughCurriculumCfg()
+    decimation: int = 4
+    episode_length_s: float = 20.0
+    is_finite_horizon: bool = False
     seed: int = 42
+    foot_contact_force_threshold: float = 5.0
+    """Force magnitude above which a foot counts as in contact [N]."""
+    video_recorders = [
+        VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
+    ]
 
-    def __post_init__(self):
-        # post init of parent
-        super().__post_init__()
+    def __post_init__(self) -> None:
+        self.scene.contact_forces.update_period = self.sim.dt
 
-        # Randomization
-        self.events.reset_base.params = {
-            "pose_range": {
-                "x": (-0.5, 0.5),
-                "y": (-0.5, 0.5),
-                "yaw": (-math.pi, math.pi),
-            },
-            "velocity_range": {
-                "x": (0.0, 0.0),
-                "y": (0.0, 0.0),
-                "z": (0.0, 0.0),
-                "roll": (0.0, 0.0),
-                "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
-            },
-        }
-        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
-
-        self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
-            NewtonRTXVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
-            # KitVisualizerCfg(eye=(12.0, 0.0, 6.0), headless=True),
-        ]
-
-        self.video_recorders = [
-            VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            # VideoRecorderCfg(source="visualizer:kit", output_dir="videos/"),
-        ]
-        self.curriculum.command_vel = None
+    def validate_config(self) -> None:
+        """Enable terrain-row progression after command-line overrides."""
+        self.scene.terrain.terrain_generator.curriculum = self.curriculum.terrain_levels is not None
+        self.scene.terrain.use_terrain_origins = True
 
 
 @configclass
 class G1RoughEnvCfg_PLAY(G1RoughEnvCfg):
-    def __post_init__(self):
-        # post init of parent
+    """Playback with the same rough terrain and uncorrupted policy observations."""
+
+    scene: G1RoughSceneCfg = G1RoughSceneCfg(num_envs=1, env_spacing=4.0)
+    observations: G1RoughObservationsCfg_PLAY = G1RoughObservationsCfg_PLAY()
+    events: G1RoughEventCfg_PLAY = G1RoughEventCfg_PLAY()
+    curriculum: G1RoughCurriculumCfg_PLAY = G1RoughCurriculumCfg_PLAY()
+    video_recorders = []
+
+    def __post_init__(self) -> None:
         super().__post_init__()
-
-        # make a smaller scene for play
-        self.scene.num_envs = 50
-        self.scene.env_spacing = 2.5
-        self.episode_length_s = 40.0
-
-        self.scene.terrain.terrain_generator.difficulty_range = (1.0, 1.0)
-
-        # spawn the robot randomly in the grid (instead of their terrain levels)
-        self.scene.terrain.max_init_terrain_level = None
-        # reduce the number of terrains to save memory
-        if self.scene.terrain.terrain_generator is not None:
-            self.scene.terrain.terrain_generator.num_rows = 5
-            self.scene.terrain.terrain_generator.num_cols = 5
-            self.scene.terrain.terrain_generator.curriculum = False
-        self.curriculum.command_vel = None
-
-        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
-        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
-        self.commands.base_velocity.ranges.heading = (0.0, 0.0)
-        # disable randomization for play
-        self.observations.policy.enable_corruption = False
-        # remove random pushing
-        # self.events.base_external_force_torque = None
-        self.events.push_robot = None  # type: ignore
-
-        self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            NewtonRTXVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-        ]
-        self.video_recorders = [
-            # VideoRecorderCfg(
-            #     source="visualizer:newton_rtx",
-            #     output_dir=None,
-            #     video_length=200,
-            #     video_interval=2000
-            #     ),
-        ]
+        for visualizer in self.sim.visualizer_cfgs:
+            visualizer.headless = False

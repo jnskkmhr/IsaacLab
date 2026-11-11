@@ -16,37 +16,7 @@ import isaaclab_tasks.core.velocity.mdp as mdp
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.env_cfg.action_cfg import G1ActionsCfg
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 
-ACTIVE_JOINTS = [
-    "left_hip_pitch_joint",
-    "left_hip_roll_joint",
-    "left_hip_yaw_joint",
-    "left_knee_joint",
-    "left_ankle_pitch_joint",
-    "left_ankle_roll_joint",
-    "right_hip_pitch_joint",
-    "right_hip_roll_joint",
-    "right_hip_yaw_joint",
-    "right_knee_joint",
-    "right_ankle_pitch_joint",
-    "right_ankle_roll_joint",
-    "waist_yaw_joint",
-    "waist_roll_joint",
-    "waist_pitch_joint",
-    "left_shoulder_pitch_joint",
-    "left_shoulder_roll_joint",
-    "left_shoulder_yaw_joint",
-    "left_elbow_joint",
-    "left_wrist_roll_joint",
-    "left_wrist_pitch_joint",
-    "left_wrist_yaw_joint",
-    "right_shoulder_pitch_joint",
-    "right_shoulder_roll_joint",
-    "right_shoulder_yaw_joint",
-    "right_elbow_joint",
-    "right_wrist_roll_joint",
-    "right_wrist_pitch_joint",
-    "right_wrist_yaw_joint",
-]
+from .action_cfg import ACTIVE_JOINT
 
 
 @configclass
@@ -73,7 +43,7 @@ class PolicyCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=ACTIVE_JOINTS,
+                joint_names=ACTIVE_JOINT,
                 preserve_order=True,
             ),
         },
@@ -86,7 +56,7 @@ class PolicyCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=ACTIVE_JOINTS,
+                joint_names=ACTIVE_JOINT,
                 preserve_order=True,
             ),
         },
@@ -136,7 +106,7 @@ class CriticCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=ACTIVE_JOINTS,
+                joint_names=ACTIVE_JOINT,
                 preserve_order=True,
             ),
         },
@@ -147,7 +117,7 @@ class CriticCfg(ObsGroup):
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=ACTIVE_JOINTS,
+                joint_names=ACTIVE_JOINT,
                 preserve_order=True,
             ),
         },
@@ -274,3 +244,184 @@ class G1ObservationsCfg:
     privileged: PrivilegedHistoryCfg = PrivilegedHistoryCfg()
 
     # logging: LoggingObsCfg = LoggingObsCfg()
+
+
+@configclass
+class RoughPolicyCfg(ObsGroup):
+    """Task-local rough-terrain configuration."""
+
+    concatenate_terms = True
+    concatenate_dim = -1
+    enable_corruption = False
+    history_length = 10
+    flatten_history_dim = True
+    history_order = "term"
+    base_ang_vel = ObsTerm(
+        func=mdp.base_ang_vel,
+        noise=Unoise(func="isaaclab.utils.noise.noise_model:uniform_noise", n_min=-0.2, n_max=0.2),
+        scale=0.25,
+        mirror=mirror_vec3,
+        mirror_params={"axial": True},
+    )
+    projected_gravity = ObsTerm(
+        func=mdp.bias_projected_gravity,
+        params={
+            "roll_bias_range": (-0.05235987755982989, 0.05235987755982989),
+            "pitch_bias_range": (-0.05235987755982989, 0.05235987755982989),
+        },
+        mirror=mirror_vec3,
+    )
+    joint_pos = ObsTerm(
+        func=mdp.joint_pos_rel,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                name="robot",
+                joint_names=ACTIVE_JOINT,
+                preserve_order=True,
+            )
+        },
+        noise=Unoise(func="isaaclab.utils.noise.noise_model:uniform_noise", n_min=-0.01, n_max=0.01),
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+    )
+    joint_vel = ObsTerm(
+        func=mdp.joint_vel_rel,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                name="robot",
+                joint_names=ACTIVE_JOINT,
+                preserve_order=True,
+            )
+        },
+        noise=Unoise(func="isaaclab.utils.noise.noise_model:uniform_noise", n_min=-1.5, n_max=1.5),
+        scale=0.05,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+    )
+    actions = ObsTerm(
+        func=mdp.last_action,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+    )
+
+
+@configclass
+class RoughCriticCfg(ObsGroup):
+    """Task-local rough-terrain configuration."""
+
+    concatenate_terms = True
+    concatenate_dim = -1
+    enable_corruption = False
+    history_length = 10
+    flatten_history_dim = True
+    history_order = "term"
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel, scale=0.25, mirror=mirror_vec3, mirror_params={"axial": True})
+    base_quat = ObsTerm(func=mdp.root_quat_w, params={"make_quat_unique": True}, mirror=mirror_quat)
+    joint_pos = ObsTerm(
+        func=mdp.joint_pos_rel,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                name="robot",
+                joint_names=ACTIVE_JOINT,
+                preserve_order=True,
+            )
+        },
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+    )
+    joint_vel = ObsTerm(
+        func=mdp.joint_vel_rel,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                name="robot",
+                joint_names=ACTIVE_JOINT,
+                preserve_order=True,
+            )
+        },
+        scale=0.05,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+    )
+    actions = ObsTerm(
+        func=mdp.last_action,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+    )
+
+
+@configclass
+class RoughCommandCfg(ObsGroup):
+    """Task-local rough-terrain configuration."""
+
+    concatenate_terms = True
+    concatenate_dim = -1
+    enable_corruption = False
+    history_length = 1
+    flatten_history_dim = True
+    history_order = "term"
+    velocity_commands = ObsTerm(
+        func=mdp.generated_commands, params={"command_name": "base_velocity"}, mirror=symmetry.mirror_velocity_heading
+    )
+
+
+@configclass
+class RoughPrivilegedCfg(ObsGroup):
+    """Task-local rough-terrain configuration."""
+
+    concatenate_terms = True
+    concatenate_dim = -1
+    enable_corruption = False
+    history_length = 10
+    flatten_history_dim = True
+    history_order = "term"
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel, mirror=mirror_vec3)
+    foot_height = ObsTerm(
+        func=g1_mdp.foot_height,
+        params={"asset_cfg": SceneEntityCfg(name="robot", body_names=".*_ankle_roll_link")},
+        mirror=symmetry.mirror_foot_scalars,
+    )
+    foot_contact = ObsTerm(
+        func=g1_mdp.foot_contact,
+        params={
+            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=True),
+            "threshold": 5.0,
+        },
+        mirror=symmetry.mirror_foot_scalars,
+    )
+    foot_contact_force = ObsTerm(
+        func=g1_mdp.foot_contact_forces,
+        params={
+            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=True),
+            "force_filter_threshold": 5.0,
+            "max_force": 1000.0,
+        },
+        mirror=symmetry.mirror_foot_forces,
+    )
+    foot_air_time = ObsTerm(
+        func=g1_mdp.foot_air_time,
+        params={
+            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=True)
+        },
+        mirror=symmetry.mirror_foot_scalars,
+    )
+    terrain_material_parameters = ObsTerm(func=g1_mdp.terrain_material_parameters, mirror=mirror_identity)
+
+
+@configclass
+class G1RoughObservationsCfg:
+    """Actor and critic observation groups for rough contact training."""
+
+    policy: RoughPolicyCfg = RoughPolicyCfg()
+    critic: RoughCriticCfg = RoughCriticCfg()
+    command: RoughCommandCfg = RoughCommandCfg()
+    privileged: RoughPrivilegedCfg = RoughPrivilegedCfg()
+
+
+@configclass
+class G1RoughObservationsCfg_PLAY(G1RoughObservationsCfg):
+    """Playback configuration."""
+
+    policy = RoughPolicyCfg().replace(
+        enable_corruption=False,
+        projected_gravity=RoughPolicyCfg().projected_gravity.replace(func=mdp.projected_gravity, params={}),
+    )

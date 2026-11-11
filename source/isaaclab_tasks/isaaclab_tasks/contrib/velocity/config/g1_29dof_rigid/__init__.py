@@ -41,7 +41,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1RoughPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rough_benchmark_ppo_cfg:G1RoughPPORunnerCfg",
         "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1RoughFlashSACRunnerCfg",
         "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1RoughFastSACRunnerCfg",
     },
@@ -53,7 +53,7 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.compositional_ppo_cfg:G1RoughPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rough_benchmark_ppo_cfg:G1RoughPPORunnerCfg",
         "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1RoughFlashSACRunnerCfg",
         "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1RoughFastSACRunnerCfg",
     },

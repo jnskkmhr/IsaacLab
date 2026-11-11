@@ -3,10 +3,10 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-
 from isaaclab.utils.configclass import configclass
 
 import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
 
 
 @configclass
@@ -38,5 +38,21 @@ class G1CommandsCfg:
             lin_vel_x=(-1.0, 1.0),
             lin_vel_y=(-0.5, 0.5),
             ang_vel_z=(-1.0, 1.0),
+        ),
+    )
+
+
+@configclass
+class G1RoughCommandsCfg:
+    """Task-local rough-terrain configuration."""
+
+    base_velocity = g1_mdp.UniformVelocityYawCommandCfg(
+        resampling_time_range=(10.0, 10.0),
+        debug_vis=True,
+        asset_name="robot",
+        heading_control_stiffness=0.5,
+        rel_standing_envs=0.2,
+        ranges=mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-1.0, 1.5), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.0, 1.0)
         ),
     )

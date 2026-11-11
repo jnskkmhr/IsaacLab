@@ -181,7 +181,9 @@ stance foot
 """
 
 
-def feet_slide(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+def feet_slide(
+    env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), threshold: float = 1.0
+) -> torch.Tensor:
     """Penalize feet sliding.
 
     This function penalizes the agent for sliding its feet on the ground. The reward is computed as the
@@ -191,7 +193,8 @@ def feet_slide(env, sensor_cfg: SceneEntityCfg, asset_cfg: SceneEntityCfg = Scen
     # Penalize feet sliding
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
     contacts = (
-        contact_sensor.data.net_forces_w_history.torch[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0] > 1.0
+        contact_sensor.data.net_forces_w_history.torch[:, :, sensor_cfg.body_ids, :].norm(dim=-1).max(dim=1)[0]
+        > threshold
     )
     asset = env.scene[asset_cfg.name]
 
@@ -239,6 +242,25 @@ def reward_foot_lateral_symmetry(
         )
     foot_lat_dist = torch.abs(body_pos_in_base[:, 0, 1] - body_pos_in_base[:, 1, 1])
     return torch.square(foot_lat_dist - ref_dist)
+
+
+def feet_min_lateral_distance_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg,
+    min_separation: float,
+) -> torch.Tensor:
+    """Penalize lateral foot separation below a minimum, including crossed feet.
+
+    Select exactly two bodies in left-foot, right-foot order. Separation is the
+    signed left-minus-right displacement along the robot's yaw-frame y axis [m].
+    Wider steps, fore-aft separation, and foot height are not penalized.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    foot_pos = asset.data.body_pos_w.torch[:, asset_cfg.body_ids]
+    if foot_pos.shape[1] != 2:
+        raise ValueError("Select exactly two foot bodies in left, right order")
+    separation = quat_apply_inverse(yaw_quat(asset.data.root_quat_w.torch), foot_pos[:, 0] - foot_pos[:, 1])[:, 1]
+    return torch.relu(min_separation - separation).square()
 
 
 def reward_soft_landing(

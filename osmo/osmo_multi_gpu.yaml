@@ -72,11 +72,25 @@ workflow:
           cp -a "{{input:1}}" /tmp/isaaclab/source/isaaclab_assets/data
           cd /tmp/isaaclab
           ln -s "{{output}}/logs" logs
+{% if teacher_checkpoints_url %}
+{% if warp_wheel_url %}
+          cp -a "{{input:3}}/." logs/
+{% else %}
+          cp -a "{{input:2}}/." logs/
+{% endif %}
+{% endif %}
 {% if warp_wheel_url %}
           uv sync --locked {{ uv_args }} --no-install-package warp-lang
           uv pip install --python "$UV_PROJECT_ENVIRONMENT/bin/python" --no-deps "{{input:2}}"/*.whl
 {% else %}
           uv sync --locked {{ uv_args }}
+{% endif %}
+{% if kit_usd %}
+          export OMNI_KIT_ACCEPT_EULA=YES
+          kit_usd_root=$(uv run --no-sync python -c 'import pathlib,sys; print(next((pathlib.Path(sys.prefix)/"lib/python3.12/site-packages/isaacsim/extscache").glob("omni.usd.libs-*")))')
+          export PYTHONPATH="$kit_usd_root${PYTHONPATH:+:$PYTHONPATH}"
+          python_lib_dir=$(uv run --no-sync python -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')
+          export LD_LIBRARY_PATH="$kit_usd_root/bin:$python_lib_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 {% endif %}
 {% if num_nodes == 1 and num_gpu == 1 %}
           uv run --no-sync isaaclab train \
@@ -95,6 +109,9 @@ workflow:
 {% if warp_wheel_url %}
       - url: "{{ warp_wheel_url }}"
 {% endif %}
+{% if teacher_checkpoints_url %}
+      - url: "{{ teacher_checkpoints_url }}"
+{% endif %}
       outputs:
       - url: "{{ output_url }}/{{workflow_id}}/rank-{{ rank }}"
 {% if rank == 0 %}
@@ -106,6 +123,7 @@ workflow:
 {% endfor %}
 
 default-values:
+  kit_usd: false
   workflow_name: isaac-lab-mpm-locomotion
   image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
   platform: ovx-l40s
@@ -126,3 +144,4 @@ default-values:
   assets_url: ""
   source_url: ""
   warp_wheel_url: ""
+  teacher_checkpoints_url: ""

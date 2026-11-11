@@ -9,7 +9,7 @@ from compositional_rsl_rl.algorithm import CompositionalSuperMimicAlgorithmCfg
 
 from isaaclab.utils import configclass
 
-from isaaclab_tasks.contrib.g1_29dof_supermimic.agents.compositional_supermimic_cfg import (
+from isaaclab_tasks.contrib.velocity.agents.compositional_supermimic_cfg import (
     G1SuperMimicRunnerCfg,
     SuperMimicNetworksCfg,
 )

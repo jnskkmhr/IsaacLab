@@ -20,15 +20,14 @@ overrides = [
     { name = "fsspec", specifier = ">=2026.6.0" },
     { name = "mujoco", specifier = "~=3.15.0" },
     { name = "mujoco-warp", specifier = "~=3.15.0" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=f0c4a970ce003cd5df72054efdb073a459fd5dbe" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=e1feec68109c49aae8d5cfb59e8a933d7fa19ad9" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numpy", specifier = ">=2" },
     { name = "packaging", specifier = ">=20,<27" },
     { name = "torch", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cu130" },
     { name = "torchvision", specifier = "==0.26.0", index = "https://download.pytorch.org/whl/cu130" },
     { name = "urllib3", specifier = ">=2.8.0" },
-    { name = "usd-exchange", specifier = "==3.0.1" },
-    { name = "usd-optimize", specifier = "~=1.3.1" },
+    { name = "usd-exchange", specifier = "==2.3.0" },
 ]
 
 [[package]]
@@ -757,7 +756,7 @@ wheels = [
 [[package]]
 name = "compositional-rsl-rl"
 version = "0.2.0.dev5"
-source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=c7d5a51c0cdf861f386c259f8bf42018e26c2a26#c7d5a51c0cdf861f386c259f8bf42018e26c2a26" }
+source = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=31f080317f519d84327dde401daa66ef2244d53a#31f080317f519d84327dde401daa66ef2244d53a" }
 dependencies = [
     { name = "rsl-rl-lib" },
 ]
@@ -2003,7 +2002,7 @@ requires-dist = [
     { name = "av", marker = "extra == 'rlinf'", specifier = ">=12.3.0" },
     { name = "botocore" },
     { name = "coacd", specifier = ">=1.0.7" },
-    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=c7d5a51c0cdf861f386c259f8bf42018e26c2a26" },
+    { name = "compositional-rsl-rl", git = "https://github.com/jnskkmhr/compositional_rsl_rl.git?rev=31f080317f519d84327dde401daa66ef2244d53a" },
     { name = "coverage", marker = "extra == 'test'", specifier = ">=7.6.1" },
     { name = "daqp", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux')", specifier = "==0.8.5" },
     { name = "decord2", marker = "extra == 'rlinf'" },
@@ -2053,7 +2052,7 @@ requires-dist = [
     { name = "meshio", specifier = ">=5.3.5" },
     { name = "moviepy", marker = "extra == 'video'", specifier = ">=1.0.3,<2.0.0.dev0" },
     { name = "myst-parser", marker = "extra == 'dev'" },
-    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=f0c4a970ce003cd5df72054efdb073a459fd5dbe" },
+    { name = "newton", extras = ["sim"], git = "https://github.com/jnskkmhr/newton.git?rev=e1feec68109c49aae8d5cfb59e8a933d7fa19ad9" },
     { name = "newton-usd-schemas", specifier = ">=0.5.0" },
     { name = "numba", specifier = ">=0.63.1" },
     { name = "numpy", specifier = ">=2" },
@@ -2123,7 +2122,7 @@ requires-dist = [
     { name = "trimesh", specifier = ">=4.6.8" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "urllib3", specifier = ">=2.8.0" },
-    { name = "usd-exchange", specifier = "==3.0.1" },
+    { name = "usd-exchange", specifier = "==2.3.0" },
     { name = "viser", marker = "extra == 'viser'", specifier = ">=1.0.16" },
     { name = "wandb", marker = "extra == 'wandb'", specifier = ">=0.13.11" },
     { name = "warp-lang", specifier = "==1.19.0.dev20261008", index = "https://pypi.nvidia.com/" },
@@ -3461,7 +3460,7 @@ wheels = [
 [[package]]
 name = "newton"
 version = "1.8.0.dev0"
-source = { git = "https://github.com/jnskkmhr/newton.git?rev=f0c4a970ce003cd5df72054efdb073a459fd5dbe#f0c4a970ce003cd5df72054efdb073a459fd5dbe" }
+source = { git = "https://github.com/jnskkmhr/newton.git?rev=e1feec68109c49aae8d5cfb59e8a933d7fa19ad9#e1feec68109c49aae8d5cfb59e8a933d7fa19ad9" }
 dependencies = [
     { name = "warp-lang" },
 ]
@@ -5989,26 +5988,26 @@ wheels = [
 
 [[package]]
 name = "usd-exchange"
-version = "3.0.1"
+version = "2.3.0"
 source = { registry = "https://pypi.nvidia.com/" }
 wheels = [
-    { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-3.0.1-cp312-cp312-manylinux_2_34_aarch64.whl", hash = "sha256:687dae585ffceee4acacb19723bc6f61e9c61dcef332651be7dd230e3d99c9fb" },
-    { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-3.0.1-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:67bdb602ddf86a38eb7d340cef62d2a891c84733c45f1f770d4db48961545c68" },
-    { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-3.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:062c1e20a47bc448a9778216136c2b0546af58275a2c65187db5efddca67c837" },
+    { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-2.3.0-cp312-cp312-manylinux_2_35_aarch64.whl", hash = "sha256:3beddb68abb89b1f3be207a35275604a6eb89b179ba052ca3eada5cd7202e534" },
+    { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-2.3.0-cp312-cp312-manylinux_2_35_x86_64.whl", hash = "sha256:358c858fafebc0ca37a0e62608e595d894ff732eb723ed871292755f5882e8b4" },
+    { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-2.3.0-cp312-cp312-win_amd64.whl", hash = "sha256:f5ab1b54ce670d8e36786c40750f86396463f2185cfaa5f5e813d6c5207e35ae" },
 ]
 
 [[package]]
 name = "usd-optimize"
-version = "1.3.1"
+version = "1.1.0"
 source = { registry = "https://pypi.nvidia.com/" }
 dependencies = [
     { name = "usd-exchange" },
     { name = "usd-validation-nvidia" },
 ]
 wheels = [
-    { url = "https://pypi.nvidia.com/usd-optimize/usd_optimize-1.3.1-cp312-cp312-manylinux_2_35_aarch64.whl", hash = "sha256:96d9e5d115675d753eb1b2098ebf670ac4bf2a974e9bf9c7e740b414f8b48395" },
-    { url = "https://pypi.nvidia.com/usd-optimize/usd_optimize-1.3.1-cp312-cp312-manylinux_2_35_x86_64.whl", hash = "sha256:ceffa94c8759fd255e239874d882e8ca7396a12696a09af584da3db2b3275b10" },
-    { url = "https://pypi.nvidia.com/usd-optimize/usd_optimize-1.3.1-cp312-cp312-win_amd64.whl", hash = "sha256:0051d9db4b6e1215a18fdb49d1d02ffddd6fd70ff09280169f52f854bcad45ce" },
+    { url = "https://pypi.nvidia.com/usd-optimize/usd_optimize-1.1.0-cp312-cp312-manylinux_2_35_aarch64.whl", hash = "sha256:858e79db10e2eaea0dda16423d583957120ad5aff0fe292e4d60cd63dbcf0eb5" },
+    { url = "https://pypi.nvidia.com/usd-optimize/usd_optimize-1.1.0-cp312-cp312-manylinux_2_35_x86_64.whl", hash = "sha256:ed974f0eae3961771826722d5afa467ec1a211b1e55dcb076d6ba4f448149be7" },
+    { url = "https://pypi.nvidia.com/usd-optimize/usd_optimize-1.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:35e5a87314928888a991aa80eca088a223e2fddddcdd4aa3a2651b38dd4e5b4c" },
 ]
 
 [[package]]

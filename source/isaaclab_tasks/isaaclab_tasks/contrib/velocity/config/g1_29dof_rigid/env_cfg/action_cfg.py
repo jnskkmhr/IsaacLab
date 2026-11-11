@@ -10,6 +10,38 @@ from isaaclab_contrib.mdp import MirrorJointPositionActionCfg, MirrorJointPositi
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 from isaaclab_tasks.utils import PresetCfg
 
+ACTIVE_JOINT = [
+    "left_hip_pitch_joint",
+    "left_hip_roll_joint",
+    "left_hip_yaw_joint",
+    "left_knee_joint",
+    "left_ankle_pitch_joint",
+    "left_ankle_roll_joint",
+    "right_hip_pitch_joint",
+    "right_hip_roll_joint",
+    "right_hip_yaw_joint",
+    "right_knee_joint",
+    "right_ankle_pitch_joint",
+    "right_ankle_roll_joint",
+    "waist_yaw_joint",
+    "waist_roll_joint",
+    "waist_pitch_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_roll_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_yaw_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_roll_joint",
+    "right_wrist_pitch_joint",
+    "right_wrist_yaw_joint",
+]
+
 
 @configclass
 class G1ActionsCfg:
@@ -18,37 +50,7 @@ class G1ActionsCfg:
     joint_pos = MirrorJointPositionActionCfg(
         mirror=symmetry.mirror_g1_joints,
         asset_name="robot",
-        joint_names=[
-            "left_hip_pitch_joint",
-            "left_hip_roll_joint",
-            "left_hip_yaw_joint",
-            "left_knee_joint",
-            "left_ankle_pitch_joint",
-            "left_ankle_roll_joint",
-            "right_hip_pitch_joint",
-            "right_hip_roll_joint",
-            "right_hip_yaw_joint",
-            "right_knee_joint",
-            "right_ankle_pitch_joint",
-            "right_ankle_roll_joint",
-            "waist_yaw_joint",
-            "waist_roll_joint",
-            "waist_pitch_joint",
-            "left_shoulder_pitch_joint",
-            "left_shoulder_roll_joint",
-            "left_shoulder_yaw_joint",
-            "left_elbow_joint",
-            "left_wrist_roll_joint",
-            "left_wrist_pitch_joint",
-            "left_wrist_yaw_joint",
-            "right_shoulder_pitch_joint",
-            "right_shoulder_roll_joint",
-            "right_shoulder_yaw_joint",
-            "right_elbow_joint",
-            "right_wrist_roll_joint",
-            "right_wrist_pitch_joint",
-            "right_wrist_yaw_joint",
-        ],
+        joint_names=ACTIVE_JOINT,
         scale=0.25,
         use_default_offset=True,
         preserve_order=True,
@@ -81,3 +83,18 @@ class G1ActionPresetsCfg(PresetCfg):
     joint_range_action: G1JointRangeActionsCfg = G1JointRangeActionsCfg()
     # default = constant_scale_action
     default = joint_range_action
+
+
+@configclass
+class G1RoughActionsCfg:
+    """Task-local rough-terrain configuration."""
+
+    joint_pos = MirrorJointPositionActionCfg(
+        class_type="isaaclab.envs.mdp.actions.joint_actions:JointPositionAction",
+        asset_name="robot",
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+        joint_names=ACTIVE_JOINT,
+        scale=0.25,
+        preserve_order=True,
+    )

@@ -166,7 +166,9 @@ def export_rsl_rl_agent(args_cli: argparse.Namespace, env_cfg: Any, agent_cfg: R
             runner = DistillationRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
         else:
             raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
-        runner.load(resume_path)
+        # Export only needs the policy, not training-only teachers, critics, or optimizer state.
+        policy_key = "student" if agent_cfg.class_name == "DistillationRunner" else "actor"
+        runner.load(resume_path, load_cfg={policy_key: True})
         policy = runner.get_inference_policy(device=env.unwrapped.device)
         # The constructed policy resolves dependencies such as compositional command inputs.
         policy_node_name = prepare_export_env(env, args_cli, required_obs_groups=set(policy.obs_groups))

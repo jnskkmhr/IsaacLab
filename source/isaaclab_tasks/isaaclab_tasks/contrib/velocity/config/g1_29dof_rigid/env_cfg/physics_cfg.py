@@ -49,3 +49,8 @@ class G1PhysicsCfg(PresetCfg):
     )
     newton_kamino = NewtonCfg(solver_cfg=KaminoPADMMSolverCfg(max_contacts_per_world=64))
     default = newton_mjwarp
+
+
+@configclass
+class G1RoughPhysicsCfg(G1PhysicsCfg):
+    """Rigid rough-contact physics preset."""
