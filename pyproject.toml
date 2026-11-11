@@ -433,8 +433,8 @@ package = false
 egl-probe = { CMAKE_POLICY_VERSION_MINIMUM = "3.5" }
 
 [tool.uv.sources]
-# Restore the pre-SAC SuperMimic dependency pair; compositional-rsl-rl pins RSL-RL 7ba0bf0.
-compositional-rsl-rl = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git", rev = "31f080317f519d84327dde401daa66ef2244d53a" }
+# VAE/TCN composition and unary regularization; retain the existing RSL-RL dependency.
+compositional-rsl-rl = { git = "https://github.com/jnskkmhr/compositional_rsl_rl.git", rev = "e904c62d448001fba0fce84dcf00b83cbc21d855" }
 # Official Warp nightly includes the multi-environment cell lookup fix.
 warp-lang = { index = "nvidia" }
 # Preserve existing contact/particle fixes and synchronize mesh-contact progress.
