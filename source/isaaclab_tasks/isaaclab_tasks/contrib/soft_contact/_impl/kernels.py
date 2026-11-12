@@ -832,29 +832,19 @@ def _transform_force_rtz_to_xyz(
 
 
 @wp.kernel(enable_backward=False)
-def prepare_terrain_rays(
+def sample_terrain_surface_heights(
+    mesh: wp.uint64,
     points: wp.array(dtype=wp.vec3f),
     ray_height: float,
-    origins: wp.array(dtype=wp.vec3f),
-):
-    i = wp.tid()
-    origins[i] = points[i] + wp.vec3f(0.0, 0.0, ray_height)
-
-
-@wp.kernel(enable_backward=False)
-def resolve_terrain_heights(
-    origins: wp.array(dtype=wp.vec3f),
-    distances: wp.array(dtype=float),
-    shape_ids: wp.array(dtype=int),
-    terrain_shapes: wp.array(dtype=wp.bool),
     heights: wp.array(dtype=float),
 ):
+    """Query the material surface, independently of its buried rigid support collider."""
     i = wp.tid()
+    origin = points[i] + wp.vec3f(0.0, 0.0, ray_height)
+    query = wp.mesh_query_ray(mesh, origin, wp.vec3f(0.0, 0.0, -1.0), 2.0 * ray_height)
     height = -wp.inf
-    shape = shape_ids[i]
-    if shape >= 0:
-        if terrain_shapes[shape] and distances[i] >= 0.0:
-            height = origins[i][2] - distances[i]
+    if query.result:
+        height = origin[2] - query.t
     heights[i] = height
 
 

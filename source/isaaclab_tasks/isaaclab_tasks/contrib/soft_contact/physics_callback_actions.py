@@ -114,8 +114,7 @@ class PhysicsCallbackAction(ActionTerm):
                         "RFT terrain must set disable_collider=True to avoid duplicate rigid contact forces."
                     )
                 terrain_kwargs = {
-                    "terrain_model": env.sim.physics_manager.get_model(),
-                    "terrain_prim_path": terrain.cfg.prim_path,
+                    "terrain_mesh": terrain.background_mesh.mesh,
                     "terrain_ray_height": cfg.terrain_ray_height,
                 }
             self.contact_solver = RFT_3D_WARP(

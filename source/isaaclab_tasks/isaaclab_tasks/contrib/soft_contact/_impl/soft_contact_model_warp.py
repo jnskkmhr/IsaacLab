@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import math
-from typing import TYPE_CHECKING
 
 import torch
 import warp as wp
@@ -51,19 +50,15 @@ from .kernels import (
     compute_twist_angle,
     compute_v_direction_w,
     expand_vec3_to_3d_vec3,
-    prepare_terrain_rays,
     reset,
     reset_2d,
     reset_cone,
-    resolve_terrain_heights,
+    sample_terrain_surface_heights,
     transform_global_wrench_to_body,
     update_array_with_index,
     update_prev_velocity,
     zero_wrench,
 )
-
-if TYPE_CHECKING:
-    import newton
 
 
 def _resolve_env_ids(env_ids: torch.Tensor | slice | None, num_envs: int, device: torch.device | str) -> torch.Tensor:
@@ -88,8 +83,7 @@ class RFT_3D:
         history_logging_decimation: int = 1,
         contact_threshold: float = 40.0,
         enable_ema_filter: bool = True,
-        terrain_model: "newton.Model | None" = None,
-        terrain_prim_path: str = "/World/ground",
+        terrain_mesh: wp.Mesh | None = None,
         terrain_ray_height: float = 20.0,
     ) -> None:
         """
@@ -104,6 +98,8 @@ class RFT_3D:
             history_length: length of history for force tracking
             material_cfg: material configuration
             collider_cfg: collider geometry configuration
+            terrain_mesh: world-space material surface mesh; None retains world z=0
+            terrain_ray_height: ray start height above each contact point [m]
         """
 
         self.cfg = material_cfg
@@ -125,24 +121,12 @@ class RFT_3D:
 
         self._data: SoftContactData = SoftContactData()
 
-        self.terrain_model = terrain_model
+        self.terrain_mesh = terrain_mesh
         self.terrain_ray_height = terrain_ray_height
         self.create_buffers()
         self.terrain_height = wp.zeros((num_envs, num_bodies * self.num_contact_points), dtype=wp.float32, device=device)
-        if terrain_model is not None:
-            if terrain_ray_height <= 0.0:
-                raise ValueError("terrain_ray_height must be positive.")
-            prefix = terrain_prim_path.rstrip("/") + "/"
-            terrain_shapes = [label.startswith(prefix) for label in terrain_model.shape_label]
-            if not any(terrain_shapes):
-                raise ValueError(f"No Newton terrain shapes found under {terrain_prim_path!r}.")
-            self._terrain_shapes = wp.array(terrain_shapes, dtype=wp.bool, device=device)
-            ray_count = num_envs * num_bodies * self.num_contact_points
-            self._ray_origins = wp.empty(ray_count, dtype=wp.vec3f, device=device)
-            self._ray_directions = wp.full(ray_count, wp.vec3f(0.0, 0.0, -1.0), dtype=wp.vec3f, device=device)
-            self._ray_worlds = wp.full(ray_count, -1, dtype=wp.int32, device=device)
-            self._ray_distances = wp.empty(ray_count, dtype=wp.float32, device=device)
-            self._ray_shape_ids = wp.empty(ray_count, dtype=wp.int32, device=device)
+        if terrain_mesh is not None and terrain_ray_height <= 0.0:
+            raise ValueError("terrain_ray_height must be positive.")
         self.initialize_data()
 
         print("-" * 40)
@@ -608,36 +592,12 @@ class RFT_3D:
             device=self.device,
         )
 
-        if self.terrain_model is not None:
-            import newton
-
-            ray_count = self._ray_origins.shape[0]
+        if self.terrain_mesh is not None:
             wp.launch(
-                prepare_terrain_rays,
-                dim=ray_count,
-                inputs=[self.contact_point_pos.flatten(), self.terrain_ray_height, self._ray_origins],
-                device=self.device,
-            )
-            # Generated terrain is static in Newton's global world; robot shapes are excluded.
-            newton.intersect_ray(
-                self.terrain_model,
-                ray_origins=self._ray_origins,
-                ray_directions=self._ray_directions,
-                ray_worlds=self._ray_worlds,
-                enable_global_world=False,
-                out_dist=self._ray_distances,
-                out_shape_id=self._ray_shape_ids,
-            )
-            wp.launch(
-                resolve_terrain_heights,
-                dim=ray_count,
-                inputs=[
-                    self._ray_origins,
-                    self._ray_distances,
-                    self._ray_shape_ids,
-                    self._terrain_shapes,
-                    self.terrain_height.flatten(),
-                ],
+                sample_terrain_surface_heights,
+                dim=self.num_envs * self.num_bodies * self.num_contact_points,
+                inputs=[self.terrain_mesh.id, self.contact_point_pos.flatten(), self.terrain_ray_height],
+                outputs=[self.terrain_height.flatten()],
                 device=self.device,
             )
 
