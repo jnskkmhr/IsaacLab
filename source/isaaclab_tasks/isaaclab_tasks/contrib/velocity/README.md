@@ -16,4 +16,8 @@ Shared analytical RFT code lives in `contrib/soft_contact`. Terrain reset/query 
 
 No checkpoints, training logs, benchmark outputs or credentials are included.
 
-Validation: the PhysX recipe audit matches 825 reference settings; G1 rigid, soft-contact, PhysX and perception configuration/agent imports pass. The retained `g1_29dof_tree` variant has a pre-existing configuration error: its disabled contact sensor conflicts with the rigid parent config. It is not one of the benchmark training tasks.
+The unused perception, rigid Agile, native Agile, and tree task packages have been removed,
+along with the empty `g1_29dof_soft` rename remnant and their task-specific tests.
+
+The new [Newton rough PPO baselines](config/g1_29dof_rigid_newton/README.md) preserve
+`binkrmei` training settings and correct height measurements for rough terrain.
