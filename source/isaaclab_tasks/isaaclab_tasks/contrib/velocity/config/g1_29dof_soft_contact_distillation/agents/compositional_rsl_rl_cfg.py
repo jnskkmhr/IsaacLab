@@ -65,8 +65,13 @@ class StudentNetworksCfg(NetworkCfg):
         input=["policy", "student_encoder"],
         hidden_dims=[512, 256, 128],
         distribution_cfg=ActorHeadCfg.GaussianDistributionCfg(init_std=0.1),
+        pretrained_cfg={"path": "", "state_dict_key": "network_state_dict", "prefix": "terms.actor."},
     )
-    critic = CriticHeadCfg(input=["critic", "dynamics_privileged", "terrain_privileged"], hidden_dims=[512, 256, 128])
+    critic = CriticHeadCfg(
+        input=["critic", "dynamics_privileged", "terrain_privileged"],
+        hidden_dims=[512, 256, 128],
+        pretrained_cfg={"path": "", "state_dict_key": "network_state_dict", "prefix": "terms.critic."},
+    )
     teacher_encoder = VAEEncoderNetworkCfg(
         input=["teacher_history", "dynamics_privileged", "terrain_privileged"],
         output_dim=128,
@@ -83,12 +88,33 @@ class StudentNetworksCfg(NetworkCfg):
         pretrained_cfg={"path": "", "state_dict_key": "network_state_dict", "prefix": "terms.actor."},
     )
 
+    # Two frozen copies of the same teacher decoder evaluate the two latent inputs.
+    # Frozen weights still pass gradients back to the student encoder.
+    student_decoder = MLPNetworkCfg(
+        input=["student_encoder"],
+        output_dim=1,
+        hidden_dims=[128, 256],
+        frozen=True,
+        pretrained_cfg={"path": "", "state_dict_key": "network_state_dict", "prefix": "terms.decoder."},
+    )
+    teacher_decoder = MLPNetworkCfg(
+        input=["teacher_latent"],
+        output_dim=1,
+        hidden_dims=[128, 256],
+        frozen=True,
+        pretrained_cfg={"path": "", "state_dict_key": "network_state_dict", "prefix": "terms.decoder."},
+    )
+
 
 @configclass
 class StudentLossesCfg(LossesCfg):
     action_imitation = DistillationLossCfg(target="teacher_policy", trains=["actor", "student_encoder"], weight=1.0)
     feature_matching = DistillationLossCfg(
         prediction="student_encoder", target="teacher_latent", trains=["student_encoder"], weight=1.0
+    )
+
+    decoder_matching = DistillationLossCfg(
+        prediction="student_decoder", target="teacher_decoder", trains=["student_encoder"], weight=1.0
     )
 
 

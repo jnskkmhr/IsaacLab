@@ -37,9 +37,14 @@ observation has the reference uniform observation noise.
 | Teacher KL to unit Gaussian, averaged over latent dimensions | 0.01 | VAE encoder |
 | Student action-mean MSE | 1 → 0.1 over 270,000 environment steps (11,250 iterations) | Student actor and TCN |
 | Student latent MSE against teacher mean | 1 | TCN |
+| Student decoded-feature MSE through frozen teacher decoder | 1 | TCN |
 | Student PPO | 0 → 0.9 over the same interval | Student actor, TCN, critic |
 
-The teacher encoder and actor are frozen during student training. The student
+The student actor (including its learned action standard deviation) and critic start
+from the teacher checkpoint. They remain trainable; only the TCN starts from scratch.
+The teacher encoder, teacher actor, and both copies of the teacher decoder remain frozen.
+Decoder matching compares `D(student_latent)` with `D(teacher_mean)`, rather than the
+true terrain label. Gradients pass through the frozen decoder into the TCN. The student
 checkpoint contains their weights, so resuming and deployment need no separate
 teacher file. The exported student only consumes `policy` and `student_history`;
 privileged observations are used only for training.
@@ -71,13 +76,17 @@ uv run --extra isaacsim --extra rsl-rl --with wandb isaaclab train \
 Train the student from a **teacher checkpoint created by this task**:
 
 ```bash
-teacher_checkpoint=/absolute/path/to/teacher/model_24000.pt
+teacher_checkpoint=/absolute/path/to/teacher/model_27999.pt
 uv run --extra isaacsim --extra rsl-rl --with wandb isaaclab train \
   --rl_library rsl_rl \
   --task IsaacContrib-Velocity-Flat-G1-29dof-SoftContact-Student \
   --num_envs 4096 --logger wandb --viz kit --video \
   "agent.networks.teacher_encoder.pretrained_cfg.path=$teacher_checkpoint" \
-  "agent.networks.teacher_policy.pretrained_cfg.path=$teacher_checkpoint"
+  "agent.networks.teacher_policy.pretrained_cfg.path=$teacher_checkpoint" \
+  "agent.networks.actor.pretrained_cfg.path=$teacher_checkpoint" \
+  "agent.networks.critic.pretrained_cfg.path=$teacher_checkpoint" \
+  "agent.networks.student_decoder.pretrained_cfg.path=$teacher_checkpoint" \
+  "agent.networks.teacher_decoder.pretrained_cfg.path=$teacher_checkpoint"
 ```
 
 For Newton, append `-Newton` to the task and use `--viz newton_gl`. The Newton
@@ -94,10 +103,14 @@ uv run --extra isaacsim --extra rsl-rl --with wandb isaaclab play \
   --num_envs 1 --viz kit \
   agent.networks.teacher_encoder.pretrained_cfg=null \
   agent.networks.teacher_policy.pretrained_cfg=null \
+  agent.networks.actor.pretrained_cfg=null \
+  agent.networks.critic.pretrained_cfg=null \
+  agent.networks.student_decoder.pretrained_cfg=null \
+  agent.networks.teacher_decoder.pretrained_cfg=null \
   'env.video_recorders=[]'
 ```
 
-For training resume, use the same two `null` overrides together with the normal
+For training resume, use the same six `null` overrides together with the normal
 RSL-RL resume/checkpoint options. Do not use the null overrides to start a new
 student: that would initialize a random teacher.
 
@@ -105,10 +118,12 @@ student: that would initialize a random teacher.
 
 - This uses the current compositional checkpoint format, not the old combined
   `MLPVAEModel` checkpoint. Old teacher checkpoints need a conversion before use.
-- PPO and auxiliary losses train the encoder jointly. The old fork cached encoder
-  outputs in the rollout and reused those outputs during PPO updates.
-- Student training includes the requested action and feature losses; it does not
-  add the old student's optional decoder reconstruction loss.
+- The teacher VAE implementation recomputes encoder outputs during PPO updates;
+  the old VAE fork reused cached rollout encoder outputs. The legacy TCN student,
+  however, recomputed its encoder during updates, as the current student does.
+- Student training restores the legacy actor/distribution and critic initialization,
+  plus action, feature, and frozen-decoder matching losses. Library internals and
+  physics versions differ; this is not a claim of identical numerical trajectories.
 - The physics library versions and Lab 3.0 APIs differ. Newton uses the same
   analytical RFT action term but MJWarp for rigid-body dynamics; numerical equality
   between PhysX and Newton is not claimed.
