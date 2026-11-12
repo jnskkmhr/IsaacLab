@@ -68,7 +68,15 @@ workflow:
           fi
           uv --version
           git --version
-          cp -a "{{input:0}}" /tmp/isaaclab
+          if [ -f "{{input:0}}/source.tar.gz" ]; then
+            mkdir -p /tmp/isaaclab
+            tar -xzf "{{input:0}}/source.tar.gz" -C /tmp/isaaclab
+          elif [ -f "{{input:0}}" ]; then
+            mkdir -p /tmp/isaaclab
+            tar -xzf "{{input:0}}" -C /tmp/isaaclab
+          else
+            cp -a "{{input:0}}" /tmp/isaaclab
+          fi
           cp -a "{{input:1}}" /tmp/isaaclab/source/isaaclab_assets/data
           cd /tmp/isaaclab
           ln -s "{{output}}/logs" logs

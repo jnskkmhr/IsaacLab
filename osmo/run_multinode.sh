@@ -109,12 +109,12 @@ has_set_string=false
 for arg in "$@"; do
     submit_args+=("$arg")
     if [[ "$arg" == --set-string ]]; then
-        submit_args+=("assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_input")
+        submit_args+=("assets_url=$asset_url/data/" "source_url=$snapshot_url/source.tar.gz" "warp_wheel_url=$warp_wheel_input")
         has_set_string=true
     fi
 done
 if ! "$has_set_string"; then
-    submit_args+=(--set-string "assets_url=$asset_url/data/" "source_url=$snapshot_url/source/" "warp_wheel_url=$warp_wheel_input")
+    submit_args+=(--set-string "assets_url=$asset_url/data/" "source_url=$snapshot_url/source.tar.gz" "warp_wheel_url=$warp_wheel_input")
 fi
 if "$dry_run"; then
     osmo workflow submit "$workflow" "${submit_args[@]}"
@@ -145,6 +145,8 @@ upload_cached "$snapshot/assets/data" "$asset_url"
 if [[ -n "$warp_wheel_url" ]]; then
     upload_cached "$snapshot/wheels" "$warp_wheel_url"
 fi
-echo "Uploading code snapshot ($(du -sh --apparent-size "$snapshot/source" | cut -f1)) to $snapshot_url..."
-osmo data upload "$snapshot_url/" "$snapshot/source"
+# A single archive avoids partial directory downloads of thousands of small source files.
+tar -czf "$snapshot/source.tar.gz" -C "$snapshot/source" .
+echo "Uploading source archive ($(du -h "$snapshot/source.tar.gz" | cut -f1)) to $snapshot_url..."
+osmo data upload "$snapshot_url/" "$snapshot/source.tar.gz"
 osmo workflow submit "$workflow" "${submit_args[@]}" --format-type json
