@@ -1,0 +1,11 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""RL agent configurations for the `snow_ball` slope rolling task."""
+
+from .compositional_rsl_rl_cfg import SnowBallParticleWorldCompositionalPPORunnerCfg
+from .rsl_rl_ppo_cfg import SnowBallParticleWorldPPORunnerCfg
+
+__all__ = ["SnowBallParticleWorldCompositionalPPORunnerCfg", "SnowBallParticleWorldPPORunnerCfg"]
