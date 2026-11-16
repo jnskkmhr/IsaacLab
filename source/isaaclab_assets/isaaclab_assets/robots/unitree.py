@@ -1065,3 +1065,33 @@ UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.actuators["waist"].damping = 
     "waist_roll_joint": 4.0 * DAMPING_5020,
     "waist_pitch_joint": 4.0 * DAMPING_5020,
 }
+
+UNITREE_G1_29DOF_WITH_HAND_CFG = UNITREE_G1_29DOF_CFG.copy()
+UNITREE_G1_29DOF_WITH_HAND_CFG.spawn = spawn_robot_usd.replace(
+    usd_path=(f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_with_hand_rev_1_0/g1_29dof_with_hand_rev_1_0.usda"),
+)
+UNITREE_G1_29DOF_WITH_HAND_CFG.init_state.joint_pos |= {
+    ".*_hand_thumb_0_joint": 0.0,
+    "left_hand_thumb_1_joint": 0.4,
+    "right_hand_thumb_1_joint": -0.4,
+    "left_hand_thumb_2_joint": 0.8,
+    "right_hand_thumb_2_joint": -0.8,
+    "left_hand_(index|middle)_[01]_joint": -1.3,
+    "right_hand_(index|middle)_[01]_joint": 1.3,
+}
+UNITREE_G1_29DOF_WITH_HAND_CFG.actuators["hands"] = ImplicitActuatorCfg(
+    joint_names_expr=[".*_hand_.*_joint"],
+    effort_limit_sim={
+        ".*_hand_thumb_0_joint": 2.45,
+        ".*_hand_thumb_[12]_joint": 1.4,
+        ".*_hand_(index|middle)_[01]_joint": 1.4,
+    },
+    stiffness=5.0,
+    damping=0.1,
+)
+"""G1 with 29 body joints and 14 articulated finger joints, initialized in a closed posture.
+
+Finger effort limits come from the upstream MJCF. Finger PD gains are simulation
+holding gains, not measured deployment gains. Tasks that omit finger actions must
+set and hold the configured finger targets, for example with a reset event.
+"""
