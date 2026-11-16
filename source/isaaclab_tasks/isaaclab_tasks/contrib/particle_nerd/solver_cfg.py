@@ -39,6 +39,12 @@ class ParticleNeRDSolverCfg(NewtonSolverCfg):
     checkpoint: str = ""
     """Path to a particle_transolver_v1 checkpoint with g1_particle_nerd_v1 schema."""
     collider_body_patterns: list[str] = [r".*/left_ankle_roll_link", r".*/right_ankle_roll_link"]
+    canonical_bed_size: tuple[float, float] = (3.0, 3.0)
+    """Virtual feature-domain width and length [m]; must contain the translated moving patch."""
+
+    primitive_colliders: bool = False
+    """Allow arbitrary counts of box/sphere/cylinder colliders using the generic inference path."""
+
     active_k: int | str | None = "auto"
     selection_interval: int = 1
     """Physics steps between Top-K refreshes; intermediate steps reuse the selected IDs and blend weights."""

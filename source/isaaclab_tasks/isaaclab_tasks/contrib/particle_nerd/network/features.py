@@ -5,7 +5,9 @@
 
 """Warp particle/collider features, including gradients for rollout training.
 
-Collider kinds: 0 = plane (local z=0), 1 = box, 2 = sphere. Poses are
+Collider kinds: 0 = plane (local z=0), 1 = box, 2 = sphere, 3 = SDF grid,
+4 = capped cylinder along local z. Box sizes are half extents; cylinder sizes
+are (radius, radius, half height). Poses are
 world xyz + xyzw quaternion. Velocities are world linear then angular,
 with linear velocity measured at the collider pose origin.
 """
@@ -43,6 +45,28 @@ def material_features(manifest, particle_mass, particle_radius, dt=0.02):
 
 # Existing simulation modules disable backward globally; rollout training needs it here.
 wp.set_module_options({"enable_backward": True})
+
+
+@wp.func
+def cylinder_surface(local: wp.vec3, radius: float, half_height: float):
+    """Signed distance and outward normal of a capped cylinder along local z."""
+    radial = wp.sqrt(local[0] * local[0] + local[1] * local[1])
+    q = wp.vec2(radial - radius, wp.abs(local[2]) - half_height)
+    outside = wp.vec2(wp.max(q[0], 0.0), wp.max(q[1], 0.0))
+    length = wp.length(outside)
+    distance = length + wp.min(wp.max(q[0], q[1]), 0.0)
+    direction = wp.vec2(1.0, 0.0)
+    if radial > 1.0e-8:
+        direction = wp.vec2(local[0], local[1]) / radial
+    weights = wp.vec2(1.0, 0.0)
+    if length > 1.0e-8:
+        weights = outside / length
+    elif q[1] > q[0]:
+        weights = wp.vec2(0.0, 1.0)
+    sign = float(1.0)
+    if local[2] < 0.0:
+        sign = -1.0
+    return distance, wp.vec3(direction[0] * weights[0], direction[1] * weights[0], sign * weights[1])
 
 
 @wp.kernel
@@ -120,6 +144,8 @@ def collider_features(
             normal = local / length
     elif kinds[j] == 3:
         distance, normal = sdf_surface(local, sdf, sdf_origin, sdf_spacing)
+    elif kinds[j] == 4:
+        distance, normal = cylinder_surface(local, sizes[j, 0], sizes[j, 2])
     normal = wp.quat_rotate(rotation, normal)
     surface = x - distance * normal
     linear = wp.vec3(velocities[j, 0], velocities[j, 1], velocities[j, 2])
@@ -217,6 +243,8 @@ def collider_features_batched(
             normal = local / length
     elif kinds[j] == 3:
         distance, normal = sdf_surface(local, sdf, sdf_origin, sdf_spacing)
+    elif kinds[j] == 4:
+        distance, normal = cylinder_surface(local, sizes[env, j, 0], sizes[env, j, 2])
     normal = wp.quat_rotate(rotation, normal)
     surface = x - distance * normal
     linear = wp.vec3(velocities[env, j, 0], velocities[env, j, 1], velocities[env, j, 2])

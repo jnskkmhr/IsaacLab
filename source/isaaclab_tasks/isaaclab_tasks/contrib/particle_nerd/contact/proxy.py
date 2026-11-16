@@ -86,7 +86,10 @@ def _prepare_proxy(
     surface_pose[0] = poses[body] * shape_transform[shape]
     center[0] = wp.vec3d(wp.transform_point(poses[body], body_com[body]))
     rotation = wp.quat_to_matrix(wp.normalize(wp.quatd(wp.transform_get_rotation(poses[body]))))
-    inverse[0] = wp.inverse(rotation * wp.mat33d(body_inertia[body]) * wp.transpose(rotation))
+    inertia = wp.mat33d(body_inertia[body])
+    inverse[0] = wp.mat33d(0.0)
+    if wp.trace(inertia) > wp.float64(1.0e-12):
+        inverse[0] = wp.inverse(rotation * inertia * wp.transpose(rotation))
     free[0] = wp.vec3d(wp.spatial_top(velocities[body]))
     free[1] = wp.vec3d(wp.spatial_bottom(velocities[body]))
 
@@ -100,6 +103,7 @@ def _fit_gradients_culled(
     output: wp.array(dtype=wp.mat33d),
     poses: wp.array(dtype=wp.transform),
     sizes: wp.array(dtype=wp.vec3),
+    shapes: wp.array(dtype=int),
     center: wp.array(dtype=wp.vec3d),
     free: wp.array(dtype=wp.vec3d),
     margin: float,
@@ -107,7 +111,7 @@ def _fit_gradients_culled(
     contact_band: float,
 ):
     i = wp.tid()
-    raw_dist, normal, point = kernels.geometry(wp.vec3d(x[i]), poses[0], sizes[0], 0)
+    raw_dist, normal, point = kernels.geometry(wp.vec3d(x[i]), poses[0], sizes[0], shapes[0])
     if contact_band > 0.0 and raw_dist > wp.float64(contact_band):
         output[i] = wp.mat33d(0.0)
         return
@@ -145,6 +149,7 @@ def _prepare_contacts(
     gradients: wp.array(dtype=wp.mat33d),
     surface_pose: wp.array(dtype=wp.transform),
     sizes: wp.array(dtype=wp.vec3),
+    shapes: wp.array(dtype=int),
     center: wp.array(dtype=wp.vec3d),
     free: wp.array(dtype=wp.vec3d),
     inverse: wp.array(dtype=wp.mat33d),
@@ -167,7 +172,7 @@ def _prepare_contacts(
     gap_speed: wp.array(dtype=wp.float64),
 ):
     i = wp.tid()
-    distance, normal, point = kernels.geometry(wp.vec3d(x[i]), surface_pose[0], sizes[0], 0)
+    distance, normal, point = kernels.geometry(wp.vec3d(x[i]), surface_pose[0], sizes[0], shapes[0])
     distance -= wp.float64(margin)
     velocity = wp.vec3d(v[i]) + wp.transpose(gradients[i]) * (point - wp.vec3d(x[i]))
     arm = point - center[0]
@@ -375,6 +380,8 @@ class ProxyEstimator:
         normal_power=None,
         particles_per_env=None,
         batch_contacts=True,
+        primitive_colliders=False,
+        colliders_per_world=2,
     ):
         if iterations < 1 or effective_mass_scale <= 0 or gradient_radius <= 0 or gradient_contact_band <= 0:
             raise ValueError("Iterations, effective mass and gradient distances must be positive")
@@ -384,6 +391,12 @@ class ProxyEstimator:
             raise ValueError("Contact relaxation must be finite and in (0, 1]")
         if contact_solver not in ("jacobi", "body_velocity", "rft_body_velocity"):
             raise ValueError("contact_solver must be jacobi, body_velocity, or rft_body_velocity")
+        if primitive_colliders and batch_contacts:
+            raise ValueError("General primitive contacts currently require batch_contacts=False")
+        if colliders_per_world < 1:
+            raise ValueError("colliders_per_world must be positive")
+        self.primitive_colliders = primitive_colliders
+        self.colliders_per_world = colliders_per_world
         self.batch_contacts = bool(batch_contacts)
         self._batch_signature = None
         self.contact_solver = contact_solver
@@ -472,16 +485,27 @@ class ProxyEstimator:
             body_to_shapes: dict[int, list[int]] = {}
             for s_idx in np.flatnonzero(colliding_mask):
                 body_to_shapes.setdefault(int(shape_body[s_idx]), []).append(int(s_idx))
+            geo_codes = {int(newton.GeoType.BOX): 0}
+            if primitive_colliders:
+                geo_codes.update({int(newton.GeoType.SPHERE): 1, int(newton.GeoType.CYLINDER): 2})
             foot_shapes = []
             for idx, body in enumerate(self.body_ids):
                 selected = body_to_shapes.get(int(body), [])
-                if len(selected) != 1 or types[selected[0]] != int(newton.GeoType.BOX):
-                    raise ValueError(f"Foot body {body}: expected one collision box; got shapes {selected}")
+                if len(selected) != 1 or int(types[selected[0]]) not in geo_codes:
+                    raise ValueError(f"Foot body {body}: expected one supported collision shape; got shapes {selected}")
                 foot_shapes.append(selected[0])
-            self._all_sizes = wp.array(scales[foot_shapes] * 2, dtype=wp.vec3)
+            full_sizes = scales[foot_shapes].copy() * 2
+            shape_codes = [geo_codes[int(types[i])] for i in foot_shapes]
+            for i, code in enumerate(shape_codes):
+                if code == 1:
+                    full_sizes[i] = full_sizes[i, 0]
+                elif code == 2:
+                    full_sizes[i] = (full_sizes[i, 0], full_sizes[i, 0], full_sizes[i, 1])
+            self._all_shapes.assign(np.asarray(shape_codes, dtype=np.int32))
+            self._all_sizes = wp.array(full_sizes, dtype=wp.vec3)
             self.feet = []
             for idx, (body, shape) in enumerate(zip(self.body_ids, foot_shapes, strict=True)):
-                if masses[body] <= 0:
+                if masses[body] <= 0 and not primitive_colliders:
                     raise ValueError(f"Foot body {body} has nonpositive virtual mass")
                 mu = float(shape_friction[shape] if friction is None else friction)
                 if mu < 0 or not np.isfinite(mu):
@@ -489,7 +513,7 @@ class ProxyEstimator:
                 foot = {
                     "body": body,
                     "shape": shape,
-                    "mass": float(masses[body]),
+                    "mass": float(masses[body]) if masses[body] > 0 else float("inf"),
                     "friction": mu,
                     "margin": float(margins[shape]) + self.contact_offset,
                 }
@@ -524,7 +548,9 @@ class ProxyEstimator:
         inertias = self.model.body_inertia.numpy()
         for foot, metadata in zip(self.feet, self.metadata["feet"], strict=True):
             mass = float(masses[foot["body"]])
-            if not np.isfinite(mass) or mass <= 0:
+            if self.primitive_colliders and mass == 0:
+                mass = float("inf")
+            if (not np.isfinite(mass) or mass <= 0) and not (self.primitive_colliders and mass == float("inf")):
                 raise ValueError(f"Foot body {foot['body']} has invalid virtual mass {mass}")
             foot["mass"] = mass
             metadata["virtual_mass_kg"] = mass
@@ -764,13 +790,13 @@ class ProxyEstimator:
             self.captured = False
             return self.wrench
         for index, f in enumerate(self.feet):
-            env_idx = index // 2
+            env_idx = index // self.colliders_per_world
             p_start = env_idx * self.particles_per_env
             p_end = p_start + self.particles_per_env
             if active_idx is not None:
                 idx_e = active_idx[env_idx]
                 k_eval = int(idx_e.shape[0])
-                if index % 2 == 0:
+                if index % self.colliders_per_world == 0:
                     wp_idx = wp.from_torch(idx_e.int())
                     wp.launch(
                         _gather_active_particles,
@@ -796,7 +822,7 @@ class ProxyEstimator:
                 x_env = q_src[p_start:p_end]
                 v_env = state_out.particle_qd[p_start:p_end]
                 m_env = self.model.particle_mass[p_start:p_end]
-                if index % 2 == 0:
+                if index % self.colliders_per_world == 0:
                     self.grid.build(x_env, self.gradient_radius)
 
             wp.launch(
@@ -830,6 +856,7 @@ class ProxyEstimator:
                     f["gradients"][:k_eval],
                     f["surface_pose"],
                     f["sizes"],
+                    f["shapes"],
                     f["center"],
                     f["free"],
                     f["margin"],
@@ -847,6 +874,7 @@ class ProxyEstimator:
                     f["gradients"][:k_eval],
                     f["surface_pose"],
                     f["sizes"],
+                    f["shapes"],
                     f["center"],
                     f["free"],
                     f["inverse"],

@@ -44,6 +44,13 @@ def geometry(point: wp.vec3d, pose: wp.transform, size: wp.vec3, shape: int):
         if local[2] < wp.float64(0.0):
             sign_z = wp.float64(-1.0)
         normal = wp.vec3d(direction[0] * weights[0], direction[1] * weights[0], sign_z * weights[1])
+    elif shape == 4:
+        z_cap = wp.clamp(local[2], -half[1], half[1])
+        diff = wp.vec3d(local[0], local[1], local[2] - z_cap)
+        length = wp.length(diff)
+        distance = length - half[0]
+        if length > eps:
+            normal = diff / length
     else:
         q = wp.vec3d(wp.abs(local[0]), wp.abs(local[1]), wp.abs(local[2])) - half
         positive = wp.vec3d(wp.max(q[0], wp.float64(0.0)), wp.max(q[1], wp.float64(0.0)), wp.max(q[2], wp.float64(0.0)))

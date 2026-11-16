@@ -133,10 +133,12 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
                 if len(found) != 1:
                     raise ValueError(f"Expected one collider matching {pattern!r} in world {world}; found {found}")
                 selected += found
-            if len(selected) != 2:
+            if not cfg.primitive_colliders and len(selected) != 2:
                 raise ValueError("This checkpoint schema requires exactly two box collider bodies per world")
             ids += selected
-        self.collider_ids = torch.tensor(ids, device=str(model.device), dtype=torch.long).view(-1, 2)
+        self.collider_ids = torch.tensor(ids, device=str(model.device), dtype=torch.long).view(
+            -1, len(compiled_patterns)
+        )
         self.collider_ids_wp = wp.array(ids, dtype=int, device=model.device)
         self.estimator = ProxyEstimator(
             model,
@@ -155,17 +157,23 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
             contact_solver="rft_body_velocity",
             particles_per_env=self.capacity,
             batch_contacts=cfg.batch_contacts,
+            primitive_colliders=cfg.primitive_colliders,
+            colliders_per_world=len(compiled_patterns),
         )
         self.geometry = []
         sb = model.shape_body.numpy()
         st = model.shape_type.numpy()
-        shapes = [int(np.flatnonzero((sb == body) & (st == int(newton.GeoType.BOX))).item()) for body in ids]
+        colliding = (model.shape_flags.numpy() & int(newton.ShapeFlags.COLLIDE_PARTICLES)) != 0
+        shapes = [int(np.flatnonzero((sb == body) & colliding).item()) for body in ids]
+        count = len(compiled_patterns)
+        kind_map = {int(newton.GeoType.BOX): 1, int(newton.GeoType.SPHERE): 2, int(newton.GeoType.CYLINDER): 4}
 
         def tensor(a):
             return torch.as_tensor(a, device=str(model.device), dtype=torch.float32)
 
+        half_x, half_y = (size / 2 for size in cfg.canonical_bed_size)
         boundary_pose, boundary_size, boundary_mu = boundary_boxes(
-            (-1.5, -1.5, -cfg.bed_depth), (1.5, 1.5, 0), str(model.device)
+            (-half_x, -half_y, -cfg.bed_depth), (half_x, half_y, 0), str(model.device)
         )
         self.boundary_pose = boundary_pose
         self.depth = cfg.bed_depth
@@ -193,17 +201,25 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
         shape_transform_np = model.shape_transform.numpy()
         shape_mu_np = model.shape_material_mu.numpy()
         body_com_t = wp.to_torch(model.body_com)
-        kinds_t = torch.ones(7, device=str(model.device), dtype=torch.int32)
-        foot_slots_t = torch.tensor([0, 1], device=str(model.device))
+        foot_slots_t = torch.arange(count, device=str(model.device))
         for world in range(len(self.particle_world_ids)):
-            shape_ids = shapes[2 * world : 2 * world + 2]
+            shape_ids = shapes[count * world : count * (world + 1)]
+            kinds_t = torch.tensor(
+                [kind_map[int(st[i])] for i in shape_ids] + [1] * 5, dtype=torch.int32, device=str(model.device)
+            )
+            shape_sizes = shape_scale_np[shape_ids].copy()
+            for j, shape in enumerate(shape_ids):
+                if st[shape] == int(newton.GeoType.SPHERE):
+                    shape_sizes[j] = shape_sizes[j, 0]
+                elif st[shape] == int(newton.GeoType.CYLINDER):
+                    shape_sizes[j] = (shape_sizes[j, 0], shape_sizes[j, 0], shape_sizes[j, 1])
             material = {key: float(arr[world]) for key, arr in mpm_world_arrays.items()}
             particle_mass, particle_radius = float(mass[world]), float(radius[world])
             material["density"] = particle_mass / (8 * particle_radius**3)
             self.materials.append(
                 tensor(material_features({"material": material}, particle_mass, particle_radius, self.dt))
             )
-            sizes = torch.cat((tensor(shape_scale_np[shape_ids]), boundary_size))
+            sizes = torch.cat((tensor(shape_sizes), boundary_size))
             local = tensor(shape_transform_np[shape_ids])
             self.geometry.append(
                 dict(
@@ -214,12 +230,13 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
                     kinds=kinds_t,
                     friction=torch.cat((tensor(shape_mu_np[shape_ids]), boundary_mu)),
                     foot_slots=foot_slots_t,
-                    floor_slot=2,
+                    floor_slot=count,
                     p_radius=0.02 * float(self.materials[-1][11]),
                     mu_mat=material["friction"],
                     sliding_window=True,
                     canonical_poses=torch.cat((local, boundary_pose)),
                     canonical_sizes=sizes,
+                    **({"collider_kinds": kinds_t[:count]} if cfg.primitive_colliders else {}),
                 )
             )
         self.fixed_bed = None
@@ -280,7 +297,7 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
 
     def _prepare_batched_solver(self) -> bool:
         """Prepare pre-allocated multi-world buffers when all sand worlds share uniform active_k."""
-        if not self.cfg.batch_inference or self.fixed_bed is not None or not self.slots:
+        if self.cfg.primitive_colliders or not self.cfg.batch_inference or self.fixed_bed is not None or not self.slots:
             return False
         slot_lengths = {len(s) for s in self.slots}
         if len(slot_lengths) != 1 or next(iter(slot_lengths)) == 0:
@@ -475,11 +492,14 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
             gap_k,
             z_surf,
             foot_engage,
+            poses,
+            velocities,
             poses[0],
             geom0["sizes"],
             floor_slot,
             k_act,
             p_radius,
+            mu_mat,
             float(dt),
         )
         predicted_sub = hist_sub[:, :, -1] + dx_sub

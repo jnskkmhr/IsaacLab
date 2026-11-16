@@ -25,7 +25,9 @@ from isaaclab_tasks.utils import resolve_task_config
 
 def test_recorded_demo_initial_particles_and_force_parameters():
     """Protect the archived zero-warm-up flat demo, not upstream task defaults."""
-    cfg, _ = resolve_task_config("IsaacContrib-Velocity-Sand-Flat-G1-29dof-ParticleNeRD-Play", "rsl_rl_cfg_entry_point")
+    cfg, _ = resolve_task_config(
+        "IsaacContrib-Velocity-Sand-Flat-G1-29dof-ParticleNeRD-Play", "rsl_rl_cfg_entry_point", overrides=[]
+    )
     cfg.validate()
     positions, velocities, masses, radii = _generate_grid_particles(cfg.scene.sand.spawn)
     # Independent reference: video/multi_terrain_5f1xyc21_zero_warmup_50fps/flat/metadata.json.

@@ -13,6 +13,7 @@ from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
 from .features import features, features_batched
+from .geometry import primitive_surface
 
 
 def rotate(q, v):
@@ -86,6 +87,7 @@ def unclamped_foot_box_kinematics(
     foot_sizes: torch.Tensor,
     p_radius: float,
     dt: float,
+    collider_kinds: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Exact unclamped signed distance, outward box normal, and approach speed to nearest foot box.
 
@@ -109,9 +111,14 @@ def unclamped_foot_box_kinematics(
     n_local = torch.where(
         out_len.unsqueeze(-1) > 1e-8, sign * outside / out_len.unsqueeze(-1).clamp_min(1e-8), sign * one_hot
     )
+    if collider_kinds is not None:
+        surface_distance, n_local = primitive_surface(local, sizes_exp, collider_kinds)
+        dist = surface_distance - p_radius
+    else:
+        surface_distance = out_len + inside
     n_world = F.normalize(rotate(q, n_local), dim=-1, eps=1e-8)  # [..., N, F, 3]
 
-    surface = x_cur.unsqueeze(-2) - (out_len + inside).unsqueeze(-1) * n_world
+    surface = x_cur.unsqueeze(-2) - surface_distance.unsqueeze(-1) * n_world
     v_lin = foot_velocities[..., None, :, :3]
     v_ang = foot_velocities[..., None, :, 3:6]
     v_surf = v_lin + torch.linalg.cross(v_ang, surface - center, dim=-1)
@@ -238,19 +245,34 @@ def _compiled_postprocess_sparse(
     z_surf: torch.Tensor,
     foot_engage: torch.Tensor,
     poses: torch.Tensor,
+    velocities: torch.Tensor,
     sizes: torch.Tensor,
+    foot_slots: torch.Tensor,
     floor_slot: int,
     k_act: int,
     p_radius: float,
+    mu_mat: float,
     dt: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Fused free-surface ballistics and tray-bounds projection on (K + M) particles."""
+    """Apply ballistics, foot-speed displacement scaling, and tray projection to (K + M) particles."""
     x_cur_k = history[topk, -1]
     x_prev_k = history[topk, -2]
     dx_k = gamma.unsqueeze(-1) * disp_sub[:k_act]
     dx_k = apply_free_surface_ballistics(x_cur_k, x_prev_k, dx_k, gap_k, z_surf, p_radius, dt)
+    dx_k, bg_scale = apply_foot_kinematic_gate_and_sole_bounds(
+        x_cur_k,
+        dx_k,
+        z_surf,
+        poses[foot_slots],
+        velocities[foot_slots],
+        sizes[foot_slots],
+        p_radius,
+        mu_mat,
+    )
     dx_k = project_tray_bounds(x_cur_k, dx_k, poses, sizes, floor_slot, p_radius)
-    dx_bg = project_tray_bounds(history[bg_idx, -1], foot_engage * disp_sub[k_act:], poses, sizes, floor_slot, p_radius)
+    dx_bg = project_tray_bounds(
+        history[bg_idx, -1], (foot_engage * bg_scale) * disp_sub[k_act:], poses, sizes, floor_slot, p_radius
+    )
     dx_sub = torch.cat((dx_k, dx_bg), dim=0)
     return dx_k, dx_bg, dx_sub
 
@@ -340,22 +362,40 @@ def _compiled_postprocess_sparse_batched(
     gap_k: torch.Tensor,
     z_surf: torch.Tensor,
     foot_engage: torch.Tensor,
+    poses: torch.Tensor,
+    velocities: torch.Tensor,
     poses_0: torch.Tensor,
     sizes: torch.Tensor,
     floor_slot: int,
     k_act: int,
     p_radius: float,
+    mu_mat: float,
     dt: float,
 ) -> torch.Tensor:
-    """Fused batched free-surface ballistics and tray-bounds projection on [E, K + M, 3]."""
+    """Apply ballistics, foot-speed displacement scaling, and tray projection to [E, K + M, 3] particles."""
     x_cur_k = history_sub[:, :k_act, -1]
     x_prev_k = history_sub[:, :k_act, -2]
     x_cur_bg = history_sub[:, k_act:, -1]
     dx_k = gamma.unsqueeze(-1) * disp_sub[:, :k_act].float()
     dx_k = apply_free_surface_ballistics(x_cur_k, x_prev_k, dx_k, gap_k, z_surf, p_radius, dt)
+    dx_k, bg_scale = apply_foot_kinematic_gate_and_sole_bounds(
+        x_cur_k,
+        dx_k,
+        z_surf,
+        poses[:, :2],
+        velocities[:, :2],
+        sizes[:2],
+        p_radius,
+        mu_mat,
+    )
     dx_k = project_tray_bounds(x_cur_k, dx_k, poses_0, sizes, floor_slot, p_radius)
     dx_bg = project_tray_bounds(
-        x_cur_bg, foot_engage.unsqueeze(-1) * disp_sub[:, k_act:].float(), poses_0, sizes, floor_slot, p_radius
+        x_cur_bg,
+        (foot_engage * bg_scale).unsqueeze(-1) * disp_sub[:, k_act:].float(),
+        poses_0,
+        sizes,
+        floor_slot,
+        p_radius,
     )
     return torch.cat((dx_k, dx_bg), dim=1)
 
@@ -485,6 +525,97 @@ def project_tray_bounds(
     return x_clamped - x_cur
 
 
+def apply_foot_kinematic_gate_and_sole_bounds(
+    x_cur: torch.Tensor,
+    dx: torch.Tensor,
+    z_surf: torch.Tensor | float,
+    foot_poses: torch.Tensor,
+    foot_velocities: torch.Tensor,
+    foot_sizes: torch.Tensor,
+    p_radius: float,
+    mu_mat: float,
+    collider_kinds: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Scale particle displacements using foot speed, foot proximity, and particle height.
+
+    This heuristic suppresses predicted motion near nearly stationary feet. Each foot's
+    speed combines translation and rotation, with a smooth multiplier from zero at
+    0.85 times ``v_thresh`` to one at 1.35 times ``v_thresh``. The threshold is
+    ``0.015 * (1 + 0.5 * mu_mat)`` in m/s; no material stress or yield condition is evaluated.
+
+    Particles above ``z_surf`` receive an additional motion allowance that reaches one
+    at one particle radius above it. Callers estimate this scalar height per environment
+    from the 98th percentile of sampled particle heights plus 1.5 particle radii, in the
+    input coordinate frame. It does not resolve local piles or holes. Particles within
+    a foot's expanded horizontal footprint and below its top face are additionally
+    capped by that foot's speed multiplier, even when the other foot is moving.
+
+    Object-scene callers may supply sphere/cylinder kinds; their exact surface
+    distances and circular local footprints replace the box geometry, using the
+    same speed, proximity, height and footprint-margin constants.
+
+    Returns the scaled displacements and a background multiplier determined only by
+    foot proximity and speed. Despite the function name, this helper does not project
+    particles out of foot geometry. It can suppress physical settling as well as prediction
+    drift. The compact inference paths use it; the full-particle path does not.
+    """
+    center = foot_poses[..., None, :, :3]
+    q = foot_poses[..., None, :, 3:7]
+    q_inv = torch.cat((-q[..., :3], q[..., 3:4]), dim=-1)
+    sizes_exp = foot_sizes.unsqueeze(0) if x_cur.ndim == 2 else foot_sizes.unsqueeze(0).unsqueeze(0)
+
+    local_cur = rotate(q_inv, x_cur.unsqueeze(-2) - center)
+    q_box = local_cur.abs() - sizes_exp
+    outside = q_box.clamp_min(0.0)
+    inside = q_box.amax(dim=-1).clamp_max(0.0)
+    dist = outside.norm(dim=-1) + inside - p_radius
+    if collider_kinds is not None:
+        dist = primitive_surface(local_cur, sizes_exp, collider_kinds)[0] - p_radius
+
+    # Proximity multiplier from the minimum foot-box distance minus particle radius:
+    # 1 at or below 10 cm, 0 at or above 14 cm, using the supplied active particles.
+    min_dist_per_foot = dist.amin(dim=-2)
+    engage_foot = ((0.14 - min_dist_per_foot) / 0.04).clamp(0.0, 1.0)
+
+    v_lin = foot_velocities[..., :3]
+    v_ang = foot_velocities[..., 3:6]
+    sx = foot_sizes[..., 0]
+    sy = foot_sizes[..., 1]
+    sz = foot_sizes[..., 2]
+    rot_sq = (
+        v_ang[..., 0] * v_ang[..., 0] * (sy * sy + sz * sz)
+        + v_ang[..., 1] * v_ang[..., 1] * (sx * sx + sz * sz)
+        + v_ang[..., 2] * v_ang[..., 2] * (sx * sx + sy * sy)
+    )
+    v_foot = torch.sqrt((v_lin * v_lin).sum(dim=-1) + rot_sq + 1.0e-12)
+    v_thresh = 0.015 * (1.0 + 0.5 * mu_mat)
+    s_kin = ((v_foot - 0.85 * v_thresh) / (0.50 * v_thresh)).clamp(0.0, 1.0)
+    eta_kin = s_kin * s_kin * (3.0 - 2.0 * s_kin)
+
+    # Use the largest product of foot proximity and speed multipliers for the particle set.
+    foot_mob = (engage_foot * eta_kin).amax(dim=-1, keepdim=True)
+    h_air = (x_cur[..., 2] - z_surf).clamp_min(0.0)
+    tau_air = (h_air / p_radius).clamp(0.0, 1.0)
+    mob_k = torch.maximum(foot_mob, tau_air)
+
+    # Cap motion within each foot's footprint (expanded by 2 cm) and below its top face.
+    # This includes particles inside the foot box and has no lower depth cutoff.
+    under_foot = (
+        (local_cur[..., 0].abs() <= sizes_exp[..., 0] + 0.02)
+        & (local_cur[..., 1].abs() <= sizes_exp[..., 1] + 0.02)
+        & (local_cur[..., 2] <= sizes_exp[..., 2])
+    )
+    if collider_kinds is not None:
+        circular_footprint = (local_cur[..., :2].norm(dim=-1) <= sizes_exp[..., 0] + 0.02) & (
+            local_cur[..., 2] <= sizes_exp[..., 2]
+        )
+        under_foot = torch.where(collider_kinds == 1, under_foot, circular_footprint)
+    cap_k = torch.where(under_foot, eta_kin.unsqueeze(-2).expand_as(under_foot), torch.ones_like(dist)).amin(dim=-1)
+    mob_k = torch.minimum(mob_k, cap_k)
+    bg_scale = (engage_foot * eta_kin).amax(dim=-1, keepdim=x_cur.ndim == 3)
+    return dx * mob_k.unsqueeze(-1), bg_scale
+
+
 def apply_free_surface_ballistics(
     x_cur: torch.Tensor,
     x_prev: torch.Tensor,
@@ -612,6 +743,7 @@ def prepare_compact_step(
 ) -> PreparedParticleStep:
     """Select particles and build features without sharing geometry or materials across worlds."""
     n_pts, h_len, _ = history.shape
+    collider_kinds = geometry.get("collider_kinds")
     device = history.device
     foot_slots = geometry["foot_slots"] if "foot_slots" in geometry else infer_collider_slots(geometry["sizes"])[0]
     floor_slot = geometry["floor_slot"] if "floor_slot" in geometry else infer_collider_slots(geometry["sizes"])[1]
@@ -646,7 +778,7 @@ def prepare_compact_step(
             foot_engage = geometry["cached_foot_engage"]
             x_cur_k = history[topk, -1]
             x_prev_k = history[topk, -2]
-            if history.is_cuda and not torch.is_grad_enabled():
+            if history.is_cuda and not torch.is_grad_enabled() and collider_kinds is None:
                 gap_k = _compiled_foot_gap_only(
                     x_cur_k, poses[foot_slots], geometry["sizes"][foot_slots], float(p_radius)
                 )
@@ -659,6 +791,7 @@ def prepare_compact_step(
                     geometry["sizes"][foot_slots],
                     p_radius,
                     dt,
+                    collider_kinds,
                 )
             active_count = k_act
         else:
@@ -666,7 +799,7 @@ def prepare_compact_step(
             x_prev = history[:, -2]
             surf_idx = (bg_idx + 17).clamp_max(n_pts - 1)
             z_surf = torch.quantile(x_cur[surf_idx, 2], 0.98) + 1.5 * p_radius
-            if history.is_cuda and not torch.is_grad_enabled():
+            if history.is_cuda and not torch.is_grad_enabled() and collider_kinds is None:
                 eval_score, gap_min, xi = _compiled_select_score(
                     x_cur,
                     x_prev,
@@ -687,6 +820,7 @@ def prepare_compact_step(
                     geometry["sizes"][foot_slots],
                     p_radius,
                     dt,
+                    collider_kinds,
                 )
                 h_air = (x_cur[:, 2] - z_surf).clamp_min(0.0)
                 speed = (x_cur - x_prev).norm(dim=-1) / dt
@@ -710,7 +844,7 @@ def prepare_compact_step(
             min_gap = gap_k.min()
             foot_engage = ((0.14 - min_gap) / 0.04).clamp(0.0, 1.0)
             gamma = tau * tau * (3.0 - 2.0 * tau) * torch.maximum(foot_engage, xi[topk])
-            if "cached_topk" not in geometry:
+            if "cached_topk" not in geometry or geometry.get("stabilize_training", False):
                 geometry["cached_topk"] = topk.clone()
                 geometry["cached_idx"] = idx.clone()
                 geometry["cached_mult"] = mult.clone()
@@ -733,7 +867,7 @@ def prepare_compact_step(
     # Differentiable Warp feature extraction on only the (K + M) selected particles
     sizes_feat = geometry["sizes"]
     if geometry.get("sliding_window", False):
-        if history.is_cuda and not torch.is_grad_enabled():
+        if history.is_cuda and not torch.is_grad_enabled() and collider_kinds is None:
             history_sub, poses_feat = _compiled_sliding_window_gather(
                 history, idx, poses, geometry.get("canonical_poses", poses), foot_slots, k_act
             )
@@ -797,6 +931,7 @@ def finish_compact_step(
     history, poses, velocities, geometry = prepared.history, prepared.poses, prepared.velocities, prepared.geometry
     dt, k_act, p_radius, floor_slot = prepared.dt, prepared.active_k, prepared.radius, prepared.floor_slot
     n_pts = len(history)
+    collider_kinds = geometry.get("collider_kinds")
     device = history.device
     if k_act is None:
         disp = disp_sub
@@ -810,13 +945,16 @@ def finish_compact_step(
             geometry["sizes"][foot_slots],
             p_radius,
             dt,
+            collider_kinds,
         )
         disp = apply_free_surface_ballistics(history[:, -1], history[:, -2], disp, gap_full, z_surf_full, p_radius, dt)
         disp = project_tray_bounds(history[:, -1], disp, poses, geometry["sizes"], floor_slot, p_radius)
         return (disp, n_pts) if return_active_count else disp
 
     topk, bg_idx, gamma, gap_k, z_surf, foot_engage, active_count = prepared.selection
-    if history.is_cuda and not torch.is_grad_enabled() and not enforce_packing:
+    foot_slots = geometry["foot_slots"] if "foot_slots" in geometry else infer_collider_slots(geometry["sizes"])[0]
+    mu_mat = float(geometry.get("mu_mat", 0.48))
+    if history.is_cuda and not torch.is_grad_enabled() and not enforce_packing and collider_kinds is None:
         dx_k, dx_bg, dx_sub = _compiled_postprocess_sparse(
             history,
             topk,
@@ -827,10 +965,13 @@ def finish_compact_step(
             z_surf,
             foot_engage,
             poses,
+            velocities,
             geometry["sizes"],
+            foot_slots,
             floor_slot,
             k_act,
             float(p_radius),
+            mu_mat,
             float(dt),
         )
         geometry["cached_dx_sub"] = dx_sub
@@ -839,11 +980,29 @@ def finish_compact_step(
     else:
         dx_k = gamma.unsqueeze(-1) * disp_sub[:k_act]
         dx_k = apply_free_surface_ballistics(history[topk, -1], history[topk, -2], dx_k, gap_k, z_surf, p_radius, dt)
+        bg_scale = 1.0
+        if not torch.is_grad_enabled() or geometry.get("stabilize_training", False):
+            dx_k, bg_scale = apply_foot_kinematic_gate_and_sole_bounds(
+                history[topk, -1],
+                dx_k,
+                z_surf,
+                poses[foot_slots],
+                velocities[foot_slots],
+                geometry["sizes"][foot_slots],
+                float(p_radius),
+                mu_mat,
+                collider_kinds,
+            )
         if enforce_packing:
             dx_k = enforce_packing_incompressibility(history[topk, -1], dx_k, tau_k=gamma)
         dx_k = project_tray_bounds(history[topk, -1], dx_k, poses, geometry["sizes"], floor_slot, p_radius)
         dx_bg = project_tray_bounds(
-            history[bg_idx, -1], foot_engage * disp_sub[k_act:], poses, geometry["sizes"], floor_slot, p_radius
+            history[bg_idx, -1],
+            (foot_engage * bg_scale) * disp_sub[k_act:],
+            poses,
+            geometry["sizes"],
+            floor_slot,
+            p_radius,
         )
         if not torch.is_grad_enabled():
             geometry["cached_dx_sub"] = torch.cat((dx_k, dx_bg), dim=0)
