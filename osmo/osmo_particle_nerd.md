@@ -10,7 +10,7 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
     workflow_name=g1-particle-nerd-mixed \
     platform="$platform" \
     nodes_excluded="osmogroot-dgxc-k8s-forge-az41-prd1-w-0928,osmogroot-dgxc-k8s-forge-az41-prd1-w-2250" \
-    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-moving-patch/runs \
+    output_url=swift://PRIVATE_BUCKET/particle-nerd-moving-patch/runs \
     wandb_credential=wb-auth \
     wandb_key=wb_api_key \
     args="--task IsaacContrib-Velocity-G1-29dof-ParticleNeRD-MovingPatch-MixedTerrain --num_envs 512 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video --wandb_project g1_29dof_soft_flat_ppo --run_name nerd_l40s_8gpu_512"
@@ -26,10 +26,45 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
   --set-string \
     workflow_name=g1-particle-nerd-mixed \
     platform="$platform" \
-    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-moving-patch/runs \
+    output_url=swift://PRIVATE_BUCKET/particle-nerd-moving-patch/runs \
     wandb_credential=wb-auth \
     wandb_key=wb_api_key \
     args="--task IsaacContrib-Velocity-G1-29dof-ParticleNeRD-MovingPatch-MixedTerrain --num_envs 4096 --wandb_run tyiby5k6 --logger wandb --viz newton_gl --video --wandb_project g1_29dof_soft_flat_ppo --run_name nerd_rtx6000_1gpu_4096"
+```
+
+
+train from scratch 
+```bash
+# export osmo_node="isaac-lab-l40s-03"
+# export platform="ovx-l40s"
+export osmo_node="isaac-lab-l40-07"
+export platform="ovx-l40"
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool "$osmo_node" \
+  --set num_nodes=8 num_gpu=1 \
+  --set-string \
+    workflow_name=g1-particle-nerd-mixed \
+    platform="$platform" \
+    nodes_excluded="osmogroot-dgxc-k8s-forge-az41-prd1-w-0928,osmogroot-dgxc-k8s-forge-az41-prd1-w-2250" \
+    output_url=swift://PRIVATE_BUCKET/particle-nerd-moving-patch/runs \
+    wandb_credential=wb-auth \
+    wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-G1-29dof-ParticleNeRD-MovingPatch-MixedTerrain --num_envs 512 --logger wandb --viz newton_gl --video --run_name nerd_l40s_8gpu_512"
+```
+
+```bash
+export osmo_node="isaac-dev-rtx6000-01"
+export platform="x86-6000"
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool "$osmo_node" \
+  --set num_nodes=1 num_gpu=1 num_cpu=16 memory=256 \
+  --set-string \
+    workflow_name=g1-particle-nerd-mixed \
+    platform="$platform" \
+    output_url=swift://PRIVATE_BUCKET/particle-nerd-moving-patch/runs \
+    wandb_credential=wb-auth \
+    wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-G1-29dof-ParticleNeRD-MovingPatch-MixedTerrain --num_envs 4096 --logger wandb --viz newton_gl --video --run_name nerd_rtx6000_1gpu_4096"
 ```
 
 For the RTX PRO 6000 run, `memory=256` requests 256 GiB of **host RAM**; it does
@@ -44,3 +79,24 @@ resource override is in the OSMO `--set` group above.
 
 Validation workflow:
 [g1-particle-nerd-rtx6000-memory-check-1](https://us-west-2-aws.osmo.nvidia.com/workflows/g1-particle-nerd-rtx6000-memory-check-1).
+
+
+## WBC: velocity, pelvis height, and torso pitch
+
+Run from the repository root. This starts a fresh
+standard RSL-RL PPO policy with an extra torso-pitch input (0–30 degrees forward,
+roll target zero). Mixed terrain keeps 256 rigid and 256 Particle NeRD environments
+on each of eight GPUs. The previous lower-body checkpoints lack the pitch input.
+
+```bash
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool isaac-lab-l40-07 \
+  --set num_nodes=8 num_gpu=1 \
+  --set-string \
+    workflow_name=g1-wbc-particle-nerd-mixed \
+    platform=ovx-l40 \
+    nodes_excluded="osmogroot-dgxc-k8s-forge-az41-prd1-w-0928,osmogroot-dgxc-k8s-forge-az41-prd1-w-2250" \
+    output_url=swift://PRIVATE_BUCKET/particle-nerd-moving-patch/runs \
+    wandb_credential=wb-auth wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-G1-29dof-WBC-ParticleNeRD-MovingPatch-MixedTerrain --num_envs 512 --logger wandb --viz newton_gl --video --run_name torso_pitch0_30_8gpu_512"
+```
