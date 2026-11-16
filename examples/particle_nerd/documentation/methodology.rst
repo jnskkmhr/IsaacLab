@@ -81,17 +81,557 @@ collider geometries and a specified rigid-body response model.
      - Material-on-body impulse, force, and torque about the body COM
      - N s; N; N m
 
-.. figure:: figures/pipeline.jpg
-   :width: 100%
-   :alt: Particle history and current collider states feed Transolver; predicted motion feeds an analytical contact estimator and then MJWarp, with state feedback.
+Component input/output reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   **Figure 1:** Particle NeRD coupling for a dynamic collider body. Solid arrows show
-   within-step dependencies; the lower path feeds the updated rigid state into
-   the next step. Contact geometry uses interval-start particle positions, while
-   material velocities come from the predicted displacements. Known external loads and gravity enter both the free-motion estimate
-   and rigid integration; rigid-ground contacts are resolved by MJWarp. The material
-   wrench is held during rigid substeps. This is an authored schematic, not a
-   measured trajectory.
+Table 2 is the single component input/output reference. It describes general
+interacting bodies, not a specific robot or tool. Shapes describe one environment:
+:math:`N` is its full particle count, :math:`H` the number of history frames,
+:math:`B` the number of collider shapes, :math:`K` the selected active-particle
+count, and :math:`M` the number of background samples. The network evaluates
+:math:`P=N` particles in full mode or :math:`P=K+M` samples in compact mode.
+A batch of :math:`E` environments adds a leading dimension :math:`E`.
+A vector's component order is x, y, z.
+:math:`B_s` counts the selected interacting shapes; :math:`Q` counts candidate
+contacts. Force-estimator body quantities are per body. A raw-unit entry of 1
+means dimensionless. Encoded values follow the last column: the raw unit is not
+the unit of a normalized network feature.
+
+Rows marked Feature builder are raw preprocessing inputs, not additional
+network channels. Transolver input rows together form [P,25] particle features,
+[P,B,8] collider-pair features, [P,B] influence, and optional [P] representation
+weights for H=3. Input, Output and Internal identify each quantity's role.
+The table continues across pages with repeated column headings.
+
+.. list-table:: Component input/output reference (one item per row)
+   :header-rows: 1
+   :widths: 13 9 22 13 9 34
+   :class: interface-reference
+
+   * - Component
+     - I/O
+     - Quantity
+     - Shape
+     - Raw unit
+     - Numerical definition / encoding
+   * - Selector
+     - Input
+     - Current particle position
+     - [N,3]
+     - m
+     - x at the beginning of the prediction interval.
+   * -
+     -
+     - Previous particle position
+     - [N,3]
+     - m
+     - Previous retained position; velocity is (x_current - x_previous)/dt.
+   * -
+     -
+     - Interacting body position
+     - [B_s,3]
+     - m
+     - World position of each selected collider geometry origin.
+   * -
+     -
+     - Interacting body orientation
+     - [B_s,4]
+     - 1
+     - Unit quaternion in (qx,qy,qz,qw) order.
+   * -
+     -
+     - Interacting body linear velocity
+     - [B_s,3]
+     - m/s
+     - World velocity at the collider geometry origin, not the COM unless they coincide.
+   * -
+     -
+     - Interacting body angular velocity
+     - [B_s,3]
+     - rad/s
+     - World angular velocity (omega_x,omega_y,omega_z).
+   * -
+     -
+     - Box half-extents
+     - [B_s,3]
+     - m
+     - Positive half-lengths (h_x,h_y,h_z) along each collider-local axis.
+   * -
+     -
+     - Particle radius
+     - scalar
+     - m
+     - Radius used in radius-adjusted collider distance.
+   * -
+     -
+     - Material friction coefficient
+     - scalar
+     - 1
+     - Determines the motion threshold v0 = 0.015(1 + 0.5 mu_mat) m/s.
+   * -
+     -
+     - Normalized Young's modulus
+     - scalar
+     - 1
+     - log10(E / 1 Pa) / 15; read only by the automatic active-count rule.
+   * -
+     -
+     - Prediction interval
+     - scalar
+     - s
+     - Positive time between retained position frames.
+   * -
+     -
+     - Active-particle budget
+     - integer
+     - count
+     - Number of top-ranked particles; configurable or automatic.
+   * -
+     -
+     - Background sample budget
+     - integer
+     - count
+     - Requested background sample count, capped at N-K.
+   * -
+     - Internal
+     - Particle-height threshold
+     - scalar
+     - m
+     - 98th percentile of sampled particle z values plus 1.5 r.
+   * -
+     -
+     - Priority score
+     - [N]
+     - m
+     - sigma_i defined in the active-set equations; select its K smallest values. Not a probability.
+   * -
+     - Output
+     - Active particle IDs
+     - [K]
+     - index
+     - Indices into the full retained particle state.
+   * -
+     -
+     - Background particle IDs
+     - [M]
+     - index
+     - Strided indices across the full particle list.
+   * -
+     -
+     - Representation weights
+     - [K+M]
+     - 1
+     - 1 for active samples; (N-K)/M_valid for valid background samples; 0 for excluded samples.
+   * -
+     -
+     - Displacement blend weights
+     - [K]
+     - 1
+     - gamma in [0,1]; smooth 0.05 m score taper combined with contact/motion engagement.
+   * - Feature builder
+     - Input
+     - Particle position history
+     - [P,H,3]
+     - m
+     - H retained frames for each evaluated sample, oldest to newest.
+   * -
+     -
+     - Position origin
+     - [3]
+     - m
+     - Translation subtracted from current positions; default (0,0,0).
+   * -
+     -
+     - Interacting body position
+     - [B,3]
+     - m
+     - World collider-geometry origin p; compose the body pose with any collider-local transform.
+   * -
+     -
+     - Interacting body orientation
+     - [B,4]
+     - 1
+     - Unit quaternion (qx,qy,qz,qw). Position and orientation pack into [B,7].
+   * -
+     -
+     - Interacting body linear velocity
+     - [B,3]
+     - m/s
+     - World velocity v_p at the collider-geometry origin.
+   * -
+     -
+     - Interacting body angular velocity
+     - [B,3]
+     - rad/s
+     - World angular velocity omega; linear then angular pack into [B,6].
+   * -
+     -
+     - Shape kind
+     - [B]
+     - integer
+     - 0: local z=0 plane; 1: box; 2: sphere; 3: sampled signed-distance field (SDF).
+   * -
+     -
+     - Shape size
+     - [B,3]
+     - m
+     - Box half-extents or sphere radius. Not used by the plane query.
+   * -
+     -
+     - SDF samples
+     - [nx,ny,nz]
+     - m
+     - Collider-local signed distances; positive outside the solid. Used for kind 3.
+   * -
+     -
+     - SDF grid origin
+     - [3]
+     - m
+     - Position of the SDF grid origin in collider-local coordinates.
+   * -
+     -
+     - SDF sample spacing
+     - scalar
+     - m
+     - Uniform spacing between adjacent SDF samples.
+   * -
+     -
+     - Collider friction coefficient
+     - [B]
+     - 1
+     - One coefficient per collider, distinct from material friction.
+   * -
+     -
+     - Feature influence range
+     - scalar
+     - m
+     - Positive range; default 0.07 m. Not the force-estimator contact margin.
+   * -
+     -
+     - Gravitational acceleration
+     - [3]
+     - m/s²
+     - World acceleration; default (0,0,-9.81).
+   * - Transolver
+     - Input
+     - Particle position
+     - [P,3]
+     - m
+     - Current x minus configured origin; reference scale 1 m.
+   * -
+     -
+     - Previous particle velocity
+     - [P,3]
+     - m/s
+     - (x at n-1 minus x at n-2)/dt; reference scale 1 m/s.
+   * -
+     -
+     - Current particle velocity
+     - [P,3]
+     - m/s
+     - (x at n minus x at n-1)/dt; reference scale 1 m/s.
+   * -
+     -
+     - Material density
+     - [P]
+     - kg/m³
+     - rho / 1600.
+   * -
+     -
+     - Young's modulus
+     - [P]
+     - Pa
+     - log10(E) / 15; E > 0.
+   * -
+     -
+     - Poisson's ratio
+     - [P]
+     - 1
+     - poisson_ratio, unchanged.
+   * -
+     -
+     - Material friction coefficient
+     - [P]
+     - 1
+     - mu_mat, unchanged.
+   * -
+     -
+     - Yield pressure
+     - [P]
+     - Pa
+     - ln(1 + yield_pressure) / ln(1 + 10^15).
+   * -
+     -
+     - Tensile yield ratio
+     - [P]
+     - 1
+     - Tensile-to-compressive yield ratio, unchanged.
+   * -
+     -
+     - Yield stress
+     - [P]
+     - Pa
+     - Von Mises yield stress: ln(1 + yield_stress) / 15.
+   * -
+     -
+     - Plastic hardening factor
+     - [P]
+     - 1
+     - Dimensionless plastic hardening factor, unchanged.
+   * -
+     -
+     - Granular dilatancy factor
+     - [P]
+     - 1
+     - Dimensionless granular dilatancy factor, unchanged.
+   * -
+     -
+     - Plastic viscosity
+     - [P]
+     - Pa s
+     - ln(1 + viscosity) / 10.
+   * -
+     -
+     - Particle mass
+     - [P]
+     - kg
+     - m_i / 0.05; not an effective contact mass.
+   * -
+     -
+     - Particle radius
+     - [P]
+     - m
+     - r_i / 0.02.
+   * -
+     -
+     - Prediction interval
+     - [P]
+     - s
+     - dt / 0.02; dt = 0.005 s encodes to 0.25.
+   * -
+     -
+     - Gravitational acceleration
+     - [P,3]
+     - m/s²
+     - g / 9.81; default gravity encodes to (0,0,-1).
+   * -
+     -
+     - Particle–body signed gap
+     - [P,B]
+     - m
+     - clip((d_ib - r_i)/s, -1, 1); d is signed particle-center distance to the body surface.
+   * -
+     -
+     - Body surface normal
+     - [P,B,3]
+     - 1
+     - Outward unit normal at the queried body surface, in world axes.
+   * -
+     -
+     - Body surface velocity relative to the particle
+     - [P,B,3]
+     - m/s
+     - v_surface - u_particle. v_surface = v_p + omega cross (surface_point - p).
+   * -
+     -
+     - Collider friction coefficient
+     - [P,B]
+     - 1
+     - mu_b, unchanged.
+   * -
+     -
+     - Collider influence
+     - [P,B]
+     - 1
+     - max(0, 1 - max(d_ib - r_i, 0)/s). Separate from the particle–body interaction features.
+   * -
+     -
+     - Representation weights
+     - [P]
+     - 1
+     - Optional weights from the selector; unit weights in full mode.
+   * -
+     - Output
+     - Particle displacement
+     - [P,3]
+     - m
+     - Predicted displacement only. Position/velocity reconstruction is outside the network.
+   * - Force estimator
+     - Input
+     - Particle contact positions
+     - [N,3]
+     - m
+     - Saved interval-start positions; do not substitute predicted end positions.
+   * -
+     -
+     - Predicted particle velocities
+     - [N,3]
+     - m/s
+     - Applied displacement / dt, after any configured taper/scatter corrections.
+   * -
+     -
+     - Physical particle masses
+     - [N]
+     - kg
+     - m_i; distinct from attention weights and contact effective-mass multipliers.
+   * -
+     -
+     - Interacting body position
+     - [3]
+     - m
+     - World collider-geometry origin, including its collider-local transform.
+   * -
+     -
+     - Interacting body orientation
+     - [4]
+     - 1
+     - Unit quaternion (qx,qy,qz,qw).
+   * -
+     -
+     - Free COM linear velocity
+     - [3]
+     - m/s
+     - Body COM velocity before the material impulse being solved for; use supplied free proxy state when available.
+   * -
+     -
+     - Free angular velocity
+     - [3]
+     - rad/s
+     - World body angular velocity before that material impulse.
+   * -
+     -
+     - Body center-of-mass position
+     - [3]
+     - m
+     - World point about which the output torque is defined.
+   * -
+     -
+     - Body or proxy mass
+     - scalar
+     - kg
+     - Translational inertia used by the contact response model.
+   * -
+     -
+     - Body or proxy inertia
+     - [3,3]
+     - kg m²
+     - World-frame inertia tensor about the body COM.
+   * -
+     -
+     - Contact friction
+     - scalar
+     - 1
+     - Coulomb coefficient mu used in the contact solve.
+   * -
+     -
+     - Contact interval
+     - scalar
+     - s
+     - Interval used to convert impulse to average force/torque.
+   * -
+     -
+     - Normal mass factor
+     - scalar
+     - 1
+     - Multiplier of particle mass for the selected normal-response model.
+   * -
+     -
+     - Tangential mass factor
+     - scalar
+     - 1
+     - Multiplier of particle mass for tangential impulse response.
+   * -
+     -
+     - Horizontal mass factor
+     - scalar
+     - 1
+     - Directional model setting for normal resistance with horizontal orientation.
+   * -
+     -
+     - Upward mass factor
+     - scalar
+     - 1
+     - Directional model setting for upward normal resistance.
+   * -
+     -
+     - Normal-direction exponent
+     - scalar
+     - 1
+     - Exponent in the directional normal-resistance model.
+   * -
+     -
+     - Gradient-fit radius
+     - scalar
+     - m
+     - Particle neighborhood radius used to fit local velocity gradients.
+   * -
+     -
+     - Surface contact band
+     - scalar
+     - m
+     - Distance band used when preparing surface contacts/velocity fits.
+   * -
+     -
+     - Contact margin
+     - scalar
+     - m
+     - Estimator distance offset delta_c; distinct from neural support and particle radius.
+   * -
+     - Internal
+     - Surface signed distance
+     - [Q]
+     - m
+     - Particle-center distance d to the interacting body surface; candidate gap is d - delta_c.
+   * -
+     -
+     - Surface normal
+     - [Q,3]
+     - 1
+     - Outward unit normal; the compressive material-on-body normal has the opposite sign.
+   * -
+     -
+     - Queried surface point
+     - [Q,3]
+     - m
+     - World point s_i on the interacting body surface for each candidate.
+   * -
+     -
+     - Particle velocity gradient
+     - [N,3,3]
+     - 1/s
+     - Local fitted G_i. Surface velocity is u_i + G_i (s_i - x_i).
+   * -
+     -
+     - Material-on-body impulses
+     - [Q,3]
+     - N s
+     - Normal/tangent contact impulses; nonnegative normal component and Coulomb-bounded tangential magnitude.
+   * -
+     - Output
+     - Material-on-body force
+     - [3]
+     - N
+     - Sum of world-frame contact impulses divided by dt, for each body.
+   * -
+     -
+     - Material-on-body COM torque
+     - [3]
+     - N m
+     - Sum of (s_i - c) cross world impulse, divided by dt, for each body.
+
+The active-particle selector selects particle IDs, not MPM cells. The currently
+implemented distance-based selector uses oriented boxes. The general terminology
+here does not claim arbitrary-shape support for that selector. Transolver feature
+construction also supports the shape representations in Table 2.
+
+The feature builder accepts float32 physical arrays and int32 shape kinds. A
+feature-construction origin [3] in metres translates particle positions only;
+its default is (0,0,0). Gravity is [3] in m/s squared, default (0,0,-9.81).
+The velocity at a queried surface point is
+:math:`\mathbf{v}_{p,b}+\boldsymbol\omega_b\times(\mathbf{s}_{ib}-\mathbf{p}_b)`.
+A supplied COM velocity must therefore be shifted to the collider origin before
+packing the feature-builder velocity array. The force estimator instead uses COM
+velocity, explicitly identified in Table 2.
 
 The method has three functional components. The particle network estimates
 material kinematics. The contact estimator converts these kinematics into a
@@ -103,7 +643,7 @@ conservation of the combined learned system does not follow from rigid momentum
 balance alone.
 
 
-.. list-table:: Algorithm 1. One coupled Particle NeRD prediction interval
+.. list-table:: One coupled Particle NeRD prediction interval
    :header-rows: 1
    :widths: 8 50 42
 
@@ -174,6 +714,22 @@ materials. Stress, plastic strain, and deformation-gradient histories are not
 network inputs. A short position history is therefore an approximate state for a
 history-dependent material.
 
+For another history length, the particle width is :math:`3H+16`, not always
+25. The two velocities above require three position frames. The raw material
+helper returns 13 scalars: ten material values, normalized mass, normalized
+radius, and normalized timestep. The particle-feature kernel copies its first
+12 values and writes the timestep directly from its ``dt`` argument.
+
+For the logarithms, the code uses the numerical values in the raw SI units
+shown in Table 2 (equivalently E/(1 Pa), p_y/(1 Pa), yield stress/(1 Pa),
+and viscosity/(1 Pa s) before applying the logarithm). ``log1p`` means the
+natural logarithm ln(1+x); it is not log10. These constants are encoding scales,
+not a prescribed material. For example, rho=1600 kg/m cubed encodes to 1,
+E=10^15 Pa encodes to 1, and zero yield stress or viscosity encodes to 0.
+The actual values come from the evaluated material configuration. Hardening
+and dilatancy are scalar model coefficients, not a deformation-gradient tensor
+or a plastic-strain history.
+
 Collider conditioning uses a particle-specific point on the collider surface,
 not the collider's base position. Three points must be distinguished:
 :math:`\mathbf{p}_b` is the origin of the collider geometry's pose,
@@ -207,7 +763,7 @@ beside a flat box face, it is the perpendicular projection onto that face.
    :width: 100%
    :alt: Labeled collider geometry and free-body sketch showing geometry origin, center of mass, particle centers, particle-specific surface points, outward normal, material-on-body impulse, and moment arm.
 
-   **Figure 2:** Collider-surface queries and load references in a two-dimensional
+   **Figure 1:** Collider-surface queries and load references in a two-dimensional
    cross-section. **(a)** Particle-specific geometry queries: open squares mark
    collider surface points :math:`\mathbf{s}_{ib}`; circles mark material
    particles with centers :math:`\mathbf{x}_i`. The geometry origin
@@ -281,7 +837,7 @@ Slice attention and displacement prediction
    :width: 100%
    :alt: Hierarchical view of the Particle NeRD particle predictor: system inputs and displacement output, one attention block with residual paths, and particle/collider feature construction and encoders.
 
-   **Figure 3:** Hierarchical architecture of the Particle NeRD particle predictor.
+   **Figure 2:** Hierarchical architecture of the Particle NeRD particle predictor.
    **(a)** System inputs and output: particle position histories, material properties,
    collider geometry and state, timestep, and gravity pass through the input
    encoders, four attention blocks, and a displacement decoder. Representation
@@ -413,7 +969,7 @@ the full particle list, :math:`\mathcal{B}` can overlap the active set
    :width: 100%
    :alt: A collider above a material bed with filled green active particles, open amber square background samples, and open gray unsampled particles; the key gives each group's motion update.
 
-   **Figure 4:** Active particles, background samples, and the inactive unsampled
+   **Figure 3:** Active particles, background samples, and the inactive unsampled
    region of a material bed. Filled green circles are active particles and receive
    tapered predicted displacements. Open amber squares are background samples
    outside the active set; they supply material context to attention and receive
@@ -584,6 +1140,15 @@ reference episodes.
 
 Analytical material-to-body force reconstruction
 ------------------------------------------------
+
+The six output components are (F_x,F_y,F_z,tau_x,tau_y,tau_z) per
+interacting body. They exclude gravity and separately applied external loads.
+The contact solve may use higher precision internally; the table specifies
+physical dimensions, not a promise that every internal buffer is float32.
+The auxiliary material impulse response is not applied to the neural particles
+again. Effective-mass factors and solver settings vary by configuration; there
+is no single universal numerical setting for all interacting bodies.
+
 
 Local material velocity at the rigid surface
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1097,7 +1662,7 @@ whether rendering and recording are included in any timing comparison.
    :width: 100%
    :alt: Stacked trajectory counts by command category and split, alongside counts of completed and natively terminated reference trajectories.
 
-   **Figure 5:** Composition of the archived 500-trajectory G1 reference dataset.
+   **Figure 4:** Composition of the archived 500-trajectory G1 reference dataset.
    **Left:** trajectory counts by command category, stacked by training, validation,
    and test split. **Right:** counts of trajectories reaching the requested duration
    or ending at a native termination condition. Each observation is one trajectory,

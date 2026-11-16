@@ -13,6 +13,7 @@ Requires Chrome/Chromium and network access for MathJax during rendering.
 import argparse
 import asyncio
 import base64
+import re
 import shutil
 from datetime import date
 from pathlib import Path
@@ -47,6 +48,9 @@ figure img { display: block; width: 100%; height: auto; }
 figcaption { font-size: 9pt; line-height: 1.2; color: #555; margin-top: 2mm; }
 table { border-collapse: collapse; width: 100%; font-size: 9pt; margin: 4mm 0;
         table-layout: fixed; break-inside: avoid; }
+table.interface-reference { break-inside: auto; font-size: 8.5pt; }
+table.interface-reference td, table.interface-reference th { padding: 1.2mm 1.2mm; }
+table.interface-reference tbody tr:nth-child(even) { background: #f7f7f7; }
 caption { text-align: center; color: #555; font-weight: normal; margin-bottom: 2mm; }
 th { border-top: .7pt solid #222; border-bottom: .5pt solid #222; text-align: left; }
 td, th { padding: 1.4mm 2mm; vertical-align: top; overflow-wrap: anywhere; }
@@ -109,6 +113,24 @@ def report_html(source: Path, report_date: date) -> str:
             subheading = subsection.find(["h2", "h3"], recursive=False)
             subheading.name = "h3"
             subheading.insert(0, f"{section_number}.{sub_number}  ")
+    for table_number, table in enumerate(soup.find_all("table"), start=1):
+        caption = table.find("caption", recursive=False)
+        if caption is None:
+            raise ValueError("Every methodology table must have a caption")
+        label = soup.new_tag("strong")
+        label.string = f"Table {table_number}. "
+        caption.insert(0, label)
+    for figure_number, figure in enumerate(soup.find_all("figure"), start=1):
+        caption = figure.find("figcaption")
+        if caption is None:
+            raise ValueError("Every methodology figure must have a caption")
+        old_label = caption.find("strong")
+        if old_label is not None and re.fullmatch(r"Figure \d+:", old_label.get_text()):
+            old_label.decompose()
+        label = soup.new_tag("strong")
+        label.string = f"Figure {figure_number}. "
+        paragraph = caption.find("p")
+        (paragraph if paragraph is not None else caption).insert(0, label)
     for picture in soup.find_all("img"):
         path = (source.parent / picture["src"]).resolve()
         picture["src"] = "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -129,7 +151,7 @@ def add_page_furniture(raw: Path, output: Path) -> int:
     """Add the reference report's first-page banner, running headers, and page numbers."""
     document = pymupdf.open(raw)
     vectors = {}
-    for name in ("pipeline", "contact_geometry", "network_layers", "particle_selection", "dataset"):
+    for name in ("contact_geometry", "network_layers", "particle_selection", "dataset"):
         preview = pymupdf.Pixmap(str(ROOT / f"examples/particle_nerd/documentation/figures/{name}.jpg"))
         vector_path = ROOT / f"docs/_build/particle_nerd_figures/{name}.pdf"
         if not vector_path.exists():

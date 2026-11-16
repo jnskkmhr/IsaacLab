@@ -1,0 +1,8 @@
+{
+  "far_support_scale": 5.0,
+  "far_gap_weight": 0.3,
+  "far_influence_weight": 0.15,
+  "source": "source/isaaclab_tasks/isaaclab_tasks/contrib/particle_nerd_local/solver_cfg.py",
+  "source_sha256": "873d6da1ca291dd267a7ed6dedb1d5842ebd3d66b2ebbddaa0aad4e44aef83a2",
+  "kind": "Code-default feature-encoding illustration; not rollout or checkpoint evaluation."
+}

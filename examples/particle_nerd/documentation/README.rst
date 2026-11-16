@@ -12,7 +12,6 @@ From the repository root, regenerate figures and the report with:
 
 .. code-block:: bash
 
-   uv run --no-project --with matplotlib python examples/particle_nerd/documentation/gen_pipeline.py
    uv run --no-project --with matplotlib python examples/particle_nerd/documentation/gen_contact_geometry.py
    uv run --no-project --with matplotlib python examples/particle_nerd/documentation/gen_network_layers.py
    uv run --no-project --with matplotlib python examples/particle_nerd/documentation/gen_particle_selection.py
@@ -35,4 +34,4 @@ committed. Figure vector PDFs are in ``docs/_build/particle_nerd_figures/``;
 small JPG previews live in ``examples/particle_nerd/documentation/figures/``.
 
 ``dataset_counts.json`` records the archived data URL, SHA-256, and aggregate
-counts used by the dataset figure. The pipeline, collider-geometry, network-layer, and particle-selection figures are authored schematics, not measured data.
+counts used by the dataset figure. The collider-geometry, network-layer, and particle-selection figures are authored schematics, not measured data. The method overview uses component input/output tables instead of a pipeline diagram.

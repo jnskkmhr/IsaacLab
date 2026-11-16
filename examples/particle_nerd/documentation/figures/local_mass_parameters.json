@@ -1,0 +1,12 @@
+{
+  "base_scale": 10.0,
+  "friction": 0.5,
+  "c1": 0.4,
+  "compression_coefficient": 4.0,
+  "compression": 0.0,
+  "packing_reference": 1.8,
+  "relative_velocity": [1.0, 0.0, 0.0],
+  "normal_definition": "(sin(beta), 0, cos(beta)); beta in [0,180] degrees",
+  "packing_ratio_range": [0.0, 2.0],
+  "provenance": "Analytical sweep of Eqs. (24)-(28), not simulation data. c1, compression coefficient, and packing reference match particle_world/contact.py; base_scale matches particle_nerd_local/solver_cfg.py. Friction and horizontal relative velocity are illustrative fixed choices."
+}
