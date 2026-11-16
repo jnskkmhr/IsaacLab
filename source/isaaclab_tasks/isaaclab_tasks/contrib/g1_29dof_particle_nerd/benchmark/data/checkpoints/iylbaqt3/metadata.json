@@ -1,0 +1,8 @@
+{
+  "run_id": "iylbaqt3",
+  "project": "g1_29dof_particle_nerd_mixed_terrain",
+  "name": "2026-11-06_00-20-31_nerd_l40s_8gpu_512",
+  "state": "running",
+  "checkpoint": "/tmp/nerd-foot-force-runs/checkpoints/iylbaqt3/model_9500.pt",
+  "sha256": "092b39b767d4318b6cdf1111d49fcf98bbfbe6e7dd6069aeef0f036c803fcfd0"
+}

@@ -1,0 +1,656 @@
+{
+  "iylbaqt3": {
+    "feet_slide": {
+      "mpm": null,
+      "nerd": {
+        "func": "isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards:feet_slide",
+        "params": {
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": ".*_ankle_roll_link",
+            "joint_names": null,
+            "preserve_order": true,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          }
+        },
+        "weight": -0.25
+      }
+    },
+    "foot_clearance": {
+      "mpm": {
+        "func": "isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards:foot_clearance_reward",
+        "params": {
+          "std": 0.05,
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": ".*_ankle_roll_link",
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "tanh_mult": 2,
+          "target_height": 0.1,
+          "height_sensor_cfg": {
+            "name": "height_scanner",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "ground_height_offset": 0.25,
+          "standing_position_foot_z": 0.03539
+        },
+        "weight": 5
+      },
+      "nerd": {
+        "func": "isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.rewards:foot_clearance_reward",
+        "params": {
+          "std": 0.05,
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": ".*_ankle_roll_link",
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "tanh_mult": 2,
+          "target_height": 0.1,
+          "height_sensor_cfg": {
+            "name": "height_scanner",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "ground_height_offset": 0.3,
+          "standing_position_foot_z": 0.03539
+        },
+        "weight": 5
+      }
+    },
+    "joint_deviation": {
+      "mpm": {
+        "func": "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.rewards:variable_posture_l1",
+        "params": {
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": ".*",
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "command_name": "base_velocity",
+          "weight_running": {
+            ".*knee.*": 0.005,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.005,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_walking": {
+            ".*knee.*": 0.02,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.02,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_standing": {
+            ".*": 0.5
+          },
+          "running_threshold": 2,
+          "walking_threshold": 0.05
+        },
+        "weight": -1
+      },
+      "nerd": {
+        "func": "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.rewards:variable_posture_l1",
+        "params": {
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": ".*",
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "command_name": "base_velocity",
+          "weight_running": {
+            ".*knee.*": 0.005,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.005,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_walking": {
+            ".*knee.*": 0.02,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.02,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_standing": {
+            ".*knee.*": 0.02,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.02,
+            ".*ankle_roll.*": 0.02,
+            ".*ankle_pitch.*": 0.02,
+            ".*(waist|shoulder|elbow|wrist).*": 0.5
+          },
+          "running_threshold": 2,
+          "walking_threshold": 0.05
+        },
+        "weight": -1
+      }
+    }
+  },
+  "y4t5ybra": {
+    "feet_slide": {
+      "mpm": null,
+      "nerd": {
+        "func": "isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards:feet_slide",
+        "params": {
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": ".*_ankle_roll_link",
+            "joint_names": null,
+            "preserve_order": true,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          }
+        },
+        "weight": -0.25
+      }
+    },
+    "foot_clearance": {
+      "mpm": {
+        "func": "isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards:foot_clearance_reward",
+        "params": {
+          "std": 0.05,
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": ".*_ankle_roll_link",
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "tanh_mult": 2,
+          "target_height": 0.1,
+          "height_sensor_cfg": {
+            "name": "height_scanner",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "ground_height_offset": 0.25,
+          "standing_position_foot_z": 0.03539
+        },
+        "weight": 5
+      },
+      "nerd": {
+        "func": "isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.rewards:foot_clearance_reward",
+        "params": {
+          "std": 0.05,
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": ".*_ankle_roll_link",
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "tanh_mult": 2,
+          "target_height": 0.1,
+          "height_sensor_cfg": {
+            "name": "height_scanner",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": null,
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "ground_height_offset": 0.3,
+          "standing_position_foot_z": 0.03539
+        },
+        "weight": 5
+      }
+    },
+    "joint_deviation": {
+      "mpm": {
+        "func": "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.rewards:variable_posture_l1",
+        "params": {
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": ".*",
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "command_name": "base_velocity",
+          "weight_running": {
+            ".*knee.*": 0.005,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.005,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_walking": {
+            ".*knee.*": 0.02,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.02,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_standing": {
+            ".*": 0.5
+          },
+          "running_threshold": 2,
+          "walking_threshold": 0.05
+        },
+        "weight": -1
+      },
+      "nerd": {
+        "func": "isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.rewards:variable_posture_l1",
+        "params": {
+          "asset_cfg": {
+            "name": "robot",
+            "body_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "joint_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "body_names": null,
+            "joint_names": ".*",
+            "preserve_order": false,
+            "fixed_tendon_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "fixed_tendon_names": null,
+            "object_collection_ids": {
+              "slice_step": null,
+              "slice_stop": null,
+              "slice_start": null
+            },
+            "object_collection_names": null
+          },
+          "command_name": "base_velocity",
+          "weight_running": {
+            ".*knee.*": 0.005,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.005,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_walking": {
+            ".*knee.*": 0.02,
+            ".*elbow.*": 0.25,
+            ".*wrist.*": 0.5,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.02,
+            ".*waist_yaw.*": 0.15,
+            ".*ankle_roll.*": 0.02,
+            ".*waist_roll.*": 2,
+            ".*ankle_pitch.*": 0.02,
+            ".*waist_pitch.*": 2,
+            ".*shoulder_yaw.*": 0.35,
+            ".*shoulder_roll.*": 0.4,
+            ".*shoulder_pitch.*": 0.5
+          },
+          "weight_standing": {
+            ".*knee.*": 0.02,
+            ".*hip_yaw.*": 0.08,
+            ".*hip_roll.*": 0.3,
+            ".*hip_pitch.*": 0.02,
+            ".*ankle_roll.*": 0.02,
+            ".*ankle_pitch.*": 0.02,
+            ".*(waist|shoulder|elbow|wrist).*": 0.5
+          },
+          "running_threshold": 2,
+          "walking_threshold": 0.05
+        },
+        "weight": -1
+      }
+    }
+  }
+}

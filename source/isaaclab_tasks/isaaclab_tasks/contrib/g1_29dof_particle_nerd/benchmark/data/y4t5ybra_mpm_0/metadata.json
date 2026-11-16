@@ -1,0 +1,202 @@
+{
+  "backend": "mpm",
+  "task": "IsaacContrib-Velocity-Sand-Flat-G1-29dof-MPM-Play",
+  "seed": 42,
+  "command_m_s": 0.0,
+  "physics_dt_s": 0.005,
+  "control_dt_s": 0.02,
+  "checkpoint": "/tmp/nerd-foot-force-runs/checkpoints/y4t5ybra/model_29000.pt",
+  "checkpoint_sha256": "ed353356c7b6c154b4a81875800589b3b84d9a387d5f686f373d317f6b693966",
+  "initial_root_position_m": [
+    -2.0,
+    0.0,
+    0.76
+  ],
+  "material": {
+    "density": 1600.0,
+    "young_modulus": 1000000000000000.0,
+    "poisson_ratio": 0.3,
+    "viscosity": 0.0,
+    "friction": 0.48,
+    "damping": 0.0,
+    "yield_pressure": 1000000000000000.0,
+    "tensile_yield_ratio": 0.0,
+    "yield_stress": 0.0,
+    "hardening": 0.0,
+    "dilatancy": 0.0,
+    "hardening_rate": 1.0,
+    "softening_rate": 1.0
+  },
+  "particle_grid": {
+    "lower": [
+      -3.0,
+      -1.0,
+      -0.3
+    ],
+    "upper": [
+      3.0,
+      1.0,
+      0.0
+    ],
+    "voxel_size": 0.02,
+    "particles_per_cell": 1.25,
+    "particle_placement": "cell_center",
+    "jitter": 0.05
+  },
+  "physics": {
+    "class_type": "isaaclab_contrib.coupling.coupler:NewtonCouplerManager",
+    "launcher_type": null,
+    "deterministic": false,
+    "num_substeps": 1,
+    "collision_decimation": 0,
+    "debug_mode": false,
+    "use_cuda_graph": true,
+    "deterministic_mode": "not_guaranteed",
+    "solver_cfg": {
+      "class_type": "isaaclab_contrib.coupling.coupler:NewtonCouplerManager",
+      "solver_type": "None",
+      "entries": [
+        {
+          "name": "robot",
+          "solver_cfg": {
+            "class_type": "isaaclab_newton.physics.mjwarp_manager:NewtonMJWarpManager",
+            "solver_type": "mujoco_warp",
+            "njmax": 1000,
+            "nconmax": 300,
+            "iterations": 100,
+            "ls_iterations": 50,
+            "solver": "newton",
+            "integrator": "implicitfast",
+            "use_mujoco_cpu": false,
+            "disable_contacts": false,
+            "disable_sensors": false,
+            "default_actuator_gear": null,
+            "actuator_gears": null,
+            "update_data_interval": 1,
+            "save_to_mjcf": null,
+            "impratio": 1.0,
+            "cone": "pyramidal",
+            "ccd_iterations": 35,
+            "enable_multiccd": false,
+            "ls_parallel": false,
+            "use_mujoco_contacts": false,
+            "tolerance": 1e-06
+          },
+          "bodies": [
+            "/World/envs/env_.*/Robot"
+          ],
+          "particles": [],
+          "all_particles": false,
+          "include_child_joints": true,
+          "include_body_shapes": true,
+          "include_static_shapes": true,
+          "shape_label_patterns": [],
+          "substeps": 2,
+          "in_place": false
+        },
+        {
+          "name": "sand",
+          "solver_cfg": {
+            "class_type": "isaaclab_newton.physics.mpm_manager:NewtonMPMManager",
+            "solver_type": "implicit_mpm",
+            "max_iterations": 25,
+            "tolerance": 0.0001,
+            "solver": "auto",
+            "warmstart_mode": "auto",
+            "collider_velocity_mode": "forward",
+            "voxel_size": 0.02,
+            "grid_type": "sparse",
+            "check_particle_grid_mapping": false,
+            "grid_padding": 0,
+            "max_active_cell_count": 890625,
+            "max_leaf_node_count": 8192,
+            "max_lower_node_count": 1024,
+            "max_upper_node_count": 32,
+            "separate_worlds": true,
+            "transfer_scheme": "apic",
+            "integration_scheme": "pic",
+            "critical_fraction": 0.0,
+            "air_drag": 1.0,
+            "collider_normal_from_sdf_gradient": false,
+            "collider_basis": "pic27",
+            "strain_basis": "P0",
+            "velocity_basis": "Q1",
+            "project_outside_colliders": false
+          },
+          "bodies": [
+            "/World/envs/env_.*/MPMBedFloor",
+            "/World/envs/env_.*/MPMBedWallFront",
+            "/World/envs/env_.*/MPMApproachBank",
+            "/World/envs/env_.*/MPMBedWallLeft",
+            "/World/envs/env_.*/MPMBedWallRight"
+          ],
+          "particles": [],
+          "all_particles": true,
+          "include_child_joints": false,
+          "include_body_shapes": true,
+          "include_static_shapes": false,
+          "shape_label_patterns": [],
+          "substeps": 1,
+          "in_place": true
+        }
+      ],
+      "proxies": [
+        {
+          "source": "robot",
+          "destination": "sand",
+          "bodies": [
+            "/World/envs/env_.*/Robot/.*ankle_roll_link"
+          ],
+          "particles": [],
+          "mode": "lagged",
+          "mass_scale": 1.0,
+          "proxy_relaxation": 1.0,
+          "proxy_relaxation_mode": "fixed",
+          "proxy_relaxation_min": 0.1,
+          "proxy_relaxation_max": 1.0,
+          "collide_interval": null,
+          "collision_pipeline": null
+        }
+      ],
+      "iterations": 1
+    },
+    "soft_contact_cfg": null,
+    "collision_cfg": {
+      "broad_phase": "explicit",
+      "reduce_contacts": true,
+      "rigid_contact_max": null,
+      "max_triangle_pairs": 1000000,
+      "soft_contact_max": 0,
+      "soft_contact_margin": 0.01,
+      "enable_rigid_soft_full_surface_contact": false,
+      "requires_grad": null,
+      "sdf_hydroelastic_config": null
+    },
+    "default_shape_cfg": {
+      "margin": 0.0,
+      "gap": 0.01,
+      "ke": 160000.0,
+      "kd": 1100.0,
+      "mu": 1.0
+    },
+    "load_visual_shapes": null,
+    "bvh_constructor_geometry": "cubql",
+    "bvh_constructor_scene": "sah",
+    "bvh_constructor_gaussian": "cubql"
+  },
+  "native_warmup_steps": 0,
+  "force_frame": "world; force exerted on each foot; z points upwards",
+  "comparison": "Independent closed-loop rollouts; same policy, initial particles and scene, not identical foot motion",
+  "foot_names": [
+    "left_ankle_roll_link",
+    "right_ankle_roll_link"
+  ],
+  "particle_count": 890625,
+  "initial_particles_sha256": "264d82ac061536a24c60fedce38036aae5675c7ad35d2a2f86542d815ec235d0",
+  "robot_mass_kg": 33.34114074707031,
+  "particle_mass_kg": 0.006467368453741074,
+  "active_k": null,
+  "outcome": "duration",
+  "checkpoint_iteration": 29000,
+  "recorded_seconds": 6.0
+}

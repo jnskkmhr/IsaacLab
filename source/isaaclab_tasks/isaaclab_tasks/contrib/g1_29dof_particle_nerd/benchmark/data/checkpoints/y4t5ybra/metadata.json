@@ -1,0 +1,8 @@
+{
+  "run_id": "y4t5ybra",
+  "project": "g1_29dof_particle_nerd_mixed_terrain",
+  "name": "2026-11-06_01-16-48_nerd_l40_8gpu_512_finetune",
+  "state": "running",
+  "checkpoint": "/tmp/nerd-foot-force-runs/checkpoints/y4t5ybra/model_29000.pt",
+  "sha256": "ed353356c7b6c154b4a81875800589b3b84d9a387d5f686f373d317f6b693966"
+}

@@ -1,0 +1,8 @@
+{
+  "run_id": "jqur5jhm",
+  "project": "g1_29dof_mpm_mixed_terrain",
+  "name": "2026-11-02_19-01-11_train_scratch",
+  "state": "finished",
+  "checkpoint": "/tmp/nerd-foot-force-runs/checkpoints/jqur5jhm/model_19999.pt",
+  "sha256": "0852d6160c916f5f2c1bd873288657ecfb414b4fb76268d7314ab6f6ca6e7f44"
+}
