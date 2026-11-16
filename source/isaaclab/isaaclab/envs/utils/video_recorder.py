@@ -71,10 +71,10 @@ class VideoRecorder:
                 )
             # Legacy recording follows camera selection in the window.
             if channel == "tracking":
-                if viz.cfg.backend.visualizer_type != "newton_gl":
+                if viz.cfg.backend.visualizer_type not in ("newton_gl", "newton_rtx"):
                     raise RuntimeError(
                         f"The {viz.cfg.backend.visualizer_type!r} visualizer cannot record a tracking view. Use "
-                        "'viz:newton_gl:tracking'."
+                        "'viz:newton_gl:tracking' or 'viz:newton_rtx:tracking'."
                     )
                 self._capture = viz.render_tracking_rgb_array
             else:

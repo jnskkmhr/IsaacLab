@@ -506,6 +506,7 @@ class NewtonVisualizerBase(BaseVisualizer):
         self._camera_keys_enabled = True
         self._followers: dict[object, CameraFollower] = {}
         self._tracking_defaults: dict[object, dict] = {}
+        self._tracking_focal_lengths: dict[object, float] = {}
         self._tracking_error = ""
 
     def initialize(self, sim: SimulationContext, *, cameras: list[PerspectiveCameraCfg | Camera]) -> None:
@@ -514,17 +515,18 @@ class NewtonVisualizerBase(BaseVisualizer):
         # each perspective view renders itself, so a recorder can capture one the window does not show
         scene = self._sim.get_scene_data_provider().get_interactive_scene()
         for view in self._image_views:
-            if view.camera is not None:
-                continue
-            if view.render is not None:
-                raise ValueError("A perspective image view must have exactly one rendering owner.")
-            view.render = partial(self._capture_view, view)
+            if view.camera is None:
+                if view.render is not None:
+                    raise ValueError("A perspective image view must have exactly one rendering owner.")
+                view.render = partial(self._capture_view, view)
             source = view.cfg.source
             if self._is_tracking_view(view):
                 if scene is None:
                     raise ValueError("A tracking camera needs an interactive scene to follow.")
                 # fail at initialization, not on a frame: a bad env_index or track_path raises here
                 self._followers[view] = follower = CameraFollower(source, scene, self._env_ids)
+                if view.camera is not None:
+                    view.update_camera_pose = partial(self._apply_view_pose, view)
                 self._tracking_defaults[view] = {
                     "eye": source.eye,
                     "lookat": source.lookat,
@@ -626,12 +628,12 @@ class NewtonVisualizerBase(BaseVisualizer):
         tracking = [v for v in self._image_views if self._is_tracking_view(v)]
         labels = []
         for view in self._image_views:
-            if view.camera is not None:
-                labels.append(view.cfg.source)
-            elif self._is_tracking_view(view):
+            if self._is_tracking_view(view):
                 labels.append(
                     "Tracking Camera" if len(tracking) == 1 else f"Tracking Camera {tracking.index(view) + 1}"
                 )
+            elif view.camera is not None:
+                labels.append(view.cfg.source)
             else:
                 labels.append("Perspective" if len(free) == 1 else f"Perspective {free.index(view) + 1}")
         return labels
@@ -795,6 +797,18 @@ class NewtonVisualizerBase(BaseVisualizer):
         pose = follower and follower.pose(self._sim.get_physics_step_count() * self._sim.get_physics_dt())
         if pose is None or follower is None:
             return False
+        if view.camera is not None:
+            sensor = view.camera
+            sensor.set_world_poses_from_view([pose[0]], [pose[1]])
+            if self._tracking_focal_lengths.get(view) != source.focal_length:
+                height, width = sensor.image_shape
+                fov = self._focal_length_to_vertical_fov_degrees(source.focal_length)
+                focal = height / (2 * math.tan(math.radians(fov) / 2))
+                sensor.set_intrinsic_matrices(
+                    np.array([[[focal, 0.0, width / 2], [0.0, focal, height / 2], [0.0, 0.0, 1.0]]], dtype=np.float32)
+                )
+                self._tracking_focal_lengths[view] = source.focal_length
+            return True
         camera = self._viewer.camera
         camera.pos = PygletVec3(*pose[0])
         camera.look_at(pose[1])
@@ -866,17 +880,24 @@ class NewtonVisualizerBase(BaseVisualizer):
         self._last_render_step = -1
         for follower in self._followers.values():
             follower.reset()  # the heading filter must not carry the previous episode over
+        for view in self._image_views:
+            view.invalidate()
+        self._tracking_focal_lengths.clear()
 
     def close(self) -> None:
         """Detach perspective producers before releasing the visualizer's borrowed views."""
         self._pending_mesh_submissions.clear()
         for view in self._image_views:
+            if view in self._followers:
+                view.update_camera_pose = None
+                view.invalidate()
             owned = isinstance(view.render, partial) and view.render.func == self._capture_view
             if owned:
                 view.render = None
                 view.invalidate()
         self._followers.clear()
         self._tracking_defaults.clear()
+        self._tracking_focal_lengths.clear()
         super().close()
 
     def set_camera_keys_enabled(self, enabled: bool) -> None:
@@ -1382,8 +1403,14 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
             raise RuntimeError(
                 "Newton RTX is kitless and cannot share a process with Kit physics; use Newton or OVPhysX."
             )
-        if any(isinstance(camera, PerspectiveCameraCfg) for camera in cameras) or (
-            self.cfg.view is not None and isinstance(self.cfg.view.source, PerspectiveCameraCfg)
+        if any(
+            isinstance(camera, PerspectiveCameraCfg)
+            and not (isinstance(camera, TrackingCameraCfg) and camera._camera_name)
+            for camera in cameras
+        ) or (
+            self.cfg.view is not None
+            and isinstance(self.cfg.view.source, PerspectiveCameraCfg)
+            and not (isinstance(self.cfg.view.source, TrackingCameraCfg) and self.cfg.view.source._camera_name)
         ):
             raise ValueError(
                 "RTX perspective cameras must be declared before scene construction. Pass the environment config "
@@ -1419,7 +1446,8 @@ class NewtonRTXVisualizer(NewtonVisualizerBase):
         self._viewer.begin_frame(self._sim_time)
         try:
             if not self._viewer.is_paused():
-                self._navigate_scene_camera()
+                if not self._is_tracking_view(self.current_image_view):
+                    self._navigate_scene_camera()
                 if self.cfg.enable_markers and self._marker_revision != self._sim.vis_marker_registry.revision:
                     for view in self._image_views:
                         view.camera._invalidate_buffers()

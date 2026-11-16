@@ -68,8 +68,8 @@ class PerspectiveCameraCfg:
 class TrackingCameraCfg(PerspectiveCameraCfg):
     """A camera that frames an environment or follows an asset in it, however the scene is laid out.
 
-    The visualizer renders it from the viewer camera, so nothing is created in the scene. Only Newton GL
-    supports it; other visualizers ignore it.
+    Newton GL renders it from the viewer camera. Newton RTX uses a scene camera declared by the launcher.
+    Other visualizers ignore it.
     """
 
     eye: tuple[float, float, float] = (4.0, -4.0, 3.0)
@@ -99,6 +99,9 @@ class TrackingCameraCfg(PerspectiveCameraCfg):
 
     Larger values damp rapid turns more, with more lag. Only used with :attr:`follow_heading`.
     """
+
+    _camera_name: str | None = None
+    """Launcher-owned scene camera for RTX capture; None uses the GL viewer camera."""
 
     def __post_init__(self) -> None:
         if self.env_index is not None and self.env_index < 0:

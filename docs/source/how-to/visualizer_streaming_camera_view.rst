@@ -255,8 +255,8 @@ Tracking cameras that follow a robot
 
 A ``TrackingCameraCfg`` frames an environment or follows an asset in it. Its ``eye`` and ``lookat`` are
 offsets [m] from the environment origin, or from the tracked asset, so it frames the robot wherever the scene puts
-it. The visualizer renders it from its own camera: nothing is added to the scene, and the view keeps the
-viewport's markers and shadows.
+it. Newton GL uses its viewer camera; Newton RTX uses a scene camera created by the launcher before scene
+construction. Tracking updates before capture, including when there is no viewer window.
 
 .. code-block:: python
 
@@ -283,11 +283,32 @@ viewport's markers and shadows.
 A free view at the visualizer's own ``eye`` and ``lookat`` is added before the first tracking camera, so the
 interactive camera stays free.
 
-* **Newton GL:** **Camera View** lists the tracking camera as **Tracking Camera** beside **Perspective**. A
+* **Newton GL and Newton RTX:** **Camera View** lists the tracking camera as **Tracking Camera**. A
   **Tracking Camera** group edits its environment, asset, body, eye, look-at, focal length and heading settings
   while it runs; **Reset to Task Default** restores the declaration. Record it with
-  ``--video viz:newton_gl:tracking``, whichever view the window shows.
-* **Kit**, **Newton RTX**, **Viser** and **Rerun** ignore tracking cameras.
+  ``--video viz:newton_gl:tracking`` or ``--video viz:newton_rtx:tracking``, whichever view the window shows.
+* **Kit**, **Viser** and **Rerun** ignore tracking cameras.
+
+For offline recording, keep the tracking declaration above and omit ``--viz``:
+
+.. code-block:: bash
+
+   uv run --extra video --extra ovrtx isaaclab zero_agent --task Isaac-Velocity-Flat-G1 \
+       --num_envs 2 --headless --video viz:newton_rtx:tracking --video_length 200
+
+The recorder creates a headless visualizer using the task's camera settings. To select the output directory
+in a script, configure the recorder before calling ``launch_simulation(env_cfg, ...)``:
+
+.. code-block:: python
+
+   from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+
+   env_cfg.video_recorders = [
+       VideoRecorderCfg(source="viz:newton_rtx:tracking", output_dir="videos", video_length=200),
+   ]
+
+Use ``viz:newton_gl:tracking`` for GL recording. A shared ``ImageViewCfg(source=TrackingCameraCfg(...))``
+can also be passed to both ``VisualizerCfg.view`` and ``VideoRecorderCfg.source`` to record that exact camera.
 
 
 Examples

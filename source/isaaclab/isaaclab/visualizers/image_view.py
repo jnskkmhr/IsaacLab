@@ -56,6 +56,8 @@ class ImageView:
         # Perspective pixels come from the visualizer callback, not a scene sensor.
         self.camera = camera
         self.render: Callable[[wp.array | None], wp.array] | None = None
+        self.update_camera_pose: Callable[[], None] | None = None
+        """Optional tracking-camera update, run before producing a fresh image for any consumer."""
         self.aspect = 1.0
         self.frame = TimestampedBuffer()
         self._host_frame: np.ndarray | None = None
@@ -80,6 +82,9 @@ class ImageView:
             self.invalidate()
         if self.frame.timestamp == frame_id:
             return self.frame.data
+
+        if self.update_camera_pose is not None:
+            self.update_camera_pose()
 
         if camera is None:
             if self.render is None:

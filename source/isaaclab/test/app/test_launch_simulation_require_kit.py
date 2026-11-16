@@ -137,6 +137,39 @@ def test_rtx_perspective_configuration_declares_scene_cameras(channels):
     assert [item for item in vars(cfg.scene).values() if isinstance(item, sim_launcher.CameraCfg)] == cameras
 
 
+def test_headless_rtx_tracking_preserves_declarations_and_shared_recording_view():
+    """Recording-only RTX retains the target and creates each camera once across launch validation."""
+    from isaaclab_visualizers.newton import NewtonRTXBackendCfg
+
+    from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
+    from isaaclab.scene import InteractiveSceneCfg
+    from isaaclab.visualizers import ImageViewCfg, TrackingCameraCfg
+
+    tracking = TrackingCameraCfg(env_index=1, track_path="robot/base", follow_heading=True)
+    shared = ImageViewCfg(source=TrackingCameraCfg(track_path="robot"))
+    cfg = types.SimpleNamespace(
+        sim=SimulationCfg(
+            physics=sim_launcher.NewtonCfg(),
+            visualizer_cfgs=[
+                VisualizerCfg(cameras=[tracking], backend=NewtonRTXBackendCfg()),
+                VisualizerCfg(view=shared, backend=NewtonRTXBackendCfg()),
+            ],
+        ),
+        scene=InteractiveSceneCfg(num_envs=2, env_spacing=4.0),
+        video_recorders=[VideoRecorderCfg(source="viz:newton_rtx:tracking"), VideoRecorderCfg(source=shared)],
+    )
+    for _ in range(2):
+        sim_launcher.validate_launch(cfg, {"headless": True, "visualizer": []})
+        assert len(cfg.sim.visualizer_cfgs) == 2
+        assert all(viewer.headless for viewer in cfg.sim.visualizer_cfgs)
+        source = cfg.sim.visualizer_cfgs[0].cameras[-1]
+        assert isinstance(source, TrackingCameraCfg)
+        assert (source.env_index, source.track_path, source.follow_heading) == (1, "robot/base", True)
+        assert isinstance(vars(cfg.scene)[source._camera_name], sim_launcher.CameraCfg)
+        assert isinstance(vars(cfg.scene)[shared.source._camera_name], sim_launcher.CameraCfg)
+        assert len([sensor for sensor in vars(cfg.scene).values() if isinstance(sensor, sim_launcher.CameraCfg)]) == 3
+
+
 @pytest.mark.parametrize(("outcome", "exit_code"), [("ok", 0), ("interrupt", 130), ("error", 1)])
 def test_config_named_launcher_starts_and_closes(monkeypatch: pytest.MonkeyPatch, outcome, exit_code):
     """A config-selected launcher closes on success, interruption or failure with the matching exit status."""

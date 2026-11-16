@@ -290,6 +290,8 @@ The ``source`` string selects what to capture:
      - Newton GL streaming camera panel, requires ``streaming_view=True``
    * - ``"viz:newton_gl:tracking"``
      - First ``TrackingCameraCfg`` of the visualizer, whichever view the window shows; see :ref:`how-to-visualizer-tracking-cameras`
+   * - ``"viz:newton_rtx:tracking"``
+     - First ``TrackingCameraCfg`` rendered by RTX, including headless recording without ``--viz``
    * - ``"sensor:<name>"``
      - ``env.scene.sensors[name]``, RGB (default)
    * - ``"sensor:<name>:rgb"``

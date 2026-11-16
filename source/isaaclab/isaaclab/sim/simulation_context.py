@@ -433,10 +433,7 @@ class SimulationContext:
                         eye=visualizer.cfg.eye, lookat=visualizer.cfg.lookat, focal_length=visualizer.cfg.focal_length
                     )
                 ])  # fmt: skip
-            if visualizer.cfg.backend.visualizer_type == "newton_rtx":
-                # An RTX window shows scene cameras, so tracking cameras have nothing to follow there.
-                cameras = [camera for camera in cameras if not (isinstance(camera, TrackingCameraCfg))]
-            else:
+            if visualizer.cfg.backend.visualizer_type != "newton_rtx":
                 cameras = with_free_view(
                     cameras, visualizer.cfg.eye, visualizer.cfg.lookat, visualizer.cfg.focal_length
                 )

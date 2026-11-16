@@ -7,16 +7,21 @@
 
 from __future__ import annotations
 
+from functools import partial
 from types import SimpleNamespace
+from unittest.mock import Mock
 
+import numpy as np
 import pytest
 import torch
+import warp as wp
 
 pytest.importorskip("newton")
 from isaaclab_visualizers.newton.newton_visualizer import NewtonVisualizerBase
 from pyglet.math import Vec3
 
-from isaaclab.visualizers import PerspectiveCameraCfg, TrackingCameraCfg
+from isaaclab.utils.warp import ProxyArray
+from isaaclab.visualizers import ImageView, ImageViewCfg, PerspectiveCameraCfg, TrackingCameraCfg
 from isaaclab.visualizers.camera_follower import CameraFollower
 
 pytestmark = pytest.mark.kitless
@@ -122,6 +127,41 @@ def test_the_tracking_camera_recording_picks_the_first_tied_view():
 def test_the_tracking_camera_recording_reports_a_visualizer_without_one():
     with pytest.raises(RuntimeError, match="tied to an environment or an asset"):
         _visualizer([_view(PerspectiveCameraCfg())]).render_tracking_rgb_array()
+
+
+def test_recording_updates_an_unselected_rtx_camera_and_invalidates_it_on_reset():
+    """Sensor capture updates the tracking pose without a display step, with one update per fresh image."""
+    sensor = SimpleNamespace(
+        cfg=SimpleNamespace(data_types=["rgba"]),
+        image_shape=(2, 3),
+        set_world_poses_from_view=Mock(),
+        set_intrinsic_matrices=Mock(),
+        data=SimpleNamespace(output={"rgba": ProxyArray(wp.zeros((1, 2, 3, 4), dtype=wp.uint8, device="cpu"))}),
+    )
+    view = ImageView(ImageViewCfg(source=TrackingCameraCfg(env_index=1, eye=(1.0, 2.0, 3.0))), camera=sensor)
+    free = _view(PerspectiveCameraCfg())
+    free.invalidate = Mock()
+    viz = _visualizer([free, view])
+    viz._tracking_focal_lengths = {}
+    view.update_camera_pose = partial(viz._apply_view_pose, view)
+    scene = _Scene()
+    scene.env_origins = _Scene.env_origins.clone()
+    viz._followers[view]._scene = scene
+    saved = tuple(viz._viewer.camera.pos)
+
+    first = viz.render_tracking_rgb_array()
+    assert first.shape == (2, 3, 3)
+    assert viz.render_tracking_rgb_array() is first
+    sensor.set_world_poses_from_view.assert_called_once_with([(11.0, 2.0, 3.0)], [(10.0, 0.0, 0.0)])
+    assert viz._view_labels() == ["Perspective", "Tracking Camera"]
+
+    scene.env_origins[1, 0] = 20.0
+    viz.reset(soft=True)  # A reset can move the target without advancing the physics-step counter.
+    assert viz.render_tracking_rgb_array() is not first
+    assert sensor.set_world_poses_from_view.call_count == 2
+    sensor.set_world_poses_from_view.assert_called_with([(21.0, 2.0, 3.0)], [(20.0, 0.0, 0.0)])
+    assert viz.current_image_view is free
+    np.testing.assert_array_equal(tuple(viz._viewer.camera.pos), saved)
 
 
 def test_a_tracking_camera_without_a_follower_has_no_pose_instead_of_failing():

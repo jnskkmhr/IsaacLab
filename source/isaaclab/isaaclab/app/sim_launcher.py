@@ -49,7 +49,7 @@ from ..visualizers import (
     VisualizerBackendCfg,
     VisualizerCfg,
 )
-from ..visualizers.visualizer_cfg import VISUALIZER_ALIASES, migrate_visualizer_cfgs
+from ..visualizers.visualizer_cfg import VISUALIZER_ALIASES, migrate_visualizer_cfgs, with_free_view
 from .logging_utils import apply_python_logging_level, ensure_console_handlers, resolve_python_logging_level
 from .settings_manager import get_settings_manager
 
@@ -320,12 +320,11 @@ def validate_launch(  # noqa: C901
         if not isinstance(visualizer.backend, NewtonRTXBackendCfg) or scene_cfg is None:
             continue
         if visualizer.view is not None:
-            if isinstance(visualizer.view.source, TrackingCameraCfg):
-                raise ValueError("A tracking camera cannot be the image source of an RTX viewer.")
             sources = [visualizer.view.source]
         else:
-            # Tracking cameras follow the viewer camera, which an RTX scene camera cannot do, so RTX leaves them out.
-            sources = [camera for camera in visualizer.cameras or [] if not (isinstance(camera, TrackingCameraCfg))]
+            sources = list(visualizer.cameras or [])
+            if not any(isinstance(source, TrackingCameraCfg) and source._camera_name for source in sources):
+                sources = with_free_view(sources, visualizer.eye, visualizer.lookat, visualizer.focal_length)
             if not sources:
                 sources = [
                     PerspectiveCameraCfg(
@@ -334,6 +333,8 @@ def validate_launch(  # noqa: C901
                 ]
         for camera_index, source in enumerate(sources):
             if not isinstance(source, PerspectiveCameraCfg):
+                continue
+            if isinstance(source, TrackingCameraCfg) and source._camera_name in vars(scene_cfg):
                 continue
             name = f"viewer_camera_{viewer_index}_{camera_index}"
             width, height = visualizer.window.size
@@ -353,7 +354,9 @@ def validate_launch(  # noqa: C901
                 render_settings={"omni:rtx:quality": ("Int", 0), **visualizer.backend.render_settings},
             )  # fmt: skip
             vars(scene_cfg)[name] = camera
-            if visualizer.view is not None:
+            if isinstance(source, TrackingCameraCfg):
+                source._camera_name = name
+            elif visualizer.view is not None:
                 visualizer.view.source = name
             else:
                 sources[camera_index] = SceneCameraCfg(prim_path=camera.prim_path)

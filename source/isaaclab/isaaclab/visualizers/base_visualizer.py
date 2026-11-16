@@ -26,6 +26,7 @@ from .key_event_source import KeyEventSource
 from .visualizer_cfg import (
     ImageViewCfg,
     PerspectiveCameraCfg,
+    TrackingCameraCfg,
     VisualizerBackendCfg,
     VisualizerCfg,
     migrate_visualizer_cfgs,
@@ -111,6 +112,12 @@ class BaseVisualizer(ABC):
             camera = None
             if isinstance(self.cfg.view.source, str):
                 camera = scene_data_provider.get_camera_sensors().get(self.cfg.view.source)
+            elif (
+                self.cfg.backend.visualizer_type == "newton_rtx"
+                and isinstance(self.cfg.view.source, TrackingCameraCfg)
+                and self.cfg.view.source._camera_name
+            ):
+                camera = scene_data_provider.get_camera_sensors()[self.cfg.view.source._camera_name]
             self.current_image_view = sim.get_or_create_backend(self.cfg.view, camera=camera)
             self._image_views.append(self.current_image_view)
             return
@@ -126,7 +133,14 @@ class BaseVisualizer(ABC):
             if isinstance(camera, PerspectiveCameraCfg):
                 if self.cfg.backend.visualizer_type not in ("newton_gl", "newton_rtx"):
                     continue
-                view = sim.get_or_create_backend(ImageViewCfg(source=camera))
+                sensor = None
+                if (
+                    self.cfg.backend.visualizer_type == "newton_rtx"
+                    and isinstance(camera, TrackingCameraCfg)
+                    and camera._camera_name
+                ):
+                    sensor = scene_data_provider.get_camera_sensors()[camera._camera_name]
+                view = sim.get_or_create_backend(ImageViewCfg(source=camera), camera=sensor)
             else:
                 view_cfg = ImageViewCfg(
                     source=camera.cfg.prim_path, envs=(0,) if camera.num_instances == 1 else tuple(map(int, env_ids)),
