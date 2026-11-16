@@ -1,0 +1,86 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Submit with run_collection.sh to snapshot the current tracked and new source.
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 1
+      cpu: 14
+      memory: 64Gi
+      storage: 120Gi
+      platform: "{{ platform }}"
+  tasks:
+  - &collector
+    name: collect-box-prescribed
+    image: "{{ image }}"
+    args: [box, prescribed]
+    command: [bash, /tmp/run.sh]
+    environment:
+      HEADLESS: "1"
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OMP_NUM_THREADS: "8"
+      MKL_NUM_THREADS: "8"
+      OPENBLAS_NUM_THREADS: "8"
+      UV_PYTHON: "3.12"
+      UV_PYTHON_PREFERENCE: only-managed
+      UV_PROJECT_ENVIRONMENT: /tmp/isaaclab-venv
+      UV_INSTALL_DIR: /tmp/uv
+      UV_NO_MODIFY_PATH: "1"
+      UV_VERSION: "{{ uv_version }}"
+    files:
+    - path: /tmp/run.sh
+      contents: |
+        set -euo pipefail
+        printf '%s  %s\n' '{{ source_sha256 }}' '{{input:0}}/source.tar.gz' | sha256sum --check --strict
+        mkdir -p /tmp/isaaclab
+        tar -xzf '{{input:0}}/source.tar.gz' -C /tmp/isaaclab
+        bash /tmp/isaaclab/examples/particle_nerd_benchmark/learning/osmo/bootstrap.sh \
+          '{{output}}' "$1" "$2"
+    inputs:
+    - url: "{{ source_url }}"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/box-prescribed"
+
+  - <<: *collector
+    name: collect-box-dynamic
+    args: [box, dynamic]
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/box-dynamic"
+
+  - <<: *collector
+    name: collect-sphere-prescribed
+    args: [sphere, prescribed]
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/sphere-prescribed"
+
+  - <<: *collector
+    name: collect-sphere-dynamic
+    args: [sphere, dynamic]
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/sphere-dynamic"
+
+  - <<: *collector
+    name: collect-cylinder-prescribed
+    args: [cylinder, prescribed]
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/cylinder-prescribed"
+
+  - <<: *collector
+    name: collect-cylinder-dynamic
+    args: [cylinder, dynamic]
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/cylinder-dynamic"
+
+default-values:
+  workflow_name: particle-nerd-object-collect
+  image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+  platform: ovx-l40s
+  uv_version: 0.12.12
+  output_url: ""
+  source_url: ""
+  source_sha256: ""

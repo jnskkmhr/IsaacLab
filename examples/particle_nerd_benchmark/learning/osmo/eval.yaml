@@ -1,0 +1,86 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 4
+      cpu: 32
+      memory: 128Gi
+      storage: 250Gi
+      platform: "{{ platform }}"
+  tasks:
+  - name: evaluate
+    image: "{{ image }}"
+    command: [bash, /tmp/run_eval.sh]
+    environment:
+      HEADLESS: "1"
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OMP_NUM_THREADS: "8"
+      MKL_NUM_THREADS: "8"
+      OPENBLAS_NUM_THREADS: "8"
+      NCCL_DEBUG: WARN
+      TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+      UV_PYTHON: "3.12"
+      UV_PYTHON_PREFERENCE: only-managed
+      UV_PROJECT_ENVIRONMENT: /tmp/isaaclab-venv
+      UV_INSTALL_DIR: /tmp/uv
+      UV_NO_MODIFY_PATH: "1"
+      UV_VERSION: "{{ uv_version }}"
+    files:
+    - path: /tmp/run_eval.sh
+      contents: |
+        set -euo pipefail
+        printf '%s  %s\n' '{{ source_sha256 }}' '{{input:0}}/source.tar.gz' | sha256sum --check --strict
+        mkdir -p /tmp/isaaclab '{{output}}/model'
+        tar -xzf '{{input:0}}/source.tar.gz' -C /tmp/isaaclab
+        cp -r '{{input:8}}'/* '{{output}}/model/'
+        export PATH="${UV_INSTALL_DIR:-/tmp/uv}:$PATH"
+        if ! command -v uv >/dev/null; then
+            curl --fail --location --retry 3 "https://astral.sh/uv/${UV_VERSION:-0.12.12}/install.sh" | sh
+        fi
+        cd /tmp/isaaclab
+        uv sync --locked --no-dev
+        export PYTHONPATH="/tmp/isaaclab/examples"
+        mkdir -p /tmp/test_data
+        for idx in 1 2 3 4 5 6 7; do
+            mkdir -p "/tmp/test_data/$idx"
+            cp "/osmo/data/input/$idx/manifest.json" "/tmp/test_data/$idx/manifest.json"
+            for f in /osmo/data/input/$idx/*9.h5; do
+                if [[ -f "$f" ]]; then
+                    ln -s "$f" "/tmp/test_data/$idx/$(basename "$f")"
+                fi
+            done
+        done
+        uv run --no-sync --with scikit-image==0.27.0rc1 python -m torch.distributed.run \
+            --standalone --nproc_per_node=4 --module particle_nerd_benchmark.learning.evaluate \
+            --data /tmp/test_data --checkpoint '{{output}}/model/best.pt' --output '{{output}}/test_evaluation'
+        uv run --no-sync python -m particle_nerd_benchmark.learning.summarize \
+            '{{output}}/test_evaluation' --expected 100 --protocol-test
+        find '{{output}}/test_evaluation' -name "prediction.h5" -delete
+    inputs:
+    - url: "{{ source_url }}"
+    - url: "{{ data_url }}/particle-nerd-objects-600-2/sphere-prescribed/"
+    - url: "{{ data_url }}/particle-nerd-objects-600-2/sphere-dynamic/"
+    - url: "{{ data_url }}/particle-nerd-objects-600-2/cylinder-prescribed/"
+    - url: "{{ data_url }}/particle-nerd-objects-recovery-1/box-prescribed/"
+    - url: "{{ data_url }}/particle-nerd-objects-recovery-1/box-dynamic/"
+    - url: "{{ data_url }}/particle-nerd-objects-recovery-1/cylinder-dynamic/"
+    - url: "{{ data_url }}/particle-nerd-objects-freefall-400/freefall-dynamic/"
+    - url: "{{ data_url }}/particle-nerd-local-noheur-v2/model/"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/evaluate"
+
+default-values:
+  data_url: swift://PRIVATE_BUCKET/particle-nerd-object-benchmark
+  workflow_name: particle-nerd-local-noheur-eval
+  image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+  platform: ovx-l40
+  uv_version: 0.12.12
+  output_url: ""
+  source_url: ""
+  source_sha256: ""
