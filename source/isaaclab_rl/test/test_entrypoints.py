@@ -628,6 +628,28 @@ def test_dispatch_uses_task_registered_default_backend(monkeypatch) -> None:
     assert received == {"module_name": "isaaclab_rl.entrypoints.backends.train_rsl_rl", "argv": ["--task", task_name]}
 
 
+def test_play_uses_registered_controller_unless_rl_library_is_explicit(monkeypatch) -> None:
+    """A scripted benchmark plays without an RL backend, while explicit RL selection wins."""
+    task = "Isaac-RegisteredPlaybackTest"
+    controller = types.ModuleType("test_benchmark_controller")
+    backend = types.ModuleType("test_benchmark_rl_backend")
+    received = []
+    controller.run = lambda argv: received.append(("controller", argv)) or 7
+    backend.run = lambda argv: received.append(("rl", argv)) or 8
+    monkeypatch.setitem(sys.modules, controller.__name__, controller)
+    monkeypatch.setitem(sys.modules, backend.__name__, backend)
+    monkeypatch.setitem(sys.modules, "isaaclab_tasks", types.ModuleType("isaaclab_tasks"))
+    monkeypatch.setitem(dispatch._BACKEND_MODULES["play"], "rsl_rl", backend.__name__)
+    gym.register(id=task, entry_point="dummy:Env", kwargs={"play_entry_point": controller.__name__})
+    args = ["--task", task, "--duration", "6"]
+    try:
+        assert dispatch.run_play_cli(args) == 7
+        assert dispatch.run_play_cli(["--rl_library", "rsl_rl", *args]) == 8
+        assert received == [("controller", args), ("rl", args)]
+    finally:
+        gym.registry.pop(task, None)
+
+
 def test_dispatch_fuses_option_like_kit_args(monkeypatch) -> None:
     """Space-separated option-like Kit arguments are fused before backend parsing."""
     received: dict[str, object] = {}

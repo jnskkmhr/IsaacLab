@@ -97,7 +97,12 @@ def run_cli(action: str, argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--rl_library", choices=sorted(backends))
     selected, backend_argv = parser.parse_known_args(argv)
-    library = selected.rl_library or _resolve_default_library(argv, backends)
+    registration = _resolve_task_registration(argv) if selected.rl_library is None else {}
+    if action == "play" and registration.get("play_entry_point"):
+        status = _run_backend(registration["play_entry_point"], backend_argv)
+        return status if status is not None else 0
+    default_library = registration.get("default_agent")
+    library = selected.rl_library or (default_library if default_library in backends else None)
     if library is None:
         _print_selector_help(action, sorted(backends))
         if "-h" in argv or "--help" in argv:
@@ -145,22 +150,21 @@ def _normalize_argv(argv: list[str] | None) -> list[str]:
     return fuse_kit_args(argv)
 
 
-def _resolve_default_library(argv: list[str], backends: dict[str, str]) -> str | None:
-    """Return the task-registered default RL library requested by the command line."""
+def _resolve_task_registration(argv: list[str]) -> dict:
+    """Return a task’s playback module and RL defaults from its Gym registration."""
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--task")
     args, _ = parser.parse_known_args(argv)
     if args.task is None:
-        return None
+        return {}
 
     # task registration is deferred until a task name asks for it
     import isaaclab_tasks  # noqa: F401
 
     try:
-        default_library = gym.spec(args.task.split(":")[-1]).kwargs.get("default_agent")
+        return gym.spec(args.task.split(":")[-1]).kwargs
     except gym.error.Error:
-        return None
-    return default_library if default_library in backends else None
+        return {}
 
 
 def _print_selector_help(action: str, backends: list[str]) -> None:
