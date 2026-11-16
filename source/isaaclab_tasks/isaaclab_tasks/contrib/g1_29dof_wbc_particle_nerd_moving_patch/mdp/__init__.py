@@ -1,0 +1,67 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""Shared locomotion MDP functions and the local terrain-aware reset term."""
+
+__all__ = [
+    "body_flat_orientation_l2",
+    "commanded_base_height_exp",
+    "commanded_torso_orientation_exp",
+    "UniformHeightCommand",
+    "UniformTorsoPitchCommand",
+    "energy",
+    "action_rate_l2",
+    "break_contact_penalty",
+    "reward_soft_landing",
+    "feet_air_time_positive_biped",
+    "feet_pitch_contact",
+    "feet_slide",
+    "foot_air_time",
+    "foot_clearance_reward",
+    "foot_contact",
+    "foot_contact_force",
+    "foot_contact_force_raw",
+    "foot_touch_down_angle_penalty",
+    "stance_foot_angle_penalty",
+    "no_fly",
+    "metric_sliderbar",
+    "reset_root_state_on_terrain",
+    "backward_force_pulse",
+    "root_outside_workspace",
+    "root_state_infinite",
+    "terrain_levels_vel",
+    "terrain_material_parameters",
+]
+
+
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import feet_slide
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.curriculums import terrain_levels_vel
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.observations import (
+    foot_air_time,
+    foot_contact,
+    foot_contact_force,
+    foot_contact_force_raw,
+    terrain_material_parameters,
+)
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.rewards import (
+    break_contact_penalty,
+    feet_air_time_positive_biped,
+    feet_pitch_contact,
+    foot_clearance_reward,
+    foot_touch_down_angle_penalty,
+    metric_sliderbar,
+    no_fly,
+    reward_soft_landing,
+    stance_foot_angle_penalty,
+)
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.terminations import (
+    root_outside_workspace,
+    root_state_infinite,
+)
+from isaaclab_tasks.contrib.g1_29dof_particle_nerd_moving_patch.mdp.rewards import body_flat_orientation_l2
+
+from .commands import UniformHeightCommand, UniformTorsoPitchCommand
+from .events import backward_force_pulse, reset_root_state_on_terrain
+from .rewards import action_rate_l2, commanded_base_height_exp, commanded_torso_orientation_exp, energy

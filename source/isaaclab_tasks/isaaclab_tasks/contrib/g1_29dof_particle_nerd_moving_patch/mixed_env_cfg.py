@@ -7,6 +7,7 @@
 
 import math
 
+import isaaclab.envs.mdp as mdp
 from isaaclab.utils import configclass
 
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.curriculums import terrain_levels_vel
@@ -54,6 +55,10 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
         self.scene.num_envs = 2
         self.scene.terrain.terrain_generator = terrain_cfg.ROUGH_TERRAINS_DIFFICULT_CFG.copy()
         self.observations.policy.enable_corruption = False
+        self.observations.policy.projected_gravity.func = mdp.projected_gravity
+        self.observations.policy.projected_gravity.params = {}
+        self.curriculum.gravity_roll_bias = None
+        self.curriculum.gravity_pitch_bias = None
 
         for name in ("add_base_mass", "push_robot", "physics_material", "scale_actuator_gains"):
             setattr(self.events, name, None)

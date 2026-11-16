@@ -6,10 +6,12 @@
 """Shared locomotion MDP functions and the local terrain-aware reset term."""
 
 __all__ = [
+    "body_flat_orientation_l2",
     "break_contact_penalty",
     "reward_soft_landing",
     "feet_air_time_positive_biped",
     "feet_pitch_contact",
+    "feet_slide",
     "foot_air_time",
     "foot_clearance_reward",
     "foot_contact",
@@ -27,6 +29,7 @@ __all__ = [
 ]
 
 
+from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.mdp.rewards import feet_slide
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.curriculums import terrain_levels_vel
 from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.observations import (
     foot_air_time,
@@ -52,3 +55,4 @@ from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch_particle_cache.mdp.termina
 )
 
 from .events import reset_root_state_on_terrain
+from .rewards import body_flat_orientation_l2

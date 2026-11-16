@@ -8,7 +8,8 @@
 Cloned from the soft-contact task. A granular bed exerts no force on a rigid contact sensor, so
 the gait terms are rebuilt on the contact state that the coupler feeds back from the Particle NeRD entry to
 the proxy feet. The contact impulse term penalizes touchdown force magnitude using this same
-contact state. Terms requiring per-shape contact data, ``undesired_contacts`` and ``feet_slide``, are dropped.
+contact state. Foot sliding uses the combined Particle NeRD and MJWarp contact state.
+``undesired_contacts`` remains disabled because it requires contact data for other bodies.
 """
 
 import math
@@ -53,7 +54,7 @@ class G1RewardsCfg:
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
     action_rate_l2_lower_body = RewTerm(
         func=g1_mdp.action_rate_l2,
-        weight=-0.01,
+        weight=-0.05,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_(hip|knee|ankle).*_joint"])},
     )
     action_rate_l2_upper_body = RewTerm(
@@ -69,8 +70,19 @@ class G1RewardsCfg:
         params={"target_height": 0.75, "sensor_cfg": SceneEntityCfg("height_scanner")},
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-10.0)
-    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
-    ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
+    trunk_orientation = RewTerm(
+        func=particle_mdp.body_flat_orientation_l2,
+        weight=-5.0,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names="torso_link")},
+    )
+    lin_vel_z_l2 = RewTerm(
+        func=mdp.lin_vel_z_l2,
+        weight=-0.25,
+    )
+    ang_vel_xy_l2 = RewTerm(
+        func=mdp.ang_vel_xy_l2,
+        weight=-0.25,
+    )
 
     """
     joint regularization.
@@ -92,16 +104,7 @@ class G1RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "command_name": "base_velocity",
-            "weight_standing": {
-                # Allow the legs to adapt to the terrain while retaining upper-body posture.
-                ".*hip_pitch.*": 0.02,
-                ".*hip_roll.*": 0.3,
-                ".*hip_yaw.*": 0.08,
-                ".*knee.*": 0.02,
-                ".*ankle_pitch.*": 0.02,
-                ".*ankle_roll.*": 0.02,
-                ".*(waist|shoulder|elbow|wrist).*": 0.5,
-            },
+            "weight_standing": {".*": 0.5},
             "weight_walking": {
                 # leg
                 ".*hip_pitch.*": 0.02,
@@ -173,45 +176,8 @@ class G1RewardsCfg:
         },
     )
 
-    # feet_pitch = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch,
-    #     weight=-4.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
-    # feet_pitch_diff = RewTerm(
-    #     func=g1_mdp.reward_feet_pitch_diff,
-    #     weight=-4.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-    # # avoid toe contact
-    # feet_pitch_contact = RewTerm(
-    #     func=particle_mdp.feet_pitch_contact,
-    #     weight=-4.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg(
-    #             "robot",
-    #             body_names=[".*ankle_roll.*"],
-    #             preserve_order=True,
-    #         ),
-    #     },
-    # )
-
     stance_foot_angle_penalty = RewTerm(
         func=particle_mdp.stance_foot_angle_penalty,  # type: ignore
-        # weight=-4.0,
         weight=-8.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=[".*ankle_roll.*"], preserve_order=True),
@@ -231,18 +197,6 @@ class G1RewardsCfg:
             "command_name": "base_velocity",
             "threshold": 0.5,
             "velocity_threshold": 0.05,
-        },
-    )
-
-    break_contact = RewTerm(
-        func=particle_mdp.break_contact_penalty,
-        weight=-0.5,
-        params={
-            "command_name": "base_velocity",
-            "command_threshold": 0.05,
-            "recovery_linear_velocity": 0.2,
-            "recovery_angular_velocity": 0.5,
-            "recovery_tilt": 0.2,
         },
     )
 
@@ -270,6 +224,12 @@ class G1RewardsCfg:
                 preserve_order=True,
             ),
         },
+    )
+
+    feet_slide = RewTerm(
+        func=particle_mdp.feet_slide,
+        weight=-0.25,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link", preserve_order=True)},
     )
 
     contact_impulse = RewTerm(
