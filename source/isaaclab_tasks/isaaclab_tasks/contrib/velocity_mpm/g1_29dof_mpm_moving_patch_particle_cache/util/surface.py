@@ -39,6 +39,9 @@ class ParticleCacheSurface:
         self.background_normals = None
         self.particle_boundary = None
         self.textured = True
+        self.send_texture_once = False
+        self._textured_meshes = set()
+        self._background_key = None
 
     def _surface_level(self, world):
         """Estimate the relaxed bed top from the template's upper particle layer."""
@@ -54,6 +57,40 @@ class ParticleCacheSurface:
             self.surface_levels[world] = key, level
         return self.surface_levels[world][1]
 
+    def _send_texture(self, name) -> bool:
+        """Whether to attach the texture to this update.
+
+        The OVRTX renderer keeps a mesh's texture when later updates omit it and compares the image content on every
+        update that supplies one, so it gets the texture once per mesh. The GL viewer removes the texture of an update
+        that omits it, so it always receives it.
+        """
+        if not self.textured:
+            return False
+        if not self.send_texture_once:
+            return True
+        if name in self._textured_meshes:
+            return False
+        self._textured_meshes.add(name)
+        return True
+
+    def _texture_image(self, path):
+        """Decode the color texture once at reduced size.
+
+        The viewers decode and upload a texture given as a path on every mesh update, which costs hundreds of
+        milliseconds for a 4K image; a small array keeps that to a few milliseconds.
+        """
+        if path is None:
+            return None
+        cached = getattr(self, "_texture_cache", None)
+        if cached is None or cached[0] != path:
+            from PIL import Image
+
+            image = Image.open(path).convert("RGB")
+            image.thumbnail((1024, 1024))
+            cached = path, np.ascontiguousarray(np.asarray(image))
+            self._texture_cache = cached
+        return cached[1]
+
     def _flat_color(self, cfg):
         """Average color of the sand texture, used where the viewer cannot sample the texture."""
         if getattr(self, "_mean_color", None) is None:
@@ -67,7 +104,7 @@ class ParticleCacheSurface:
                 self._mean_color = tuple(cfg.color)
         return self._mean_color
 
-    def _material(self, points, vertical=False):
+    def _material(self, points, vertical=False, name=None):
         """Use the background terrain's material and world-space texture coordinates."""
         background = self.patch.background_mesh
         cfg = background.visual_cfg
@@ -80,7 +117,7 @@ class ParticleCacheSurface:
         return dict(
             uvs=wp.from_torch(uvs, dtype=wp.vec2),
             # The RTX viewer renders this textured mesh black; use the plain color until that is understood.
-            texture=cfg.color_texture if self.textured else None,
+            texture=self._texture_image(cfg.color_texture) if self._send_texture(name) else None,
             color=(1.0, 1.0, 1.0) if self.textured else self._flat_color(cfg),
             roughness=1.0,
         )
@@ -156,7 +193,7 @@ class ParticleCacheSurface:
             indices,
             normals=self.background_normals,
             dynamic=True,
-            **self._material(points),
+            **self._material(points, name="/particle_cache/background"),
         )
         self._update_particle_boundary(viewer, covered if particle_boundary else set())
         self.background_tiles = signature
@@ -207,7 +244,7 @@ class ParticleCacheSurface:
                 normals=normals,
                 hidden=not edges,
                 dynamic=True,
-                **self._material(points, vertical=True),
+                **self._material(points, vertical=True, name="/particle_cache/boundary"),
             )
 
     @staticmethod
@@ -223,7 +260,7 @@ class ParticleCacheSurface:
             normals=normals,
             dynamic=True,
             hidden=hidden,
-            **self._material(points),
+            **self._material(points, name=f"/particle_cache/world_{world}/surface"),
         )
 
     def _positions(self, world, live, tiles):
@@ -240,6 +277,7 @@ class ParticleCacheSurface:
         visualizer.sand_surface = self
         visualizer.sand_show_surface = True
         self.textured = True
+        self.send_texture_once = hasattr(visualizer, "_renderers")
         viewer = visualizer._viewer
         viewer.show_particles = False
         viewer._log_particles = lambda state: None
@@ -264,7 +302,11 @@ class ParticleCacheSurface:
         """Submit surfaces only for loaded patches, independently of saved history size."""
         patch, cache = self.patch, self.patch.cache
         visible = set(range(cache.world_count) if visible_worlds is None else visible_worlds)
-        self._update_background(viewer, visible, show_surface, show_particles)
+        # The background depends only on which tiles are loaded or visited, which changes with the cache revision.
+        key = (int(cache.revision.numpy()[0]), frozenset(visible), show_surface, show_particles)
+        if key != self._background_key:
+            self._update_background(viewer, visible, show_surface, show_particles)
+            self._background_key = key
         if not show_surface:
             visible = set()
         for world in self.shown - visible:

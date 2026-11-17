@@ -328,6 +328,9 @@ class OVRTXCameraRenderData:
         self.num_cols = math.ceil(math.sqrt(self.num_envs))
         self.num_rows = math.ceil(self.num_envs / self.num_cols)
         self.warp_buffers: dict[str, wp.array] = {}
+        self.intermediate_buffers: dict[str, wp.array] | None = None
+        self.intermediate_rgba: wp.array | None = None
+        """Generated (DLSS frame generation) image that preceded the latest real frame, when one was produced."""
         self.intrinsic_bindings: list[AttributeBinding] = []
         self.camera_writes = _AsyncWriteBuffers[wp.array]()
         self.pending: tuple[Operation[PendingFetch[RenderProductSetOutputs]], dict | None] | None = None
@@ -1029,6 +1032,16 @@ class OVRTXRenderer(BaseRenderer):
             # DLSS-generated images have earlier capture times than the real frame. Keep all
             # camera outputs on the latest capture without assuming the returned list's order.
             frame = frames[0] if len(frames) == 1 else max(frames, key=lambda frame: frame.end_time)
+            data.intermediate_rgba = None
+            if len(frames) > 1 and data.ppisp_pipeline is None and str(RenderBufferKind.RGBA) in data.warp_buffers:
+                # Keep the newest generated image that precedes the real frame so a window can present it first.
+                earlier = max((f for f in frames if f is not frame), key=lambda f: f.end_time)
+                if data.intermediate_buffers is None:
+                    data.intermediate_buffers = {
+                        str(RenderBufferKind.RGBA): wp.empty_like(data.warp_buffers[str(RenderBufferKind.RGBA)])
+                    }
+                self._process_render_frame(data, earlier, data.intermediate_buffers)
+                data.intermediate_rgba = data.intermediate_buffers[str(RenderBufferKind.RGBA)]
             self._process_render_frame(data, frame, data.warp_buffers)
 
             # Post-render PPISP uses each camera's own HDR source and RGBA destination.
