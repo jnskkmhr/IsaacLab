@@ -21,8 +21,6 @@ from newton.solvers.experimental.coupled import SolverCoupledADMM
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.physics import PhysicsEvent
 
-from isaaclab_contrib.custom_coupling.coupled_mjwarp_mpm_manager import DirectSolverCoupler
-
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
 from .util.particles import MovingPatchParticles
@@ -297,8 +295,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         Both buffers exclude external forces. ADMM reports the wrench applied in its final iteration.
         """
         solver = NewtonManager._solver
-        if isinstance(solver, DirectSolverCoupler):
-            return solver.coupling_forces
         if isinstance(solver, SolverCoupledADMM):
             buffer = solver._admm_buffers[RIGID_ENTRY]
             if not hasattr(buffer, "body_coupling_f"):

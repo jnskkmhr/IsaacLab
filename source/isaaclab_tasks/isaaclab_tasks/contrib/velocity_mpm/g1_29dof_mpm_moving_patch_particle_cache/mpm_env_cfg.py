@@ -15,10 +15,7 @@ from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
-    FLAT_TERRAINS_CFG,
     ROUGH_TERRAINS_DIFFICULT_CFG,
-    SLOPE_TERRAINS_CFG,
-    WAVE_TERRAINS_CFG,
     G1ActionsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,

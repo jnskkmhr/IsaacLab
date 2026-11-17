@@ -10,7 +10,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
-from ..mdp.rewards import elbow_inward_l2, end_effector_velocity_l2, wrist_tracking
+from ..mdp.rewards import elbow_inward_l2, wrist_tracking
 from .action_cfg import UPPER_JOINTS
 
 

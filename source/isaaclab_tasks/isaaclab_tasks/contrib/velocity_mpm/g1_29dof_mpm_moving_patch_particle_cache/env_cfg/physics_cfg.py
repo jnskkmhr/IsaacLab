@@ -18,7 +18,6 @@ from isaaclab_newton.physics import (
 from isaaclab.utils import configclass
 
 from isaaclab_contrib.coupling import CouplerAdmmCfg, CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
-from isaaclab_contrib.custom_coupling import CoupledMJWarpMPMSolverCfg
 
 from isaaclab_tasks.utils import PresetCfg
 
@@ -150,26 +149,9 @@ class G1PhysicsADMMCfg(G1PhysicsProxyCfg):
 
 
 @configclass
-class G1PhysicsDirectCfg(G1PhysicsProxyCfg):
-    """Direct lagged MPM wrench exchange with the same rigid and particle solver settings."""
-
-    use_cuda_graph: bool = False
-
-    capture_solver: bool = False
-
-    solver_cfg: CoupledMJWarpMPMSolverCfg = CoupledMJWarpMPMSolverCfg(
-        entries=G1PhysicsProxyCfg().solver_cfg.entries,
-        rigid_entry=RIGID_ENTRY,
-        mpm_entry=MPM_ENTRY,
-        collider_bodies=RIGID_PROXY_BODIES,
-    )
-
-
-@configclass
 class G1PhysicsCfg(PresetCfg):
     """Select the coupling algorithm without changing the robot or sand solver settings."""
 
     mjwarp_mpm_proxy = G1PhysicsProxyCfg()
     mjwarp_mpm_admm = G1PhysicsADMMCfg()
-    mjwarp_mpm_direct = G1PhysicsDirectCfg()
     default = mjwarp_mpm_proxy

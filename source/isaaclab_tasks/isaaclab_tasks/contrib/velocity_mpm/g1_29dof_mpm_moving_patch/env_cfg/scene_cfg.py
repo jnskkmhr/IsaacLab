@@ -19,7 +19,7 @@ from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG, UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain
+from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
 from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg
 from . import terrain_cfg

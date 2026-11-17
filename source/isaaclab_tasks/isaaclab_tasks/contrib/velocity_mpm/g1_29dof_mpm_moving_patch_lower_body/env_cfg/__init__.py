@@ -9,7 +9,7 @@ from .commands_cfg import G1CommandsCfg
 from .curriculum_cfg import G1CurriculumCfg
 from .event_cfg import G1EventCfg
 from .observation_cfg import G1ObservationsCfg
-from .physics_cfg import DEFAULT_PROXY_MASS_SCALE, G1PhysicsADMMCfg, G1PhysicsCfg, G1PhysicsDirectCfg, G1PhysicsProxyCfg
+from .physics_cfg import DEFAULT_PROXY_MASS_SCALE, G1PhysicsADMMCfg, G1PhysicsCfg, G1PhysicsProxyCfg
 from .reward_cfg import G1RewardsCfg
 from .scene_cfg import G1MovingPatchSceneCfg, MovingPatchTerrainCfg
 from .termination_cfg import G1TerminationsCfg

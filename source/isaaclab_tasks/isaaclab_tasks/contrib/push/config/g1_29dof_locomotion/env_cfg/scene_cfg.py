@@ -16,7 +16,6 @@ from isaaclab.utils import configclass
 
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG_NO_HAND
 
-
 # Use unitree rl lab waist roll/pitch gains
 UNITREE_G1_29DOF_BOX_FOOT_CFG_NO_HAND_increased_waist_gain = UNITREE_G1_29DOF_BOX_FOOT_CFG_NO_HAND.copy()
 for name, actuator in UNITREE_G1_29DOF_BOX_FOOT_CFG_NO_HAND_increased_waist_gain.actuators.items():

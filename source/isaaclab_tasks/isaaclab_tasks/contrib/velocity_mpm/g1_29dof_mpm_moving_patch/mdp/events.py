@@ -18,7 +18,6 @@ from isaaclab.assets import Articulation
 from isaaclab.envs.mdp import reset_root_state_uniform
 from isaaclab.managers import SceneEntityCfg
 
-
 if TYPE_CHECKING:
     from ..mpm_env import G1MovingPatchEnv
 
