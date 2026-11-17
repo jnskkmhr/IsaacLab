@@ -129,6 +129,14 @@ class MPMSolverCfg(NewtonSolverCfg):
     max_iterations: int = 250
     """Maximum number of iterations for the rheology solver."""
 
+    rheology_check_interval: int = 5
+    """Iterations of a captured rheology solve between convergence checks.
+
+    Every check is a conditional graph launch that leaves the GPU idle for about a millisecond. A task whose solves
+    normally run to :attr:`max_iterations` can set this to :attr:`max_iterations`, which checks once and runs the same
+    iterations without the extra launches; a solve that would have converged earlier then runs on to that check.
+    """
+
     tolerance: float = 1.0e-4
     """Tolerance for the rheology solver."""
 

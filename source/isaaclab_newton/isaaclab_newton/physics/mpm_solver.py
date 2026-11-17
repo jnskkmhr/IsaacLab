@@ -60,6 +60,7 @@ def _make_solver_config(solver_cfg: MPMSolverCfg, scene_prim: Usd.Prim | None = 
     values = {
         "max_iterations": solver_cfg.max_iterations,
         "tolerance": solver_cfg.tolerance,
+        "rheology_check_interval": solver_cfg.rheology_check_interval,
         "solver": solver_cfg.solver,
         "warmstart_mode": solver_cfg.warmstart_mode,
         "collider_velocity_mode": collider_velocity_mode,

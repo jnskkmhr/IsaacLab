@@ -74,6 +74,9 @@ class G1PhysicsProxyCfg(NewtonCfg):
                     strain_basis="P0",
                     transfer_scheme="apic",
                     max_iterations=25,
+                    # Solves run to the iteration limit here, so one check at the end runs the same 25 iterations
+                    # without the conditional launches between them.
+                    rheology_check_interval=25,
                     # tolerance=1.0e-5,
                     # warmstart_mode="auto",
                     # velocity_basis="Q1",
