@@ -82,9 +82,6 @@ class KitVisualizer(BaseVisualizer):
         self._app_pumped_this_step: bool = False
         self._controls_kit_timeline = False
         self._owns_kit_timeline = False
-        # Camera tracking state (replaces ViewportCameraController)
-        self._interactive_scene = None  # set from SimulationContext._interactive_scene in initialize()
-        self._viewer_origin: torch.Tensor | None = None  # world-space origin offset for eye/lookat
 
     # ---- Lifecycle ------------------------------------------------------------------------
 
@@ -455,8 +452,8 @@ class KitVisualizer(BaseVisualizer):
         """Current world-space origin offset applied to :attr:`~isaaclab.visualizers.VisualizerCfg.eye` and
         :attr:`~isaaclab.visualizers.VisualizerCfg.lookat` when computing the absolute camera position.
 
-        Returns ``None`` before :meth:`initialize` is called or when no valid origin has been
-        established yet (e.g. asset-tracking before the first :meth:`step`).
+        Returns CPU coordinates as a list, or ``None`` before :meth:`initialize` is called or when
+        no valid origin has been established yet (e.g. asset-tracking before the first :meth:`step`).
         """
         return self._viewer_origin
 
@@ -991,10 +988,10 @@ class KitVisualizer(BaseVisualizer):
         """Compute absolute eye/target from :attr:`_viewer_origin` and push to the viewport."""
         if self._viewer_origin is None:
             return
-        origin = self._viewer_origin.detach().cpu().numpy()
+        origin = self._viewer_origin
         eye = np.array(self.cfg.eye, dtype=float) + origin
         target = np.array(self.cfg.lookat, dtype=float) + origin
-        self.set_camera_view(tuple(float(v) for v in eye), tuple(float(v) for v in target))
+        super()._apply_viewer_origin_to_camera()
         # Keep the Isaac RTX renderer camera in sync (no-op if isaaclab_physx is not installed).
         try:
             from isaaclab_physx.renderers.kit_viewport_utils import set_kit_renderer_camera_view  # noqa: PLC0415

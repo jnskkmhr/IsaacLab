@@ -15,7 +15,7 @@ import time
 from datetime import datetime
 
 import torch.distributed as dist
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+from rsl_rl.runners import DistillationRunner, OffPolicyRunner, OnPolicyRunner
 
 from isaaclab.app import add_launcher_args, launch_simulation, report_activity
 from isaaclab.envs import DirectMARLEnvCfg
@@ -36,6 +36,7 @@ from ..common import (
     apply_video_recording,
     close_env,
     create_isaaclab_env,
+    download_wandb_checkpoint,
     dump_train_configs,
     enable_cameras_for_video,
     pre_launch_video_config,
@@ -68,6 +69,27 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         "--external_callback", default=None, help="Fully qualified path to an externally defined callback."
     )
     parser.add_argument(
+        "--wandb_run",
+        type=str,
+        default=None,
+        help=(
+            "Weights & Biases run id to download the checkpoint from for training or distillation."
+            " Cannot be combined with --checkpoint."
+        ),
+    )
+    parser.add_argument(
+        "--wandb_entity",
+        type=str,
+        default=None,
+        help="Weights & Biases entity owning --wandb_run. Defaults to the entity of the local W&B login.",
+    )
+    parser.add_argument(
+        "--wandb_project",
+        type=str,
+        default=None,
+        help="Weights & Biases project holding --wandb_run. Defaults to the agent configuration's 'wandb_project'.",
+    )
+    parser.add_argument(
         "--resume_optimizer_state",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -86,6 +108,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def _resolve_checkpoint(args_cli: argparse.Namespace, agent_cfg: RslRlBaseRunnerCfg, log_root_path: str) -> str | None:
     """Resolve the checkpoint to resume from, or None when training starts from scratch."""
+    if args_cli.wandb_run is not None:
+        return download_wandb_checkpoint(
+            log_root_path,
+            args_cli.wandb_project if args_cli.wandb_project is not None else agent_cfg.wandb_project,
+            args_cli.wandb_run,
+            args_cli.wandb_entity,
+            agent_cfg.load_checkpoint,
+        )
     if args_cli.checkpoint and is_wandb_checkpoint(args_cli.checkpoint):
         return resolve_wandb_checkpoint(args_cli.checkpoint)
     if args_cli.checkpoint in CHECKPOINT_SELECTORS:
@@ -167,11 +197,15 @@ def _run(args_cli: argparse.Namespace) -> None:
             screen.stage("Preparing agent")
             start_time = time.time()
             report_activity("Wrapping environment")
+            if agent_cfg.class_name == "OffPolicyRunner":
+                env.unwrapped.cfg.compute_final_obs = True
             env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
             report_activity(None)
             report_activity("Building policy")
             if agent_cfg.class_name == "OnPolicyRunner":
                 runner = OnPolicyRunner(env, to_dict(agent_cfg), log_dir=log_dir, device=agent_cfg.device)
+            elif agent_cfg.class_name == "OffPolicyRunner":
+                runner = OffPolicyRunner(env, to_dict(agent_cfg), log_dir=log_dir, device=agent_cfg.device)
             elif agent_cfg.class_name == "DistillationRunner":
                 runner = DistillationRunner(env, to_dict(agent_cfg), log_dir=log_dir, device=agent_cfg.device)
             else:
@@ -189,7 +223,9 @@ def _run(args_cli: argparse.Namespace) -> None:
                 runner.load(
                     resume_path,
                     load_cfg=cli_args.checkpoint_load_cfg(
-                        args_cli.resume_optimizer_state, runner_class=agent_cfg.class_name
+                        args_cli.resume_optimizer_state,
+                        runner_class=agent_cfg.class_name,
+                        algorithm_class=agent_cfg.algorithm.class_name,
                     ),
                     map_location=agent_cfg.device,
                 )

@@ -1,0 +1,95 @@
+{
+  "format_version": 1,
+  "settings": {
+    "left_joint_names": [
+      "left_shoulder_pitch_joint",
+      "left_shoulder_roll_joint",
+      "left_shoulder_yaw_joint",
+      "left_elbow_joint",
+      "left_wrist_roll_joint",
+      "left_wrist_pitch_joint",
+      "left_wrist_yaw_joint"
+    ],
+    "right_joint_names": [
+      "right_shoulder_pitch_joint",
+      "right_shoulder_roll_joint",
+      "right_shoulder_yaw_joint",
+      "right_elbow_joint",
+      "right_wrist_roll_joint",
+      "right_wrist_pitch_joint",
+      "right_wrist_yaw_joint"
+    ],
+    "mirror_joint_signs": [
+      1.0,
+      -1.0,
+      -1.0,
+      1.0,
+      -1.0,
+      1.0,
+      -1.0
+    ],
+    "reference_body_name": "torso_link",
+    "left_body_name": "left_wrist_yaw_link",
+    "right_body_name": "right_wrist_yaw_link",
+    "left_elbow_name": "left_elbow_link",
+    "right_elbow_name": "right_elbow_link",
+    "fixed_joint_positions": {
+      ".*_hand_thumb_0_joint": 0.0,
+      "left_hand_thumb_1_joint": 0.4,
+      "right_hand_thumb_1_joint": -0.4,
+      "left_hand_thumb_2_joint": 0.8,
+      "right_hand_thumb_2_joint": -0.8,
+      "left_hand_(index|middle)_[01]_joint": -1.3,
+      "right_hand_(index|middle)_[01]_joint": 1.3
+    },
+    "joint_limit_margin": 0.02,
+    "collision_clearance": 0.002,
+    "require_elbows_outward": true,
+    "voxel_size": 0.01,
+    "samples_per_voxel": 8,
+    "candidates": 2000000,
+    "validation_candidates": 100000,
+    "seed": 42
+  },
+  "candidate_count": 2000000,
+  "valid_candidates": 244437,
+  "saved_pairs": 231849,
+  "occupied_1cm_cells": 78709,
+  "rejected": {
+    "collision": 1059531,
+    "elbow": 696032,
+    "asymmetry": 0
+  },
+  "validation_valid": 12080,
+  "validation_rejected": {
+    "collision": 53047,
+    "elbow": 34873,
+    "asymmetry": 0
+  },
+  "held_out_nearest_position_distance_m": {
+    "p50": 0.003631019649452431,
+    "p95": 0.007243895708767772,
+    "p99": 0.00957862471680173,
+    "max": 0.018486788170442924
+  },
+  "held_out_fraction_within_1cm": 0.9917218543046358,
+  "left_position_min_m": [
+    -0.378253310918808,
+    0.028912661597132683,
+    -0.12364648282527924
+  ],
+  "left_position_max_m": [
+    0.38649094104766846,
+    0.32530084252357483,
+    0.638441264629364
+  ],
+  "max_mirror_fk_error": {
+    "position_m": 1.0000000000093268e-05,
+    "orientation_rad": 1.032382731180714e-07
+  },
+  "model_sha256": "9c978ae88bf522b2920d4b27d4eeb2a26023b6bca6b9945c826909a639f8b5a6",
+  "mujoco_version": "3.15.0",
+  "collision_model": "Task Newton/MJWarp MJCF export; asset collision masks and exclusions preserved; neutral waist; fixed finger posture from settings",
+  "quaternion_order": "xyzw",
+  "limitations": "Endpoint feasibility only. Spatial coverage does not measure orientation coverage or prove complete workspace coverage."
+}

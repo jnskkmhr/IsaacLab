@@ -12,7 +12,7 @@ import contextlib
 import logging
 import os
 
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
+from rsl_rl.runners import DistillationRunner, OffPolicyRunner, OnPolicyRunner
 
 from isaaclab.app import add_launcher_args, launch_simulation
 from isaaclab.envs import DirectMARLEnvCfg
@@ -33,6 +33,7 @@ from ..common import (
     apply_video_recording,
     close_env,
     create_isaaclab_env,
+    download_wandb_checkpoint,
     enable_cameras_for_video,
     normalize_task_name,
     pre_launch_video_config,
@@ -63,6 +64,27 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--external_callback", default=None, help="Fully qualified path to an externally defined callback."
     )
+    parser.add_argument(
+        "--wandb_run",
+        type=str,
+        default=None,
+        help=(
+            "Weights & Biases run id to download the checkpoint from for playback."
+            " Cannot be combined with --checkpoint."
+        ),
+    )
+    parser.add_argument(
+        "--wandb_entity",
+        type=str,
+        default=None,
+        help="Weights & Biases entity owning --wandb_run. Defaults to the entity of the local W&B login.",
+    )
+    parser.add_argument(
+        "--wandb_project",
+        type=str,
+        default=None,
+        help="Weights & Biases project holding --wandb_run. Defaults to the agent configuration's 'wandb_project'.",
+    )
     cli_args.add_rsl_rl_args(parser)
     add_launcher_args(parser)
     remaining_args_env_registration = cli_args.register_external_tasks(argv)
@@ -78,6 +100,14 @@ def _resolve_checkpoint(
     args_cli: argparse.Namespace, agent_cfg: RslRlBaseRunnerCfg, env_cfg: object, log_root_path: str
 ) -> str | None:
     """Resolve the checkpoint to play, or None when no published checkpoint exists."""
+    if args_cli.wandb_run is not None:
+        return download_wandb_checkpoint(
+            log_root_path,
+            args_cli.wandb_project if args_cli.wandb_project is not None else agent_cfg.wandb_project,
+            args_cli.wandb_run,
+            args_cli.wandb_entity,
+            agent_cfg.load_checkpoint,
+        )
     if args_cli.checkpoint and is_wandb_checkpoint(args_cli.checkpoint):
         return resolve_wandb_checkpoint(args_cli.checkpoint)
     if args_cli.checkpoint == "pretrained":
@@ -133,10 +163,14 @@ def run(argv: list[str]) -> None:
             cleanup.callback(lambda: close_env(env))
 
             screen.stage("Loading policy")
+            if agent_cfg.class_name == "OffPolicyRunner":
+                env.unwrapped.cfg.compute_final_obs = True
             env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
             logger.info(f"Loading model checkpoint from: {resume_path}")
             if agent_cfg.class_name == "OnPolicyRunner":
                 runner = OnPolicyRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
+            elif agent_cfg.class_name == "OffPolicyRunner":
+                runner = OffPolicyRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
             elif agent_cfg.class_name == "DistillationRunner":
                 runner = DistillationRunner(env, to_dict(agent_cfg), log_dir=None, device=agent_cfg.device)
             else:
@@ -144,7 +178,9 @@ def run(argv: list[str]) -> None:
             # configure_seed must run after runner construction so torch determinism does not disturb its initialization
             if args_cli.deterministic:
                 configure_seed(env_cfg.seed, torch_deterministic=True)
-            runner.load(resume_path)
+            # Playback only needs the policy, not training-only teachers, critics, or optimizer state.
+            policy_key = "student" if agent_cfg.class_name == "DistillationRunner" else "actor"
+            runner.load(resume_path, load_cfg={policy_key: True})
             policy = runner.get_inference_policy(device=env.unwrapped.device)
 
             export_model_dir = os.path.join(log_dir, "exported")

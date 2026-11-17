@@ -73,7 +73,7 @@ def raw_env(task: str, finite_horizon: bool, compute_final_obs: bool) -> Iterato
 @pytest.mark.parametrize(
     ("library", "finite_horizon", "task", "wrapper_device", "compute_final_obs"),
     [
-        ("rsl_rl", False, "Isaac-Cartpole", None, False),
+        ("rsl_rl", False, "Isaac-Cartpole", None, True),
         ("rsl_rl", True, "Isaac-Cartpole-Direct", None, False),
         ("rl_games", False, "Isaac-Cartpole", None, False),
         ("sb3", False, "Isaac-Cartpole", None, False),
@@ -135,6 +135,15 @@ def test_wrapper_reset_step_and_timeout(
                 assert ("time_outs" in extras[0]) is not finite_horizon
                 if not finite_horizon:
                     torch.testing.assert_close(extras[0]["time_outs"], raw_env.unwrapped.reset_time_outs)
+                if compute_final_obs:
+                    torch.testing.assert_close(extras[0]["terminated"], raw_env.unwrapped.reset_terminated)
+                    torch.testing.assert_close(extras[0]["truncated"], raw_env.unwrapped.reset_time_outs)
+                    torch.testing.assert_close(extras[0]["final_obs_mask"], dones.bool())
+                    if dones.any():
+                        assert "final_obs" in extras[0]
+                        assert not torch.equal(
+                            extras[0]["final_obs"]["policy"][dones.bool()], transition[0]["policy"][dones.bool()]
+                        )
             elif library == "sb3" and bool(dones.any()):
                 for index in np.flatnonzero(dones):
                     assert extras[0][index]["terminal_observation"] is not None

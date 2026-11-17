@@ -12,6 +12,7 @@ the observation introduced by the function.
 from __future__ import annotations
 
 import functools
+import math
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -88,6 +89,67 @@ def projected_gravity(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEnt
     return asset.data.projected_gravity_b.torch
 
 
+class bias_projected_gravity(ManagerTermBase):
+    """Gravity observed with an episode-long roll/pitch orientation bias.
+
+    Independent uniform offsets are sampled per environment at reset. Ranges are read from
+    the live term configuration at every reset, so :class:`modify_term_cfg` curricula affect
+    new episodes without changing the bias in ongoing episodes. All angles are in radians.
+
+    The error rotation is composed on the right of the true root orientation (local root
+    axes): ``q_observed = q_root * q_error``. Applying its inverse to the true projected
+    gravity preserves the vector norm. This does not change the robot state or model an IMU
+    estimator. Optional Gaussian angular noise is sampled on each observation evaluation.
+
+    This term's randomness is independent of ``ObservationGroupCfg.enable_corruption``.
+    Use :func:`projected_gravity` for clean playback and policy export.
+    """
+
+    def __init__(self, cfg: ObservationTermCfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        self._bias = torch.zeros((env.num_envs, 2), device=env.device)
+        self.reset()
+
+    def reset(self, env_ids: Sequence[int] | torch.Tensor | slice | None = None) -> None:
+        """Resample only the selected environments using the current curriculum ranges."""
+        if env_ids is None:
+            env_ids = slice(None)
+        count = self._bias[env_ids].shape[0]
+        for axis, name in enumerate(("roll_bias_range", "pitch_bias_range")):
+            lower, upper = self.cfg.params[name]
+            if not math.isfinite(lower) or not math.isfinite(upper) or lower > upper:
+                raise ValueError(f"{name} must contain finite, ordered bounds. Got {(lower, upper)}.")
+            self._bias[env_ids, axis] = math_utils.sample_uniform(lower, upper, (count,), self.device)
+
+    def __call__(
+        self,
+        env: ManagerBasedEnv,
+        asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+        roll_bias_range: tuple[float, float] = (0.0, 0.0),
+        pitch_bias_range: tuple[float, float] = (0.0, 0.0),
+        roll_noise_std: float = 0.0,
+        pitch_noise_std: float = 0.0,
+    ) -> torch.Tensor:
+        """Return biased projected gravity with shape ``(num_envs, 3)``.
+
+        Args:
+            env: The environment.
+            asset_cfg: Asset whose root-frame gravity is observed.
+            roll_bias_range: Uniform roll bounds, applied when an environment resets [rad].
+            pitch_bias_range: Uniform pitch bounds, applied when an environment resets [rad].
+            roll_noise_std: Standard deviation of independent roll noise per evaluation [rad].
+            pitch_noise_std: Standard deviation of independent pitch noise per evaluation [rad].
+        """
+        if any(not math.isfinite(std) or std < 0.0 for std in (roll_noise_std, pitch_noise_std)):
+            raise ValueError("Roll/pitch noise standard deviations must be finite and nonnegative.")
+        angles = self._bias
+        if roll_noise_std > 0.0 or pitch_noise_std > 0.0:
+            std = angles.new_tensor((roll_noise_std, pitch_noise_std))
+            angles = angles + torch.randn_like(angles) * std
+        error_quat = math_utils.quat_from_euler_xyz(angles[:, 0], angles[:, 1], torch.zeros_like(angles[:, 0]))
+        return math_utils.quat_apply_inverse(error_quat, projected_gravity(env, asset_cfg))
+
+
 @generic_io_descriptor(
     units="m", axes=["X", "Y", "Z"], observation_type="RootState", on_inspect=[record_shape, record_dtype]
 )
@@ -161,6 +223,46 @@ def body_pose_w(
         pose = pose.clone()  # if slice or int, make a copy to avoid modifying original data
     pose[..., :3] = pose[..., :3] - env.scene.env_origins.unsqueeze(1)
     return pose.reshape(env.num_envs, -1)
+
+
+def body_pose_local(
+    env: ManagerBasedEnv,
+    target_frame: SceneEntityCfg,
+    parent_frame: SceneEntityCfg,
+) -> torch.Tensor:
+    """Return selected body-link poses expressed in a selected parent body-link frame.
+
+    The frames may belong to the same asset or different assets in the scene. This uses
+    body-link origins, not centers of mass, and does not apply end-effector offsets.
+
+    Args:
+        env: The environment.
+        target_frame: Asset and target bodies. Set ``preserve_order=True`` to retain the
+            order of ``body_names`` in the output.
+        parent_frame: Asset and exactly one parent body.
+
+    Returns:
+        Flattened poses with shape ``(num_envs, 7 * num_targets)``. Each pose is ordered
+        ``[x, y, z, qx, qy, qz, qw]``, with position in meters.
+
+    Raises:
+        ValueError: If the parent selection does not contain exactly one body or the
+            target selection is empty.
+    """
+    target: Articulation | RigidObject = env.scene[target_frame.name]
+    parent: Articulation | RigidObject = env.scene[parent_frame.name]
+    target_pose = target.data.body_link_pose_w.torch[:, target_frame.body_ids].reshape(env.num_envs, -1, 7)
+    parent_pose = parent.data.body_link_pose_w.torch[:, parent_frame.body_ids].reshape(env.num_envs, -1, 7)
+    if parent_pose.shape[1] != 1:
+        raise ValueError("parent_frame must select exactly one body.")
+    if target_pose.shape[1] == 0:
+        raise ValueError("target_frame must select at least one body.")
+    parent_pose = parent_pose.expand_as(target_pose).reshape(-1, 7)
+    target_pose = target_pose.reshape(-1, 7)
+    position, quaternion = math_utils.subtract_frame_transforms(
+        parent_pose[:, :3], parent_pose[:, 3:], target_pose[:, :3], target_pose[:, 3:]
+    )
+    return torch.cat((position, quaternion), dim=-1).reshape(env.num_envs, -1)
 
 
 @generic_io_descriptor(observation_type="BodyState", on_inspect=[record_shape, record_dtype, record_body_names])

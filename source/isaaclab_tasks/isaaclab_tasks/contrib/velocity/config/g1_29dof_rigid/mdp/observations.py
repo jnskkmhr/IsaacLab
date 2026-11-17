@@ -75,11 +75,17 @@ def foot_contact(
 def foot_contact_forces(
     env: ManagerBasedRLEnv,
     sensor_cfg: SceneEntityCfg = SceneEntityCfg("contact_forces"),
+    force_filter_threshold: float = 0.0,
+    max_force: float | None = None,
 ) -> torch.Tensor:
+    """Return signed log-compressed forces, with optional component filtering and clipping [N]."""
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    contact_forces = contact_sensor.data.net_forces_w.torch[:, sensor_cfg.body_ids, :]  # (num_envs, num_body_ids, 3)
-    forces_flat = contact_forces.reshape(env.num_envs, -1)
-    return torch.sign(forces_flat) * torch.log1p(torch.abs(forces_flat))
+    forces = contact_sensor.data.net_forces_w.torch[:, sensor_cfg.body_ids, :]
+    if max_force is not None:
+        forces = forces.clamp(-max_force, max_force)
+    forces = forces.reshape(env.num_envs, -1)
+    forces = torch.where(forces.abs() > force_filter_threshold, forces, 0.0)
+    return torch.sign(forces) * torch.log1p(forces.abs())
 
 
 """

@@ -1,0 +1,10 @@
+{
+  "samples": 4096,
+  "contacts_including_positive_gap": 38851,
+  "penetrating_contacts": 0,
+  "minimum_self_contact_gap_m": 0.0020017846123021083,
+  "examples": [],
+  "sampling_seed": 927,
+  "waist_configuration": "neutral",
+  "check": "Newton narrow-phase on stored joint configurations, without physics integration; penetration threshold -1e-5 m"
+}

@@ -77,14 +77,19 @@ def create_prim_from_mesh(prim_path: str, mesh: trimesh.Trimesh, **kwargs):
     Keyword Args:
         translation: The translation of the terrain root prim [m]. Defaults to None.
         orientation: The orientation (x, y, z, w) of the terrain root prim. Defaults to None.
+        disable_collider: Whether to skip authoring the collider on the mesh. Defaults to False.
+        disable_visual: Whether to hide the mesh and skip its visual material. Defaults to False.
         visual_material: The visual material to apply. Defaults to None.
         physics_material: The physics material to apply. Defaults to None. Accepts a legacy rigid
             material cfg, a single rigid-material fragment, or a list of fragments.
     """
     mesh_cfg = sim_utils.MeshFileCfg(
         mesh=sim_utils.MeshFileCfg.TrimeshObjectCfg(mesh=mesh),
-        collision_props=[sim_utils.UsdPhysicsCollisionCfg(collision_enabled=True)],
-        visual_material=kwargs.get("visual_material"),
+        collision_props=None
+        if kwargs.get("disable_collider", False)
+        else [sim_utils.UsdPhysicsCollisionCfg(collision_enabled=True)],
+        visual_material=None if kwargs.get("disable_visual", False) else kwargs.get("visual_material"),
+        visible=not kwargs.get("disable_visual", False),
         physics_material=kwargs.get("physics_material"),
     )
     mesh_cfg.func(prim_path, mesh_cfg, translation=kwargs.get("translation"), orientation=kwargs.get("orientation"))
