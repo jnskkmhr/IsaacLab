@@ -59,6 +59,9 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
     foot_contact_force_threshold: float = 5.0
     """Granular reaction magnitude above which a foot counts as in contact [N]."""
 
+    camera_follow: bool = False
+    """Keep the viewer camera at the configured eye and look-at offsets from the robot instead of a fixed view."""
+
     foot_contact_margin_range: tuple[float, float] | None = None
     """Optional foot collider margins [m], evenly spaced and randomly assigned per environment.
     Applied before solver construction to both rigid and MPM contact. None preserves
@@ -138,6 +141,7 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
+        self.camera_follow = True
 
         # generator = ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = SLOPE_TERRAINS_CFG

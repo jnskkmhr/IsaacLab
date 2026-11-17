@@ -25,6 +25,7 @@ from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
 from .util.particles import MovingPatchParticles
 from .util.surface import ParticleCacheSurface
+from .util.visualizer import CameraFollow
 
 
 class G1MovingPatchEnv(ManagerBasedRLEnv):
@@ -123,6 +124,11 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         self._cache_surface = ParticleCacheSurface(patch, self.sim.backend_manager.backend)
         for visualizer in self.sim.visualizers:
             self._cache_surface.attach(visualizer)
+            if self.cfg.camera_follow:
+                backend = self.sim.backend_manager.backend
+                labels = list(backend.model.body_label)
+                root = next(i for i, label in enumerate(labels) if label.startswith("/World/envs/env_0/Robot/"))
+                visualizer.camera_follow = CameraFollow(backend, root, visualizer.cfg.eye, visualizer.cfg.lookat)
 
     def _update_moving_patch_particle(self, state: newton.State) -> None:
         """Recycle and pin boundary particles before each solver substep."""
