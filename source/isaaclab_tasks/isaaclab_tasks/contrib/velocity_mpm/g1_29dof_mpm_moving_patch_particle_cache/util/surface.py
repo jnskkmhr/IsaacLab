@@ -38,6 +38,7 @@ class ParticleCacheSurface:
         self.background_points = None
         self.background_normals = None
         self.particle_boundary = None
+        self.textured = True
 
     def _surface_level(self, world):
         """Estimate the relaxed bed top from the template's upper particle layer."""
@@ -53,6 +54,19 @@ class ParticleCacheSurface:
             self.surface_levels[world] = key, level
         return self.surface_levels[world][1]
 
+    def _flat_color(self, cfg):
+        """Average color of the sand texture, used where the viewer cannot sample the texture."""
+        if getattr(self, "_mean_color", None) is None:
+            try:
+                from PIL import Image
+
+                image = Image.open(cfg.color_texture).convert("RGB")
+                image.thumbnail((64, 64))
+                self._mean_color = tuple(float(v) / 255.0 for v in np.asarray(image).reshape(-1, 3).mean(axis=0))
+            except OSError:
+                self._mean_color = tuple(cfg.color)
+        return self._mean_color
+
     def _material(self, points, vertical=False):
         """Use the background terrain's material and world-space texture coordinates."""
         background = self.patch.background_mesh
@@ -66,8 +80,8 @@ class ParticleCacheSurface:
         return dict(
             uvs=wp.from_torch(uvs, dtype=wp.vec2),
             # The RTX viewer renders this textured mesh black; use the plain color until that is understood.
-            texture=None,
-            color=cfg.color,
+            texture=cfg.color_texture if self.textured else None,
+            color=None if self.textured else self._flat_color(cfg),
             roughness=1.0,
         )
 
@@ -225,6 +239,10 @@ class ParticleCacheSurface:
         """Publish this surface from the visualizer's frame hooks, replacing the viewer's own particle batch."""
         visualizer.sand_surface = self
         visualizer.sand_show_surface = True
+        # The RTX viewer renders textured meshes black, so it gets the texture's mean color instead.
+        self.textured = not type(visualizer).__name__.startswith("NewtonRTX") and not any(
+            base.__name__ == "NewtonRTXVisualizer" for base in type(visualizer).__mro__
+        )
         viewer = visualizer._viewer
         viewer.show_particles = False
         viewer._log_particles = lambda state: None
