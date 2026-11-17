@@ -4,11 +4,15 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 __all__ = [
+    "JointPositionRangeAction",
+    "JointPositionRangeActionCfg",
     "ThrustAction",
     "NavigationAction",
     "ThrustActionCfg",
     "NavigationActionCfg",
 ]
 
+from .joint_actions import JointPositionRangeAction
+from .joint_actions_cfg import JointPositionRangeActionCfg
 from .thrust_actions import NavigationAction, ThrustAction
 from .thrust_actions_cfg import NavigationActionCfg, ThrustActionCfg

@@ -113,6 +113,7 @@ class NewtonViewerGL(ViewerGL):
         self._close_requested = False
         backend = self._metadata.get("physics_backend", "Unknown")
         self._backend_display = _BACKEND_DISPLAY_NAMES.get(backend, backend)
+        self.particle_colors: wp.array | None = None
         self.particle_color: tuple[float, float, float] | None = None
         self._particle_color_buffer: wp.array | None = None
         self._particle_color_buffer_value: tuple[float, float, float] | None = None
@@ -429,6 +430,8 @@ class NewtonViewerGL(ViewerGL):
         ``/model/particles`` point batch. User-defined point clouds retain the
         colors provided by their own ``log_points`` calls.
         """
+        if name == "/model/particles" and points is not None and getattr(self, "particle_colors", None) is not None:
+            return super().log_points(name, points, radii, self.particle_colors, hidden)
         if name != "/model/particles" or points is None or self.particle_color is None:
             return super().log_points(name, points, radii, colors, hidden)
 

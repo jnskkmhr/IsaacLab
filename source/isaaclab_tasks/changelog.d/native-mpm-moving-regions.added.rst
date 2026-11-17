@@ -1,0 +1,1 @@
+- Added standalone G1 flat, ascending, descending and dune tasks with native Newton body-following MPM activity regions and cached initial particle state.

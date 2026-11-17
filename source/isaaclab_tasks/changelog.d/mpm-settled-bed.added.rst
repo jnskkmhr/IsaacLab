@@ -1,0 +1,1 @@
+- Added one-time fixed-bed sand settling and per-world GPU state restoration for the experimental G1 MPM task, preserving constitutive history and particle sleep state across resets.
