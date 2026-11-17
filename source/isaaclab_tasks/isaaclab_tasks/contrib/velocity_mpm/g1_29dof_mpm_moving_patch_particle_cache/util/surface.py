@@ -81,7 +81,7 @@ class ParticleCacheSurface:
             uvs=wp.from_torch(uvs, dtype=wp.vec2),
             # The RTX viewer renders this textured mesh black; use the plain color until that is understood.
             texture=cfg.color_texture if self.textured else None,
-            color=None if self.textured else self._flat_color(cfg),
+            color=(1.0, 1.0, 1.0) if self.textured else self._flat_color(cfg),
             roughness=1.0,
         )
 
@@ -239,10 +239,7 @@ class ParticleCacheSurface:
         """Publish this surface from the visualizer's frame hooks, replacing the viewer's own particle batch."""
         visualizer.sand_surface = self
         visualizer.sand_show_surface = True
-        # The RTX viewer renders textured meshes black, so it gets the texture's mean color instead.
-        self.textured = not type(visualizer).__name__.startswith("NewtonRTX") and not any(
-            base.__name__ == "NewtonRTXVisualizer" for base in type(visualizer).__mro__
-        )
+        self.textured = True
         viewer = visualizer._viewer
         viewer.show_particles = False
         viewer._log_particles = lambda state: None

@@ -1408,6 +1408,9 @@ class OVRTXMesh:
             sampler = UsdShade.Shader.Define(self.stage, "/Mesh/Material/Texture")
             sampler.CreateIdAttr("UsdUVTexture")
             sampler.CreateInput("file", Sdf.ValueTypeNames.Asset).Set(str(texture_path))
+            # Tiled textures need repeat wrapping; the default samples black outside [0, 1].
+            sampler.CreateInput("wrapS", Sdf.ValueTypeNames.Token).Set("repeat")
+            sampler.CreateInput("wrapT", Sdf.ValueTypeNames.Token).Set("repeat")
             sampler.CreateInput("st", Sdf.ValueTypeNames.Float2).ConnectToSource(reader.ConnectableAPI(), "result")
             sampler.CreateOutput("rgb", Sdf.ValueTypeNames.Float3)
             surface.GetInput("diffuseColor").ConnectToSource(sampler.ConnectableAPI(), "rgb")
