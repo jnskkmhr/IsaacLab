@@ -161,15 +161,11 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
             MovingPatchGLVisualizerCfg(
                 eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
                 eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
-                # origin_type="asset",
-                # origin_track_path="robot",
                 streaming_view=False,
             ),
             # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),

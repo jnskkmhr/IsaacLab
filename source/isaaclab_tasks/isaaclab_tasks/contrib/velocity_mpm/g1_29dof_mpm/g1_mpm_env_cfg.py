@@ -183,15 +183,11 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         #     NewtonGLVisualizerCfg(
         #         eye=(1.5, -1.5, 0.5),
         #         lookat=(0.0, 0.0, 0.0),
-        #         origin_type="asset",
-        #         origin_track_path="robot",
         #         streaming_view=False,
         #     ),
         #     NewtonRTXVisualizerCfg(
         #         eye=(1.5, -1.5, 0.5),
         #         lookat=(0.0, 0.0, 0.0),
-        #         origin_type="asset",
-        #         origin_track_path="robot",
         #         streaming_view=False,
         #     ),
         #     # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
@@ -201,15 +197,11 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
             NewtonGLVisualizerCfg(
                 eye=(-2.0, -0.5, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(-0.0, -2.0, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
@@ -246,15 +238,11 @@ class G1RoughMPMEnvCfg_PLAY(G1MPMEnvCfg_PLAY):
             NewtonGLVisualizerCfg(
                 eye=(-2.0, -0.5, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(-0.0, -2.0, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),

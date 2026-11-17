@@ -22,11 +22,12 @@ class ParticleCacheSurface:
     but does not contribute meshes or per-frame traversal to surface rendering.
     """
 
-    def __init__(self, patch):
+    def __init__(self, patch, backend):
         smoothing = patch.terrain.particle_cache.surface_smoothing
         if not np.isfinite(smoothing) or smoothing < 1.0:
             raise ValueError("particle_cache.surface_smoothing must be finite and at least 1.0")
         self.patch = patch
+        self.backend = backend
         self.extractors = {}
         self.shown = set()
         self.meshes = {}
@@ -218,6 +219,30 @@ class ParticleCacheSurface:
             ids = torch.tensor(records, device=live.device, dtype=torch.long)
             return torch.cat((live, wp.to_torch(cache.saved.q)[ids]))
         return live
+
+    def attach(self, visualizer):
+        """Publish this surface from the visualizer's frame hooks, replacing the viewer's own particle batch."""
+        visualizer.sand_surface = self
+        visualizer.sand_show_surface = True
+        viewer = visualizer._viewer
+        viewer.show_particles = False
+        viewer._log_particles = lambda state: None
+
+        def controls(imgui):
+            if imgui.collapsing_header("Sand visualization"):
+                _, visualizer.sand_show_surface = imgui.checkbox("Isosurface", visualizer.sand_show_surface)
+
+        viewer.register_ui_callback(controls, position="side")
+
+    def render(self, visualizer):
+        """Submit the surface for the worlds this visualizer shows."""
+        self.update(
+            visualizer,
+            self.backend.state_0,
+            getattr(visualizer, "_env_ids", None),
+            show_surface=visualizer.sand_show_surface,
+            show_particles=False,
+        )
 
     def update(self, viewer, state, visible_worlds, show_surface=True, show_particles=False):
         """Submit surfaces only for loaded patches, independently of saved history size."""

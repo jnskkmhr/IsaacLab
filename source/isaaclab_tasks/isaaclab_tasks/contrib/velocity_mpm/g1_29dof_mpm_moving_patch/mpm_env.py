@@ -24,7 +24,7 @@ from isaaclab.physics import PhysicsEvent
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
 from .util.particles import MovingPatchParticles
-from .util.visualizer import MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer
+from .util.visualizer import attach_particle_filter
 
 
 class G1MovingPatchEnv(ManagerBasedRLEnv):
@@ -98,6 +98,9 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         self._setup_moving_patch_particle()
         self._setup_contact_state()
         super().load_managers()
+        if self.moving_patch_particle is not None:
+            for visualizer in self.sim.visualizers:
+                attach_particle_filter(visualizer, self.moving_patch_particle)
 
     def _setup_moving_patch_particle(self) -> None:
         """Create particles from this scene's terrain and attach physics callbacks."""
@@ -114,9 +117,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             background_mesh=terrain.background_mesh,  # type: ignore
         )
         self.sim.backend_manager.register_state_force_callback(self._update_moving_patch_particle)
-        for visualizer in self.sim._visualizers:
-            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
-                visualizer.moving_patch_particle = self.moving_patch_particle
 
     def _update_moving_patch_particle(self, state: newton.State) -> None:
         """Recycle and pin boundary particles before each solver substep."""
@@ -135,9 +135,6 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             # Newton currently exposes registration, but no removal method, for this hook.
             self.sim.backend_manager.backend.state_force_callbacks.remove(self._update_moving_patch_particle)
         self.sim.backend_manager.unregister_post_step_callback(self._restore_boundary_particles)
-        for visualizer in self.sim._visualizers:
-            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
-                visualizer.moving_patch_particle = None
         self.moving_patch_particle = None
         super().close()
 

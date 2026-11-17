@@ -60,15 +60,11 @@ class G1ObjectPushEnvCfg(ManagerBasedRLEnvCfg):
                 eye=(-2.0, -0.5, 1.0),
                 # show_particles=False,
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(-0.0, -2.0, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
         ]
@@ -93,15 +89,11 @@ class G1ObjectPushEnvCfg_PLAY(G1ObjectPushEnvCfg):
             NewtonGLVisualizerCfg(
                 eye=(-2.0, -0.5, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(-0.0, -2.0, 1.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
         ]

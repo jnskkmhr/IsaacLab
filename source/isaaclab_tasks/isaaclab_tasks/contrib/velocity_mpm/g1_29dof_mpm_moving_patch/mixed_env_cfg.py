@@ -108,15 +108,11 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
             MovingPatchGLVisualizerCfg(
                 eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
             ),
             MovingPatchRTXVisualizerCfg(
                 eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
                 origin_env_index=0,
             ),

@@ -13,6 +13,8 @@ from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 from isaaclab.visualizers import VisualizerCfg
 
+from isaaclab_tasks.utils.presets import MultiBackendVisualizerCfg
+
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
     FLAT_TERRAINS_CFG,
@@ -27,7 +29,7 @@ from .env_cfg import (
     G1TerminationsCfg,
 )
 from .util.solver_setting import configure_sparse_mpm_capacities, get_mpm_solver_cfg
-from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchRTXVisualizerCfg
+from .util.visualizer import MovingPatchGLBackendCfg, MovingPatchRTXBackendCfg
 
 
 @configclass
@@ -93,15 +95,10 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
             self.scene.terrain.terrain_generator.curriculum = use_terrain_curriculum
         if use_terrain_curriculum:
             self.scene.terrain.use_terrain_origins = True
-        if self.sim.physics.use_cuda_graph:
-            raise ValueError("Particle caching uses host tile bookkeeping; set use_cuda_graph=False")
-        if self.scene.terrain.moving_patch_terrain.particle_cache.render_mode == "isosurface":
-            if any(v.visualizer_type == "kit" for v in self.sim.visualizer_cfgs):
-                raise ValueError("Particle-cache isosurfaces require newton_gl or newton_rtx; use particles for Kit")
         self.scene.configure_terrain()
-        # GL/RTX submit the filtered particle batch or cached surface themselves.
-        # An authored Points visual would also be rendered by RTX's borrowed stage.
-        self.scene.sand.spawn.visible = any(v.visualizer_type == "kit" for v in self.sim.visualizer_cfgs)
+        # The task's visualizers submit the cached surface themselves. An authored Points visual
+        # would also be rendered by RTX's borrowed stage.
+        self.scene.sand.spawn.visible = False
         self.sim.physics.configure_terrain(self.scene.terrain.moving_patch_terrain, self.proxy_mass_scale)  # type: ignore
         configure_sparse_mpm_capacities(self)
         mpm = get_mpm_solver_cfg(self)
@@ -116,12 +113,14 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
 
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0)),
-            MovingPatchRTXVisualizerCfg(
-                eye=(-50.0, -15.0, 5.0),
-                lookat=(-10.0, 0.0, 0.0),
-            ),
-            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=MovingPatchGLBackendCfg(), newton_rtx=MovingPatchRTXBackendCfg()
+                ),
+                eye=(-20.0, 0.0, 6.0),
+                lookat=(0.0, 0.0, 0.0),
+                streaming_view=False,
+            )
         ]
         self.video_recorders = [
             VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
@@ -170,23 +169,15 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
         # self.commands.base_velocity.debug_vis = False
 
-        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=MovingPatchGLBackendCfg(), newton_rtx=MovingPatchRTXBackendCfg()
+                ),
+                eye=(-2.0, 0.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
-            ),
-            MovingPatchRTXVisualizerCfg(
-                eye=(-2.0, -0.0, 0.5),
-                lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
-                streaming_view=False,
-            ),
-            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
+            )
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),

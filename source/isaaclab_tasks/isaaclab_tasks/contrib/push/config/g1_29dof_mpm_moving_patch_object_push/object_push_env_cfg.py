@@ -110,8 +110,6 @@ class G1ObjectPushEnvCfg(ManagerBasedRLEnvCfg):
             visualizer(
                 eye=(0.0, -2.0, 0.9),
                 lookat=(0.4, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
                 streaming_view=False,
                 show_particles=True,
             )

@@ -24,7 +24,7 @@ from isaaclab.physics import PhysicsEvent
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
 from .util.particles import MovingPatchParticles
-from .util.visualizer import MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer
+from .util.surface import ParticleCacheSurface
 
 
 class G1MovingPatchEnv(ManagerBasedRLEnv):
@@ -39,6 +39,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def __init__(self, cfg, render_mode=None, **kwargs):
         self.moving_patch_particle: MovingPatchParticles | None = None
+        self._cache_surface: ParticleCacheSurface | None = None
         if cfg.foot_contact_margin_range is not None:
             lower, upper = cfg.foot_contact_margin_range
             if not (math.isfinite(lower) and math.isfinite(upper) and 0.0 <= lower <= upper):
@@ -96,6 +97,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         self._setup_moving_patch_particle()
         self._setup_contact_state()
         super().load_managers()
+        self._setup_surface()
 
     def _setup_moving_patch_particle(self) -> None:
         """Create particles from this scene's terrain and attach physics callbacks."""
@@ -112,9 +114,15 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         )
         manager.register_state_force_callback(self._update_moving_patch_particle)
         manager.register_post_step_callback(self._restore_boundary_particles)
-        for visualizer in self.sim._visualizers:
-            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
-                visualizer.moving_patch_particle = self.moving_patch_particle
+
+    def _setup_surface(self) -> None:
+        """Publish the cached isosurface through the task's visualizers."""
+        patch = self.moving_patch_particle
+        if not self.sim.visualizers or patch.terrain.particle_cache.render_mode != "isosurface":
+            return
+        self._cache_surface = ParticleCacheSurface(patch, self.sim.backend_manager.backend)
+        for visualizer in self.sim.visualizers:
+            self._cache_surface.attach(visualizer)
 
     def _update_moving_patch_particle(self, state: newton.State) -> None:
         """Recycle and pin boundary particles before each solver substep."""
@@ -132,9 +140,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         if self._update_moving_patch_particle in manager.backend.state_force_callbacks:
             manager.backend.state_force_callbacks.remove(self._update_moving_patch_particle)
         manager.unregister_post_step_callback(self._restore_boundary_particles)
-        for visualizer in self.sim._visualizers:
-            if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
-                visualizer.moving_patch_particle = None
+        self._cache_surface = None
         self.moving_patch_particle = None
         super().close()
 
