@@ -751,11 +751,23 @@ def spawn_from_usd_file(
 
             # Author existing surface inputs with or without Kit, before cloning the prototype.
             context = "" if isinstance(cfg.visual_material, PreviewSurfaceCfg) else "mdl"
+            authored = False
             for prim in Usd.PrimRange(stage.GetPrimAtPath(prim_path)):
                 if prim.IsA(UsdShade.Material) and UsdShade.Material(prim).GetSurfaceOutput(context):
                     shader, _, _ = UsdShade.Material(prim).ComputeSurfaceSource(context)
                     if shader:
                         _author_material_inputs(shader.GetPrim(), cfg.visual_material)
+                        authored = True
+            color = getattr(cfg.visual_material, "diffuse_color", None)
+            if not authored and color is not None and not has_kit():
+                # A file without surface materials renders in the viewer's default color; use the display color.
+                from pxr import UsdGeom, Vt  # noqa: PLC0415
+
+                for prim in Usd.PrimRange(stage.GetPrimAtPath(prim_path)):
+                    if prim.IsA(UsdGeom.Gprim):
+                        UsdGeom.Gprim(prim).CreateDisplayColorAttr().Set(
+                            Vt.Vec3fArray([tuple(float(c) for c in color)])
+                        )
         elif has_kit():
             material_path = (
                 cfg.visual_material_path
@@ -765,7 +777,19 @@ def spawn_from_usd_file(
             cfg.visual_material.func(material_path, cfg.visual_material)
             bind_visual_material(prim_path, material_path, stage=stage)
         else:
-            logger.warning("Skipping visual material application for '%s' in kitless mode.", prim_path)
+            # Without Kit, author the surface inputs of the materials the file already binds.
+            from pxr import Usd, UsdShade  # noqa: PLC0415
+
+            context = "" if isinstance(cfg.visual_material, PreviewSurfaceCfg) else "mdl"
+            authored = False
+            for prim in Usd.PrimRange(stage.GetPrimAtPath(prim_path)):
+                if prim.IsA(UsdShade.Material) and UsdShade.Material(prim).GetSurfaceOutput(context):
+                    shader, _, _ = UsdShade.Material(prim).ComputeSurfaceSource(context)
+                    if shader:
+                        _author_material_inputs(shader.GetPrim(), cfg.visual_material)
+                        authored = True
+            if not authored:
+                logger.warning("Skipping visual material application for '%s' in kitless mode.", prim_path)
 
     for part_path, material_path in cfg.visual_material_bindings.items():
         from pxr import UsdShade  # noqa: PLC0415

@@ -210,13 +210,18 @@ class NewtonVisualizationMarkers:
 
             if newton_cfg.renderer == "mesh":
                 mesh_name = f"{self.group_id}/meshes/{name}"
-                self._ensure_mesh_registered(viewer, mesh_name, newton_cfg)
                 color = newton_cfg.color or _extract_color(marker_cfg)
+                self._ensure_mesh_registered(viewer, mesh_name, newton_cfg, color)
                 colors = translations.new_tensor(color).expand(num_markers, -1)
                 # ViewerGL gates texture sampling with material.w. Rerun and Viser ignore this flag.
                 texture_flag = float(newton_cfg.texture is not None)
                 materials = translations.new_tensor((0.0, 0.0, 0.0, texture_flag)).expand(num_markers, -1)
                 xforms = torch.cat((translations, orientations), dim=1).detach().cpu().numpy()
+                emissive_groups = getattr(viewer, "_emissive_instance_groups", None)
+                if emissive_groups is not None and hasattr(viewer, "_qualify"):
+                    # The RTX viewer applies per-instance colors only to emissive groups; otherwise every
+                    # instance keeps the registered mesh material.
+                    emissive_groups.add(viewer._qualify(batch_name))
                 viewer.log_instances(
                     batch_name,
                     mesh_name,
@@ -248,7 +253,9 @@ class NewtonVisualizationMarkers:
         elif newton_cfg.renderer == "frame":
             viewer.log_lines(batch_name, None, None, None, hidden=True)
 
-    def _ensure_mesh_registered(self, viewer: ViewerBase, mesh_name: str, newton_cfg: _NewtonMarkerSpec) -> None:
+    def _ensure_mesh_registered(
+        self, viewer: ViewerBase, mesh_name: str, newton_cfg: _NewtonMarkerSpec, color: tuple | None = None
+    ) -> None:
         # The marker backend is shared by all Newton-family visualizers. Mesh
         # registration is viewer-local, so the same marker mesh must be logged
         # once per viewer (for example, once for Rerun and once for Viser).
@@ -270,6 +277,7 @@ class NewtonVisualizationMarkers:
             if uvs_arr is not None and uvs_arr.size
             else None,
             texture=newton_cfg.texture,
+            color=color if color is not None else newton_cfg.color,
             hidden=True,
         )
         self._registered_meshes.add(registered_key)
