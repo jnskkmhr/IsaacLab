@@ -15,7 +15,7 @@ from isaaclab.visualizers import VisualizerCfg
 
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
-    ROUGH_TERRAINS_DIFFICULT_CFG,
+    FLAT_TERRAINS_CFG,
     G1ActionsCfg,
     G1CommandsCfg,
     G1CurriculumCfg,
@@ -140,10 +140,10 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
 
-        generator = ROUGH_TERRAINS_DIFFICULT_CFG
+        # generator = ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = SLOPE_TERRAINS_CFG
         # generator = WAVE_TERRAINS_CFG
-        # generator = FLAT_TERRAINS_CFG
+        generator = FLAT_TERRAINS_CFG
 
         self.scene.terrain.terrain_generator = generator
         self.scene.terrain.moving_patch_terrain.particle_depth = 0.35
@@ -163,9 +163,9 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         for name in ("track_lin_vel", "track_ang_vel", "track_heading", "track_lin_vel_weight"):
             setattr(self.curriculum, name, None)
 
-        self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0.5, 0.5)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
-        self.commands.base_velocity.ranges.ang_vel_z = (-0.5, -0.5)
+        self.commands.base_velocity.ranges.ang_vel_z = (-1.0, -1.0)
         self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
         # self.commands.base_velocity.debug_vis = False

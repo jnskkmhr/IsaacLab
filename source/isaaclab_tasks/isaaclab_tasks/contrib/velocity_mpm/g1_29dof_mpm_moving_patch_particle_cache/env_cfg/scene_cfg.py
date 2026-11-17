@@ -25,12 +25,12 @@ from ..util.particle_sampling import make_particle_spawner
 from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg
 from . import terrain_cfg
 
-VOXEL_SIZE = 0.04
+VOXEL_SIZE = 0.02
 """MPM voxel size [m]."""
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
 # FOOT_CONTACT_MARGIN = 0.01875
-FOOT_CONTACT_MARGIN = VOXEL_SIZE * 0.5
+FOOT_CONTACT_MARGIN = 0.04 * 0.5
 """Sole contact margin [m], retained with the existing policy/physics settings."""
 
 

@@ -13,8 +13,8 @@ import torch
 import warp as wp
 from newton.solvers.experimental.coupled import SolverCoupled
 
+from .gpu_particle_cache import GpuParticleStateCache
 from .kernel import mark_resets, refresh_cached_properties, restore_boundary_particles, update_patch_center
-from .particle_cache import ParticleStateCache
 from .terrain import MovingPatchTerrainCfg, WarpTerrainMesh
 
 
@@ -43,7 +43,7 @@ class MovingPatchParticles:
         self._setup_solver(coupled_solver, entry_name)
         self._setup_tracked_bodies()
         self._setup_particle_storage()
-        self.cache = ParticleStateCache(self)
+        self.cache = GpuParticleStateCache(self)
         self.update(state)
         self.check_terrain_queries()
 
@@ -152,8 +152,9 @@ class MovingPatchParticles:
             outputs=[self.patch_centers],  # patch_center
             device=model.device,
         )
-        if self.cache.update(state):
-            self._refresh_particle_mass()
+        # Everything stays on the device, so this is valid inside a CUDA graph.
+        self.cache.update(state)
+        wp.capture_if(self.cache.changed, self._refresh_particle_mass)
         self.env_reset_requested.zero_()
 
     def check_terrain_queries(self) -> None:
@@ -161,6 +162,7 @@ class MovingPatchParticles:
         if self.terrain_query_miss_count.numpy()[0]:
             raise ValueError("Recycled particles left the generated terrain surface")
         self.terrain_query_miss_count.zero_()
+        self.cache.check_errors()
 
     def _refresh_particle_mass(self) -> None:
         """Synchronize restored particle properties and invalidate solver warm starts."""

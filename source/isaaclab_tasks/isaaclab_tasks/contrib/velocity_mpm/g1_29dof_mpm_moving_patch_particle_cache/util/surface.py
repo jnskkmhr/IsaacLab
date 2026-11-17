@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import warp as wp
 
-from .felix.paged_sand_isosurface import ISO_SKIRT_CELLS, IsoSurface
+from .paged_sand_isosurface import ISO_SKIRT_CELLS, IsoSurface
 from .surface_kernel import blend_surface_boundary
 
 

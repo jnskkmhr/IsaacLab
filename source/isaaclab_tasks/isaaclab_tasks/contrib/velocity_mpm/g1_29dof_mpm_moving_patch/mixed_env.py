@@ -16,11 +16,10 @@ import warp as wp
 from isaaclab_newton.assets import MPMObject
 from isaaclab_newton.assets.mpm_object.mpm_object_data import MPMObjectData
 from isaaclab_newton.envs.mdp.events import randomize_mpm_material as RandomizeMPMMaterial
-from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
+from isaaclab_newton.physics import reset_mpm_solver_state
+from isaaclab_newton.physics.coupling import CouplerAdmmCfg
 
 from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
-
-from isaaclab_contrib.coupling import CouplerAdmmCfg
 
 from .env_cfg.physics_cfg import MPM_ENTRY
 from .mdp.terminations import root_outside_workspace
@@ -58,7 +57,7 @@ class MixedMPMObject(MPMObject):
     """Particle asset mapping sampled scene worlds to compact particle instances."""
 
     def _initialize_impl(self) -> None:
-        model = NewtonManager.get_model()
+        model = self.sim.backend_manager.backend.model
         if model.particle_count:
             super()._initialize_impl()
         else:
@@ -162,7 +161,7 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
                     entry.solver_cfg.max_upper_node_count = max(32, self.cfg.mpm_upper_node_count_per_world * count)
 
     def _setup_contact_state(self) -> None:
-        entry = NewtonManager._solver._entries["robot"]
+        entry = self.sim.backend_manager.backend.solver._entries["robot"]
         self._rigid_solver = entry.solver
         foot_names = self.scene["robot"].find_bodies(self.cfg.foot_body_expr, preserve_order=True)[1]
         foot_bodies = self._resolve_newton_body_ids(foot_names).cpu().numpy().flatten()
@@ -232,11 +231,12 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
         world_mask[: self.num_envs][env_ids] = True
         mask = wp.from_torch(world_mask, dtype=wp.bool)
         if self.moving_patch_particle is not None:
-            NewtonMPMManager.reset_solver_state(
+            reset_mpm_solver_state(
+                self.sim.backend_manager.backend,
                 world_mask=mask, flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE
             )
         else:
-            NewtonManager._solver.reset(NewtonManager.get_state_0(), world_mask=mask, flags=newton.StateFlags.BODY)
+            self.sim.backend_manager.backend.solver.reset(self.sim.backend_manager.backend.state_0, world_mask=mask, flags=newton.StateFlags.BODY)
         self._foot_air_time[env_ids] = 0.0
         self._foot_contact_time[env_ids] = 0.0
         self._foot_first_contact[env_ids] = False

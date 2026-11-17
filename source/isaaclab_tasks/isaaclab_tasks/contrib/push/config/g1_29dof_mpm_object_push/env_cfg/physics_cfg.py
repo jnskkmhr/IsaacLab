@@ -14,10 +14,9 @@ from isaaclab_newton.physics import (
     NewtonCollisionPipelineCfg,
     NewtonShapeCfg,
 )
+from isaaclab_newton.physics.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
 from isaaclab.utils import configclass
-
-from isaaclab_contrib.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
 from .scene_cfg import VOXEL_SIZE
 

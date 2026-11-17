@@ -176,7 +176,6 @@ class MovingPatchTerrainCfg:
             if not math.isclose(extent / cache.tile_size, round(extent / cache.tile_size), abs_tol=1e-6):
                 raise ValueError("Total patch dimensions and patch_discretization_step must be multiples of tile_size")
         for name in (
-            "simulation_capacity_multiplier",
             "max_cached_particles_per_env",
             "max_visited_tiles_per_env",
             "settle_max_steps",
@@ -186,6 +185,9 @@ class MovingPatchTerrainCfg:
             value = getattr(cache, name)
             if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                 raise ValueError(f"particle_cache.{name} must be a positive integer")
+        multiplier = cache.simulation_capacity_multiplier
+        if isinstance(multiplier, bool) or not isinstance(multiplier, (int, float)) or not 1.0 <= multiplier < math.inf:
+            raise ValueError("particle_cache.simulation_capacity_multiplier must be a finite number of at least 1")
         for name in ("settle_dt", "settle_speed", "settle_height_tolerance", "surface_resolution"):
             if not math.isfinite(getattr(cache, name)) or getattr(cache, name) <= 0:
                 raise ValueError(f"particle_cache.{name} must be positive and finite")

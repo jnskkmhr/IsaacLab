@@ -55,14 +55,16 @@ class CachedMPMGridCfg(MPMGridCfg):
     func = spawn_cached_particles
     tile_size: float = MISSING
     """Terrain tile side length [m], supplied by the scene's particle-cache configuration."""
-    simulation_capacity_multiplier: int = MISSING
+    simulation_capacity_multiplier: float = MISSING
     """Simulation slots divided by initial particle count, supplied by the cache configuration."""
 
     def get_particle_count(self) -> int:
         """Number of fixed simulation slots, including inactive reserves."""
         template, _, _ = _sample_grid_tile(self)
         dimensions = np.rint((np.asarray(self.upper[:2]) - self.lower[:2]) / self.tile_size).astype(int)
-        return len(template) * int(np.prod(dimensions)) * self.simulation_capacity_multiplier
+        # Reserve storage is allocated in whole template tiles, so a fractional multiplier rounds up to a tile.
+        tiles = int(np.ceil(int(np.prod(dimensions)) * self.simulation_capacity_multiplier))
+        return len(template) * tiles
 
 
 def make_particle_spawner(terrain: MovingPatchTerrainCfg) -> CachedMPMGridCfg:

@@ -14,8 +14,12 @@ class ParticleCacheCfg:
 
     tile_size: float = 0.2
     """Side length of world-XY terrain tiles [m]; must divide the total patch dimensions."""
-    simulation_capacity_multiplier: int = 2
-    """Simulation slots divided by initial particle count, including room for accumulated material."""
+    simulation_capacity_multiplier: float = 2.0
+    """Simulation slots divided by initial particle count, including room for accumulated material.
+
+    Any value of at least 1. Reserve storage is allocated in whole template tiles, so a fractional value rounds up.
+    Fewer slots lower memory and the particle solver's per-step cost, but a revisit or a fast move needs free slots;
+    running out raises an error."""
     max_cached_particles_per_env: int = 500_000
     """Maximum unloaded particle records per environment. Exhaustion raises before recycling."""
     max_visited_tiles_per_env: int = 4096

@@ -14,10 +14,9 @@ from isaaclab_newton.physics import (
     NewtonCollisionPipelineCfg,
     NewtonShapeCfg,
 )
+from isaaclab_newton.physics.coupling import CouplerAdmmCfg, CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
 from isaaclab.utils import configclass
-
-from isaaclab_contrib.coupling import CouplerAdmmCfg, CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
 from isaaclab_tasks.utils import PresetCfg
 
@@ -42,7 +41,6 @@ class G1PhysicsProxyCfg(NewtonCfg):
     """Newton two-way rigid/MPM coupling for the moving-patch task."""
 
     solver_cfg: CouplerProxyCfg = CouplerProxyCfg(
-        class_type="isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.physics:NewtonParticleCacheCouplerManager",
         entries=[
             CouplerEntryCfg(
                 name=RIGID_ENTRY,
@@ -115,10 +113,6 @@ class G1PhysicsProxyCfg(NewtonCfg):
     collision_cfg: NewtonCollisionPipelineCfg = NewtonCollisionPipelineCfg(soft_contact_max=0)
     default_shape_cfg: NewtonShapeCfg = NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0)
     num_substeps: int = 1
-    use_cuda_graph: bool = False
-    """Keep host particle paging outside the manager-wide graph."""
-    capture_solver: bool = True
-    """Capture GPU solver steps separately from host particle paging."""
 
     def configure_terrain(self, moving_patch_terrain: MovingPatchTerrainCfg, proxy_mass_scale: float) -> None:
         """Apply final terrain settings without replacing user-configured solvers."""
@@ -134,11 +128,7 @@ class G1PhysicsProxyCfg(NewtonCfg):
 class G1PhysicsADMMCfg(G1PhysicsProxyCfg):
     """Experimental ADMM rigid-particle coupling with the same MJWarp and MPM settings."""
 
-    use_cuda_graph: bool = False
-    capture_solver: bool = False
-
     solver_cfg: CouplerAdmmCfg = CouplerAdmmCfg(
-        class_type="isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.physics:NewtonParticleCacheCouplerManager",
         entries=G1PhysicsProxyCfg().solver_cfg.entries,
         contact_pairs=[(RIGID_ENTRY, MPM_ENTRY)],
         iterations=1,

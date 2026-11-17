@@ -14,8 +14,8 @@ from collections.abc import Sequence
 import newton
 import torch
 import warp as wp
-from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
-from isaaclab_newton.physics.newton_manager_cfg import NewtonBuilderCfg
+from isaaclab_newton.physics import reset_mpm_solver_state
+from isaaclab_newton.physics.newton_builder_cfg import NewtonBuilderCfg
 from newton.solvers.experimental.coupled import SolverCoupledADMM
 
 from isaaclab.envs import ManagerBasedRLEnv
@@ -43,11 +43,15 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
             lower, upper = cfg.foot_contact_margin_range
             if not (math.isfinite(lower) and math.isfinite(upper) and 0.0 <= lower <= upper):
                 raise ValueError("foot_contact_margin_range must contain finite, nonnegative, ordered bounds.")
-        margin_callback = NewtonManager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
+        super().__init__(cfg, render_mode, **kwargs)
+
+    def _init_sim(self):
+        # The model is finalized inside the simulation reset, so the margins must be registered before it.
+        callback = self.sim.backend_manager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
         try:
-            super().__init__(cfg, render_mode, **kwargs)
+            super()._init_sim()
         finally:
-            margin_callback.deregister()
+            callback.deregister()
 
     def _set_contact_margin(self, payload=None):
         """Assign sampled margins before model finalization when configured."""
@@ -96,16 +100,18 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
     def _setup_moving_patch_particle(self) -> None:
         """Create particles from this scene's terrain and attach physics callbacks."""
         terrain = self.scene.terrain
+        manager = self.sim.backend_manager
+        backend = manager.backend
         self.moving_patch_particle = MovingPatchParticles(
-            model=NewtonManager.get_model(),
-            state=NewtonManager.get_state_0(),
-            coupled_solver=NewtonManager._solver,
+            model=backend.model,
+            state=backend.state_0,
+            coupled_solver=backend.solver,
             terrain=self.cfg.scene.terrain.moving_patch_terrain,
             entry_name=MPM_ENTRY,
             background_mesh=terrain.background_mesh,  # type: ignore
         )
-        NewtonManager.register_state_force_callback(self._update_moving_patch_particle)
-        NewtonManager.register_post_step_callback(self._restore_boundary_particles)
+        manager.register_state_force_callback(self._update_moving_patch_particle)
+        manager.register_post_step_callback(self._restore_boundary_particles)
         for visualizer in self.sim._visualizers:
             if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
                 visualizer.moving_patch_particle = self.moving_patch_particle
@@ -116,16 +122,16 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def _restore_boundary_particles(self) -> None:
         """Remove boundary drift after the final substep of each physics step."""
-        self.moving_patch_particle.restore_boundary_particles(NewtonManager.get_state_0())
+        self.moving_patch_particle.restore_boundary_particles(self.sim.backend_manager.backend.state_0)
 
     def close(self) -> None:
         """Detach this environment's callbacks before releasing its scene."""
         if getattr(self, "_is_closed", True):
             return
-        if self._update_moving_patch_particle in NewtonManager._state_force_callbacks:
-            # Newton currently exposes registration, but no removal method, for this hook.
-            NewtonManager._state_force_callbacks.remove(self._update_moving_patch_particle)
-        NewtonManager.unregister_post_step_callback(self._restore_boundary_particles)
+        manager = self.sim.backend_manager
+        if self._update_moving_patch_particle in manager.backend.state_force_callbacks:
+            manager.backend.state_force_callbacks.remove(self._update_moving_patch_particle)
+        manager.unregister_post_step_callback(self._restore_boundary_particles)
         for visualizer in self.sim._visualizers:
             if isinstance(visualizer, (MovingPatchGLVisualizer, MovingPatchKitVisualizer, MovingPatchRTXVisualizer)):
                 visualizer.moving_patch_particle = None
@@ -221,7 +227,8 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         # Newton reset masks carry one trailing slot for global (world -1) entities.
         world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
         world_mask[: self.num_envs][env_ids] = True
-        NewtonMPMManager.reset_solver_state(
+        reset_mpm_solver_state(
+            self.sim.backend_manager.backend,
             world_mask=wp.from_torch(world_mask, dtype=wp.bool),
             flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE,
         )
@@ -241,7 +248,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
 
     def _setup_contact_state(self) -> None:
         """Resolve the proxy feedback buffer and allocate the per-foot caches."""
-        NewtonMPMManager.get_model().particle_max_velocity = self.cfg.particle_max_velocity
+        self.sim.backend_manager.backend.model.particle_max_velocity = self.cfg.particle_max_velocity
         self._robot = self.scene["robot"]
         self._sand = self.scene["sand"]
 
@@ -276,7 +283,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         pattern = re.compile(r"^/World/envs/env_(\d+)/Robot/.*/([^/]+)$")
         body_ids = torch.full((self.num_envs, len(foot_names)), -1, dtype=torch.long, device=self.device)
         name_to_column = {name: column for column, name in enumerate(foot_names)}
-        for body_id, label in enumerate(NewtonManager.get_model().body_label):
+        for body_id, label in enumerate(self.sim.backend_manager.backend.model.body_label):
             match = pattern.match(label)
             if match is None:
                 continue
@@ -294,7 +301,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         Proxy forces use global Newton body indices; ADMM forces use robot-entry indices.
         Both buffers exclude external forces. ADMM reports the wrench applied in its final iteration.
         """
-        solver = NewtonManager._solver
+        solver = self.sim.backend_manager.backend.solver
         if isinstance(solver, SolverCoupledADMM):
             buffer = solver._admm_buffers[RIGID_ENTRY]
             if not hasattr(buffer, "body_coupling_f"):
@@ -304,7 +311,7 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
                 )
             entry = solver._entries[RIGID_ENTRY]
             global_to_local = torch.full(
-                (NewtonManager.get_model().body_count,), -1, dtype=torch.long, device=self.device
+                (self.sim.backend_manager.backend.model.body_count,), -1, dtype=torch.long, device=self.device
             )
             local_to_global = wp.to_torch(entry.body_local_to_global).long()
             global_to_local[local_to_global] = torch.arange(len(local_to_global), device=self.device)

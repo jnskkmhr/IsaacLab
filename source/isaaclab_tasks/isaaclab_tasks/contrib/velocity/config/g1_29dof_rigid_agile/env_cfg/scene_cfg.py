@@ -368,8 +368,8 @@ G1_29DOF_BeyondMimic_delay = G1_29DOF_DELAYED_DC_MOTOR.replace(
     actuators={
         name: DelayedImplicitActuatorCfg(
             joint_names_expr=cfg.joint_names_expr,
-            joint_effort_limit=cfg.effort_limit_sim,
-            joint_velocity_limit=cfg.velocity_limit_sim,
+            joint_effort_limit=cfg.joint_effort_limit,
+            joint_velocity_limit=cfg.joint_velocity_limit,
             stiffness=cfg.stiffness,
             damping=cfg.damping,
             armature=cfg.armature,

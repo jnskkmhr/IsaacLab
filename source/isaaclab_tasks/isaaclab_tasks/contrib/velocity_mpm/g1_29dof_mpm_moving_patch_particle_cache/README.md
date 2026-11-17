@@ -18,16 +18,16 @@ The paged-sand example is on Felix Meyer's `fmeyer/mpm-paged-sand` branch,
 than the repository's `main` branch at the time of this implementation.
 The reference revision is `3e4f29ecf369bf66aeb93e73c9b4f9bd59bf6e7f`.
 
-* `util/felix/paged_sand_isosurface.py` contains his tiled marching-cubes,
+* `util/paged_sand_isosurface.py` contains his tiled marching-cubes,
   particle splatting, surface normals, seam/skirt kernels and the GPU `IsoCache` mesh pool.
-* `util/felix/settled_template.py` adapts his offline PIC relaxation and
+* `util/settled_template.py` adapts his offline PIC relaxation and
   frictionless mirror-wall construction. Fresh tiles mirror particle positions
   and constitutive tensors in alternating X/Y tiles.
 * The task retains its GPU particle-state store and per-environment ownership.
   It does **not** replace this with Felix's single-scene host chunk store.
 
 The reference files retain their Apache-2.0 attribution and license. Local
-adaptations and their reasons are listed in `util/felix/README.md`.
+adaptations and their reasons are listed in `util/PAGED_SAND_ATTRIBUTION.md`.
 
 ## Run
 
@@ -140,6 +140,33 @@ cache.simulation_capacity_multiplier = 2  # increase for additional regions
 cache.max_cached_particles_per_env = 500_000
 cache.max_visited_tiles_per_env = 4096
 ```
+
+``simulation_capacity_multiplier`` may be fractional (at least 1); reserve slots are allocated in whole template tiles.
+Fewer slots lower memory and the particle solver's per-step cost. In a single-region probe on flat sand (a 3 m out-and-back
+revisit), 1.25 and 1.5 gave the same forces as 2 with less memory and a shorter step, while 1 raised
+"accumulated terrain needs N slots". Keep 2 for rough terrain, several tracked regions or longer detours until you have
+checked your own trajectories; running out of slots raises before any particle is recycled.
+
+### GPU-resident paging
+
+```python
+cache.gpu_resident = True  # default False: plan paging on the host
+cache.capture_step = True  # record the whole physics step, cache update included, in one CUDA graph
+```
+
+With ``gpu_resident`` the tile bookkeeping runs on the GPU. Each environment has an open-addressing hash table of
+tiles (sized to twice ``max_visited_tiles_per_env``) whose entries head a linked list of saved records; simulation
+slots and records are handed out by atomic recycle stacks plus a bump pointer, so resetting an environment is constant
+time. A tile that holds saved particles but was never loaded still gets its undeformed terrain when it is first
+loaded, as in the host cache. The update launches fixed-size kernels and reads nothing back, so it can be captured
+in a CUDA graph together with the solver; the host-planned cache cannot, and pages in Python between solver graphs.
+
+Differences from the host-planned cache: a capacity error (records, visited tiles or slots) is reported by
+``check_terrain_queries`` at the end of the control step instead of before any particle is recycled, and the state
+is undefined after it; every environment must have the same number of simulation slots; tile coordinates must stay
+within about 3 km of the origin. ``scripts/benchmarks/t1/cache_equivalence.py`` runs both implementations from the
+same input and compares every particle's state, the tile sets and the saved pages after each step; the two agree
+exactly, including the inputs on which both raise.
 
 Each departed particle retains position, velocity, APIC velocity gradient,
 elastic strain, plastic volume ratio, stress, deformation transform, dynamic

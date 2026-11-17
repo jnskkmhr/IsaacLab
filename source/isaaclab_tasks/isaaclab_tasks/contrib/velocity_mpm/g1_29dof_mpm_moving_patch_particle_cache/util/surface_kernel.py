@@ -7,7 +7,7 @@
 
 import warp as wp
 
-from .felix.paged_sand_isosurface import ISO_SKIRT
+from .paged_sand_isosurface import ISO_SKIRT
 
 
 @wp.kernel

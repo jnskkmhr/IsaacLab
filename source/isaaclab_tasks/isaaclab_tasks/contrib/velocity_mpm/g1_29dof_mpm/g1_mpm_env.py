@@ -16,7 +16,7 @@ import newton
 import numpy as np
 import torch
 import warp as wp
-from isaaclab_newton.physics import NewtonManager, NewtonMPMManager
+from isaaclab_newton.physics import reset_mpm_solver_state
 
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.markers import VisualizationMarkers
@@ -170,7 +170,8 @@ class G1MPMEnv(ManagerBasedRLEnv):
         # Newton reset masks carry one trailing slot for global (world -1) entities.
         world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
         world_mask[env_ids] = True
-        NewtonMPMManager.reset_solver_state(
+        reset_mpm_solver_state(
+            self.sim.backend_manager.backend,
             world_mask=wp.from_torch(world_mask, dtype=wp.bool),
             flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE,
         )
@@ -190,7 +191,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
 
     def _setup_contact_state(self) -> None:
         """Resolve the proxy feedback buffer and allocate the per-foot caches."""
-        NewtonMPMManager.get_model().particle_max_velocity = self.cfg.particle_max_velocity
+        self.sim.backend_manager.backend.model.particle_max_velocity = self.cfg.particle_max_velocity
         self._robot = self.scene["robot"]
         self._sand = self.scene["sand"]
         self._env_ids = torch.arange(self.num_envs, device=self.device)
@@ -208,7 +209,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
 
         self._contact_state_step = -1
         self._gait_timer_step = -1
-        entry = NewtonManager._solver._entries[RIGID_ENTRY]
+        entry = self.sim.backend_manager.backend.solver._entries[RIGID_ENTRY]
         self._rigid_solver = entry.solver
         foot_bodies = self._foot_body_ids.cpu().numpy().flatten()
         body_to_foot = {int(body): i for i, body in enumerate(foot_bodies)}
@@ -255,7 +256,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
         pattern = re.compile(r"^/World/envs/env_(\d+)/Robot/(?:.*/)?([^/]+)$")
         body_ids = torch.full((self.num_envs, len(foot_names)), -1, dtype=torch.long, device=self.device)
         name_to_column = {name: column for column, name in enumerate(foot_names)}
-        for body_id, label in enumerate(NewtonManager.get_model().body_label):
+        for body_id, label in enumerate(self.sim.backend_manager.backend.model.body_label):
             match = pattern.match(label)
             if match is None:
                 continue
@@ -273,7 +274,7 @@ class G1MPMEnv(ManagerBasedRLEnv):
         Returns:
             The per-body spatial forces, shape ``(body_count,)``, indexed by Newton body index.
         """
-        solver = NewtonManager._solver
+        solver = self.sim.backend_manager.backend.solver
         for mapping in getattr(solver, "_proxy_mappings", ()):
             if mapping.src_name == RIGID_ENTRY and mapping.dst_name == MPM_ENTRY:
                 return mapping.coupling_forces

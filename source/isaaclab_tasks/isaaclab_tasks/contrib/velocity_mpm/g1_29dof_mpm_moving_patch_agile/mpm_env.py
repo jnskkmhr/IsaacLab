@@ -13,7 +13,6 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from isaaclab_newton.physics import NewtonManager
 
 from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch.mixed_env import sum_rigid_foot_forces
 from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch.mpm_env import G1MovingPatchEnv
@@ -41,7 +40,7 @@ class G1MovingPatchAgileEnv(G1MovingPatchEnv):
 
     def _setup_contact_state(self) -> None:
         super()._setup_contact_state()
-        entry = NewtonManager._solver._entries["robot"]
+        entry = self.sim.backend_manager.backend.solver._entries["robot"]
         self._rigid_solver = entry.solver
         body_ids = self._resolve_newton_body_ids(self._robot.body_names)
         self._contact_body_ids = wp.from_torch(body_ids)

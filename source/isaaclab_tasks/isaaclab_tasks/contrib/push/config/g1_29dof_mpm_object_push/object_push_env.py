@@ -11,7 +11,6 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from isaaclab_newton.physics import NewtonManager
 
 from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm.g1_mpm_env import G1MPMEnv, sum_rigid_foot_forces
 
@@ -23,7 +22,7 @@ class ObjectContactForces:
         super()._setup_contact_state()
         body_ids = self._resolve_newton_body_ids(self._robot.body_names).cpu().numpy().flatten()
         body_to_robot = {int(body): i for i, body in enumerate(body_ids)}
-        entry = NewtonManager._solver._entries["robot"]
+        entry = self.sim.backend_manager.backend.solver._entries["robot"]
         mapping = entry.body_local_to_global.numpy()
         shape_to_robot = np.full(entry.solver.model.shape_count, -1, dtype=np.int32)
         for shape, body in enumerate(entry.solver.model.shape_body.numpy()):

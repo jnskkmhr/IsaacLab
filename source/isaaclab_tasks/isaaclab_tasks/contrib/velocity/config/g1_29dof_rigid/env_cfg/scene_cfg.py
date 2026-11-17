@@ -95,7 +95,7 @@ class G1SceneCfg(InteractiveSceneCfg):
                     ".*_shoulder_roll_joint": 14.25062309787429,
                     ".*_shoulder_pitch_joint": 14.25062309787429,
                 },
-                effort_limit_sim={
+                joint_effort_limit={
                     ".*_elbow_joint": 25,
                     ".*_wrist_yaw_joint": 5,
                     ".*_wrist_roll_joint": 25,
@@ -113,7 +113,7 @@ class G1SceneCfg(InteractiveSceneCfg):
                     ".*_wrist_pitch_joint",
                     ".*_wrist_yaw_joint",
                 ],
-                velocity_limit_sim={
+                joint_velocity_limit={
                     ".*_elbow_joint": 37,
                     ".*_wrist_yaw_joint": 22,
                     ".*_wrist_roll_joint": 37,
@@ -127,9 +127,9 @@ class G1SceneCfg(InteractiveSceneCfg):
                 damping=1.814445686584846,
                 armature=0.00721945,
                 stiffness=28.50124619574858,
-                effort_limit_sim=50,
+                joint_effort_limit=50,
                 joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
-                velocity_limit_sim=37,
+                joint_velocity_limit=37,
             ),
             "legs": ImplicitActuatorCfg(
                 damping={
@@ -150,14 +150,14 @@ class G1SceneCfg(InteractiveSceneCfg):
                     ".*_hip_roll_joint": 99.09842777666113,
                     ".*_hip_pitch_joint": 40.17923847137318,
                 },
-                effort_limit_sim={
+                joint_effort_limit={
                     ".*_knee_joint": 139,
                     ".*_hip_yaw_joint": 88,
                     ".*_hip_roll_joint": 139,
                     ".*_hip_pitch_joint": 88,
                 },
                 joint_names_expr=[".*_hip_yaw_joint", ".*_hip_roll_joint", ".*_hip_pitch_joint", ".*_knee_joint"],
-                velocity_limit_sim={
+                joint_velocity_limit={
                     ".*_knee_joint": 20,
                     ".*_hip_yaw_joint": 32,
                     ".*_hip_roll_joint": 20,
@@ -168,17 +168,17 @@ class G1SceneCfg(InteractiveSceneCfg):
                 damping=1.814445686584846,
                 armature=0.00721945,
                 stiffness=28.50124619574858,
-                effort_limit_sim=50,
+                joint_effort_limit=50,
                 joint_names_expr=["waist_roll_joint", "waist_pitch_joint"],
-                velocity_limit_sim=37,
+                joint_velocity_limit=37,
             ),
             "waist_yaw": ImplicitActuatorCfg(
                 damping=2.5578897650279457,
                 armature=0.01017752,
                 stiffness=40.17923847137318,
-                effort_limit_sim=88,
+                joint_effort_limit=88,
                 joint_names_expr=["waist_yaw_joint"],
-                velocity_limit_sim=32,
+                joint_velocity_limit=32,
             ),
         },
         soft_joint_pos_limit_factor=0.9,
