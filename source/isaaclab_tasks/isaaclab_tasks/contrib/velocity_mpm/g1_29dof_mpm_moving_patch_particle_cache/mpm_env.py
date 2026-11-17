@@ -137,9 +137,10 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         if getattr(self, "_is_closed", True):
             return
         manager = self.sim.backend_manager
-        if self._update_moving_patch_particle in manager.backend.state_force_callbacks:
-            manager.backend.state_force_callbacks.remove(self._update_moving_patch_particle)
-        manager.unregister_post_step_callback(self._restore_boundary_particles)
+        if manager.backend is not None:
+            if self._update_moving_patch_particle in manager.backend.state_force_callbacks:
+                manager.backend.state_force_callbacks.remove(self._update_moving_patch_particle)
+            manager.unregister_post_step_callback(self._restore_boundary_particles)
         self._cache_surface = None
         self.moving_patch_particle = None
         super().close()

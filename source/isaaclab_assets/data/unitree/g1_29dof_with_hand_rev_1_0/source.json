@@ -1,0 +1,7 @@
+{
+  "repository": "unitreerobotics/unitree_ros",
+  "commit": "41dec58c7a3ccb3050243ef16ac2ca74b2b0f9ca",
+  "xml": "g1_29dof_with_hand_rev_1_0.xml",
+  "mesh_count": 49,
+  "mesh_bytes": 31471016
+}

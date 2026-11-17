@@ -64,26 +64,23 @@ def find_or_insert(keys: wp.array2d[int], visited_count: wp.array[int], world: i
 
 
 @wp.func
-def take_record(
+def alloc_record(
     bump: wp.array[int], free_count: wp.array[int], free_stack: wp.array[int], world: int, capacity: int
 ) -> int:
-    """Pop the most recently freed record of this world, else the next never-used one; -1 when exhausted.
-
-    Only one thread per world calls this, in a fixed order, so the record handed to each particle is reproducible.
-    """
-    n = free_count[world]
-    if n > 0:
-        free_count[world] = n - 1
-        return free_stack[world * capacity + n - 1]
-    b = bump[world]
+    """Pop a recycled record of this world, else take the next never-used one; -1 when the pool is exhausted."""
+    top = wp.atomic_add(free_count, world, -1) - 1
+    if top >= 0:
+        return free_stack[world * capacity + top]
+    wp.atomic_add(free_count, world, 1)
+    b = wp.atomic_add(bump, world, 1)
     if b < capacity:
-        bump[world] = b + 1
         return world * capacity + b
+    wp.atomic_add(bump, world, -1)
     return -1
 
 
 @wp.func
-def take_slot(
+def alloc_slot(
     bump: wp.array[int],
     free_count: wp.array[int],
     free_stack: wp.array[int],
@@ -91,15 +88,15 @@ def take_slot(
     world: int,
     capacity: int,
 ) -> int:
-    """Pop the most recently freed simulation slot of this world, else the next never-used one; -1 when none."""
-    n = free_count[world]
-    if n > 0:
-        free_count[world] = n - 1
-        return free_stack[world * capacity + n - 1]
-    b = bump[world]
+    """Pop a recycled simulation slot of this world, else the next never-used one; -1 when none is free."""
+    top = wp.atomic_add(free_count, world, -1) - 1
+    if top >= 0:
+        return free_stack[world * capacity + top]
+    wp.atomic_add(free_count, world, 1)
+    b = wp.atomic_add(bump, world, 1)
     if b < capacity:
-        bump[world] = b + 1
         return slot_table[world * capacity + b]
+    wp.atomic_add(bump, world, -1)
     return -1
 
 
@@ -189,16 +186,15 @@ def clear_tile_tables(
 
 
 @wp.kernel
-def assign_outgoing(
-    flags: wp.array[int],
-    reset: wp.array[int],
-    layers: wp.array[int],
-    next_layers: wp.array[int],
+def save_outgoing(
     live: ParticleState,
     frozen: ParticleState,
-    slot_table: wp.array[int],
-    slot_capacity: int,
-    tile_size: float,
+    layers: wp.array[int],
+    worlds: wp.array[int],
+    outgoing_ids: wp.array[int],
+    outgoing_tiles: wp.array[wp.vec2i],
+    flags: wp.array[int],
+    saved: ParticleState,
     record_capacity: int,
     record_bump: wp.array[int],
     record_free_count: wp.array[int],
@@ -210,71 +206,46 @@ def assign_outgoing(
     visited_count: wp.array[int],
     max_visited: int,
     tile_counter: wp.array[int],
+    slot_capacity: int,
     slot_free_count: wp.array[int],
     slot_free: wp.array[int],
-    slot_record: wp.array[int],
     errors: wp.array[int],
 ):
-    """Give each departing particle a record and free its slot, one thread per world in ascending slot order.
-
-    Records, list order and the free-slot stack therefore do not depend on thread scheduling. The particle data is
-    copied afterwards in parallel by ``copy_outgoing``.
-    """
-    w = wp.tid()
-    if flags[FLAG_OUTGOING] == 0 or reset[w] != 0:
+    """Move each departing particle into a record of its tile's list and free its simulation slot."""
+    k = wp.tid()
+    if k >= flags[FLAG_OUTGOING]:
         return
-    for s in range(slot_capacity):
-        i = slot_table[w * slot_capacity + s]
-        if layers[i] == 0 or next_layers[i] != 0:
-            continue
-        p = live.q[i]
-        if layers[i] == 2:
-            p = frozen.q[i]
-        tile = wp.vec2i(int(wp.floor(p[0] / tile_size)), int(wp.floor(p[1] / tile_size)))
-        record = take_record(record_bump, record_free_count, record_free, w, record_capacity)
-        if record < 0:
-            wp.atomic_or(errors, w, ERROR_RECORDS)
-            continue
-        slot_record[i] = record
-        entry, inserted = find_or_insert(keys, visited_count, w, pack_tile(tile[0], tile[1]))
-        if entry < 0 or visited_count[w] > max_visited:
-            wp.atomic_or(errors, w, ERROR_TILES)
-        if entry >= 0:
-            record_next[record] = heads[w, entry]
-            heads[w, entry] = record
-            revisions[w, entry] = wp.atomic_add(tile_counter, 0, 1) + 1
-        n = slot_free_count[w]
-        slot_free[w * slot_capacity + n] = i
-        slot_free_count[w] = n + 1
-
-
-@wp.kernel
-def copy_outgoing(
-    live: ParticleState,
-    frozen: ParticleState,
-    layers: wp.array[int],
-    slot_record: wp.array[int],
-    saved: ParticleState,
-):
-    """Copy the state of each departing particle into the record ``assign_outgoing`` chose; saves the frozen state of
-    boundary particles."""
-    i = wp.tid()
-    record = slot_record[i]
+    slot = outgoing_ids[k]
+    w = worlds[slot]
+    tile = outgoing_tiles[k]
+    record = alloc_record(record_bump, record_free_count, record_free, w, record_capacity)
     if record < 0:
+        wp.atomic_or(errors, w, ERROR_RECORDS)
         return
-    if layers[i] == 2:
-        copy_particle(frozen, i, saved, record)
+    if layers[slot] == 2:
+        copy_particle(frozen, slot, saved, record)
     else:
-        copy_particle(live, i, saved, record)
-    slot_record[i] = -1
+        copy_particle(live, slot, saved, record)
+    entry, inserted = find_or_insert(keys, visited_count, w, pack_tile(tile[0], tile[1]))
+    if entry < 0 or visited_count[w] > max_visited:
+        wp.atomic_or(errors, w, ERROR_TILES)
+    if entry >= 0:
+        old = wp.atomic_exch(heads, w, entry, record)
+        record_next[record] = old
+        revisions[w, entry] = wp.atomic_add(tile_counter, 0, 1) + 1
+    top = wp.atomic_add(slot_free_count, w, 1)
+    slot_free[w * slot_capacity + top] = slot
 
 
 @wp.kernel
-def assign_restore(
+def restore_entering_tiles(
     body_counts: wp.array[int],
     begins: wp.array2d[wp.vec2i],
     prev_begins: wp.array2d[wp.vec2i],
     shape: wp.vec2i,
+    saved: ParticleState,
+    live: ParticleState,
+    frozen: ParticleState,
     keys: wp.array2d[int],
     heads: wp.array2d[int],
     revisions: wp.array2d[int],
@@ -291,121 +262,66 @@ def assign_restore(
     slot_free_count: wp.array[int],
     slot_free: wp.array[int],
     slot_table: wp.array[int],
-    fresh: wp.array[wp.vec3i],
-    fresh_count: wp.array[int],
-    fresh_per_world: int,
-    slot_source: wp.array[int],
-    flags: wp.array[int],
-    errors: wp.array[int],
-):
-    """Choose a slot for every saved particle of each tile that entered a window, in window and tile order.
-
-    One thread per world. A never-visited tile is queued in ``fresh``; its slots are chosen by ``assign_fresh``.
-    """
-    w = wp.tid()
-    tiles_per_window = shape[0] * shape[1]
-    regions = begins.shape[1]
-    for r in range(regions):
-        if r >= body_counts[w]:
-            continue
-        begin = begins[w, r]
-        for t in range(tiles_per_window):
-            tile = wp.vec2i(begin[0] + t // shape[1], begin[1] + t % shape[1])
-            skip = bool(False)
-            # A tile covered by several windows is handled once, by the first window that holds it.
-            for other in range(r):
-                if inside_window(tile, begins[w, other], shape):
-                    skip = True
-            # A tile that was already inside a window of the previous update is not entering.
-            for other in range(regions):
-                if inside_window(tile, prev_begins[w, other], shape):
-                    skip = True
-            if skip:
-                continue
-            entry, inserted = find_or_insert(keys, visited_count, w, pack_tile(tile[0], tile[1]))
-            if entry < 0 or visited_count[w] > max_visited:
-                wp.atomic_or(errors, w, ERROR_TILES)
-            if entry < 0:
-                continue
-            # A tile can hold saved particles pushed there before it was ever loaded. It still needs its undeformed
-            # terrain, so "has saved particles" and "has been loaded" are tracked separately, as the host cache does.
-            if loaded_once[w, entry] == 0:
-                loaded_once[w, entry] = 1
-                n = fresh_count[w]
-                fresh[w * fresh_per_world + n] = wp.vec3i(w, tile[0], tile[1])
-                fresh_count[w] = n + 1
-                wp.atomic_add(flags, FLAG_FRESH, 1)
-            record = heads[w, entry]
-            while record >= 0:
-                slot = take_slot(slot_bump, slot_free_count, slot_free, slot_table, w, slot_capacity)
-                if slot < 0:
-                    wp.atomic_or(errors, w, ERROR_SLOTS)
-                    break
-                slot_source[slot] = record
-                top = record_free_count[w]
-                record_free[w * record_capacity + top] = record
-                record_free_count[w] = top + 1
-                wp.atomic_add(flags, FLAG_RESTORED, 1)
-                record = record_next[record]
-            heads[w, entry] = record
-            revisions[w, entry] = wp.atomic_add(tile_counter, 0, 1) + 1
-
-
-@wp.kernel
-def copy_restored(
-    saved: ParticleState,
-    live: ParticleState,
-    frozen: ParticleState,
-    worlds: wp.array[int],
-    slot_source: wp.array[int],
     centers: wp.array2d[wp.vec2],
     size: wp.vec2,
     layers: wp.array[int],
     dynamic: wp.array[int],
     anchors: wp.array[wp.vec3],
     inv_mass: wp.array[float],
-):
-    """Load the saved particle that ``assign_restore`` assigned to each slot."""
-    i = wp.tid()
-    record = slot_source[i]
-    if record < 0:
-        return
-    copy_particle(saved, record, live, i)
-    finish_loading(live, frozen, i, centers, worlds[i], size, layers, dynamic, anchors, inv_mass)
-    slot_source[i] = -1
-
-
-@wp.kernel
-def assign_fresh(
     fresh: wp.array[wp.vec3i],
-    fresh_count: wp.array[int],
-    fresh_per_world: int,
-    template_count: int,
-    slot_capacity: int,
-    slot_bump: wp.array[int],
-    slot_free_count: wp.array[int],
-    slot_free: wp.array[int],
-    slot_table: wp.array[int],
-    fresh_slots: wp.array[int],
+    flags: wp.array[int],
     errors: wp.array[int],
 ):
-    """Choose a slot for every template particle of each never-visited tile, one thread per world in queue order."""
-    w = wp.tid()
-    for local in range(fresh_count[w]):
-        base = (w * fresh_per_world + local) * template_count
-        for j in range(template_count):
-            slot = take_slot(slot_bump, slot_free_count, slot_free, slot_table, w, slot_capacity)
-            if slot < 0:
-                wp.atomic_or(errors, w, ERROR_SLOTS)
-            fresh_slots[base + j] = slot
+    """Restore the saved particles of each tile that entered a window, or queue a never-visited tile."""
+    tid = wp.tid()
+    tiles_per_window = shape[0] * shape[1]
+    regions = begins.shape[1]
+    w = tid // (regions * tiles_per_window)
+    r = (tid // tiles_per_window) % regions
+    t = tid % tiles_per_window
+    if r >= body_counts[w]:
+        return
+    begin = begins[w, r]
+    tile = wp.vec2i(begin[0] + t // shape[1], begin[1] + t % shape[1])
+    # A tile covered by several windows is handled once, by the first window that holds it.
+    for other in range(r):
+        if inside_window(tile, begins[w, other], shape):
+            return
+    # A tile that was already inside a window of the previous update is not entering.
+    for other in range(regions):
+        if inside_window(tile, prev_begins[w, other], shape):
+            return
+    entry, inserted = find_or_insert(keys, visited_count, w, pack_tile(tile[0], tile[1]))
+    if entry < 0 or visited_count[w] > max_visited:
+        wp.atomic_or(errors, w, ERROR_TILES)
+    if entry < 0:
+        return
+    # A tile can hold saved particles pushed there before it was ever loaded. It still needs its undeformed terrain,
+    # so "has saved particles" and "has been loaded" are tracked separately, as the host cache does.
+    if wp.atomic_exch(loaded_once, w, entry, 1) == 0:
+        index = wp.atomic_add(flags, FLAG_FRESH, 1)
+        fresh[index] = wp.vec3i(w, tile[0], tile[1])
+    record = heads[w, entry]
+    while record >= 0:
+        slot = alloc_slot(slot_bump, slot_free_count, slot_free, slot_table, w, slot_capacity)
+        if slot < 0:
+            wp.atomic_or(errors, w, ERROR_SLOTS)
+            break
+        following = record_next[record]
+        copy_particle(saved, record, live, slot)
+        finish_loading(live, frozen, slot, centers, w, size, layers, dynamic, anchors, inv_mass)
+        top = wp.atomic_add(record_free_count, w, 1)
+        record_free[w * record_capacity + top] = record
+        wp.atomic_add(flags, FLAG_RESTORED, 1)
+        record = following
+    heads[w, entry] = record
+    revisions[w, entry] = wp.atomic_add(tile_counter, 0, 1) + 1
 
 
 @wp.kernel
 def generate_fresh_tiles(
     fresh: wp.array[wp.vec3i],
-    fresh_count: wp.array[int],
-    fresh_per_world: int,
-    fresh_slots: wp.array[int],
+    flags: wp.array[int],
     template: wp.array[wp.vec3],
     template_elastic: wp.array[wp.mat33],
     template_transform: wp.array[wp.mat33],
@@ -427,18 +343,25 @@ def generate_fresh_tiles(
     anchors: wp.array[wp.vec3],
     inv_mass: wp.array[float],
     missed: wp.array[int],
+    slot_capacity: int,
+    slot_bump: wp.array[int],
+    slot_free_count: wp.array[int],
+    slot_free: wp.array[int],
+    slot_table: wp.array[int],
+    errors: wp.array[int],
 ):
     """Generate the undeformed template particles of each never-visited tile from the background mesh."""
     k = wp.tid()
     f = k // template_count
-    w = f // fresh_per_world
-    if f % fresh_per_world >= fresh_count[w]:
+    if f >= flags[FLAG_FRESH]:
         return
     j = k % template_count
     entry3 = fresh[f]
+    w = entry3[0]
     tile = wp.vec2i(entry3[1], entry3[2])
-    i = fresh_slots[k]
+    i = alloc_slot(slot_bump, slot_free_count, slot_free, slot_table, w, slot_capacity)
     if i < 0:
+        wp.atomic_or(errors, w, ERROR_SLOTS)
         return
     entry = w * template_count + j
     p = template[entry]

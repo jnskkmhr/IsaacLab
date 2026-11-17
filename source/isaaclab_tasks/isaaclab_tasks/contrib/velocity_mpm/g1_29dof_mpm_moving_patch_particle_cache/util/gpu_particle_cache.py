@@ -26,16 +26,13 @@ from .gpu_cache_kernel import (
     ERROR_TILES,
     TILE_OFFSET,
     TILE_RANGE,
-    assign_fresh,
-    assign_outgoing,
-    assign_restore,
     clear_tile_tables,
     compute_tile_begins,
-    copy_outgoing,
-    copy_restored,
     finalize_update,
     generate_fresh_tiles,
     reset_worlds,
+    restore_entering_tiles,
+    save_outgoing,
 )
 from .kernel import ParticleState, apply_transitions, plan_transitions
 from .particle_cache import allocate_particle_state
@@ -63,6 +60,61 @@ class _WorldView:
 
     def __iter__(self):
         return (self[world] for world in range(len(self)))
+
+
+class _LazyPages:
+    """Read-only ``{tile: [record, ...]}`` that walks a tile's record list only when that tile is requested.
+
+    Walking every list of a long run costs time proportional to everything ever saved; a renderer needs only the
+    lists of the tiles around the loaded window.
+    """
+
+    def __init__(self, cache: GpuParticleStateCache, world: int, first_record: dict) -> None:
+        self._cache = cache
+        self._world = world
+        self._first = first_record
+        self._following = None
+        self._chains = {}
+
+    def _chain(self, tile) -> list[int]:
+        chain = self._chains.get(tile)
+        if chain is None:
+            if self._following is None:
+                cap = self._cache.record_capacity
+                self._following = self._cache.record_next[self._world * cap : (self._world + 1) * cap].numpy()
+            base = self._world * self._cache.record_capacity
+            chain, record = [], self._first[tile]
+            while record >= 0:
+                chain.append(record)
+                record = int(self._following[record - base])
+            self._chains[tile] = chain
+        return chain
+
+    def __getitem__(self, tile):
+        if tile not in self._first:
+            raise KeyError(tile)
+        return self._chain(tile)
+
+    def get(self, tile, default=None):
+        return self._chain(tile) if tile in self._first else default
+
+    def __contains__(self, tile) -> bool:
+        return tile in self._first
+
+    def __len__(self) -> int:
+        return len(self._first)
+
+    def __iter__(self):
+        return iter(self._first)
+
+    def keys(self):
+        return self._first.keys()
+
+    def values(self):
+        return (self._chain(tile) for tile in self._first)
+
+    def items(self):
+        return ((tile, self._chain(tile)) for tile in self._first)
 
 
 class GpuParticleStateCache:
@@ -139,17 +191,11 @@ class GpuParticleStateCache:
         self.generation = wp.zeros(self.world_count, dtype=int, device=self.device)
         self.errors = wp.zeros(self.world_count, dtype=int, device=self.device)
         self.fresh_capacity = self.world_count * regions * int(np.prod(self.tile_shape))
-        self.fresh_per_world = regions * int(np.prod(self.tile_shape))
         self.fresh = wp.empty(self.fresh_capacity, dtype=wp.vec3i, device=self.device)
-        self.fresh_count = wp.zeros(self.world_count, dtype=int, device=self.device)
-        # Per-slot hand-off from the serial assignment kernels to the parallel copy kernels.
-        self.slot_record = wp.full(count, -1, dtype=int, device=self.device)
-        self.slot_source = wp.full(count, -1, dtype=int, device=self.device)
 
         template, _, self.radius = sample_particle_tile(patch.terrain)
         self.templates = SettledTemplates(patch, template, self.radius)
         self.template_count = len(template)
-        self.fresh_slots = wp.full(self.fresh_capacity * self.template_count, -1, dtype=int, device=self.device)
         self.live = ParticleState()
         material = patch.material_state.mpm
         for name, array in {
@@ -200,7 +246,6 @@ class GpuParticleStateCache:
             device=self.device,
         )
         self.flags.zero_()
-        self.fresh_count.zero_()
         wp.launch(
             plan_transitions,
             dim=count,
@@ -251,18 +296,17 @@ class GpuParticleStateCache:
             device=self.device,
         )
         wp.launch(
-            assign_outgoing,
-            dim=self.world_count,
+            save_outgoing,
+            dim=count,
             inputs=[
-                self.flags,
-                patch.env_reset_requested,
-                self.layers,
-                self.next_layers,
                 self.live,
                 self.frozen,
-                self.slot_table,
-                self.slot_capacity,
-                tile,
+                self.layers,
+                patch.model.particle_world,
+                self.outgoing_ids,
+                self.outgoing_tiles,
+                self.flags,
+                self.saved,
                 self.record_capacity,
                 self.record_bump,
                 self.record_free_count,
@@ -274,17 +318,11 @@ class GpuParticleStateCache:
                 self.visited_count,
                 self.max_visited,
                 self.tile_counter,
+                self.slot_capacity,
                 self.slot_free_count,
                 self.slot_free,
-                self.slot_record,
                 self.errors,
             ],
-            device=self.device,
-        )
-        wp.launch(
-            copy_outgoing,
-            dim=count,
-            inputs=[self.live, self.frozen, self.layers, self.slot_record, self.saved],
             device=self.device,
         )
         wp.launch(
@@ -303,13 +341,16 @@ class GpuParticleStateCache:
             device=self.device,
         )
         wp.launch(
-            assign_restore,
-            dim=self.world_count,
+            restore_entering_tiles,
+            dim=self.fresh_capacity,
             inputs=[
                 self.body_counts,
                 self.tile_begins,
                 self.prev_begins,
                 shape,
+                self.saved,
+                self.live,
+                self.frozen,
                 self.table_keys,
                 self.table_heads,
                 self.table_revisions,
@@ -326,47 +367,14 @@ class GpuParticleStateCache:
                 self.slot_free_count,
                 self.slot_free,
                 self.slot_table,
-                self.fresh,
-                self.fresh_count,
-                self.fresh_per_world,
-                self.slot_source,
-                self.flags,
-                self.errors,
-            ],
-            device=self.device,
-        )
-        wp.launch(
-            copy_restored,
-            dim=count,
-            inputs=[
-                self.saved,
-                self.live,
-                self.frozen,
-                patch.model.particle_world,
-                self.slot_source,
                 patch.patch_centers,
                 size,
                 self.layers,
                 patch.particle_is_dynamic,
                 patch.particle_reset_positions,
                 patch.model.particle_inv_mass,
-            ],
-            device=self.device,
-        )
-        wp.launch(
-            assign_fresh,
-            dim=self.world_count,
-            inputs=[
                 self.fresh,
-                self.fresh_count,
-                self.fresh_per_world,
-                self.template_count,
-                self.slot_capacity,
-                self.slot_bump,
-                self.slot_free_count,
-                self.slot_free,
-                self.slot_table,
-                self.fresh_slots,
+                self.flags,
                 self.errors,
             ],
             device=self.device,
@@ -377,9 +385,7 @@ class GpuParticleStateCache:
             dim=self.fresh_capacity * self.template_count,
             inputs=[
                 self.fresh,
-                self.fresh_count,
-                self.fresh_per_world,
-                self.fresh_slots,
+                self.flags,
                 self.templates.q,
                 self.templates.elastic,
                 self.templates.transform,
@@ -401,6 +407,12 @@ class GpuParticleStateCache:
                 patch.particle_reset_positions,
                 patch.model.particle_inv_mass,
                 patch.terrain_query_miss_count,
+                self.slot_capacity,
+                self.slot_bump,
+                self.slot_free_count,
+                self.slot_free,
+                self.slot_table,
+                self.errors,
             ],
             device=self.device,
         )
@@ -456,22 +468,19 @@ class GpuParticleStateCache:
         keys = self.table_keys.numpy()[world]
         heads = self.table_heads.numpy()[world]
         revisions = self.table_revisions.numpy()[world]
-        used = np.flatnonzero(keys >= 0)
         loaded_once = self.table_loaded_once.numpy()[world]
         offset, span = int(TILE_OFFSET), int(TILE_RANGE)
-        tiles = {int(entry): (int(keys[entry]) // span - offset, int(keys[entry]) % span - offset) for entry in used}
-        following = self.record_next[world * self.record_capacity : (world + 1) * self.record_capacity].numpy()
-        pages, page_revisions = {}, {}
-        for entry, tile in tiles.items():
-            record = int(heads[entry])
-            if record < 0:
-                continue
-            chain = []
-            while record >= 0:
-                chain.append(record)
-                record = int(following[record - world * self.record_capacity])
-            pages[tile] = chain
-            page_revisions[tile] = int(revisions[entry])
+        used = np.flatnonzero(keys >= 0)
+        x = (keys[used] // span - offset).tolist()
+        y = (keys[used] % span - offset).tolist()
+        tiles = list(zip(x, y))
+        stored = heads[used] >= 0
+        first_record = {tile: int(head) for tile, head, has in zip(tiles, heads[used].tolist(), stored.tolist()) if has}
+        page_revisions = {
+            tile: int(rev) for tile, rev, has in zip(tiles, revisions[used].tolist(), stored.tolist()) if has
+        }
+        visited = {tile for tile, once in zip(tiles, loaded_once[used].tolist()) if once}
+        pages = _LazyPages(self, world, first_record)
         begins = self.tile_begins.numpy()[world]
         loaded = {
             (int(begin[0]) + x, int(begin[1]) + y)
@@ -482,7 +491,7 @@ class GpuParticleStateCache:
         }
         mirror = {
             "pages": pages,
-            "visited": {tile for entry, tile in tiles.items() if loaded_once[entry]},
+            "visited": visited,
             "loaded": loaded,
             "page_revisions": page_revisions,
         }

@@ -5,15 +5,12 @@
 
 """Cached MPM history survives robot/object interaction, travel, and selective reset."""
 
-from types import SimpleNamespace
 from unittest.mock import patch as mock_patch
 
 import gymnasium as gym
-import newton.viewer
 import numpy as np
 import pytest
 import torch
-from isaaclab_newton.physics import NewtonManager
 
 from pxr import UsdGeom
 
@@ -27,9 +24,6 @@ from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cach
     FLAT_TERRAINS_CFG,
 )
 from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util import settled_template
-from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.particle_cache import (
-    RecordPool,
-)
 from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.particle_sampling import (
     CachedMPMGridCfg,
     _sample_grid_tile,
@@ -37,15 +31,11 @@ from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cach
 from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.surface import (
     ParticleCacheSurface,
 )
-from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.visualizer import (
-    MovingPatchParticleRendering,
-)
 from isaaclab_tasks.utils import resolve_task_config
 
 
-@pytest.mark.parametrize("gpu_resident", [False, True], ids=["host_planned", "gpu_resident"])
 @pytest.mark.parametrize("device", test_devices(DeviceScope.CUDA))
-def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
+def test_particle_history_with_independent_rigid_objects(device):
     """Preserve constitutive state across paging, with two-way object contact and isolated resets."""
     task = "IsaacContrib-Velocity-Sand-G1-29dof-MPM-MovingPatch-ParticleCache"
     cfg, _ = resolve_task_config(
@@ -69,7 +59,6 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
     t.particle_cache.simulation_capacity_multiplier = 4
     t.particle_cache.max_cached_particles_per_env = 10000
     t.particle_cache.max_visited_tiles_per_env = 1024
-    t.particle_cache.gpu_resident = gpu_resident
     cfg.scene.box = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Box",
         spawn=sim_utils.CuboidCfg(
@@ -99,17 +88,18 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
         patch = env.moving_patch_particle
         cache = patch.cache
         model = patch.model
+        backend = env.sim.backend_manager.backend
         ids = [i for i, label in enumerate(model.body_label) if label.endswith("/Box")]
         assert len(ids) == 2, model.body_label
         assert (patch.body_counts == 2).all(), patch.body_counts
         maxforce = np.zeros(2)
-        initial = NewtonManager.get_state_0().body_q.numpy()[ids, :3].copy()
+        initial = backend.state_0.body_q.numpy()[ids, :3].copy()
         for _ in range(100):
             env.step(torch.zeros((2, env.action_manager.total_action_dim), device=env.device))
             forces = env._resolve_coupling_feedback_buffer().numpy()[ids, :3]
             assert np.isfinite(forces).all()
             maxforce = np.maximum(maxforce, np.linalg.norm(forces, axis=1))
-        final = NewtonManager.get_state_0().body_q.numpy()[ids, :3]
+        final = backend.state_0.body_q.numpy()[ids, :3]
         assert (final[:, 2] < initial[:, 2] - 0.1).all()
         assert (maxforce > 1.0).all()
         assert (final[:, 2] > -0.15).all()
@@ -132,17 +122,13 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
             order = np.lexsort(q[selected].T[::-1])
             return {name: data[selected][order] for name, data in out.items()}
 
-        class MeshRecorder(MovingPatchParticleRendering, newton.viewer.ViewerNull):
+        class MeshRecorder:
             def __init__(self):
-                newton.viewer.ViewerNull.__init__(self)
                 self.uploads = {}
                 self.visible = {}
                 self.particles = {}
                 self.show_particles = True
                 self.show_isosurface = False
-                self.moving_patch_visualizer = SimpleNamespace(
-                    moving_patch_particle=patch, get_visualized_env_ids=lambda: [0]
-                )
 
             def log_points(self, name, points, **kwargs):
                 self.particles[name] = np.empty((0, 3)) if kwargs.get("hidden", False) else points.numpy().copy()
@@ -154,7 +140,6 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
                     assert np.isfinite(points.numpy()).all()
                     assert indices.numpy().min() >= 0 and indices.numpy().max() < len(points)
                 if name.startswith("/particle_cache/"):
-                    assert kwargs["texture"] == patch.background_mesh.visual_cfg.color_texture
                     assert kwargs["roughness"] == 1.0
                 if name == "/particle_cache/background":
                     # The background must leave openings only for rendered loaded patches.
@@ -163,8 +148,8 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
                     self.background_tiles = set(map(tuple, centers))
 
         viewer = MeshRecorder()
-        surface = ParticleCacheSurface(patch)
-        state = NewtonManager.get_state_0()
+        surface = ParticleCacheSurface(patch, backend)
+        state = backend.state_0
         original_bodies = state.body_q.numpy().copy()
         original_tiles = set(cache.loaded[0])
         before = canonical(0, original_tiles)
@@ -174,29 +159,14 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
         state.body_q.assign(moved)
         patch.update(state)
         assert cache.cached_particle_counts[0] > 0
-        viewer._log_particles(state)
-        # Particle-only mode must expose the bed and saved depressions, not cover them.
-        assert viewer.background_tiles.isdisjoint(cache.loaded[0] | original_tiles)
-        assert viewer.visible["/particle_cache/boundary"]
-        boundary = (cache.worlds == 0) & (cache.layers.numpy() == 2)
-        shown_live = set(map(tuple, viewer.particles["/model/particles"]))
-        assert boundary.any()
-        assert set(map(tuple, state.particle_q.numpy()[boundary])).issubset(shown_live)
-        rendered = set(map(tuple, np.concatenate(list(viewer.particles.values()))))
-        # Contact-deformed positions must remain visible after leaving GPU simulation.
-        assert set(map(tuple, before["q"])).issubset(rendered)
-        viewer.show_particles = False
-        viewer._log_particles(state)
-        assert all(len(points) == 0 for points in viewer.particles.values())
-        assert not viewer.visible["/particle_cache/boundary"]
+        surface.update(viewer, state, [0], show_surface=False)
         assert (cache.loaded[0] | original_tiles).issubset(viewer.background_tiles)
-        viewer.show_particles = True
         surface.update(viewer, state, [0])
         surface_name = "/particle_cache/world_0/surface"
         assert viewer.visible[surface_name]
         assert viewer.background_tiles.isdisjoint(cache.loaded[0])
         assert original_tiles.issubset(viewer.background_tiles)
-        assert set(viewer.uploads) == {"/particle_cache/background", "/particle_cache/boundary", surface_name}
+        assert set(viewer.uploads) == {"/particle_cache/background", surface_name}
         points, indices, _ = surface.meshes[0]
         triangles = points.numpy()[indices.numpy().reshape(-1, 3)]
         centers = np.floor(triangles.mean(axis=1)[:, :2] / cache.cfg.tile_size).astype(int)
@@ -209,7 +179,7 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
         state.body_q.assign(original_bodies)
         patch.update(state)
         surface.update(viewer, state, [0])
-        assert set(viewer.uploads) == {"/particle_cache/background", "/particle_cache/boundary", surface_name}
+        assert set(viewer.uploads) == {"/particle_cache/background", surface_name}
         assert viewer.background_tiles.isdisjoint(cache.loaded[0])
         surface.update(viewer, state, [0], show_surface=False)
         assert not viewer.visible[surface_name]
@@ -250,29 +220,11 @@ def test_particle_history_with_independent_rigid_objects(device, gpu_resident):
             assert torch.isfinite(reward).all()
             assert torch.isfinite(env.scene["robot"].data.root_pos_w.torch).all()
         assert not torch.allclose(env.scene["robot"].data.joint_pos.torch, joint_before)
-        # Reset keeps the surface local while clearing saved particle visualization.
+        # Reset keeps the surface local.
         env.reset(env_ids=torch.tensor([0], device=env.device))
-        patch.update(NewtonManager.get_state_0())
-        surface.update(viewer, NewtonManager.get_state_0(), [0])
-        assert set(viewer.uploads) == {"/particle_cache/background", "/particle_cache/boundary", surface_name}
-        viewer._log_particles(NewtonManager.get_state_0())
-        assert len(viewer.particles["/particle_cache/world_0/particles"]) == 0
-        raw.close()
-
-
-def test_record_pool_reuses_returned_ids_and_resets_in_constant_time():
-    """Returned record ids are reused first, then never-used ones; a reset needs no per-record work."""
-    pool = RecordPool(start=100, capacity=5)
-    assert len(pool) == 5
-    assert pool.take(3) == [100, 101, 102]
-    assert len(pool) == 2
-    pool.release([101, 102])
-    assert len(pool) == 4
-    assert pool.take(3) == [102, 101, 103]
-    assert len(pool) == 1
-    pool.reset()
-    assert len(pool) == 5
-    assert pool.take(2) == [100, 101]
+        patch.update(backend.state_0)
+        surface.update(viewer, backend.state_0, [0])
+        assert set(viewer.uploads) == {"/particle_cache/background", surface_name}
 
 
 @pytest.mark.parametrize(("multiplier", "tiles"), [(1, 64), (1.01, 65), (1.25, 80), (2.0, 128)])

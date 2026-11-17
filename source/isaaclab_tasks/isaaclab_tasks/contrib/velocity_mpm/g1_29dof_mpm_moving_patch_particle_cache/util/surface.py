@@ -65,7 +65,8 @@ class ParticleCacheSurface:
         uvs = (uv * cfg.texture_repeat_per_meter).contiguous()
         return dict(
             uvs=wp.from_torch(uvs, dtype=wp.vec2),
-            texture=cfg.color_texture,
+            # The RTX viewer renders this textured mesh black; use the plain color until that is understood.
+            texture=None,
             color=cfg.color,
             roughness=1.0,
         )
