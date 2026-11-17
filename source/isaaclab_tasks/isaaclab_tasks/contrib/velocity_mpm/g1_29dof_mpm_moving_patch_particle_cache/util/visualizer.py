@@ -26,6 +26,8 @@ class CameraFollow:
 
     def __call__(self, visualizer) -> None:
         position = self.backend.state_0.body_q[self.body_index : self.body_index + 1].numpy()[0, :3]
+        if not np.isfinite(position).all():
+            return  # the robot diverged; keep the last view until it resets
         visualizer.set_camera_view(tuple(position + self.eye), tuple(position + self.lookat))
 
 

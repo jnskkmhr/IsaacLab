@@ -340,7 +340,12 @@ class ParticleCacheSurface:
             # but only loaded tiles produce triangles or openings in the background.
             neighbors = self._neighbors(loaded)
             q = self._positions(world, live, neighbors)
-            self.meshes[world] = self._extract(world, sorted(loaded), q)
+            mesh = self._extract(world, sorted(loaded), q)
+            if mesh is None:
+                # A diverged solve leaves non-finite particle positions; keep showing the last surface until the
+                # environment resets instead of failing in the viewer.
+                return
+            self.meshes[world] = mesh
             self._log(viewer, world, self.meshes[world])
         elif world in self.meshes:
             self._log(viewer, world, self.meshes.pop(world), hidden=True)
@@ -359,6 +364,8 @@ class ParticleCacheSurface:
         # Include spray; quantization avoids reallocating for small changes in the vertical extent.
         z_min = float(positions[:, 2].min()) if len(positions) else 0.0
         z_max = float(positions[:, 2].max()) if len(positions) else z_min + terrain.particle_depth
+        if not (np.isfinite(z_min) and np.isfinite(z_max)):
+            return None
         bottom = np.floor((z_min - 2 * h) / size) * size
         top = np.ceil((z_max + 2 * h) / size) * size
         signature = (*lower, *upper, bottom, top, n, len(tiles), surface_level)
