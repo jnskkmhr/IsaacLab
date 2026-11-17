@@ -142,6 +142,10 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         super().__post_init__()
         self.observations.policy.enable_corruption = False
         self.camera_follow = True
+        # Playback walks one robot for a full episode (10+ m at the playback command), and every tile the window
+        # leaves keeps its saved particles (about 200k records per meter, 192 B each). The training default of
+        # 500k records fills after about 2.5 m; 4M records cost about 770 MB for this single environment.
+        self.scene.terrain.moving_patch_terrain.particle_cache.max_cached_particles_per_env = 4_000_000
 
         # generator = ROUGH_TERRAINS_DIFFICULT_CFG
         # generator = SLOPE_TERRAINS_CFG
