@@ -6,6 +6,7 @@
 """Task viewers publish the cached sand surface before both window and offline camera rendering."""
 
 import numpy as np
+from isaaclab_ov.renderers import OVRTXRendererCfg
 from isaaclab_visualizers.newton import NewtonGLBackendCfg, NewtonRTXBackendCfg
 from isaaclab_visualizers.newton.newton_visualizer import NewtonGLVisualizer, NewtonRTXVisualizer
 
@@ -101,6 +102,8 @@ class MovingPatchGLBackendCfg(NewtonGLBackendCfg):
 @configclass
 class MovingPatchRTXBackendCfg(NewtonRTXBackendCfg):
     class_type: str = f"{_MODULE}:MovingPatchRTXVisualizer"
+    renderer_cfg: OVRTXRendererCfg = OVRTXRendererCfg(async_rendering=True)
+    """Pipeline the RTX render with the next physics step, at the price of one capture of latency."""
     render_settings: dict = {
         # The Newton RTX viewer's interactive profile: one sample per pixel without denoising, and DLSS frame
         # generation, which produces an extra image per render.

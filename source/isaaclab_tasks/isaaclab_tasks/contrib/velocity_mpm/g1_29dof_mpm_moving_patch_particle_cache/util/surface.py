@@ -302,9 +302,18 @@ class ParticleCacheSurface:
         """Submit surfaces only for loaded patches, independently of saved history size."""
         patch, cache = self.patch, self.patch.cache
         visible = set(range(cache.world_count) if visible_worlds is None else visible_worlds)
-        # The background depends only on which tiles are loaded or visited, which changes with the cache revision.
-        key = (int(cache.revision.numpy()[0]), frozenset(visible), show_surface, show_particles)
+        # The background follows the loaded windows. Saved and visited tiles matter only when particles are shown,
+        # so the cache revision is consulted only then.
+        key = (
+            cache.tile_begins.numpy().tobytes(),
+            tuple(cache.generations),
+            int(cache.revision.numpy()[0]) if show_particles else 0,
+            frozenset(visible),
+            show_surface,
+            show_particles,
+        )
         if key != self._background_key:
+            self._bg_changes = getattr(self, '_bg_changes', 0) + 1
             self._update_background(viewer, visible, show_surface, show_particles)
             self._background_key = key
         if not show_surface:
