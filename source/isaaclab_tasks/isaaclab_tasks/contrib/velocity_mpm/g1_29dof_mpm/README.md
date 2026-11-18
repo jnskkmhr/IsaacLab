@@ -23,8 +23,8 @@ terrain curriculum interface is disabled for these fixed-bed scenes.
 | Scene class | Sand dimensions (m) | Shape | Training ID |
 | --- | --- | --- | --- |
 | `G1MPMSceneCfg` | 6 × 2 × 0.3 | Flat | `IsaacContrib-Velocity-Sand-G1-29dof-MPM` |
-| `G1RoughMPMSceneCfg` | 6 × 2 × 0.3 | Ascending X ramp, slope +0.4 | `IsaacContrib-Velocity-Sand-Rough-G1-29dof-MPM` |
-| `G1DescendingMPMSceneCfg` | 6 × 2 × 0.3 | Descending X ramp, slope −0.4 | `IsaacContrib-Velocity-Sand-Descending-G1-29dof-MPM` |
+| `G1UphillMPMSceneCfg` | 6 × 2 × 0.3 | Uphill X ramp, slope +0.4 | `IsaacContrib-Velocity-Sand-Uphill-G1-29dof-MPM` |
+| `G1DownhillMPMSceneCfg` | 6 × 2 × 0.3 | Downhill X ramp, slope −0.4 | `IsaacContrib-Velocity-Sand-Downhill-G1-29dof-MPM` |
 | `G1DuneMPMSceneCfg` | 6 × 2 × 0.3 | Two sinusoidal ridges, 0.3 m trough-to-crest | `IsaacContrib-Velocity-Sand-Dune-G1-29dof-MPM` |
 | `G1TiltingMPMSceneCfg` | 3 × 2 × 0.3 | Balance tray, ±15° roll/pitch | `IsaacContrib-Balance-Sand-G1-29dof-MPM-Tilting` |
 | `G1WalkingTiltingMPMSceneCfg` | 4 × 4 × 0.3 | Walking tray, ±10° roll/pitch | `IsaacContrib-Velocity-Sand-Tilting-G1-29dof-MPM` |
@@ -39,14 +39,13 @@ class G1WalkingTiltingMPMSceneCfg(G1TiltingMPMSceneCfg):
 
 The fixed-bed scenes start G1 on a rigid approach platform and walk in +X onto the
 sand. The platform top is 5 cm below the initial sand surface, matching the settled
-default sand. The sand entrance is at world Z = 0; descending terrain falls below
+default sand. The sand entrance is at world Z = 0; downhill terrain falls below
 that height. Dunes are cosine ridges along X, constant across Y, with a level entrance.
 Both rigid and MPM support meshes follow the generated initial surface 0.3 m below it.
 
 The tilting scenes start G1 in the sand, with no approach platform. Their physical
 roll/pitch joints drive the tray; particle motion remains solver-owned. `util/terrain.py`
-contains terrain/particle spawners, and `util/tilting_testbed.py` contains the tray spawner
-and motion configuration. The previous root-level helper module paths have moved.
+contains the terrain, particle and tray spawners and the tray motion configuration. The previous root-level helper module paths have moved.
 
 These geometry variants retain the existing rewards and policy inputs. Some inherited
 foot-clearance/touchdown terms still use a flat-ground reference; adding an entrypoint

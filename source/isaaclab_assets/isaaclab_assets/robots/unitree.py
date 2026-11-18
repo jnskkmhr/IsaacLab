@@ -1097,13 +1097,3 @@ Finger effort limits come from the upstream MJCF. Finger PD gains are simulation
 holding gains, not measured deployment gains. Tasks that omit finger actions must
 set and hold the configured finger targets, for example with a reset event.
 """
-
-UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain = UNITREE_G1_29DOF_BOX_FOOT_CFG.copy()
-UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.actuators["waist"].stiffness = {
-    "waist_roll_joint": 40.0,
-    "waist_pitch_joint": 40.0,
-}
-UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.actuators["waist"].damping = {
-    "waist_roll_joint": 5.0,
-    "waist_pitch_joint": 5.0,
-}

@@ -25,7 +25,7 @@ from ..util.particle_sampling import make_particle_spawner
 from ..util.terrain import BackgroundTerrainImporterCfg, MovingPatchTerrainCfg
 from . import terrain_cfg
 
-VOXEL_SIZE = 0.02
+VOXEL_SIZE = 0.04
 """MPM voxel size [m]."""
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""

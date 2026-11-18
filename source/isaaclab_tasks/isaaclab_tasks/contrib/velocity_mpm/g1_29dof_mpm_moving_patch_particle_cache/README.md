@@ -189,7 +189,7 @@ The manager-wide `use_cuda_graph` remains false so host paging runs before every
 physics step and fixed-boundary restoration runs afterwards. Reset randomizers
 update existing GPU buffers; a changed buffer address or material-dependent
 solver branch invalidates the captured solver. Set `capture_solver=false` for an
-eager comparison. The experimental ADMM and direct-coupling presets remain eager.
+eager comparison.
 The task requires sparse MPM,
 `separate_worlds=True` and `strain_basis="P0"`. The default saved-record pool costs
 about 92 MB per environment, plus simulation slots, frozen state and solver

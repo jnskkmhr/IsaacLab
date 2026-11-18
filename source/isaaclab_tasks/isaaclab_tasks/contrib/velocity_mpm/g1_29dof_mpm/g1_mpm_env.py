@@ -16,7 +16,7 @@ import newton
 import numpy as np
 import torch
 import warp as wp
-from isaaclab_newton.physics import reset_mpm_solver_state
+from isaaclab_newton.physics import configure_mpm_sleeping, reset_mpm_solver_state
 
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.markers import VisualizationMarkers
@@ -69,22 +69,37 @@ class G1MPMEnv(ManagerBasedRLEnv):
     def __init__(self, cfg: G1MPMEnvCfg, render_mode: str | None = None, **kwargs):
         # command-line overrides such as --num_envs land on the config before the scene is created
         configure_sparse_mpm_capacities(cfg)
+        if cfg.mpm_activity_colors and cfg.sim.visualizer_cfgs:
+            from .util.particle_visualization import ActivityMPMObject
+
+            cfg.scene.sand.class_type = ActivityMPMObject
         self._contact_state_ready = False
+        self._settled_bed = None
         super().__init__(cfg, render_mode, **kwargs)
 
     def step(self, action: torch.Tensor):
         self._rigid_contact_valid.fill_(True)
         obs, reward, terminated, truncated, extras = super().step(action)
-        # Rewards are computed from the pre-reset state, so the step on which a world diverges
-        # carries a NaN reward even though `solver_diverged` already reset it. One NaN sample is
-        # enough to destroy a policy update, so it is scrubbed here.
-        torch.nan_to_num_(reward, nan=0.0, posinf=0.0, neginf=0.0)
         return obs, reward, terminated, truncated, extras
 
     def load_managers(self) -> None:
         # MDP terms resolve their parameters against this state, so it must exist beforehand
         self._setup_contact_state()
+        manager = self.sim.backend_manager
+        entry_cfg = next(entry for entry in self.cfg.sim.physics.solver_cfg.entries if entry.name == MPM_ENTRY)
+        sleeping = entry_cfg.solver_cfg.sleeping.copy()
+        sleeping.enabled = self.cfg.mpm_sleeping_enabled
+        configure_mpm_sleeping(manager, sleeping, solver=manager.backend.solver._entries[MPM_ENTRY].solver)
         super().load_managers()
+        if self.cfg.mpm_cache_initial_state:
+            from .util.settled_bed import SettledBed
+
+            self._settled_bed = SettledBed(self)
+        if self.cfg.mpm_activity_colors and self.sim.cfg.visualizer_cfgs:
+            from .util.particle_visualization import ParticleActivityColors
+
+            self._activity_colors = ParticleActivityColors(self)
+            self.sim.add_render_callback("mpm_activity_colors", self._activity_colors.update)
 
     @property
     def foot_count(self) -> int:
@@ -157,25 +172,28 @@ class G1MPMEnv(ManagerBasedRLEnv):
         if env_ids.numel() == 0:
             return
 
-        particle_state = self._sand.data.default_particle_state_w.torch[env_ids].clone()
-        if self.cfg.reset_particle_jitter > 0.0:
-            jitter = (
-                2.0 * torch.rand((env_ids.numel(), self._sand.particles_per_object, 3), device=self.device) - 1.0
-            ) * self.cfg.reset_particle_jitter
-            particle_state[..., :3] += jitter
-        particle_state[..., 3:] = 0.0
-        self._sand.write_particle_state_to_sim_index(particle_state, env_ids=env_ids)
+        if self._settled_bed is not None:
+            self._settled_bed.restore(env_ids)
+            self._sand._invalidate_caches(pos=True, vel=True)
+        else:
+            particle_state = self._sand.data.default_particle_state_w.torch[env_ids].clone()
+            if self.cfg.reset_particle_jitter > 0.0:
+                jitter = (
+                    2.0 * torch.rand((env_ids.numel(), self._sand.particles_per_object, 3), device=self.device) - 1.0
+                ) * self.cfg.reset_particle_jitter
+                particle_state[..., :3] += jitter
+            particle_state[..., 3:] = 0.0
+            self._sand.write_particle_state_to_sim_index(particle_state, env_ids=env_ids)
 
-        # Clear the constitutive, contact and proxy-feedback history of exactly the reset worlds.
-        # Newton reset masks carry one trailing slot for global (world -1) entities.
-        world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
-        world_mask[env_ids] = True
-        reset_mpm_solver_state(
-            self.sim.backend_manager.backend,
-            world_mask=wp.from_torch(world_mask, dtype=wp.bool),
-            flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE,
-        )
-
+            # Clear the constitutive, contact and proxy-feedback history of exactly the reset worlds.
+            # Newton reset masks carry one trailing slot for global (world -1) entities.
+            world_mask = torch.zeros(self.num_envs + 1, dtype=torch.bool, device=self.device)
+            world_mask[env_ids] = True
+            reset_mpm_solver_state(
+                self.sim.backend_manager.backend,
+                world_mask=wp.from_torch(world_mask, dtype=wp.bool),
+                flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE,
+            )
         self._foot_air_time[env_ids] = 0.0
         self._foot_contact_time[env_ids] = 0.0
         self._foot_first_contact[env_ids] = False
@@ -309,7 +327,6 @@ class G1MPMEnv(ManagerBasedRLEnv):
         )
         rigid_force = wp.to_torch(self._rigid_foot_force).reshape(self.num_envs, self.foot_count, 3)
         self._foot_contact_force += torch.where(self._rigid_contact_valid, rigid_force, 0.0)
-        torch.nan_to_num_(self._foot_contact_force, nan=0.0, posinf=0.0, neginf=0.0)
         force_magnitude = torch.norm(self._foot_contact_force, dim=-1)
         self._foot_contact = force_magnitude > self.cfg.foot_contact_force_threshold
 

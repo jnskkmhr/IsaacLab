@@ -15,8 +15,8 @@ from . import agents
 
 for task_id, cfg_name, env_class in (
     ("IsaacContrib-Velocity-Sand-Flat-G1-29dof-MPM", "G1MPMEnvCfg", "G1MPMEnv"),
-    ("IsaacContrib-Velocity-Sand-Ascending-G1-29dof-MPM", "G1RoughMPMEnvCfg", "G1MPMEnv"),
-    ("IsaacContrib-Velocity-Sand-Descending-G1-29dof-MPM", "G1DescendingMPMEnvCfg", "G1MPMEnv"),
+    ("IsaacContrib-Velocity-Sand-Uphill-G1-29dof-MPM", "G1UphillMPMEnvCfg", "G1MPMEnv"),
+    ("IsaacContrib-Velocity-Sand-Downhill-G1-29dof-MPM", "G1DownhillMPMEnvCfg", "G1MPMEnv"),
     ("IsaacContrib-Velocity-Sand-Dune-G1-29dof-MPM", "G1DuneMPMEnvCfg", "G1MPMEnv"),
     ("IsaacContrib-Balance-Sand-Tilting-G1-29dof-MPM", "G1TiltingMPMEnvCfg", "G1TiltingMPMEnv"),
     ("IsaacContrib-Velocity-Sand-Tilting-G1-29dof-MPM", "G1WalkingTiltingMPMEnvCfg", "G1TiltingMPMEnv"),

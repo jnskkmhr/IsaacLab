@@ -115,20 +115,6 @@ class G1MovingPatchSceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    # robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.replace(  # type: ignore
-    #     prim_path="{ENV_REGEX_NS}/Robot",
-    #     spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.spawn.replace(  # type: ignore
-    #         collision_props={
-    #             r"/.*_ankle_roll_link/.*": [
-    #                 NewtonCollisionCfg(
-    #                     contact_margin=FOOT_CONTACT_MARGIN,
-    #                     contact_gap=0.0,
-    #                 ),
-    #             ],
-    #         },
-    #     ),
-    # )
-
     height_scanner = RayCasterCfg(
         # the URDF importer nests bodies along the kinematic tree, so match the leaf name anywhere
         prim_path="{ENV_REGEX_NS}/Robot/.*pelvis",

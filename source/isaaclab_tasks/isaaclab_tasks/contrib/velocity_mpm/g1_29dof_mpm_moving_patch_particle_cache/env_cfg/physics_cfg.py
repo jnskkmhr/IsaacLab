@@ -14,11 +14,9 @@ from isaaclab_newton.physics import (
     NewtonCollisionPipelineCfg,
     NewtonShapeCfg,
 )
-from isaaclab_newton.physics.coupling import CouplerAdmmCfg, CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
+from isaaclab_newton.physics.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
 from isaaclab.utils import configclass
-
-from isaaclab_tasks.utils import PresetCfg
 
 from .scene_cfg import VOXEL_SIZE, MovingPatchTerrainCfg
 
@@ -74,9 +72,6 @@ class G1PhysicsProxyCfg(NewtonCfg):
                     strain_basis="P0",
                     transfer_scheme="apic",
                     max_iterations=25,
-                    # Solves run to the iteration limit here, so one check at the end runs the same 25 iterations
-                    # without the conditional launches between them.
-                    rheology_check_interval=25,
                     # tolerance=1.0e-5,
                     # warmstart_mode="auto",
                     # velocity_basis="Q1",
@@ -125,26 +120,3 @@ class G1PhysicsProxyCfg(NewtonCfg):
         for entry in self.solver_cfg.entries:
             if entry.name == MPM_ENTRY:
                 entry.solver_cfg.voxel_size = moving_patch_terrain.voxel_size  # type: ignore
-
-
-@configclass
-class G1PhysicsADMMCfg(G1PhysicsProxyCfg):
-    """Experimental ADMM rigid-particle coupling with the same MJWarp and MPM settings."""
-
-    solver_cfg: CouplerAdmmCfg = CouplerAdmmCfg(
-        entries=G1PhysicsProxyCfg().solver_cfg.entries,
-        contact_pairs=[(RIGID_ENTRY, MPM_ENTRY)],
-        iterations=1,
-        rho=50.0,
-    )
-    # ADMM generates rigid-particle contacts; proxy coupling uses MPM grid colliders.
-    collision_cfg: NewtonCollisionPipelineCfg = NewtonCollisionPipelineCfg()
-
-
-@configclass
-class G1PhysicsCfg(PresetCfg):
-    """Select the coupling algorithm without changing the robot or sand solver settings."""
-
-    mjwarp_mpm_proxy = G1PhysicsProxyCfg()
-    mjwarp_mpm_admm = G1PhysicsADMMCfg()
-    default = mjwarp_mpm_proxy

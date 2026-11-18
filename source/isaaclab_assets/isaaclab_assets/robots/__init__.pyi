@@ -63,7 +63,7 @@ __all__ = [
     "UNITREE_G1_29DOF_CFG",
     "UNITREE_G1_29DOF_WITH_HAND_CFG",
     "UNITREE_G1_29DOF_BOX_FOOT_CFG",
-    "UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain",
+    "UNITREE_G1_29DOF_BOX_FOOT_CFG_NO_HAND",
     "G1_INSPIRE_FTP_CFG",
     "UR10_CFG",
     "UR10e_CFG",
@@ -108,10 +108,10 @@ from .humanoid_28 import HUMANOID_28_CFG
 from .kinova import KINOVA_GEN3_N7_CFG, KINOVA_JACO2_N6S300_CFG, KINOVA_JACO2_N7S300_CFG
 from .kuka_allegro import KUKA_ALLEGRO_CFG
 from .microduck import (
-    MICRODUCK_CFG,
+    MICRODUCK_ALLCOLLISIONS_BACKLASH_CFG,
     MICRODUCK_ALLCOLLISIONS_CFG,
     MICRODUCK_BACKLASH_CFG,
-    MICRODUCK_ALLCOLLISIONS_BACKLASH_CFG,
+    MICRODUCK_CFG,
 )
 from .pick_and_place import PICK_AND_PLACE_CFG
 from .quadcopter import CRAZYFLIE_CFG
@@ -135,7 +135,6 @@ from .unitree import (
     UNITREE_G1_29DOF_WITH_HAND_CFG,
     UNITREE_GO1_CFG,
     UNITREE_GO2_CFG,
-    UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain,
 )
 from .universal_robots import (
     UR10_CFG,

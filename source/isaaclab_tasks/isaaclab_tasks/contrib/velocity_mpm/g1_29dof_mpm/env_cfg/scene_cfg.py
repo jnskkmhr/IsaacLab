@@ -26,18 +26,14 @@ from isaaclab.sim.spawners.materials import RigidBodyMaterialBaseCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.configclass import configclass
 
-from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain
+from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
-from ..util.terrain import MeshXDuneTerrainCfg, MeshXSlopeTerrainCfg, TerrainMPMGridCfg
-from ..util.tilting_testbed import TiltingTestbedSpawnerCfg
+from ..util.terrain import MeshXDuneTerrainCfg, MeshXSlopeTerrainCfg, TerrainMPMGridCfg, TiltingTestbedSpawnerCfg
 
 # Particle/material settings match the moving-patch sand configuration.
-# MPM_VOXEL_SIZE = 0.04
-MPM_VOXEL_SIZE = 0.02
+MPM_VOXEL_SIZE = 0.04
+# MPM_VOXEL_SIZE = 0.02
 MPM_COLLIDER_MARGIN = 0.0
-# FOOT_CONTACT_MARGIN = 0.01875
-# FOOT_CONTACT_MARGIN = MPM_VOXEL_SIZE * 0.5
-# FOOT_CONTACT_MARGIN = MPM_VOXEL_SIZE * 0.3
 FOOT_CONTACT_MARGIN = 0.04 * 0.5
 PLATFORM_CONTACT_MARGIN = 0.004
 PLATFORM_CONTACT_GAP = 0.002
@@ -76,7 +72,8 @@ MPM_VISUAL_COLOR = (0.32, 0.24, 0.21)
 
 # # basalt
 # # K. Manick et al.,
-# # “The European Space Agency Sample Analogue Collection (ESA2C) for Exploration Missions: Geotechnical Characterization” (2017).
+# # “The European Space Agency Sample Analogue Collection (ESA2C) for Exploration Missions: Geotechnical
+# #     Characterization” (2017).
 # SAND_MATERIAL_CFG = MPMParticleMaterialCfg(
 #     density=1660.0,          # Measured loose bulk density of reference aggregate
 #     young_modulus=1.0e15,
@@ -109,10 +106,10 @@ MPM_VISUAL_COLOR = (0.32, 0.24, 0.21)
 # Closely packed poppy seeds
 # Yang et al. (2020), Table 2
 SAND_MATERIAL_CFG = MPMParticleMaterialCfg(
-    density=682.0,          # Bulk seed-bed density, kg/m³
+    density=682.0,  # Bulk seed-bed density, kg/m³
     young_modulus=1.0e15,
     poisson_ratio=0.3,
-    friction=1.07,          # Estimate from tan(47°); requires calibration
+    friction=1.07,  # Estimate from tan(47°); requires calibration
     yield_pressure=1.0e15,
     tensile_yield_ratio=0.0,
     yield_stress=0.0,
@@ -223,25 +220,12 @@ class G1MPMSceneCfg(InteractiveSceneCfg):
     for support geometry, approach placement and robot placement.
     """
 
-    # robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(
-    #     prim_path="{ENV_REGEX_NS}/Robot",
-    #     spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(
-    #         collision_props={
-    #             "/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=FOOT_CONTACT_MARGIN, contact_gap=0.0)]
-    #         }
-    #     ),
-    # )
-    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.replace(  # type: ignore
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
-        spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG_increased_waist_gain.spawn.replace(  # type: ignore
+        spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(
             collision_props={
-                r"/.*_ankle_roll_link/.*": [
-                    NewtonCollisionCfg(
-                        contact_margin=FOOT_CONTACT_MARGIN,
-                        contact_gap=0.0,
-                    ),
-                ],
-            },
+                "/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=FOOT_CONTACT_MARGIN, contact_gap=0.0)]
+            }
         ),
     )
     sand = _sand_cfg(size=(4.0, 2.0, 0.3))
@@ -326,8 +310,8 @@ class G1MPMSceneCfg(InteractiveSceneCfg):
 
 
 @configclass
-class G1RoughMPMSceneCfg(G1MPMSceneCfg):
-    """A 6 x 2 m ascending ramp, with a terrain-conforming sand layer."""
+class G1UphillMPMSceneCfg(G1MPMSceneCfg):
+    """A 6 x 2 m uphill ramp, with a terrain-conforming sand layer."""
 
     sand = _sand_cfg(
         size=(6.0, 2.0, 0.3),
@@ -337,8 +321,8 @@ class G1RoughMPMSceneCfg(G1MPMSceneCfg):
 
 
 @configclass
-class G1DescendingMPMSceneCfg(G1RoughMPMSceneCfg):
-    """A 6 x 2 m ramp descending along +X from the approach platform."""
+class G1DownhillMPMSceneCfg(G1UphillMPMSceneCfg):
+    """A 6 x 2 m ramp downhill along +X from the approach platform."""
 
     sand = _sand_cfg(
         size=(6.0, 2.0, 0.3),
@@ -348,7 +332,7 @@ class G1DescendingMPMSceneCfg(G1RoughMPMSceneCfg):
 
 
 @configclass
-class G1DuneMPMSceneCfg(G1RoughMPMSceneCfg):
+class G1DuneMPMSceneCfg(G1UphillMPMSceneCfg):
     """Two smooth dune ridges along X on a 6 x 2 m bed."""
 
     sand = _sand_cfg(

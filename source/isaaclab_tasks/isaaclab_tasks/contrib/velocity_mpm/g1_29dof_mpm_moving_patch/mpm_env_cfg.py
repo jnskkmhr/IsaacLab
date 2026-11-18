@@ -14,6 +14,8 @@ from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
 from isaaclab.visualizers import VisualizerCfg
 
+from isaaclab_tasks.utils.presets import MultiBackendVisualizerCfg
+
 from .env_cfg import (
     DEFAULT_PROXY_MASS_SCALE,
     ROUGH_TERRAINS_DIFFICULT_CFG,
@@ -23,12 +25,12 @@ from .env_cfg import (
     G1EventCfg,
     G1MovingPatchSceneCfg,
     G1ObservationsCfg,
-    G1PhysicsCfg,
+    G1PhysicsProxyCfg,
     G1RewardsCfg,
     G1TerminationsCfg,
 )
 from .util.solver_setting import configure_sparse_mpm_capacities
-from .util.visualizer import MovingPatchGLVisualizerCfg, MovingPatchRTXVisualizerCfg
+from .util.visualizer import MovingPatchGLBackendCfg, MovingPatchRTXBackendCfg
 
 
 @configclass
@@ -36,7 +38,9 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
     """Configure G1 directly on sand with two-way coupling and local learning settings."""
 
     scene: G1MovingPatchSceneCfg = G1MovingPatchSceneCfg(num_envs=1, env_spacing=4.0)
-    sim: SimulationCfg = SimulationCfg(dt=1 / 200, render_interval=4, use_newton_actuators=True, physics=G1PhysicsCfg())
+    sim: SimulationCfg = SimulationCfg(
+        dt=1 / 200, render_interval=4, use_newton_actuators=True, physics=G1PhysicsProxyCfg()
+    )
     decimation: int = 4
     is_finite_horizon: bool = False
 
@@ -101,9 +105,13 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
 
         # self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 4.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(eye=(-20.0, 0.0, 6.0), lookat=(0.0, 0.0, 0.0), show_particles=False),
-            # MovingPatchRTXVisualizerCfg(eye=(-50.0, -15.0, 5.0), lookat=(-10.0, 0.0, 0.0), show_particles=True),
-            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0), show_particles=False),
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=MovingPatchGLBackendCfg(show_particles=False), newton_rtx=MovingPatchRTXBackendCfg()
+                ),
+                eye=(-20.0, 0.0, 6.0),
+                lookat=(0.0, 0.0, 0.0),
+            ),
         ]
         self.video_recorders = [
             VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
@@ -156,19 +164,15 @@ class G1MovingPatchEnvCfg_PLAY(G1MovingPatchEnvCfg):
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
         self.commands.base_velocity.debug_vis = False
 
-        self.sim.default_visualizer_cfg = VisualizerCfg(eye=(0.0, -15.0, 2.0), lookat=(0.0, 0.0, 0.0))
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=MovingPatchGLBackendCfg(follow_robot=True), newton_rtx=MovingPatchRTXBackendCfg()
+                ),
                 eye=(2.0, 2.0, 2.0),
                 lookat=(0.0, 0.0, 0.0),
                 streaming_view=False,
-            ),
-            MovingPatchRTXVisualizerCfg(
-                eye=(2.0, 2.0, 2.0),
-                lookat=(0.0, 0.0, 0.0),
-                streaming_view=False,
-            ),
-            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
+            )
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),

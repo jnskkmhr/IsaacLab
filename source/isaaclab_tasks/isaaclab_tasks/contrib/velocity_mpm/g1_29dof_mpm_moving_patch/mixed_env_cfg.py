@@ -9,6 +9,9 @@ import math
 import isaaclab.envs.mdp as mdp
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg  # noqa: F401
 from isaaclab.utils import configclass
+from isaaclab.visualizers import VisualizerCfg
+
+from isaaclab_tasks.utils.presets import MultiBackendVisualizerCfg
 
 from .env_cfg import (
     FLAT_TERRAINS_CFG,  # noqa: F401
@@ -23,10 +26,7 @@ from .env_cfg.scene_cfg import FOOT_CONTACT_MARGIN
 from .mdp.curriculums import terrain_levels_vel
 from .mixed_env import outside_contact_region, randomize_mpm_material
 from .mpm_env_cfg import G1MovingPatchEnvCfg
-from .util.visualizer import (
-    MovingPatchGLVisualizerCfg,
-    MovingPatchRTXVisualizerCfg,
-)
+from .util.visualizer import MovingPatchGLBackendCfg, MovingPatchRTXBackendCfg
 
 
 @configclass
@@ -105,18 +105,16 @@ class G1MixedTerrainEnvCfg_PLAY(G1MixedTerrainEnvCfg):
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
         self.sim.visualizer_cfgs = [
-            MovingPatchGLVisualizerCfg(
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=MovingPatchGLBackendCfg(follow_robot=True),
+                    newton_rtx=MovingPatchRTXBackendCfg(follow_robot=True),
+                ),
                 eye=(0.0, -2.0, 0.5),
                 lookat=(0.0, 0.0, 0.0),
                 streaming_view=False,
+                visible_env_indices=[0],
             ),
-            MovingPatchRTXVisualizerCfg(
-                eye=(0.0, -2.0, 0.5),
-                lookat=(0.0, 0.0, 0.0),
-                streaming_view=False,
-                origin_env_index=0,
-            ),
-            # MovingPatchKitVisualizerCfg(eye=(0.0, -15.0, 4.0)),
         ]
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),

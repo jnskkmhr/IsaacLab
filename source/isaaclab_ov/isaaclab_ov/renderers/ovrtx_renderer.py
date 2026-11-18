@@ -1503,6 +1503,36 @@ class OVRTXMesh:
                 raise ExceptionGroup("OVRTX renders failed before mesh cleanup", errors)
 
 
+def _author_arrow_prototype(stage: Usd.Stage, path: str, cfg) -> Usd.Prim:
+    """Author a thin +X arrow with the proportions of the Newton viewers' marker arrow.
+
+    The Isaac Sim ``arrow_x.usd`` is a full-width shaft and head meant for a ``(1, 0.1, 0.1)`` scale. Marker
+    configurations are shared with the Newton viewers, whose arrow is a shaft of radius 0.08 and length 0.7 with a
+    cone head of radius 0.16 and length 0.3, drawn with the cross-section scale multiplied by 2.5. Authoring the same
+    geometry keeps the arrows the same size in every viewer.
+    """
+    scale = cfg.scale if cfg.scale is not None else (1.0, 1.0, 1.0)
+    root = UsdGeom.Xform.Define(stage, path)
+    root.AddScaleOp().Set(Gf.Vec3f(scale[0], scale[1] * 2.5, scale[2] * 2.5))
+    shaft = UsdGeom.Cylinder.Define(stage, f"{path}/Shaft")
+    shaft.CreateAxisAttr("X")
+    shaft.CreateRadiusAttr(0.08)
+    shaft.CreateHeightAttr(0.7)
+    shaft.AddTranslateOp().Set(Gf.Vec3d(0.35, 0.0, 0.0))
+    head = UsdGeom.Cone.Define(stage, f"{path}/Head")
+    head.CreateAxisAttr("X")
+    head.CreateRadiusAttr(0.16)
+    head.CreateHeightAttr(0.3)
+    head.AddTranslateOp().Set(Gf.Vec3d(0.85, 0.0, 0.0))
+    material_cfg = cfg.visual_material
+    if material_cfg is not None:
+        material_cfg.func(f"{path}/Looks/Material", material_cfg)
+        material = UsdShade.Material.Get(stage, f"{path}/Looks/Material")
+        for geometry in (shaft, head):
+            UsdShade.MaterialBindingAPI.Apply(geometry.GetPrim()).Bind(material)
+    return root.GetPrim()
+
+
 class OVRTXMarkers:
     """Shared USD marker instances with GPU transform bindings."""
 
@@ -1521,7 +1551,11 @@ class OVRTXMarkers:
         self._stage.SetDefaultPrim(root.GetPrim())
         with use_stage(self._stage):
             for name, prototype in cfg.markers.items():
-                prim = prototype.func(f"/Markers/Prototypes/{name}", prototype)
+                path = f"/Markers/Prototypes/{name}"
+                if str(getattr(prototype, "usd_path", "")).lower().endswith("arrow_x.usd"):
+                    prim = _author_arrow_prototype(self._stage, path, prototype)
+                else:
+                    prim = prototype.func(path, prototype)
                 prim.SetSpecifier(Sdf.SpecifierClass)
         self._prototypes = tuple(f"/Markers/Prototypes/{name}" for name in cfg.markers)
         self._prototype_transforms = np.array(

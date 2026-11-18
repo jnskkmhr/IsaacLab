@@ -8,14 +8,14 @@ from .commands_cfg import G1CommandsCfg
 from .curriculum_cfg import G1CurriculumCfg
 from .event_cfg import G1EventCfg
 from .observation_cfg import G1ObservationsCfg
-from .physics_cfg import g1_mpm_physics_cfg
+from .physics_cfg import physics_cfg
 from .reward_cfg import G1RewardsCfg
 from .scene_cfg import (
-    G1DescendingMPMSceneCfg,
+    G1DownhillMPMSceneCfg,
     G1DuneMPMSceneCfg,
     G1MPMSceneCfg,
-    G1RoughMPMSceneCfg,
     G1TiltingMPMSceneCfg,
+    G1UphillMPMSceneCfg,
     G1WalkingTiltingMPMSceneCfg,
 )
 from .termination_cfg import G1TerminationsCfg

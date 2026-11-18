@@ -3,6 +3,25 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+__all__ = [
+    "DEFAULT_PROXY_MASS_SCALE",
+    "FLAT_TERRAINS_CFG",
+    "G1ActionsCfg",
+    "G1CommandsCfg",
+    "G1CurriculumCfg",
+    "G1EventCfg",
+    "G1MovingPatchSceneCfg",
+    "G1ObservationsCfg",
+    "G1PhysicsProxyCfg",
+    "G1RewardsCfg",
+    "G1TerminationsCfg",
+    "MovingPatchTerrainCfg",
+    "ParticleCacheCfg",
+    "ROUGH_TERRAINS_CFG",
+    "ROUGH_TERRAINS_DIFFICULT_CFG",
+    "SLOPE_TERRAINS_CFG",
+    "WAVE_TERRAINS_CFG",
+]
 
 from .action_cfg import G1ActionsCfg
 from .commands_cfg import G1CommandsCfg
@@ -10,7 +29,7 @@ from .curriculum_cfg import G1CurriculumCfg
 from .event_cfg import G1EventCfg
 from .observation_cfg import G1ObservationsCfg
 from .particle_cache_cfg import ParticleCacheCfg
-from .physics_cfg import DEFAULT_PROXY_MASS_SCALE, G1PhysicsADMMCfg, G1PhysicsCfg, G1PhysicsDirectCfg, G1PhysicsProxyCfg
+from .physics_cfg import DEFAULT_PROXY_MASS_SCALE, G1PhysicsProxyCfg
 from .reward_cfg import G1RewardsCfg
 from .scene_cfg import G1MovingPatchSceneCfg, MovingPatchTerrainCfg
 from .termination_cfg import G1TerminationsCfg

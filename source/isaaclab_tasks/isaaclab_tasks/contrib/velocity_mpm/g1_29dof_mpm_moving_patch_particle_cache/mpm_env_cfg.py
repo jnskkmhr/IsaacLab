@@ -24,7 +24,7 @@ from .env_cfg import (
     G1EventCfg,
     G1MovingPatchSceneCfg,
     G1ObservationsCfg,
-    G1PhysicsCfg,
+    G1PhysicsProxyCfg,
     G1RewardsCfg,
     G1TerminationsCfg,
 )
@@ -37,7 +37,9 @@ class G1MovingPatchEnvCfg(ManagerBasedRLEnvCfg):
     """Configure G1 directly on sand with two-way coupling and local learning settings."""
 
     scene: G1MovingPatchSceneCfg = G1MovingPatchSceneCfg(num_envs=1, env_spacing=4.0)
-    sim: SimulationCfg = SimulationCfg(dt=1 / 200, render_interval=4, use_newton_actuators=True, physics=G1PhysicsCfg())
+    sim: SimulationCfg = SimulationCfg(
+        dt=1 / 200, render_interval=4, use_newton_actuators=True, physics=G1PhysicsProxyCfg()
+    )
     decimation: int = 4
     is_finite_horizon: bool = False
 

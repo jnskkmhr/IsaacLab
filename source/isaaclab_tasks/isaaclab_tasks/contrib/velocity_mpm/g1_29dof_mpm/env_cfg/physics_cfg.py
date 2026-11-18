@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from isaaclab_newton.physics import (
     MJWarpSolverCfg,
+    MPMSleepingCfg,
     MPMSolverCfg,
     NewtonCfg,
     NewtonCollisionPipelineCfg,
@@ -47,7 +48,7 @@ SPARSE_MPM_MIN_UPPER_NODES_PER_WORLD = 1
 SPARSE_MPM_MIN_TOTAL_UPPER_NODE_COUNT = 1 << 5
 
 
-def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE, *, rough_terrain: bool = False) -> NewtonCfg:
+def physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE, *, rough_terrain: bool = False) -> NewtonCfg:
     """Build the coupled MJWarp/MPM physics configuration.
 
     Args:
@@ -82,6 +83,8 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE, *, ro
                     solver_cfg=MPMSolverCfg(
                         voxel_size=MPM_VOXEL_SIZE,
                         grid_type="sparse",
+                        reuse_grid_topology=True,
+                        sleeping=MPMSleepingCfg(stress_filter_time=0.1),
                         grid_padding=0,
                         strain_basis="P0",
                         transfer_scheme="apic",
@@ -125,33 +128,10 @@ def g1_mpm_physics_cfg(proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE, *, ro
             iterations=1,
         ),
         collision_cfg=NewtonCollisionPipelineCfg(soft_contact_max=0),
-        # Newton's default shape stiffness (ke 2.5e3, kd 1e2) is two orders of magnitude too
-        # compliant for a 32 kg humanoid: `MJWarpSolverCfg.use_mujoco_contacts=False` routes it
-        # through `convert_solref`, so the rigid approach platform answers a footfall like a
-        # mattress. These are the values the rigid and soft-contact G1 tasks walk on.
         default_shape_cfg=NewtonShapeCfg(margin=0.0, ke=160000.0, kd=1100.0),
         num_substeps=1,
         use_cuda_graph=True,
     )
-
-
-def get_mpm_solver_cfg(cfg: G1MPMEnvCfg) -> MPMSolverCfg:
-    """Return the MPM solver configuration held by the coupled physics configuration.
-
-    Args:
-        cfg: Environment configuration.
-
-    Returns:
-        The MPM solver configuration.
-
-    Raises:
-        ValueError: If the physics configuration does not hold exactly one MPM entry.
-    """
-    assert cfg.sim.physics is not None
-    entries = [entry for entry in cfg.sim.physics.solver_cfg.entries if entry.name == MPM_ENTRY]  # type: ignore
-    if len(entries) != 1 or not isinstance(entries[0].solver_cfg, MPMSolverCfg):
-        raise ValueError(f"Expected one {MPM_ENTRY!r} MPMSolverCfg entry, found {len(entries)}.")
-    return entries[0].solver_cfg
 
 
 def configure_sparse_mpm_capacities(cfg: G1MPMEnvCfg) -> None:
@@ -168,8 +148,9 @@ def configure_sparse_mpm_capacities(cfg: G1MPMEnvCfg) -> None:
         cfg: Environment configuration; its MPM solver capacities are updated in place.
 
     Raises:
-        ValueError: If a per-world capacity is not a positive integer or the capacity hierarchy
-            ``upper <= lower <= leaf <= active`` is violated.
+        ValueError: If a per-world capacity is not a positive integer, the capacity hierarchy
+            ``upper <= lower <= leaf <= active`` is violated, or the physics configuration does not hold
+            exactly one MPM entry.
     """
     per_world = {
         "active cells": cfg.mpm_active_cell_count_per_world,
@@ -210,7 +191,11 @@ def configure_sparse_mpm_capacities(cfg: G1MPMEnvCfg) -> None:
         )
 
     world_count = max(1, int(cfg.scene.num_envs))
-    solver_cfg = get_mpm_solver_cfg(cfg)
+    assert cfg.sim.physics is not None
+    entries = [entry for entry in cfg.sim.physics.solver_cfg.entries if entry.name == MPM_ENTRY]  # type: ignore
+    if len(entries) != 1 or not isinstance(entries[0].solver_cfg, MPMSolverCfg):
+        raise ValueError(f"Expected one {MPM_ENTRY!r} MPMSolverCfg entry, found {len(entries)}.")
+    solver_cfg = entries[0].solver_cfg
     solver_cfg.max_active_cell_count = per_world["active cells"] * world_count
     solver_cfg.max_leaf_node_count = per_world["leaf nodes"] * world_count
     solver_cfg.max_lower_node_count = per_world["lower nodes"] * world_count

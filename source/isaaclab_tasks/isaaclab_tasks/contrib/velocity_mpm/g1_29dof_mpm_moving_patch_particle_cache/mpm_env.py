@@ -16,7 +16,6 @@ import torch
 import warp as wp
 from isaaclab_newton.physics import reset_mpm_solver_state
 from isaaclab_newton.physics.newton_builder_cfg import NewtonBuilderCfg
-from newton.solvers.experimental.coupled import SolverCoupledADMM
 
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.physics import PhysicsEvent
@@ -311,27 +310,9 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
     def _resolve_coupling_feedback_buffer(self) -> wp.array:
         """Resolve the foot–sand interface wrench buffer and its body index mapping.
 
-        Proxy forces use global Newton body indices; ADMM forces use robot-entry indices.
-        Both buffers exclude external forces. ADMM reports the wrench applied in its final iteration.
+        Proxy forces use global Newton body indices and exclude external forces.
         """
         solver = self.sim.backend_manager.backend.solver
-        if isinstance(solver, SolverCoupledADMM):
-            buffer = solver._admm_buffers[RIGID_ENTRY]
-            if not hasattr(buffer, "body_coupling_f"):
-                raise RuntimeError(
-                    "ADMM–MPM requires the Newton fixes in newton_patch/PR_ready/newton. "
-                    "Set PYTHONPATH=../newton_patch/PR_ready/newton before uv run."
-                )
-            entry = solver._entries[RIGID_ENTRY]
-            global_to_local = torch.full(
-                (self.sim.backend_manager.backend.model.body_count,), -1, dtype=torch.long, device=self.device
-            )
-            local_to_global = wp.to_torch(entry.body_local_to_global).long()
-            global_to_local[local_to_global] = torch.arange(len(local_to_global), device=self.device)
-            self._coupling_force_body_ids = global_to_local[self._foot_body_ids]
-            if torch.any(self._coupling_force_body_ids < 0):
-                raise RuntimeError("The ADMM robot entry must own every tracked foot body")
-            return buffer.body_coupling_f
         for mapping in getattr(solver, "_proxy_mappings", ()):
             if mapping.src_name == RIGID_ENTRY and mapping.dst_name == MPM_ENTRY:
                 return mapping.coupling_forces

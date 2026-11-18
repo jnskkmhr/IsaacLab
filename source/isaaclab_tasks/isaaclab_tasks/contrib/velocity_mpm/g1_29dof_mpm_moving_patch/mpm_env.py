@@ -16,7 +16,6 @@ import torch
 import warp as wp
 from isaaclab_newton.physics import reset_mpm_solver_state
 from isaaclab_newton.physics.newton_builder_cfg import NewtonBuilderCfg
-from newton.solvers.experimental.coupled import SolverCoupledADMM
 
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.physics import PhysicsEvent
@@ -24,7 +23,7 @@ from isaaclab.physics import PhysicsEvent
 from .env_cfg.physics_cfg import MPM_ENTRY, RIGID_ENTRY
 from .mpm_env_cfg import G1MovingPatchEnvCfg
 from .util.particles import MovingPatchParticles
-from .util.visualizer import attach_particle_filter
+from .util.visualizer import CameraFollow, attach_particle_filter
 
 
 class G1MovingPatchEnv(ManagerBasedRLEnv):
@@ -46,13 +45,13 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
                 raise ValueError("foot_contact_margin_range must contain finite, nonnegative, ordered bounds.")
         super().__init__(cfg, render_mode, **kwargs)
 
-        def _init_sim(self):
-            # The model is finalized inside the simulation reset, so margins must be registered before it.
-            callback = self.sim.backend_manager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
-            try:
-                super()._init_sim()
-            finally:
-                callback.deregister()
+    def _init_sim(self):
+        # The model is finalized inside the simulation reset, so margins must be registered before it.
+        callback = self.sim.backend_manager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
+        try:
+            super()._init_sim()
+        finally:
+            callback.deregister()
 
     def _set_contact_margin(self, payload=None):
         """Assign sampled margins before model finalization when configured."""
@@ -101,6 +100,11 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
         if self.moving_patch_particle is not None:
             for visualizer in self.sim.visualizers:
                 attach_particle_filter(visualizer, self.moving_patch_particle)
+                if getattr(visualizer.cfg.backend, "follow_robot", False):
+                    backend = self.sim.backend_manager.backend
+                    labels = list(backend.model.body_label)
+                    root = next(i for i, label in enumerate(labels) if label.startswith("/World/envs/env_0/Robot/"))
+                    visualizer.camera_follow = CameraFollow(backend, root, visualizer.cfg.eye, visualizer.cfg.lookat)
 
     def _setup_moving_patch_particle(self) -> None:
         """Create particles from this scene's terrain and attach physics callbacks."""
@@ -298,30 +302,12 @@ class G1MovingPatchEnv(ManagerBasedRLEnv):
     def _resolve_coupling_feedback_buffer(self) -> wp.array:
         """Resolve the foot–sand interface wrench buffer and its body index mapping.
 
-        Proxy forces use global Newton body indices; ADMM forces use robot-entry indices.
-        Both buffers exclude external forces. ADMM reports the wrench applied in its final iteration.
+        Proxy forces use global Newton body indices and exclude external forces.
         """
         model = self.sim.backend_manager.backend.model
         if model.particle_count == 0:
             return wp.zeros(model.body_count, dtype=wp.spatial_vector, device=model.device)
         solver = self.sim.backend_manager.backend.solver
-        if isinstance(solver, SolverCoupledADMM):
-            buffer = solver._admm_buffers[RIGID_ENTRY]
-            if not hasattr(buffer, "body_coupling_f"):
-                raise RuntimeError(
-                    "ADMM–MPM requires the Newton fixes in newton_patch/PR_ready/newton. "
-                    "Set PYTHONPATH=../newton_patch/PR_ready/newton before uv run."
-                )
-            entry = solver._entries[RIGID_ENTRY]
-            global_to_local = torch.full(
-                (self.sim.backend_manager.backend.model.body_count,), -1, dtype=torch.long, device=self.device
-            )
-            local_to_global = wp.to_torch(entry.body_local_to_global).long()
-            global_to_local[local_to_global] = torch.arange(len(local_to_global), device=self.device)
-            self._coupling_force_body_ids = global_to_local[self._foot_body_ids]
-            if torch.any(self._coupling_force_body_ids < 0):
-                raise RuntimeError("The ADMM robot entry must own every tracked foot body")
-            return buffer.body_coupling_f
         for mapping in getattr(solver, "_proxy_mappings", ()):
             if mapping.src_name == RIGID_ENTRY and mapping.dst_name == MPM_ENTRY:
                 return mapping.coupling_forces

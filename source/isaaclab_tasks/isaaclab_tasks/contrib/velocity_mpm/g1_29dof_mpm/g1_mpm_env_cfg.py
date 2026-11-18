@@ -9,13 +9,17 @@ from __future__ import annotations
 
 import math
 
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLBackendCfg
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils.configclass import configclass
+from isaaclab.visualizers import VisualizerCfg
 
+from isaaclab_tasks.utils.presets import MultiBackendVisualizerCfg
+
+from ..rtx_visualizer import InteractiveRTXBackendCfg
 from .env_cfg import (
     G1ActionsCfg,
     G1CommandsCfg,
@@ -26,23 +30,21 @@ from .env_cfg import (
     G1RewardsCfg,
     G1TerminationsCfg,
 )
-from .env_cfg.physics_cfg import DEFAULT_PROXY_MASS_SCALE, configure_sparse_mpm_capacities, g1_mpm_physics_cfg
+from .env_cfg.physics_cfg import DEFAULT_PROXY_MASS_SCALE, configure_sparse_mpm_capacities, physics_cfg
 from .env_cfg.scene_cfg import (
-    MPM_VISUAL_COLOR,
-    G1DescendingMPMSceneCfg,
+    G1DownhillMPMSceneCfg,
     G1DuneMPMSceneCfg,
-    G1RoughMPMSceneCfg,
     G1TiltingMPMSceneCfg,
+    G1UphillMPMSceneCfg,
     G1WalkingTiltingMPMSceneCfg,
 )
 from .mdp.rewards import base_height_above_testbed
 from .mdp.terminations import root_outside_testbed
-from .util.terrain import TerrainMPMGridCfg
-from .util.tilting_testbed import TestbedMotionCfg
+from .util.terrain import TerrainMPMGridCfg, TestbedMotionCfg
 
-# VISUALIZER = "newton_gl"
-VISUALIZER = "newton_rtx"
-# VISUALIZER = "kit"
+"""
+fixed testbed with specific surface geometry.
+"""
 
 
 @configclass
@@ -54,7 +56,7 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
     """
 
     # scene
-    scene: G1MPMSceneCfg = G1MPMSceneCfg(num_envs=32, env_spacing=8.0, replicate_physics=True, clone_in_fabric=True)
+    scene: G1MPMSceneCfg = G1MPMSceneCfg(num_envs=32, env_spacing=8.0, replicate_physics=True)
 
     # basic settings
     observations: G1ObservationsCfg = G1ObservationsCfg()
@@ -84,6 +86,22 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
 
     # -- solver capacities, scaled with the world count before the simulation is created
     proxy_mass_scale: float = DEFAULT_PROXY_MASS_SCALE
+    mpm_sleeping_enabled: bool = True
+    """Enable native GPU activity selection; false provides a fully active comparison."""
+
+    mpm_activity_colors: bool = True
+    """Color awake particles orange, stationary support cyan, and sleeping particles gray."""
+
+    mpm_cache_initial_state: bool = True
+    """Settle the actual bed once and restore its GPU snapshot on subsequent resets."""
+
+    mpm_settle_time: float = 1.0
+    """Initial sand-only simulation duration [s]; remaining moving particles stay awake.
+
+    The initial material snapshot is approximate after material randomization. Geometry changes
+    require a new environment/snapshot. Set ``mpm_cache_initial_state=False`` for raw spawn resets.
+    """
+
     mpm_active_cell_count_per_world: int | None = None
     """Active-cell capacity per world; None derives it from the sand particle grid."""
     mpm_leaf_node_count_per_world: int = 1 << 13
@@ -99,7 +117,7 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
 
         # simulation settings
         self.sim = SimulationCfg(dt=1 / 200, render_interval=self.decimation)  # 200 Hz physics
-        self.sim.physics = g1_mpm_physics_cfg(
+        self.sim.physics = physics_cfg(
             self.proxy_mass_scale, rough_terrain=isinstance(self.scene.sand.spawn, TerrainMPMGridCfg)
         )
         self.sim.use_newton_actuators = True
@@ -115,17 +133,14 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=NewtonGLBackendCfg(show_particles=True),
+                    newton_rtx=InteractiveRTXBackendCfg(),
+                ),
                 eye=(0.0, -6.0, 1.5),
                 headless=True,
-                show_particles=True,
-                particle_color=MPM_VISUAL_COLOR,
-            ),
-            NewtonRTXVisualizerCfg(
-                eye=(0.0, -6.0, 1.5),
-                headless=True,
-            ),
-            # KitVisualizerCfg(eye=(0.0, -6.0, 1.5), headless=True),
+            )
         ]
 
         self.video_recorders = [
@@ -143,6 +158,10 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
 
     def __post_init__(self) -> None:
         super().__post_init__()
+
+        # mpm sleep setting
+        self.mpm_sleeping_enabled = False
+        self.mpm_activity_colors = False
 
         # disable curriculum and observation corruption
         self.curriculum.track_lin_vel = None  # type: ignore
@@ -175,77 +194,59 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
-        self.commands.base_velocity.rel_standing_envs = 0.0
+        self.commands.base_velocity.rel_standing_envs = 0.9
         self.commands.base_velocity.resampling_time_range = (3.0, 3.0)
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
 
-        # self.sim.visualizer_cfgs = [
-        #     NewtonGLVisualizerCfg(
-        #         eye=(1.5, -1.5, 0.5),
-        #         lookat=(0.0, 0.0, 0.0),
-        #         streaming_view=False,
-        #     ),
-        #     NewtonRTXVisualizerCfg(
-        #         eye=(1.5, -1.5, 0.5),
-        #         lookat=(0.0, 0.0, 0.0),
-        #         streaming_view=False,
-        #     ),
-        #     # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
-        # ]
-
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=NewtonGLBackendCfg(),
+                    newton_rtx=InteractiveRTXBackendCfg(),
+                ),
                 eye=(-2.0, -0.5, 1.0),
                 lookat=(0.0, 0.0, 0.0),
                 streaming_view=False,
-            ),
-            NewtonRTXVisualizerCfg(
-                eye=(-0.0, -2.0, 1.0),
-                lookat=(0.0, 0.0, 0.0),
-                streaming_view=False,
-            ),
-            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            )
         ]
 
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
         ]
 
 
 @configclass
-class G1RoughMPMEnvCfg(G1MPMEnvCfg):
+class G1UphillMPMEnvCfg(G1MPMEnvCfg):
     """G1 walking from the approach platform onto a fixed generated sand surface.
 
     This geometry variant retains the base task's rewards. Height and touchdown
     rewards still reference flat ground; adapt them before rough-terrain training.
     """
 
-    scene: G1RoughMPMSceneCfg = G1RoughMPMSceneCfg(num_envs=32, env_spacing=8.0)
+    scene: G1UphillMPMSceneCfg = G1UphillMPMSceneCfg(num_envs=32, env_spacing=8.0)
 
 
 @configclass
-class G1RoughMPMEnvCfg_PLAY(G1MPMEnvCfg_PLAY):
+class G1UphillMPMEnvCfg_PLAY(G1MPMEnvCfg_PLAY):
     """Playback with a fixed generated sand surface and no episode randomization."""
 
-    scene: G1RoughMPMSceneCfg = G1RoughMPMSceneCfg(num_envs=1, env_spacing=8.0)
+    scene: G1UphillMPMSceneCfg = G1UphillMPMSceneCfg(num_envs=1, env_spacing=8.0)
 
     def __post_init__(self) -> None:
         super().__post_init__()
 
         self.sim.visualizer_cfgs = [
-            NewtonGLVisualizerCfg(
+            VisualizerCfg(
+                backend=MultiBackendVisualizerCfg(
+                    newton_gl=NewtonGLBackendCfg(),
+                    newton_rtx=InteractiveRTXBackendCfg(),
+                ),
                 eye=(-2.0, -0.5, 1.0),
                 lookat=(0.0, 0.0, 0.0),
                 streaming_view=False,
-            ),
-            NewtonRTXVisualizerCfg(
-                eye=(-0.0, -2.0, 1.0),
-                lookat=(0.0, 0.0, 0.0),
-                streaming_view=False,
-            ),
-            # KitVisualizerCfg(eye=(0.0, -4.0, 1.0)),
+            )
         ]
 
         self.video_recorders = [
@@ -255,8 +256,42 @@ class G1RoughMPMEnvCfg_PLAY(G1MPMEnvCfg_PLAY):
         ]
 
 
+@configclass
+class G1DownhillMPMEnvCfg(G1UphillMPMEnvCfg):
+    """Locomotion onto a downhill sand ramp."""
+
+    scene: G1DownhillMPMSceneCfg = G1DownhillMPMSceneCfg(num_envs=32, env_spacing=8.0)
+
+
+@configclass
+class G1DownhillMPMEnvCfg_PLAY(G1UphillMPMEnvCfg_PLAY):
+    """Deterministic playback on a downhill sand ramp."""
+
+    scene: G1DownhillMPMSceneCfg = G1DownhillMPMSceneCfg(num_envs=1, env_spacing=8.0)
+
+
+@configclass
+class G1DuneMPMEnvCfg(G1UphillMPMEnvCfg):
+    """Locomotion over sinusoidal sand ridges."""
+
+    scene: G1DuneMPMSceneCfg = G1DuneMPMSceneCfg(num_envs=32, env_spacing=8.0)
+
+
+@configclass
+class G1DuneMPMEnvCfg_PLAY(G1UphillMPMEnvCfg_PLAY):
+    """Deterministic playback over sinusoidal sand ridges."""
+
+    scene: G1DuneMPMSceneCfg = G1DuneMPMSceneCfg(num_envs=1, env_spacing=8.0)
+
+
+"""
+testbed with roll/pitch revolute joints, driven by a slow sinusoidal motion.
+"""
+
 ROLL_MAX = math.radians(15.0)
 PITCH_MAX = math.radians(15.0)
+
+
 @configclass
 class G1TiltingMPMEnvCfg(G1MPMEnvCfg):
     """Balance on a slowly tilting sand tray driven through physical joints."""
@@ -298,6 +333,10 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
         self.scene.num_envs = 1
         self.observations.policy.enable_corruption = False
 
+        # mpm sleep setting
+        self.mpm_sleeping_enabled = False
+        self.mpm_activity_colors = False
+
         self.events.mpm_material = None
         self.events.mpm_material_log = None
         self.events.add_base_mass = None
@@ -317,37 +356,9 @@ class G1TiltingMPMEnvCfg_PLAY(G1TiltingMPMEnvCfg):
 
         self.video_recorders = [
             # VideoRecorderCfg(source="visualizer:newton_gl", output_dir=None, video_length=200, video_interval=2000),
-            VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
+            # VideoRecorderCfg(source="visualizer:newton_rtx", output_dir=None, video_length=200, video_interval=2000),
             # VideoRecorderCfg(source="visualizer:kit", output_dir=None, video_length=200, video_interval=2000),
         ]
-
-
-@configclass
-class G1DescendingMPMEnvCfg(G1RoughMPMEnvCfg):
-    """Locomotion onto a descending sand ramp."""
-
-    scene: G1DescendingMPMSceneCfg = G1DescendingMPMSceneCfg(num_envs=32, env_spacing=8.0)
-
-
-@configclass
-class G1DescendingMPMEnvCfg_PLAY(G1RoughMPMEnvCfg_PLAY):
-    """Deterministic playback on a descending sand ramp."""
-
-    scene: G1DescendingMPMSceneCfg = G1DescendingMPMSceneCfg(num_envs=1, env_spacing=8.0)
-
-
-@configclass
-class G1DuneMPMEnvCfg(G1RoughMPMEnvCfg):
-    """Locomotion over sinusoidal sand ridges."""
-
-    scene: G1DuneMPMSceneCfg = G1DuneMPMSceneCfg(num_envs=32, env_spacing=8.0)
-
-
-@configclass
-class G1DuneMPMEnvCfg_PLAY(G1RoughMPMEnvCfg_PLAY):
-    """Deterministic playback over sinusoidal sand ridges."""
-
-    scene: G1DuneMPMSceneCfg = G1DuneMPMSceneCfg(num_envs=1, env_spacing=8.0)
 
 
 @configclass

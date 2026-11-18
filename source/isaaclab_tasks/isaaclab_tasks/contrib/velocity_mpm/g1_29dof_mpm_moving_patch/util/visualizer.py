@@ -5,12 +5,17 @@
 
 """Standard particle rendering with moving-patch visibility filtering."""
 
+import numpy as np
 import warp as wp
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+from isaaclab_visualizers.newton import NewtonGLBackendCfg
+from isaaclab_visualizers.newton.newton_visualizer import NewtonGLVisualizer, NewtonRTXVisualizer
 
 from isaaclab.utils import configclass
 
+from ...rtx_visualizer import DLSSFramePresentMixin, InteractiveRTXBackendCfg
 from .kernel import gather_visible_particles, mark_visible_particles
+
+_MODULE = "isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch.util.visualizer"
 
 
 class ParticleVisibilityFilter:
@@ -50,7 +55,9 @@ class ParticleVisibilityFilter:
             return
         visible = getattr(self.visualizer, "_env_ids", None)
         if visible is None and patch.terrain.show_boundary_particles:
-            viewer.log_points("/model/particles", points=state.particle_q, radii=model.particle_radius, colors=self.colors)
+            viewer.log_points(
+                "/model/particles", points=state.particle_q, radii=model.particle_radius, colors=self.colors
+            )
             return
         if visible is not None:
             world_ids = tuple(visible)
@@ -93,11 +100,65 @@ def attach_particle_filter(visualizer, patch) -> None:
     visualizer._viewer._log_particles = ParticleVisibilityFilter(patch, visualizer)
 
 
-@configclass
-class MovingPatchGLVisualizerCfg(NewtonGLVisualizerCfg):
-    """GL visualizer configuration; the particle filter is attached by the environment."""
+class CameraFollow:
+    """Keep a visualizer's camera at fixed offsets from a body, as the previous ``origin_type="asset"`` view did."""
+
+    def __init__(self, backend, body_index: int, eye_offset, lookat_offset):
+        self.backend = backend
+        self.body_index = body_index
+        self.eye = np.asarray(eye_offset, dtype=np.float32)
+        self.lookat = np.asarray(lookat_offset, dtype=np.float32)
+
+    def __call__(self, visualizer) -> None:
+        position = self.backend.state_0.body_q[self.body_index : self.body_index + 1].numpy()[0, :3]
+        if not np.isfinite(position).all():
+            return  # the robot diverged; keep the last view until it resets
+        visualizer.set_camera_view(tuple(position + self.eye), tuple(position + self.lookat))
+
+
+class CameraFollowMixin:
+    """Move the camera with the tracked robot before every frame the viewer produces."""
+
+    camera_follow = None
+
+    def _prepare_frame(self):
+        if self.camera_follow is not None:
+            self.camera_follow(self)
+
+    def _render_frame(self):
+        self._prepare_frame()
+        super()._render_frame()
+
+    def render_rgb_array(self):
+        self._prepare_frame()
+        return super().render_rgb_array()
+
+    def _capture_frame(self, *args, **kwargs):
+        self._prepare_frame()
+        return super()._capture_frame(*args, **kwargs)
+
+
+class MovingPatchGLVisualizer(CameraFollowMixin, NewtonGLVisualizer):
+    """GL view that can follow the robot."""
+
+
+class MovingPatchRTXVisualizer(CameraFollowMixin, DLSSFramePresentMixin, NewtonRTXVisualizer):
+    """RTX view that can follow the robot and presents the DLSS-generated frames."""
 
 
 @configclass
-class MovingPatchRTXVisualizerCfg(NewtonRTXVisualizerCfg):
-    """RTX visualizer configuration; the particle filter is attached by the environment."""
+class MovingPatchGLBackendCfg(NewtonGLBackendCfg):
+    """GL backend configuration; the particle filter is attached by the environment."""
+
+    class_type: str = f"{_MODULE}:MovingPatchGLVisualizer"
+    follow_robot: bool = False
+    """Keep the camera at the configured eye and lookat offsets from the first environment's robot."""
+
+
+@configclass
+class MovingPatchRTXBackendCfg(InteractiveRTXBackendCfg):
+    """RTX backend configuration; the particle filter is attached by the environment."""
+
+    class_type: str = f"{_MODULE}:MovingPatchRTXVisualizer"
+    follow_robot: bool = False
+    """Keep the camera at the configured eye and lookat offsets from the first environment's robot."""

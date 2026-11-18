@@ -17,7 +17,6 @@ from isaaclab_newton.assets import MPMObject
 from isaaclab_newton.assets.mpm_object.mpm_object_data import MPMObjectData
 from isaaclab_newton.envs.mdp.events import randomize_mpm_material as RandomizeMPMMaterial
 from isaaclab_newton.physics import reset_mpm_solver_state
-from isaaclab_newton.physics.coupling import CouplerAdmmCfg
 
 from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
 
@@ -57,7 +56,7 @@ class MixedMPMObject(MPMObject):
     """Particle asset mapping sampled scene worlds to compact particle instances."""
 
     def _initialize_impl(self) -> None:
-        model = self.sim.backend_manager.backend.model
+        model = self._sim.backend_manager.backend.model
         if model.particle_count:
             super()._initialize_impl()
         else:
@@ -145,20 +144,11 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
         # The clone assignment is now known, but solver construction has not started.
         count = sum(mpm)
         coupling = self.cfg.sim.physics.solver_cfg
-        if count == 0:
-            # A proxy coupler with no connections never steps its entries. Use one
-            # uncoupled MJWarp entry, retaining its configured rigid substeps and contacts.
-            self.cfg.sim.physics.solver_cfg = CouplerAdmmCfg(
-                entries=[entry for entry in coupling.entries if entry.name != MPM_ENTRY],
-                contact_pairs=[],
-                iterations=1,
-            )
-        else:
-            for entry in coupling.entries:
-                if entry.name == MPM_ENTRY:
-                    for name in ("max_active_cell_count", "max_leaf_node_count", "max_lower_node_count"):
-                        setattr(entry.solver_cfg, name, getattr(entry.solver_cfg, name) // self.num_envs * count)
-                    entry.solver_cfg.max_upper_node_count = max(32, self.cfg.mpm_upper_node_count_per_world * count)
+        for entry in coupling.entries:
+            if entry.name == MPM_ENTRY:
+                for name in ("max_active_cell_count", "max_leaf_node_count", "max_lower_node_count"):
+                    setattr(entry.solver_cfg, name, getattr(entry.solver_cfg, name) // self.num_envs * count)
+                entry.solver_cfg.max_upper_node_count = max(32, self.cfg.mpm_upper_node_count_per_world * count)
 
     def _setup_contact_state(self) -> None:
         entry = self.sim.backend_manager.backend.solver._entries["robot"]
@@ -233,10 +223,13 @@ class G1MixedTerrainEnv(G1MovingPatchEnv):
         if self.moving_patch_particle is not None:
             reset_mpm_solver_state(
                 self.sim.backend_manager.backend,
-                world_mask=mask, flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE
+                world_mask=mask,
+                flags=newton.StateFlags.BODY | newton.StateFlags.PARTICLE,
             )
         else:
-            self.sim.backend_manager.backend.solver.reset(self.sim.backend_manager.backend.state_0, world_mask=mask, flags=newton.StateFlags.BODY)
+            self.sim.backend_manager.backend.solver.reset(
+                self.sim.backend_manager.backend.state_0, world_mask=mask, flags=newton.StateFlags.BODY
+            )
         self._foot_air_time[env_ids] = 0.0
         self._foot_contact_time[env_ids] = 0.0
         self._foot_first_contact[env_ids] = False
