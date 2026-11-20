@@ -307,6 +307,7 @@ Use :class:`~isaaclab_newton.physics.MPMSleepingCfg` and
 
    from isaaclab_newton.physics import (
        MPMSleepingCfg,
+       StrainActivationCfg,
        MPMSolverCfg,
        MPMWorkingSetCfg,
        configure_mpm_sleeping,
@@ -317,7 +318,7 @@ Use :class:`~isaaclab_newton.physics.MPMSleepingCfg` and
        grid_type="sparse",
        max_active_cell_count=65_536,
        reuse_grid_topology=True,
-       sleeping=MPMSleepingCfg(velocity_threshold=0.01, sleep_time=0.5),
+       sleeping=MPMSleepingCfg(strain=StrainActivationCfg(velocity_threshold=0.01, sleep_time=0.5)),
        working_set=MPMWorkingSetCfg(particle_capacity=32_768, page_size=32, max_active_cell_count=8192),
    )
 

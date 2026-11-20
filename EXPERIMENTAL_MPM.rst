@@ -69,7 +69,7 @@ this newer IsaacLab base. The viewer currently uses a fixed world overview
 camera; the source branch's custom asset-following camera was not ported.
 
 ``env_cfg/physics_cfg.py`` enables ``reuse_grid_topology`` and configures
-``MPMSleepingCfg(stress_filter_time=0.1)``. ``G1MPMEnv.load_managers`` applies
+``MPMSleepingCfg(strain=StrainActivationCfg(stress_filter_time=0.1))``. ``G1MPMEnv.load_managers`` applies
 that config to the actual sand solver after solver construction and before
 capture. Episode resets use the new coupled MPM reset helper, including
 particle activity/history reset. The source material randomizer and accessors

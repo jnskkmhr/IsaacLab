@@ -22,12 +22,13 @@ from warp.fem import TemporaryStore
 
 from isaaclab.sim import SimulationContext
 
-from .mpm_solver_cfg import MPMSleepingCfg, MPMSolverCfg, MPMWorkingSetCfg
+from .mpm_solver_cfg import MPMSleepingCfg, MPMSolverCfg, MPMWorkingSetCfg, StrainActivationCfg, StreamingCfg
 from .newton_solver import NewtonSolver
 
 if TYPE_CHECKING:
     from pxr import Usd
 
+    from ..sim.spawners.mpm import StreamingMPMGridCfg
     from .newton_backend import NewtonBackend
     from .newton_manager import NewtonManager
 
@@ -212,6 +213,22 @@ def _runtime_mpm_solver(manager: NewtonManager, solver: SolverImplicitMPM | None
     return selected
 
 
+def _world_body_indices(model: Model, name: str) -> list[int]:
+    """Return the one body with this leaf name in each world, ordered by world."""
+    body_worlds = model.body_world.numpy()
+    indices = []
+    for world in range(model.world_count):
+        matches = [
+            index
+            for index, label in enumerate(model.body_label)
+            if body_worlds[index] == world and label and label.rsplit("/", 1)[-1] == name
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"Expected one {name!r} body in environment {world}, got {matches}.")
+        indices.append(matches[0])
+    return indices
+
+
 def configure_mpm_sleeping(
     manager: NewtonManager, cfg: MPMSleepingCfg | None, *, solver: SolverImplicitMPM | None = None
 ) -> None:
@@ -221,6 +238,8 @@ def configure_mpm_sleeping(
     ``None`` does nothing. Existing status is checked and the step graph invalidated before configuration.
     Native Newton validates supported devices, grids, and thresholds. These are setup operations, not per-step work.
 
+    A region follows the configured bodies through a pose buffer that a graph-safe hook refreshes every step.
+
     Args:
         manager: Manager owning the active Newton backend.
         cfg: Activity settings, or None to leave the solver unchanged.
@@ -228,7 +247,8 @@ def configure_mpm_sleeping(
 
     Raises:
         RuntimeError: The native feature is missing, capture is active, or the previous step failed.
-        ValueError: The solver is not owned by this manager or Newton rejects the configuration.
+        ValueError: Neither a planner nor a region is set, a region body is missing or ambiguous, the solver is
+            not owned by this manager, or Newton rejects the configuration.
     """
     if cfg is None:
         return
@@ -236,9 +256,33 @@ def configure_mpm_sleeping(
     if not hasattr(selected, "set_particle_sleeping"):
         raise RuntimeError("Particle sleeping requires a compatible Newton build providing set_particle_sleeping().")
     cfg.validate()
+    if cfg.enabled and cfg.strain is None and cfg.region is None:
+        raise ValueError("Enabled MPM sleeping needs strain thresholds, a region, or both.")
     selected.check_sparse_grid_rebuild_status()
-    manager.backend.invalidate_graph()
-    selected.set_particle_sleeping(**cfg.to_dict())
+    backend = manager.backend
+    backend.invalidate_graph()
+    strain = StrainActivationCfg() if cfg.strain is None else cfg.strain
+    selected.set_particle_sleeping(enabled=cfg.enabled, **strain.to_dict())
+    region = cfg.region
+    if not cfg.enabled or region is None:
+        return
+    if not hasattr(selected, "set_particle_active_regions"):
+        raise RuntimeError("Activity regions require a Newton build providing set_particle_active_regions().")
+    model = backend.model
+    names = [region.body_names] if isinstance(region.body_names, str) else list(region.body_names)
+    body_indices = [index for name in names for index in _world_body_indices(model, name)]
+    # The solver states swap every step, so the region reads a persistent copy of the body poses.
+    body_q = wp.clone(backend.state_0.body_q)
+    selected.set_particle_active_regions(
+        body_indices=body_indices,
+        half_extents=[0.5 * extent for extent in region.size],
+        offsets=region.offset,
+        body_q=body_q,
+        body_world=model.body_world,
+        keep_material_motion=region.keep_material_motion,
+        awake_inside=cfg.strain is None,
+    )
+    manager.register_post_actuator_callback(lambda: wp.copy(body_q, manager.backend.state_0.body_q))
 
 
 def configure_mpm_working_set(
@@ -281,6 +325,105 @@ def configure_mpm_working_set(
     selected.check_sparse_grid_rebuild_status()
     manager.backend.invalidate_graph()
     selected.set_particle_working_set(state, **cfg.to_dict())
+
+
+def configure_mpm_streaming(
+    manager: NewtonManager,
+    cfg: StreamingCfg | None,
+    *,
+    surface_mesh: wp.Mesh,
+    world_origins: Sequence[Sequence[float]],
+    spawn_heights: Sequence[float],
+    solver: SolverImplicitMPM | None = None,
+    state: State | None = None,
+    particle_spawn_cfg: StreamingMPMGridCfg | None = None,
+    dt: float | None = None,
+):
+    """Make the spawned particles a pool that follows the configured anchor bodies.
+
+    ``None`` does nothing. The pool is recycled before every solver substep and its kinematic ring is
+    pinned after every step; both hooks are graph-safe and stay registered with the backend. Existing
+    status is checked and the step graph invalidated before configuration.
+
+    Args:
+        manager: Manager owning the active Newton backend.
+        cfg: Pool settings, or None to leave every particle in place.
+        surface_mesh: Surface on which recycled particles are placed.
+        world_origins: Per-environment origins [m], shape ``(num_envs, 3)``; their XY phases the tile grid.
+        spawn_heights: Per-environment Z [m] of the surface the particles were spawned on.
+        solver: Native implicit MPM solver. Omit for a standalone MPM backend; select coupled entries explicitly.
+        state: Current solver input state. Required for a coupled entry; a standalone backend uses its state_0.
+        particle_spawn_cfg: Spawner that created the pool. Required with a tile cache, which samples the
+            template of newly generated tiles from it.
+        dt: Physics step [s]. Required with a tile cache, which settles its tile template at this step.
+
+    Returns:
+        Newton's streaming pool, or None when ``cfg`` is None.
+
+    Raises:
+        RuntimeError: The native feature or current state is missing, capture is active, or the previous step failed.
+        ValueError: An anchor body is missing or ambiguous, a tile cache lacks its spawner or step, or Newton
+            rejects the configuration.
+    """
+    if cfg is None:
+        return None
+    selected = _runtime_mpm_solver(manager, solver)
+    if not hasattr(selected, "set_particle_streaming"):
+        raise RuntimeError("Particle streaming requires a compatible Newton build providing set_particle_streaming().")
+    backend = manager.backend
+    if state is None:
+        if selected is not backend.solver:
+            raise ValueError("Provide the coupled MPM entry's current input state explicitly.")
+        state = backend.state_0
+    if state is None:
+        raise RuntimeError("The current MPM input state is not initialized.")
+    cfg.validate()
+    names = [cfg.body_names] if isinstance(cfg.body_names, str) else list(cfg.body_names)
+    model = backend.model
+    cache = None
+    if cfg.cache is None:
+        if len(names) != 1:
+            raise ValueError("A streaming pool without a tile cache follows exactly one anchor body.")
+        body_indices = _world_body_indices(model, names[0])
+    else:
+        if particle_spawn_cfg is None or dt is None:
+            raise ValueError("A tile cache needs the pool's spawner configuration and the physics step.")
+        # One row per environment, one column per anchor.
+        body_indices = list(zip(*(_world_body_indices(model, name) for name in names), strict=True))
+        # Imported here so that loading the physics configuration does not load USD.
+        from ..sim.spawners.mpm import sample_particle_tile  # noqa: PLC0415
+
+        template, _, radius = sample_particle_tile(particle_spawn_cfg)
+        cache = {
+            "depth": particle_spawn_cfg.upper[2] - particle_spawn_cfg.lower[2],
+            "tile_template": template,
+            "tile_radius": radius,
+            "max_cached_particles": cfg.cache.max_cached_particles_per_env,
+            "max_visited_tiles": cfg.cache.max_visited_tiles_per_env,
+            "settle_time": cfg.cache.settle_time_s,
+            "settle_speed": cfg.cache.settle_speed,
+            "settle_dt": dt,
+        }
+    selected.check_sparse_grid_rebuild_status()
+    backend.invalidate_graph()
+    streaming = selected.set_particle_streaming(
+        state,
+        body_indices=body_indices,
+        size=cfg.size,
+        margin=cfg.margin,
+        tile_size=cfg.tile_size,
+        surface_mesh=surface_mesh,
+        world_origins=world_origins,
+        spawn_heights=spawn_heights,
+        model=model,
+        cache=cache,
+    )
+    # Place the initial pools before the first step, then recycle inside the captured step.
+    streaming.update(backend.state_0)
+    streaming.check_status()
+    manager.register_state_force_callback(streaming.update)
+    manager.register_post_step_callback(lambda: streaming.post_step(manager.backend.state_0))
+    return streaming
 
 
 @contextmanager

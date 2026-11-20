@@ -25,7 +25,12 @@ __all__ = [
     "MPMSolverCfg",
     "MPMSleepingCfg",
     "MPMWorkingSetCfg",
+    "ParticleCacheCfg",
+    "StrainActivationCfg",
+    "StreamingCfg",
+    "TrackedRegionActivationCfg",
     "configure_mpm_sleeping",
+    "configure_mpm_streaming",
     "configure_mpm_working_set",
     "defer_mpm_status_checks",
     "NewtonBackend",
@@ -67,11 +72,20 @@ from .mjwarp_solver_cfg import MJWarpSolverCfg
 from .mpm_solver import (
     MPMSolver,
     configure_mpm_sleeping,
+    configure_mpm_streaming,
     configure_mpm_working_set,
     defer_mpm_status_checks,
     reset_mpm_solver_state,
 )
-from .mpm_solver_cfg import MPMSleepingCfg, MPMSolverCfg, MPMWorkingSetCfg
+from .mpm_solver_cfg import (
+    MPMSleepingCfg,
+    MPMSolverCfg,
+    MPMWorkingSetCfg,
+    ParticleCacheCfg,
+    StrainActivationCfg,
+    StreamingCfg,
+    TrackedRegionActivationCfg,
+)
 from .newton_backend import NewtonBackend, NewtonCloneRecord
 from .newton_backend_cfg import NewtonBackendCfg
 from .newton_builder import create_builder

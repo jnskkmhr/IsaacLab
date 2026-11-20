@@ -20,15 +20,17 @@ from isaaclab.assets import RigidObjectCfg
 from isaaclab.test.utils import DeviceScope, test_devices
 
 import isaaclab_tasks  # noqa: F401 -- register the actual task
-from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.env_cfg.terrain_cfg import (
+from isaaclab_tasks.contrib.velocity_mpm.config.deprecated.g1_29dof_mpm_moving_patch_particle_cache.env_cfg.terrain_cfg import (  # noqa: E501
     FLAT_TERRAINS_CFG,
 )
-from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util import settled_template
-from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.particle_sampling import (
+from isaaclab_tasks.contrib.velocity_mpm.config.deprecated.g1_29dof_mpm_moving_patch_particle_cache.util import (
+    settled_template,  # noqa: E501
+)
+from isaaclab_tasks.contrib.velocity_mpm.config.deprecated.g1_29dof_mpm_moving_patch_particle_cache.util.particle_sampling import (  # noqa: E501
     CachedMPMGridCfg,
     _sample_grid_tile,
 )
-from isaaclab_tasks.contrib.velocity_mpm.g1_29dof_mpm_moving_patch_particle_cache.util.surface import (
+from isaaclab_tasks.contrib.velocity_mpm.config.deprecated.g1_29dof_mpm_moving_patch_particle_cache.util.surface import (  # noqa: E501
     ParticleCacheSurface,
 )
 from isaaclab_tasks.utils import resolve_task_config

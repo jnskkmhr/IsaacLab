@@ -928,6 +928,10 @@ class NewtonGLVisualizer(NewtonVisualizerBase):
                         render_newton_visualization_markers(viewer, self._env_ids, num_envs=self.backend.model.num_envs)
             for name, arguments in self._pending_mesh_submissions.items():
                 viewer.log_mesh(name, **arguments)
+                if arguments["texture"] is not None:
+                    # The viewer uploads the texture but samples it only for model-owned visuals.
+                    mesh = viewer.objects[name]
+                    mesh.material = (*mesh.material[:3], 1.0 if mesh.texture_id else 0.0)
             self._pending_mesh_submissions.clear()
             if not viewer.is_paused():
                 self._render_live_plots()

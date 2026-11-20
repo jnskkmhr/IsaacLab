@@ -1288,7 +1288,7 @@ def test_ensure_mesh_registered_handles_none_normals_and_uvs(monkeypatch):
     class _LoggingViewer:
         device = "cpu"
 
-        def log_mesh(self, name, vertices, indices, normals=None, uvs=None, texture=None, hidden=True):
+        def log_mesh(self, name, vertices, indices, normals=None, uvs=None, texture=None, color=None, hidden=True):
             log_calls.append({"normals": normals, "uvs": uvs})
 
     fake_self = SimpleNamespace(_registered_meshes=set())

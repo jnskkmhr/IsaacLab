@@ -16,18 +16,11 @@ from .newton_manager_cfg import NewtonSolverCfg
 
 
 @configclass
-class MPMSleepingCfg:
-    """Native GPU particle activity settings, applied after scene preparation.
+class StrainActivationCfg:
+    """Thresholds of Newton's activity planner, which lets quiet particle patches sleep.
 
-    Requires :attr:`MPMSolverCfg.reuse_grid_topology` to enable guarded sparse execution.
     Thresholds describe approximate equilibrium, not a guarantee of force equivalence to full MPM.
-    Newton retains particle identity and history while settled regions sleep. Configure with
-    :func:`~isaaclab_newton.physics.configure_mpm_sleeping` outside graph capture;
-    all subsequent activity planning runs on GPU.
     """
-
-    enabled: bool = True
-    """Enable sleeping, or restore eligible particles when false."""
 
     patch_size: float | None = None
     """Activity patch edge length [m]; None selects Newton's two-voxel default."""
@@ -67,6 +60,48 @@ class MPMSleepingCfg:
 
 
 @configclass
+class TrackedRegionActivationCfg:
+    """Box that follows a body; particle activity is allowed only inside it. No particle is moved."""
+
+    body_names: str | list[str] = "base"
+    """Body name (or names) the box follows, per environment. Several bodies give a union of boxes."""
+
+    size: tuple[float, float, float] = MISSING
+    """Full XYZ size of the box [m]."""
+
+    offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    """World-frame offset of the box center from the body position [m]."""
+
+    keep_material_motion: bool = True
+    """Whether particles already moving outside the box stay awake until they settle.
+
+    True blocks only collider-driven wake-ups outside the box. False clears every wake request there,
+    which freezes moving material and changes the physical approximation.
+    """
+
+
+@configclass
+class MPMSleepingCfg:
+    """Native GPU particle activity settings, applied after scene preparation.
+
+    Activity is the strain planner restricted to the region; either may be None, not both.
+    Requires :attr:`MPMSolverCfg.reuse_grid_topology` to enable guarded sparse execution.
+    Newton retains particle identity and history while settled regions sleep. Configure with
+    :func:`~isaaclab_newton.physics.configure_mpm_sleeping` outside graph capture;
+    all subsequent activity planning runs on GPU.
+    """
+
+    enabled: bool = True
+    """Enable sleeping, or restore eligible particles when false."""
+
+    strain: StrainActivationCfg | None = StrainActivationCfg()
+    """Planner thresholds. None keeps every particle inside :attr:`region` awake."""
+
+    region: TrackedRegionActivationCfg | None = None
+    """Body-following box that limits activity. None lets the planner act on the whole bed."""
+
+
+@configclass
 class MPMWorkingSetCfg:
     """Bounded native evaluation buffers, applied after settling and activity classification.
 
@@ -87,6 +122,60 @@ class MPMWorkingSetCfg:
 
     max_leaf_node_count: int | None = None
     """Optional replacement sparse-grid leaf-node capacity."""
+
+
+@configclass
+class ParticleCacheCfg:
+    """Tile cache of a streaming particle pool.
+
+    Leaving tiles are saved and restored on return; tiles visited for the first time come from a
+    template settled once at startup.
+    """
+
+    simulation_capacity_multiplier: float = 2.0
+    """Simulation slots divided by the particles the window needs; at least 1."""
+
+    max_cached_particles_per_env: int = 500_000
+    """Maximum saved particle records per environment. Exhaustion raises."""
+
+    max_visited_tiles_per_env: int = 4096
+    """Maximum distinct tiles remembered per environment, including empty tiles. Exhaustion raises."""
+
+    settle_time_s: float = 2.5
+    """Duration of the one-time template settling run [s]."""
+
+    settle_speed: float = 0.03
+    """Fastest particle allowed at the end of the settling run [m/s]. Exceeding it raises."""
+
+
+@configclass
+class StreamingCfg:
+    """Moving pool of particles that follows an anchor body, applied after scene preparation.
+
+    The pool is the dynamic window plus a kinematic ring of width :attr:`margin`. It never creates
+    particles: the scene must spawn the particles of the whole pool. Configure with
+    :func:`~isaaclab_newton.physics.configure_mpm_streaming` outside graph capture.
+    """
+
+    body_names: str | list[str] = "base"
+    """Anchor link (or links) whose XY position the pool center follows, snapped to :attr:`tile_size`."""
+
+    size: tuple[float, float] = MISSING
+    """XY size of the dynamic window [m]. The particle layer depth comes from the scene."""
+
+    tile_size: float = 0.2
+    """Step in which the window moves [m]; one strip of this width is recycled per jump."""
+
+    margin: float = 0.2
+    """Width of the kinematic ring around the window [m]. The pool footprint is ``size + 2 * margin``."""
+
+    cache: ParticleCacheCfg | None = None
+    """None keeps a fixed pool whose reused particles get the default state. Otherwise a tile cache."""
+
+    @property
+    def pool_size(self) -> tuple[float, float]:
+        """XY footprint of the particle pool [m]: the window plus the ring on both sides."""
+        return (self.size[0] + 2.0 * self.margin, self.size[1] + 2.0 * self.margin)
 
 
 @configclass
@@ -115,6 +204,12 @@ class MPMSolverCfg(NewtonSolverCfg):
     Call :func:`~isaaclab_newton.physics.configure_mpm_working_set` after classification and before final capture.
     A new solver starts with Newton's full evaluation pool.
     Initial settling and resets can wake more particles than the configured capacity.
+    """
+
+    streaming: StreamingCfg | None = None
+    """Deferred particle-pool streaming settings; None keeps every spawned particle in place.
+
+    Call :func:`~isaaclab_newton.physics.configure_mpm_streaming` after scene preparation.
     """
 
     reuse_grid_topology: bool = False

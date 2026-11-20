@@ -17,6 +17,7 @@ from isaaclab_newton.physics import (
     NewtonBackendCfg,
     NewtonCfg,
     NewtonManager,
+    StrainActivationCfg,
     configure_mpm_sleeping,
     configure_mpm_working_set,
     defer_mpm_status_checks,
@@ -127,7 +128,7 @@ def test_captured_deferred_validation_restores_checks_and_rejects_real_overflow(
         pytest.skip("Guarded MPM requires Warp conditional graph support.")
     manager = _make_manager(device, guarded=True)
     solver, state = manager.backend.solver, manager.backend.state_0
-    configure_mpm_sleeping(manager, MPMSleepingCfg(sleep_time=0.01))
+    configure_mpm_sleeping(manager, MPMSleepingCfg(strain=StrainActivationCfg(sleep_time=0.01)))
     for _ in range(10):
         solver.step(state, state, None, None, 0.005)
     np.testing.assert_array_equal(solver.particle_activity.numpy(), 0)

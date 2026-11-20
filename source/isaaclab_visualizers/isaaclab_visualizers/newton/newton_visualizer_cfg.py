@@ -91,8 +91,8 @@ class NewtonRTXBackendCfg(VisualizerBackendCfg):
     All views borrow camera output. Scripts without a SceneCfg declare cameras through ReplicateSession,
     construct them with instantiate(camera_cfg), and select them with SceneCameraCfg.
     Window resizing scales the displayed image without changing either source's resolution.
-    Scene USD owns lighting, materials, and environment placement. Newton-model overlays
-    and viewer-only lighting or world offsets are not supported.
+    Scene USD owns lighting, materials, and environment placement. Newton-model overlays,
+    rigid-body dragging, and viewer-only lighting or world offsets are not supported.
     Environment selection controls tiled sensor views; the perspective camera sees the full scene.
     """
 
@@ -103,12 +103,6 @@ class NewtonRTXBackendCfg(VisualizerBackendCfg):
 
     visualizer_type: str = "newton_rtx"
     """Visualizer selector identifier. Do not change."""
-
-    enable_picking: bool = True
-    """Enable right-click dragging of rigid bodies with Newton solvers supporting force input.
-
-    Disabled automatically for headless viewers and other physics backends. MPM particles are not pickable.
-    """
 
     render_settings: dict[str, Any] = dict()
     """RTX attributes to author on the OVRTX render product, as ``{name: (usd_type_name, value)}``.

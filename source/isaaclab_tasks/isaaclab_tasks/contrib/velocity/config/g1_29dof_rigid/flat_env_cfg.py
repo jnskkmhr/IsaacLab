@@ -3,12 +3,13 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab_visualizers.newton import NewtonGLVisualizerCfg, NewtonRTXVisualizerCfg
+from isaaclab_physx.sim.spawners.materials import PhysxRigidBodyMaterialCfg
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab.sim import RigidBodyMaterialCfg, SimulationCfg
+from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
+from isaaclab.visualizers import VisualizerCfg
 from isaaclab.visualizers.visualizer_cfg import WindowCfg
 
 from .env_cfg.action_cfg import G1ActionsCfg
@@ -40,29 +41,18 @@ class G1FlatEnvCfg(ManagerBasedRLEnvCfg):
         dt=0.005,
         render_interval=4,
         physics=G1PhysicsCfg(),
+        # One shared view; the backend is chosen on the command line (``--viz newton_gl`` or ``newton_rtx``).
         visualizer_cfgs=[
-            NewtonGLVisualizerCfg(
+            VisualizerCfg(
                 headless=True,
                 window=WindowCfg(size=(1280, 720), fps=30.0),
                 focal_length=12.0,
                 streaming_view=False,
                 eye=(4.0, -4.0, 3.0),
                 lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
-            ),
-            NewtonRTXVisualizerCfg(
-                headless=True,
-                window=WindowCfg(size=(1280, 720), fps=30.0),
-                focal_length=12.0,
-                streaming_view=False,
-                eye=(4.0, -4.0, 3.0),
-                lookat=(0.0, 0.0, 0.0),
-                origin_type="asset",
-                origin_track_path="robot",
             ),
         ],
-        physics_material=RigidBodyMaterialCfg(
+        physics_material=PhysxRigidBodyMaterialCfg(
             static_friction=1.0,
             dynamic_friction=1.0,
         ),

@@ -4,18 +4,17 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from isaaclab_newton.sensors.ray_caster.legacy_ray_caster import LegacyRayCaster
+from isaaclab_physx.sim.spawners.materials import PhysxRigidBodyMaterialCfg
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
-from isaaclab.sim import RigidBodyMaterialCfg
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.util.terrain import ContactTerrainImporterCfg
 from isaaclab_tasks.contrib.velocity.config.vel_mdp.rough_height import elevated_grid_pattern
 
 from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
@@ -29,14 +28,14 @@ class G1SceneCfg(InteractiveSceneCfg):
         prim_path="/World/ground",
         terrain_type="plane",
         collision_group=-1,
-        physics_material=RigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
+        physics_material=PhysxRigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
     )
     robot = ArticulationCfg(
         prim_path="{ENV_REGEX_NS}/Robot",
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usd",
             activate_contact_sensors=True,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            rigid_props=sim_utils.PhysxRigidBodyPropertiesCfg(
                 linear_damping=0,
                 angular_damping=0,
                 disable_gravity=False,
@@ -211,13 +210,13 @@ class HeightGridPatternCfg(patterns.GridPatternCfg):
 class G1RoughSceneCfg(G1SceneCfg):
     """Reference robot and sensors with terrain-relative height measurements."""
 
-    terrain = ContactTerrainImporterCfg(
+    terrain = TerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="generator",
         collision_group=-1,
         max_init_terrain_level=0,
         terrain_generator=ROUGH_TERRAINS_CFG.copy(),
-        physics_material=RigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
+        physics_material=PhysxRigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
     )
     height_scanner = RayCasterCfg(
         class_type=LegacyRayCaster,  # Query only the specified surface mesh, not buried support.

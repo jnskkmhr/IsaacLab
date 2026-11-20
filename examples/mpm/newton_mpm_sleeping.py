@@ -73,7 +73,14 @@ def _move_ball(
 
 def create_sim_cfg():
     """Keep the kinematic controller inside the solver's captured substep."""
-    from isaaclab_newton.physics import MPMSleepingCfg, MPMSolver, MPMSolverCfg, MPMWorkingSetCfg, NewtonCfg
+    from isaaclab_newton.physics import (
+        MPMSleepingCfg,
+        MPMSolver,
+        MPMSolverCfg,
+        MPMWorkingSetCfg,
+        NewtonCfg,
+        StrainActivationCfg,
+    )
     from isaaclab_visualizers.newton import NewtonGLBackendCfg
 
     import isaaclab.sim as sim_utils
@@ -128,7 +135,9 @@ def create_sim_cfg():
                 strain_basis="P0",
                 collider_basis="S2",
                 collider_velocity_mode="forward",
-                sleeping=MPMSleepingCfg(stress_filter_time=0.1) if args_cli.sleeping else None,
+                sleeping=MPMSleepingCfg(strain=StrainActivationCfg(stress_filter_time=0.1))
+                if args_cli.sleeping
+                else None,
                 working_set=MPMWorkingSetCfg(particle_capacity=16384, page_size=32 if args_cli.paging else 0)
                 if args_cli.sleeping
                 else None,

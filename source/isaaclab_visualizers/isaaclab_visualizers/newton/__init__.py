@@ -23,6 +23,7 @@ from .newton_visualizer_cfg import (
 
 if TYPE_CHECKING:
     from .newton_visualizer import NewtonGLVisualizer, NewtonRTXVisualizer
+    from .cached_particle_surface import CachedParticleSurface
     from .particle_surface import ParticleSurfaceRenderer
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "NewtonRTXBackendCfg",
     # MPM particle-surface rendering
     "ParticleSurfaceRenderer",
+    "CachedParticleSurface",
 ]
 
 
@@ -46,6 +48,10 @@ def __getattr__(name: str):
         from .particle_surface import ParticleSurfaceRenderer
 
         return ParticleSurfaceRenderer
+    if name == "CachedParticleSurface":
+        from .cached_particle_surface import CachedParticleSurface
+
+        return CachedParticleSurface
     if name == "NewtonRTXVisualizer":
         from .newton_visualizer import NewtonRTXVisualizer
 
