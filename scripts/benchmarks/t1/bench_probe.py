@@ -400,6 +400,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--video_dir", type=str, default=None, help="Record a video of the run into this directory.")
     parser.add_argument("--video_viz", choices=("rtx", "gl"), default="rtx", help="Visualizer used for the video.")
     parser.add_argument("--no_graph", action="store_true", help="Run the physics step without CUDA graph capture.")
+    parser.add_argument(
+        "--grid_type", choices=("sparse", "dense", "fixed"), default=None, help="MPM grid type; default: the task's."
+    )
     parser.add_argument("--active_cells", type=int, default=None, help="Sparse-grid cell reserve per environment.")
     parser.add_argument("--leaf_nodes", type=int, default=None, help="Sparse-grid leaf-node reserve per environment.")
     parser.add_argument("--lower_nodes", type=int, default=None, help="Sparse-grid lower-node reserve per environment.")
@@ -447,6 +450,8 @@ def configure_probe(env_cfg, args: argparse.Namespace, geometry: dict) -> dict:
     n_side = math.ceil(math.sqrt(args.num_envs))
     mpm = get_mpm_solver_cfg(env_cfg)
     mpm.voxel_size = sand.voxel_size
+    if args.grid_type is not None:
+        mpm.grid_type = args.grid_type
     gantry = make_gantry_cfg(args, geometry["start"])
 
     if args.terrain == "full":

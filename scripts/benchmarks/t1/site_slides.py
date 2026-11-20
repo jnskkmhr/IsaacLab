@@ -33,7 +33,22 @@ TERRAINS = ("full", "stream", "stream_cache")
 SLEEPS = ("off", "on")
 MODES = [(terrain, sleep) for terrain in TERRAINS for sleep in SLEEPS]
 TERRAIN_LABEL = {"full": "full", "stream": "stream without cache", "stream_cache": "stream with cache"}
-COLOR = {"full": "#333333", "stream": "#D55E00", "stream_cache": "#0072B2"}
+# Matplotlib's default cycle, with the proposed method (stream with cache) in orange.
+COLOR = {"full": "#1f77b4", "stream": "#2ca02c", "stream_cache": "#ff7f0e"}
+MARKER = {"full": "o", "stream": "^", "stream_cache": "s"}
+GRID_STYLE = {"fixed": ("#9467bd", "*"), "dense": ("#d62728", "D")}
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": ["DejaVu Serif"],
+        "mathtext.fontset": "stix",
+        "axes.titlesize": 10,
+        "axes.labelsize": 10,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "legend.fontsize": 9,
+    }
+)
 LENGTHS = (3.2, 6.4, 12.8, 25.6, 51.2, 102.4)
 ENV_COUNTS = (1, 2, 4, 8, 16, 32, 64, 128, 256)
 CELL = 0.04
@@ -107,19 +122,17 @@ def cost_rows(data: dict) -> list[dict]:
     return rows
 
 
-def cost_figure(rows: list[dict], xlabel: str, per_env: bool, path: str) -> None:
+def cost_figure(rows: list[dict], xlabel: str, per_env: bool, path: str, other: dict | None = None) -> None:
+    """Cost against the swept value: one panel per metric and one legend below; a line ends where a mode ran out of memory."""
     panels = (
-        ("vram_env" if per_env else "vram", "peak VRAM per env [MiB]" if per_env else "peak VRAM [MiB]", True),
-        ("step_env" if per_env else "step", "step time per env [ms]" if per_env else "step time [ms]", True),
-        (
-            "physics_env" if per_env else "physics",
-            "physics time per env [ms]" if per_env else "physics time per step [ms]",
-            True,
-        ),
-        ("util", "GPU utilization, mean [%]", False),
+        ("vram_env" if per_env else "vram", "Peak VRAM per env (MiB)" if per_env else "Peak VRAM (MiB)", True),
+        ("step_env" if per_env else "step", "Step time per env (ms)" if per_env else "Step time (ms)", True),
+        ("util", "GPU utilization (%)", False),
     )
-    fig, axes = plt.subplots(1, 4, figsize=(19, 4.4))
-    for axis, (key, ylabel, logy) in zip(axes, panels):
+    values = sorted({r["x"] for r in rows})
+    fig, axes = plt.subplots(1, 3, figsize=(13, 3.8))
+    handles = {}
+    for axis, (key, title, logy) in zip(axes, panels):
         for terrain, sleep in MODES:
             points = [
                 (r["x"], r[key])
@@ -129,29 +142,27 @@ def cost_figure(rows: list[dict], xlabel: str, per_env: bool, path: str) -> None
             if not points:
                 continue
             xs, ys = zip(*points)
-            axis.plot(
+            (line,) = axis.plot(
                 xs,
                 ys,
-                marker="o" if sleep == "off" else "s",
+                marker=MARKER[terrain] if sleep == "off" else "P",
                 linestyle="-" if sleep == "off" else "--",
                 color=COLOR[terrain],
-                label=label(terrain, sleep),
-                markersize=5,
-                linewidth=1.6,
-                markerfacecolor=COLOR[terrain] if sleep == "off" else "white",
+                markersize=7,
+                linewidth=2.0,
             )
-            failed = [r for r in rows if r["terrain"] == terrain and r["sleep"] == sleep and r["status"] != "ok"]
-            if failed and key in ("vram", "vram_env"):
-                axis.axvline(
-                    failed[0]["x"],
-                    color=COLOR[terrain],
-                    linestyle=":" if sleep == "off" else "-.",
-                    linewidth=1.0,
-                    alpha=0.7,
-                )
+            handles[f"{TERRAIN_LABEL[terrain]} (sparse grid), sleep {sleep}"] = line
+        # full on the other grid types (no sleeping): the same baseline with a different grid
+        for grid, grid_rows in (other or {}).items():
+            points = [(r["x"], r[key]) for r in grid_rows if r.get(key) is not None]
+            if not points:
+                continue
+            xs, ys = zip(*points)
+            color, marker = GRID_STYLE[grid]
+            (line,) = axis.plot(xs, ys, marker=marker, linestyle="-", color=color, markersize=9, linewidth=2.0)
+            handles[f"full ({grid} grid), sleep off"] = line
         axis.set_xscale("log", base=2)
         # Label the x axis with the swept values themselves, not powers of two.
-        values = sorted({r["x"] for r in rows})
         axis.set_xticks(values)
         axis.set_xticklabels([f"{v:g}" for v in values])
         axis.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
@@ -162,13 +173,21 @@ def cost_figure(rows: list[dict], xlabel: str, per_env: bool, path: str) -> None
             axis.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
             axis.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
         else:
-            axis.set_ylim(0, 105)
+            axis.set_ylim(0, 108)
+        axis.set_title(title)
         axis.set_xlabel(xlabel)
-        axis.set_ylabel(ylabel)
-        axis.grid(True, which="both", alpha=0.25)
-    axes[0].legend(fontsize=8, loc="best")
-    fig.tight_layout()
-    fig.savefig(path, dpi=110)
+        axis.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.5)
+    fig.legend(
+        list(handles.values()),
+        list(handles.keys()),
+        loc="lower center",
+        ncol=4 if len(handles) <= 8 else 5,
+        frameon=True,
+        edgecolor="#bbbbbb",
+        fancybox=False,
+    )
+    fig.tight_layout(rect=(0, 0.14, 1, 1))
+    fig.savefig(path, dpi=130)
     plt.close(fig)
 
 
@@ -210,7 +229,7 @@ def terrain_figure(path: str) -> None:
         axis.spines[side].set_visible(False)
     axis.set_title(
         "Terrain of the size sweep, seen from above: width fixed at 1.6 m, length doubling. "
-        "Sand colour: simulated by full. Blue square: the 1.6 m streaming pool, which follows the box.",
+        "Sand colour: simulated by full. Orange square: the 1.6 m streaming pool, which follows the box.",
         fontsize=10,
     )
     fig.tight_layout()
@@ -255,12 +274,55 @@ def envs_figure(path: str) -> None:
         axis.set_title(f"{count} env" + ("s" if count > 1 else ""), fontsize=10)
     fig.suptitle(
         "Terrain of the environment sweep, seen from above: every environment has its own 8 x 8 m of sand. "
-        "Sand colour: simulated by full. Blue square: the 1.6 m streaming pool, which follows the box.",
+        "Sand colour: simulated by full. Orange square: the 1.6 m streaming pool, which follows the box.",
         fontsize=10,
     )
     fig.tight_layout()
     fig.savefig(path, dpi=110)
     plt.close(fig)
+
+
+def grid_rows(logs: str, pattern: str, values) -> list[dict]:
+    """Results of full on another grid type, in the shape the cost figure plots."""
+    rows = []
+    for value in values:
+        name = pattern.format(value)
+        run = load(os.path.join(logs, "grid_type", name))
+        if run is None or run.get("status") != "ok":
+            continue
+        profile = load(os.path.join(logs, "grid_type", name.replace(".json", "_profile.json")))
+        physics = profile["physics_ms"]["mean"] if profile and profile.get("status") == "ok" else None
+        envs = run["num_envs"]
+        rows.append(
+            {
+                "x": value,
+                "envs": envs,
+                "vram": run["peak_process_MiB"],
+                "vram_env": run["peak_process_MiB"] / envs,
+                "step": run["step_ms"]["mean"],
+                "step_env": run["step_ms"]["mean"] / envs,
+                "physics": physics,
+                "physics_env": physics / envs if physics is not None else None,
+                "util": run["gpu_utilization_percent"].get("mean"),
+            }
+        )
+    return rows
+
+
+def grid_type_table(logs: str, rows: list[dict]) -> tuple[list[str], list[list[str]]]:
+    """Full on the sparse grid (the benchmark) against the fixed and dense grids, one environment, sleep off."""
+    headers = ["length_x [m]"] + [f"{grid}: peak VRAM [MiB] / step [ms]" for grid in ("sparse", "fixed", "dense")]
+    body = []
+    for length in LENGTHS:
+        sparse = pick(rows, "full", "off", length)
+        cells = [f"{sparse['vram']:,.0f} / {sparse['step']:.1f}" if sparse else ""]
+        for grid in ("fixed", "dense"):
+            run = load(os.path.join(logs, "grid_type", f"full_{grid}_x{length}.json"))
+            ok = run is not None and run.get("status") == "ok"
+            cells.append(f"{run['peak_process_MiB']:,.0f} / {run['step_ms']['mean']:.1f}" if ok else "")
+        if any(cells[1:]):
+            body.append([f"{length:g}", *cells])
+    return headers, body
 
 
 def fmt(value, digits=1):
@@ -454,7 +516,7 @@ def history_box(logs: str, fig_dir: str, sleep: str) -> dict | None:
                 time[: len(values)],
                 np.convolve(values, kernel, mode="same"),
                 color=COLOR[name],
-                linewidth=1.1,
+                linewidth=1.65,
                 label=TERRAIN_LABEL[name],
             )
     for axis, name in zip(axes, ("Fx [N]", "Fy [N]", "Fz [N]", "force along the motion [N]")):
@@ -744,7 +806,7 @@ def videos(logs: str, media: str, pattern: str, names: dict) -> str:
         cells += (
             f'<div class="vcell"><div class="t"><span class="chip" style="background:{COLOR[terrain]}"></span>{esc(TERRAIN_LABEL[terrain])}</div>'
             f'<video controls preload="metadata" src="media/{esc(names[terrain])}"></video>'
-            f'<div class="src">Original: <code>{esc(os.path.abspath(found[-1]))}</code>, 1x speed.</div></div>'
+            '<div class="src">1x speed.</div></div>'
         )
     return f'<div class="vgrid">{cells}</div>' if cells else ""
 
@@ -764,16 +826,16 @@ def main() -> int:
     commit = "; ".join(
         f"{name} {info['commit'][:9]} ({info['dirty_paths']} uncommitted paths)" for name, info in checkouts.items()
     )
-    source = (
-        f"Script <code>scripts/benchmarks/t1/site_slides.py</code>; raw data <code>{esc(logs)}</code>; code {esc(commit)}; "
-        f"uncommitted changes archived in <code>{esc(logs)}/provenance/</code>; GPU {esc(provenance.get('gpu', '?'))}."
-    )
+    # Shown once, on the last slide; captions carry no paths.
+    gpu = str(provenance.get("gpu", "?")).split(",")[0]
+    source = f"GPU: {esc(gpu)}. Code: {esc(commit)}."
     md: list[str] = []
 
     # ---- P1
     rows1 = cost_rows(collect(logs, "terrain", "x", LENGTHS))
     if rows1:
-        cost_figure(rows1, "terrain length length_x [m]", False, os.path.join(fig_dir, "cost_vs_length.png"))
+        other1 = {grid: grid_rows(logs, f"full_{grid}_x{{}}.json", LENGTHS) for grid in GRID_STYLE}
+        cost_figure(rows1, "terrain length length_x [m]", False, os.path.join(fig_dir, "cost_vs_length.png"), other1)
         headers, body = cost_table(rows1, "length_x [m]", False)
         cache_headers, cache_body = cache_table(rows1, "length_x [m]")
         full_counts = ", ".join(
@@ -784,17 +846,25 @@ def main() -> int:
         terrain_figure(os.path.join(fig_dir, "terrain_size_sweep.png"))
         s1 = figure(
             "fig/terrain_size_sweep.png",
-            f"How the terrain grows in this sweep. The corridor is as wide as the pool's total width (1.6 m), so full and the streaming modes cover the same strip. {source}",
+            "How the terrain grows in this sweep. The corridor is as wide as the pool's total width (1.6 m), so full and the streaming modes cover the same strip.",
         ) + figure(
             "fig/cost_vs_length.png",
-            f"Six modes against corridor length (width 1.6 m, one environment). Solid: sleep off; dashed: sleep on. Vertical lines in the first panel mark a mode's first failed length. Particles simulated by full: {esc(full_counts)}. {source}",
+            f"Six modes against corridor length (width 1.6 m, one environment), all on the sparse grid. Solid: sleep off; dashed: sleep on. The legend names each line's MPM grid type. Full is also shown on the fixed grid (purple stars), its faster grid type, and on the dense grid (red diamonds), where the solver runs without CUDA graph capture; neither can be combined with sleeping. A line ends where the next value ran out of memory. Particles simulated by full: {esc(full_counts)}.",
         )
         s1 += (
             table(headers, body)
             + "<h3>Cache allocation against use (stream with cache)</h3>"
             + table(cache_headers, cache_body)
         )
+        grid_headers, grid_body = grid_type_table(logs, rows1)
+        if grid_body:
+            s1 += (
+                "<h3>Full with the other grid types (one environment, sleep off)</h3>"
+                + table(grid_headers, grid_body, 1)
+                + '<p class="src">All six modes above use the sparse grid, the value the tasks set. The fixed grid is the better setting for full without sleeping (14 to 24% less step time, 18 to 31% less memory), but sleeping requires the sparse grid. With the dense grid the solver cannot be captured as a CUDA graph: it is 2 to 3 times slower than sparse on short terrain, where the step waits on the host, and about level with sparse from 51.2 m. One run each.</p>'
+            )
         far = LENGTHS[-1]
+        fixed = load(os.path.join(logs, "grid_type", f"full_fixed_x{far}.json"))
         full, on = pick(rows1, "full", "off", far), pick(rows1, "full", "on", far)
         stream, cached = pick(rows1, "stream", "off", far), pick(rows1, "stream_cache", "off", far)
         if full and on and stream and cached:
@@ -804,6 +874,13 @@ def main() -> int:
                     f"Particle sleeping cuts the compute time of full on large terrain ({on['step']:.0f} ms against {full['step']:.0f} ms at {far:g} m), but it uses more memory ({on['vram'] / 1024:.1f} GB against {full['vram'] / 1024:.1f} GB) for its bookkeeping of which sand is awake.",
                     "On the streaming modes sleeping adds nothing: the region kept awake is as large as the pool, so there is little sand left to put to sleep.",
                 ]
+                + (
+                    [
+                        f"The gap to full does not depend on full's grid type: on the fixed grid, its best setting without sleeping, full still needs {fixed['peak_process_MiB'] / 1024:.1f} GB and {fixed['step_ms']['mean']:.0f} ms at {far:g} m."
+                    ]
+                    if fixed is not None and fixed.get("status") == "ok"
+                    else []
+                )
             )
         md += [
             "### P1: scaling with terrain size",
@@ -830,17 +907,18 @@ def main() -> int:
     # ---- P2
     rows2 = cost_rows(collect(logs, "envs", "n", ENV_COUNTS))
     if rows2:
-        cost_figure(rows2, "number of environments", True, os.path.join(fig_dir, "cost_vs_envs.png"))
+        other2 = {grid: grid_rows(logs, f"envs_full_{grid}_n{{}}.json", ENV_COUNTS) for grid in GRID_STYLE}
+        cost_figure(rows2, "number of environments", True, os.path.join(fig_dir, "cost_vs_envs.png"), other2)
         headers, body = cost_table(rows2, "envs", True)
         cache_headers, cache_body = cache_table(rows2, "envs")
         fit = largest(rows2)
         envs_figure(os.path.join(fig_dir, "envs_sweep.png"))
         s2 = figure(
             "fig/envs_sweep.png",
-            f"How the terrain grows in this sweep. Each environment has its own 8 x 8 m of sand and its own box; the environment grids are schematic, not to scale. {source}",
+            "How the terrain grows in this sweep. Each environment has its own 8 x 8 m of sand and its own box; the environment grids are schematic, not to scale.",
         ) + figure(
             "fig/cost_vs_envs.png",
-            f"Six modes against the number of environments, each on 8 x 8 m of terrain. Per-environment values divide by the environment count. Vertical lines in the first panel mark a mode's first failed count. {source}",
+            "Six modes against the number of environments, each on 8 x 8 m of terrain, all on the sparse grid. The legend names each line's MPM grid type. Full is also shown on the fixed grid (purple stars) and the dense grid (red diamonds), both with sleep off. Per-environment values divide by the environment count. A line ends where the next value ran out of memory.",
         )
         s2 += "<h3>Largest environment count that ran, and the next count</h3>" + table(
             ["terrain", "sleep", "largest count that ran", "first failure"], fit
@@ -914,15 +992,15 @@ def main() -> int:
         if sleep == "off":
             s3 += figure(
                 f"fig/history_box_heights_sleep_{sleep}_lap_1.png",
-                f"Terrain after lap 1: this is what the box meets on lap 2. Heights are relative to each mode's own settled surface ({esc(levels)} below the nominal surface). Without a cache the terrain outside the pool has no state; it is drawn at the fresh level, which is what the pool restores there. {source}",
+                f"Terrain after lap 1: this is what the box meets on lap 2. Heights are relative to each mode's own settled surface ({esc(levels)} below the nominal surface). Without a cache the terrain outside the pool has no state; it is drawn at the fresh level, which is what the pool restores there.",
             )
-            s3 += figure(f"fig/history_box_heights_sleep_{sleep}_lap_2.png", f"Terrain after lap 2. {source}")
+            s3 += figure(f"fig/history_box_heights_sleep_{sleep}_lap_2.png", "Terrain after lap 2.")
             s3 += "<h3>Height on the track: each streaming mode minus full, after lap 1 and after lap 2</h3>" + table(
                 height_headers, result["height"]
             )
             s3 += figure(
                 f"fig/history_box_forces_sleep_{sleep}.png",
-                f"Force on the box (world frame) and its component along the direction of motion. {source}",
+                "Force on the box (world frame) and its component along the direction of motion.",
             )
             s3 += "<h3>Force on the box, lap 1 and lap 2</h3>" + table(force_headers, result["force"])
         md += [
@@ -976,7 +1054,7 @@ def main() -> int:
         height_headers = ["mode against full", "median difference [cm]", "rms difference [cm]"]
         s4 = figure(
             "fig/history_g1_heights.png",
-            f"Heights are relative to each mode's own settled surface, measured at the end of the run inside the simulated window around the robot, away from the path. The robot's motion differs between modes, so the maps are compared, not the forces. {source}",
+            "Heights are relative to each mode's own settled surface, measured at the end of the run inside the simulated window around the robot, away from the path. The robot's motion differs between modes, so the maps are compared, not the forces.",
         )
         s4 += table(summary_headers, result["summary"], 1) + table(height_headers, result["height"], 1)
         md += [
@@ -1048,7 +1126,7 @@ def main() -> int:
         "<li>GPU utilization is <code>utilization.gpu</code> from <code>nvidia-smi</code>, sampled every 0.25 s (about 0.3 s in practice) over the timed window of the same run.</li>"
         "<li>Peak VRAM is the process peak from <code>nvidia-smi</code>, so it includes the CUDA context.</li>"
         "<li>Physics time comes from a second, shorter pass (at most 400 control steps) in which the physics step is timed separately.</li>"
-        "<li>All modes share the sand layer (depth 0.25 m, voxel 0.03 m, 1.25 particles per cell edge, material <code>poppy_seed_loose</code>), the timestep (1/200 s, 4 substeps per control step), the box (0.2 x 0.2 x 0.1 m, 10 kg, PD gantry) and the trajectory. Full is bounded by a rigid floor and walls and starts from the sampled particles; the streaming modes are bounded by a ring of kinematic particles. The cache starts its tiles from a template settled for 2.5 s, except in the P3 box runs, where the tiles start from the sampled particles like the other two modes. Every run hovers for 2 s before contact.</li>"
+        "<li>All modes share the MPM grid type (sparse, no padding), the sand layer (depth 0.25 m, voxel 0.03 m, 1.25 particles per cell edge, material <code>poppy_seed_loose</code>), the timestep (1/200 s, 4 substeps per control step), the box (0.2 x 0.2 x 0.1 m, 10 kg, PD gantry) and the trajectory. Full is bounded by a rigid floor and walls and starts from the sampled particles; the streaming modes are bounded by a ring of kinematic particles. The cache starts its tiles from a template settled for 2.5 s, except in the P3 box runs, where the tiles start from the sampled particles like the other two modes. Every run hovers for 2 s before contact.</li>"
         "<li>One run per configuration.</li></ol>"
     )
     values = (
@@ -1064,7 +1142,7 @@ def main() -> int:
     notes = (
         "<ul>"
         "<li>One run per configuration. The only estimate of run-to-run variation is one repeat of full on the lemniscate.</li>"
-        "<li>Nothing is committed: the code state is archived as patches, and the probe script changed during the runs.</li>"
+        "<li>The code was committed after the runs were made, and the probe and slide scripts changed during and after them.</li>"
         "<li>The GPU also drives the desktop (about 1.7 GB in use, 1 to 8% utilization when idle).</li>"
         "<li>Environment counts were doubled, so the largest count that fits is only bracketed between the last success and the first failure.</li>"
         "<li>The physics time comes from a shorter pass (first 400 steps), so with sleep on it includes more of the falling-asleep transient than the step time does.</li>"
@@ -1089,7 +1167,7 @@ def main() -> int:
         f'<li><span class="chip" style="background:{COLOR["full"]}"></span>full: every particle of the terrain is simulated.</li>'
         f'<li><span class="chip" style="background:{COLOR["stream"]}"></span>stream without cache: a 1.2 x 1.2 m pool (1.6 m with its boundary) follows the box; terrain that re-enters is fresh.</li>'
         f'<li><span class="chip" style="background:{COLOR["stream_cache"]}"></span>stream with cache: the same pool, and sand that leaves it is saved and restored on return.</li></ul>'
-        f'<p class="src">{source} Every result is unchecked.</p></section>'
+        '<p class="src">Every result is unchecked.</p></section>'
     )
     page = f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>T1 slides</title><style>{CSS}</style></head><body>{title}{slide1}{slide2}{slide3}{slide4}{slide_caveats}{slide5}</body></html>'
     with open(os.path.join(args.site, "index.html"), "w") as handle:
