@@ -90,7 +90,7 @@ class CriticCfg(ObservationGroupCfg):
 
 @configclass
 class TeacherHistoryCfg(ObservationGroupCfg):
-    enable_corruption = False
+    enable_corruption = True
     concatenate_terms = True
     history_length = 10
     flatten_history_dim = True

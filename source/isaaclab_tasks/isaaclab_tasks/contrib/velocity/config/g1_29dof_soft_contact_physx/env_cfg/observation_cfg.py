@@ -17,7 +17,7 @@ from .. import mdp as local_mdp
 
 @configclass
 class PolicyCfg(ObservationGroupCfg):
-    enable_corruption = False
+    enable_corruption = True
     concatenate_terms = True
     history_length = 10
     flatten_history_dim = True
@@ -289,4 +289,4 @@ class G1ObservationsCfg:
     policy: PolicyCfg = PolicyCfg()
     critic: CriticCfg = CriticCfg()
     privileged: PrivilegedCfg = PrivilegedCfg()
-    logging: LoggingCfg = LoggingCfg()
+    # logging: LoggingCfg = LoggingCfg()

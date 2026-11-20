@@ -146,18 +146,6 @@ class G1RewardsCfg:
         weight=-4,
     )
 
-    feet_pitch_contact = Term(
-        func=local_mdp.reward_feet_pitch_contact_hybrid,
-        params={
-            "asset_cfg": SceneEntityCfg(name="robot", body_names=[".*ankle_roll.*"], preserve_order=True),
-            "rigid_contact_sensor_cfg": SceneEntityCfg(
-                name="contact_forces", body_names=".*ankle_roll.*", preserve_order=False
-            ),
-            "soft_contact_sensor_name": "physics_callback",
-        },
-        weight=-4,
-    )
-
     feet_air_time = Term(
         func=soft_mdp.feet_air_time_positive_biped_hybrid,
         params={

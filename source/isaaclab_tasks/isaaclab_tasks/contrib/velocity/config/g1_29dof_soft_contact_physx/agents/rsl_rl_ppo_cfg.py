@@ -12,7 +12,7 @@ from isaaclab_rl.rsl_rl import RslRlMLPModelCfg, RslRlOnPolicyRunnerCfg, RslRlPp
 class G1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20000
-    save_interval = 500
+    save_interval = 1000
     experiment_name = "g1_29dof_contact_benchmark"
     obs_groups = {"actor": ["policy"], "critic": ["critic", "privileged"]}
     actor = RslRlMLPModelCfg(

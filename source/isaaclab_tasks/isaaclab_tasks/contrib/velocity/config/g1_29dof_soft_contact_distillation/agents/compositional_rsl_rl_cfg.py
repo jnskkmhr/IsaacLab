@@ -52,7 +52,7 @@ class G1TeacherRunnerCfg(CompositionalRunnerCfg):
     algorithm = CompositionalPPOAlgorithmCfg(entropy_coef=0.005)
     num_steps_per_env = 24
     max_iterations = 28000
-    save_interval = 500
+    save_interval = 1000
     experiment_name = "g1_29dof_soft_vae_teacher"
     wandb_project = "g1_29dof_soft_vae_teacher"
     logger = "wandb"
@@ -126,7 +126,7 @@ class G1StudentRunnerCfg(CompositionalRunnerCfg):
     algorithm = CompositionalPPOAlgorithmCfg(entropy_coef=0.005)
     num_steps_per_env = 24
     max_iterations = 25000
-    save_interval = 500
+    save_interval = 1000
     experiment_name = "g1_29dof_soft_vae_student_tcn"
     wandb_project = "g1_29dof_soft_vae_student_tcn"
     logger = "wandb"

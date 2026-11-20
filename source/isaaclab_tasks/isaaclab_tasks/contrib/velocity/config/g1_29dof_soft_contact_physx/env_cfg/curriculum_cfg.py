@@ -19,20 +19,20 @@ class G1CurriculumCfg:
             "command_name": "base_velocity",
             "velocity_stages": [
                 {"step": 0, "ang_vel_z": [-0.5, 0.5], "lin_vel_x": [-1, 1]},
-                {"step": 240000, "ang_vel_z": [-0.7, 0.7], "lin_vel_x": [-1, 1.7]},
-                {"step": 360000, "ang_vel_z": [-1, 1], "lin_vel_x": [-1, 2.5]},
+                {"step": 10000 * 24, "ang_vel_z": [-0.7, 0.7], "lin_vel_x": [-1, 1.7]},
+                {"step": 15000 * 24, "ang_vel_z": [-1, 1], "lin_vel_x": [-1, 2.5]},
             ],
         },
     )
 
     track_lin_vel = Term(
-        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 480000, "term_name": "track_lin_vel_xy"}
+        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 20000 * 24, "term_name": "track_lin_vel_xy"}
     )
 
     track_ang_vel = Term(
-        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 480000, "term_name": "track_ang_vel_z"}
+        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 20000 * 24, "term_name": "track_ang_vel_z"}
     )
 
     track_heading = Term(
-        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 480000, "term_name": "track_heading"}
+        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 20000 * 24, "term_name": "track_heading"}
     )
