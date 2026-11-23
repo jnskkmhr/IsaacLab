@@ -25,7 +25,7 @@ from isaaclab_tasks.contrib.g1_29dof_mpm_moving_patch.util.visualizer import (
     MovingPatchKitVisualizer,
     MovingPatchRTXVisualizer,
 )
-from isaaclab_tasks.contrib.particle_nerd.patch.particles import MovingPatchParticles
+from isaaclab_tasks.contrib.legacy.particle_nerd.patch.particles import MovingPatchParticles
 
 from .env_cfg.physics_cfg import PARTICLE_ENTRY, RIGID_ENTRY
 from .particle_nerd_env_cfg import G1ParticleNeRDEnvCfg

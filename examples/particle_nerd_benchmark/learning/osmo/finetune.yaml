@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 # Fine-tune particle_nerd_local from an existing checkpoint on a reduced data mix plus horizontal tosses.
-# Submit with: run_collection.sh --workflow finetune.yaml PRIVATE_OUTPUT_URI --pool POOL --set-string update_mode=ballistic
+# Submit with: run_collection.sh --workflow finetune.yaml PRIVATE_OUTPUT_URI --pool POOL
 workflow:
   name: "{{ workflow_name }}"
   resources:
@@ -54,7 +54,7 @@ workflow:
         uv run --no-sync torchrun --standalone --nproc_per_node=4 \
           --module particle_nerd_benchmark.learning.train \
           --data "$data_root" --output '{{output}}/model' --arch particle_nerd_local \
-          --update-mode '{{ update_mode }}' --finetune-from '{{input:1}}/best.pt' \
+          --finetune-from '{{input:1}}/best.pt' \
           --steps '{{ steps }}' --horizon 100 --lr '{{ lr }}' --freefall-fraction '{{ freefall_fraction }}' \
           --validate-every 250 --validation-count 24 \
           --rest-fraction '{{ rest_fraction }}' --rest-steps '{{ rest_steps }}' --rest-segment '{{ rest_segment }}'
@@ -68,6 +68,12 @@ workflow:
     - url: "{{ data_url }}/particle-nerd-freefall-400-1/freefall/"
     - url: "{{ data_url }}/particle-nerd-freefall-toss-1/toss/"
     - url: "{{ data_url }}/particle-nerd-rest-1/rest/"
+    - url: "{{ data_url }}/particle-nerd-support-1/box-a/"
+    - url: "{{ data_url }}/particle-nerd-support-1/box-b/"
+    - url: "{{ data_url }}/particle-nerd-support-1/sphere-a/"
+    - url: "{{ data_url }}/particle-nerd-support-1/sphere-b/"
+    - url: "{{ data_url }}/particle-nerd-support-1/cylinder-a/"
+    - url: "{{ data_url }}/particle-nerd-support-1/cylinder-b/"
     outputs:
     - url: "{{ output_url }}/{{workflow_id}}/finetune"
     checkpoint:
@@ -81,7 +87,6 @@ default-values:
   image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
   platform: ovx-l40s
   uv_version: 0.12.12
-  update_mode: ballistic
   steps: 4000
   lr: 0.0001
   freefall_fraction: 0.5

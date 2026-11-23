@@ -1,139 +1,108 @@
-# Particle NeRD physics solver
+# Particle NeRD
 
-`ParticleNeRDSolverCfg` selects learned particle dynamics through the Newton
-`CouplerEntryCfg` interface. The solver predicts particle positions and reconstructs
-collider reaction wrenches; the existing proxy coupler transfers those wrenches to
-the rigid solver. It never constructs or steps a native MPM solver, including at
-initialization, reset, or particle recycling.
+A trained network that steps a particle bed (sand) coupled to rigid bodies, used as a Newton solver in Isaac Lab.
+The network replaces the implicit MPM solver at run time. MPM is used only to generate the training data.
 
-```python
-from isaaclab_tasks.contrib.particle_nerd import ParticleNeRDSolverCfg
-from isaaclab_contrib.coupling import CouplerEntryCfg
+The method is described in `docs/_build/particle_nerd_2.0.pdf`, and `design_block.md` maps each of its blocks to
+the code. All commands below are run from the repository root.
 
-particle_entry = CouplerEntryCfg(
-    name="sand",
-    solver_cfg=ParticleNeRDSolverCfg(
-        checkpoint="/absolute/path/to/best.pt",
-        active_k="auto",
-        effective_mass_scale=50.0,
-        tangent_mass_scale=40.0,
-    ),
-    bodies=[],
-    shape_label_patterns=[r"/World/ground/mpm_ground/.*"],
-    all_particles=True,
-    include_static_shapes=False,
-    include_child_joints=False,
-    substeps=1,
-    in_place=True,
-)
-```
+## 1 Data collection
 
-Use `NewtonParticleNeRDCouplerManager` as the enclosing `CouplerProxyCfg.class_type`
-and map the rigid collider bodies to this entry. See the complete working
-[physics configuration](../g1_29dof_particle_nerd_moving_patch/env_cfg/physics_cfg.py).
-The entry factory is `NewtonParticleNeRDManager`; the dynamics implementation is
-`ParticleNeRDSolver`, implementing Newton's `SolverBase` and `CouplingInterface`.
-Existing particle assets and their `mpm` material-attribute namespace are reused as
-storage. Those names do not enable native MPM simulation.
+`scripts/neural/record.py` simulates the reference episodes with MPM and writes one HDF5 file per episode to
+`<dataset>/<split>/<terrain>/<category>/NNNN.hdf5`. The terrains are `flat`, `slope` and `wave`. The categories
+are `lateral_push`, `vertical_push`, `impact` and `rest` (a rigid object on the bed), and `freefall` and
+`rest_bed` (sand only). Finished files are skipped, so a run can be repeated.
 
-## Bundled checkpoint
-
-`checkpoint/best.pt` is copied from the `g1-recurrent-05s-20261021` experiment's
-`checkpoint/model/best.pt`. The fixed-terrain task resolves this file relative to
-the installed task package; no machine-specific path or environment variable is
-required. The checkpoint is included in package data and uses the repository's
-existing Git LFS rule for `.pt` files.
-
-SHA-256: `7eee570d75d00b4a09006e4ffd15a241510c3fd3ba74295d0396254187d00633`.
-
-## Parameters and supported checkpoints
-
-- `checkpoint`: required `particle_transolver_v1` checkpoint with
-  `g1_particle_nerd_v1` schema and three position-history frames. The solver checks
-  the timestep against the checkpoint (the current trained model uses 0.005 s).
-- `collider_body_patterns`: two regular expressions identifying one box collider
-  body each, per world. The current model schema is limited to two box colliders;
-  arbitrary collider counts or shapes require a compatible model and features.
-- `active_k`: active particle budget, or `"auto"` for material-dependent selection;
-  `None` uses all valid particles. `anchor_particles` controls background features.
-- `selection_interval`: physics steps between active-particle selection refreshes.
-  Intermediate steps reuse particle IDs and blend weights while still running neural
-  inference. The default is 1; the fixed G1 demo explicitly uses 4, matching its example.
-- `batch_inference`: enabled by default. Sand worlds with matching network input
-  shapes share one Transolver call. Each world retains its own material features,
-  collider poses, terrain transforms, selection weights, and displacement reconstruction.
-  Worlds with different input shapes form separate batches; rigid-only worlds are excluded.
-  Set this solver parameter to `False` to use sequential inference for comparison or
-  to reduce peak network memory. BF16 batching can introduce small floating-point differences.
-- `batch_contacts`: enabled by default. Independent collider contact problems share
-  one GPU launch for initialization and one for iterative reconstruction, with one
-  block per collider. Each collider retains its own contact buffers, virtual mass,
-  friction, and solver statistics. The contact equations, iteration limit, and
-  convergence tolerance are unchanged. Set this parameter to `False` to compare
-  against sequential contact solves.
-- `effective_mass_scale` and `tangent_mass_scale`: dimensionless normal and
-  tangential material mass multipliers for contact reconstruction. They change
-  reconstructed reactions, not neural weights or the particle asset's mass.
-  The virtual collider mass is a separate quantity assigned by the rigid coupler;
-  body-inertia notifications refresh the contact estimator's cached scalar masses
-  and invalidate solver graphs.
-- `horizontal_mass_scale`, `upward_mass_scale`, and `normal_power`: directional
-  factors and exponent in the normal material response.
-- `contact_iterations`, `contact_relaxation`: reconstruction iterations and update
-  relaxation. `gradient_radius`, `gradient_contact_band`, `contact_stabilization`,
-  and `contact_offset` configure the existing contact reconstruction.
-- `bed_depth`: canonical boundary depth in meters, set from the task terrain.
-- `compile_model`: compile neural inference with PyTorch. Requires CUDA.
-
-The task disables material randomization because this integration builds material
-features once per world. It uses the configured particle asset material values;
-changing material features at runtime is not supported. Particle storage must
-have equal capacity per particle-bearing world, with contiguous world-major ordering.
-Rigid-only worlds may contain no particles; the solver allocates no neural history,
-inference buffers, or contact reconstruction for those worlds.
-
-Network collider features use a snapshot of the rigid state before each coupled
-step. Contact reconstruction uses the virtual proxy state after rigid integration
-and lagged-wrench removal, matching the G1 example. Builder preparation preserves
-the example's triangle-mesh robot collisions and kinematic boundary inertia;
-this preprocessing does not instantiate a native material solver.
-
-## Moving terrain and state
-
-`patch/` uses the fixed particle pool and toroidal recycling of
-`g1_29dof_mpm_moving_patch`. Particles that remain inside the moving patch keep
-their deformation and three-frame neural position history. Particles that leave
-are reused at the entering edge: terrain geometry supplies their new positions,
-velocity is zeroed, and all three history frames are initialized to that position.
-The outer boundary has zero mass and is pinned to terrain geometry.
-
-There is no archive of departed particles or visited tiles. Returning to an old
-region creates fresh material; old footprints outside the patch are not restored.
-Storage and rendering are bounded by the current patch. Only its live neural
-history is retained. Reset affects only the selected worlds.
-
-Particle updates run as GPU kernels before the coupled solve
-(`use_cuda_graph=False`). `capture_solver=True` captures coupled GPU steps using
-PyTorch-owned graph memory pools. Recycling changes buffer values without changing
-particle slots or shapes, so moving the patch reuses the same solver graphs. The
-first requested step initializes lazy resources; recording adds no extra simulated
-timestep. Network compilation can still add initial startup cost.
-
-`network/` and `contact/` contain the extracted inference and force reconstruction
-implementation; running the solver does not import the `examples/` directory.
-
-## Validation
-
-Set `PARTICLE_NERD_CHECKPOINT` and run:
+Record every episode of one terrain, one process per GPU:
 
 ```bash
-uv run python -m pytest source/isaaclab_tasks/test/contrib/test_particle_nerd.py -q
+uv run python scripts/neural/record.py --dataset /data/particle_nerd --terrain flat --select all --gpus 2
 ```
 
-The CUDA integration test blocks native MPM construction and stepping. It checks
-two-world contact reactions, preserved history in the overlap, fresh history for
-recycled particles, discarded old footprints, independent world resets, current
-particle rendering, and CUDA graph reuse during travel.
-It skips when CUDA or a checkpoint is unavailable. These checks validate solver
-integration and state management; they do not measure prediction accuracy or
-trained-policy robustness.
+Record the episodes of one category and object:
+
+```bash
+uv run python scripts/neural/record.py --dataset /data/particle_nerd --terrain flat \
+    --category lateral_push --shape cube --size-level 1
+```
+
+The dataset recorded so far is on OSMO storage, under
+`swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-mpm-benchmark/`: the object categories
+in `v1/`, and `freefall` and `rest_bed` in `v1.1/`.
+
+## 2 Training
+
+`scripts/neural/train.py` trains the network on a recorded dataset. Checkpoints (`best.pt`, `last.pt`), the
+configuration and the metrics go to `logs/neural/<run name>/`.
+
+```bash
+uv run python scripts/neural/train.py --dataset /data/particle_nerd --run-name my_run \
+    --rest-windows --rest-fraction 0.02 --rest-steps 800 --rest-segment 50
+```
+
+On four GPUs of one node:
+
+```bash
+uv run torchrun --standalone --nproc_per_node=4 scripts/neural/train.py --dataset /data/particle_nerd \
+    --run-name my_run --rest-windows --rest-fraction 0.02 --rest-steps 800 --rest-segment 50
+```
+
+The same four-GPU training on OSMO, reading the dataset from OSMO storage (`record.yaml` and `evaluate.yaml` in
+the same folder submit the other two steps):
+
+```bash
+scripts/neural/osmo/submit.sh --workflow scripts/neural/osmo/train.yaml swift://<private output folder>
+```
+
+## 3 Evaluation
+
+`scripts/neural/evaluate.py` rolls the network out on the test episodes, which are not used in training, and
+compares it with MPM: position error, and how far the bed sinks. The table is written to
+`logs/neural/<run name>/<label>.json`.
+
+```bash
+uv run python scripts/neural/evaluate.py --dataset /data/particle_nerd \
+    --checkpoint logs/neural/my_run/best.pt --sleep-speed 0.01
+```
+
+`--sleep-speed 0.01` keeps particles still that are predicted to move slower than 1 cm/s; it removes the slow
+sinking of a resting bed. `--active-k 2048` steps only the particles near the object, as the solver option
+`active_k` does.
+
+## 4 Integration with Isaac Lab
+
+The solver is configured with `ParticleNeRDSolverCfg` and loads `checkpoint/best.pt` by default. The example
+tasks are in `example/`. Every task has an `-MPM-v0` twin that runs the same scene with implicit MPM.
+
+```bash
+--task IsaacContrib-ParticleNeRDLocal-Box-v0
+--task IsaacContrib-ParticleNeRDLocal-Sphere-v0
+--task IsaacContrib-ParticleNeRDLocal-Cylinder-v0
+--task IsaacContrib-ParticleNeRDLocal-Franka-v0
+--task IsaacContrib-ParticleNeRDLocal-Go2-v0
+--task IsaacContrib-ParticleNeRDLocal-G1-v0
+```
+
+Run a task with zero or random actions, and its MPM twin for comparison:
+
+```bash
+uv run python scripts/environments/zero_agent.py --task IsaacContrib-ParticleNeRDLocal-Box-v0 --num_envs 4
+uv run python scripts/environments/zero_agent.py --task IsaacContrib-ParticleNeRDLocal-Box-MPM-v0 --num_envs 4
+uv run python scripts/environments/random_agent.py --task IsaacContrib-ParticleNeRDLocal-Go2-v0 --num_envs 4 \
+    --visualizer newton_gl
+```
+
+Train a policy with RSL-RL PPO. The tasks are set up to log to Weights & Biases, which needs the `wandb` package;
+`agent.logger=tensorboard` logs to `logs/rsl_rl/` instead:
+
+```bash
+uv run isaaclab train --rl_library rsl_rl --task IsaacContrib-ParticleNeRDLocal-Go2-v0 --num_envs 16 \
+    agent.logger=tensorboard
+```
+
+Play a trained policy:
+
+```bash
+uv run isaaclab play --rl_library rsl_rl --task IsaacContrib-ParticleNeRDLocal-Go2-v0 --num_envs 4 \
+    --checkpoint /path/to/model.pt --viz newton_gl
+```

@@ -1,0 +1,75 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Record the MPM reference episodes of one terrain on two GPUs. Submit once per terrain (flat, slope, wave):
+#   scripts/neural/osmo/submit.sh --workflow scripts/neural/osmo/record.yaml PRIVATE_DATASET_URI \
+#     --set-string terrain=flat
+# Every workflow writes into the same dataset root, <PRIVATE_DATASET_URI>/<split>/<terrain>/<category>/NNNN.hdf5,
+# and its logs and file summary into <PRIVATE_DATASET_URI>/logs.
+workflow:
+  name: "{{ workflow_name }}-{{ terrain }}"
+  resources:
+    default:
+      gpu: 2
+      cpu: 28
+      memory: 128Gi
+      storage: "{{ storage }}"
+      platform: "{{ platform }}"
+  tasks:
+  - name: record
+    image: "{{ image }}"
+    command: [bash, /tmp/run.sh]
+    environment:
+      HEADLESS: "1"
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OMP_NUM_THREADS: "4"
+      MKL_NUM_THREADS: "4"
+      OPENBLAS_NUM_THREADS: "4"
+      UV_PYTHON: "3.12"
+      UV_PYTHON_PREFERENCE: only-managed
+      UV_PROJECT_ENVIRONMENT: /tmp/isaaclab-venv
+      UV_INSTALL_DIR: /tmp/uv
+      UV_NO_MODIFY_PATH: "1"
+      UV_VERSION: "{{ uv_version }}"
+    files:
+    - path: /tmp/run.sh
+      contents: |
+        set -euo pipefail
+        mkdir -p '{{output}}/logs'
+        exec > >(tee -a "{{output}}/logs/{{ terrain }}.stdout.log") 2>&1
+        printf '%s  %s\n' '{{ source_sha256 }}' '{{input:0}}/source.tar.gz' | sha256sum --check --strict
+        mkdir -p /tmp/isaaclab
+        tar -xzf '{{input:0}}/source.tar.gz' -C /tmp/isaaclab
+        unset PYTHONPATH VIRTUAL_ENV DISPLAY
+        export PATH="/tmp/uv:$PATH"
+        if ! command -v uv >/dev/null; then
+          curl --fail --location --retry 3 "https://astral.sh/uv/{{ uv_version }}/install.sh" | sh
+        fi
+        cd /tmp/isaaclab
+        uv sync --locked --no-dev
+        cp bundle_manifest.json '{{output}}/logs/bundle_manifest_{{ terrain }}.json' || true
+        uv run --no-sync python scripts/neural/record.py --dataset '{{output}}' \
+          --terrain '{{ terrain }}' --select {{ select }} --gpus 2 --per-motion '{{ per_motion }}'
+    inputs:
+    - url: "{{ source_url }}"
+    outputs:
+    - url: "{{ output_url }}"
+
+default-values:
+  workflow_name: particle-nerd-record
+  image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+  platform: ovx-l40
+  uv_version: 0.12.12
+  terrain: flat
+  # groups of categories, separated by spaces: lateral, vertical_impact, rest_sand, or all
+  select: all
+  # episodes per motion: 29 for the full dataset (21 train, 3 validation, 5 test), 1 for a test run
+  per_motion: 29
+  # a full terrain is 90 to 150 GB; the pool isaac-lab-l40-07 allows about 98 Gi of disk per GPU
+  storage: 190Gi
+  output_url: ""
+  source_url: ""
+  source_sha256: ""

@@ -19,7 +19,7 @@ from isaaclab_tasks.contrib.g1_29dof_mpm.mdp.rewards import base_height_above_te
 from isaaclab_tasks.contrib.g1_29dof_mpm.mdp.terminations import root_outside_testbed
 from isaaclab_tasks.contrib.g1_29dof_mpm.util.terrain import TerrainMPMGridCfg
 from isaaclab_tasks.contrib.g1_29dof_mpm.util.tilting_testbed import TestbedMotionCfg
-from isaaclab_tasks.contrib.particle_nerd.solver_cfg import FixedBedCfg
+from isaaclab_tasks.contrib.legacy.particle_nerd.solver_cfg import FixedBedCfg
 
 from .env_cfg import (
     G1ActionsCfg,

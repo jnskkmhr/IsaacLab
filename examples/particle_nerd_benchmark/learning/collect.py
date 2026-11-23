@@ -18,12 +18,17 @@ import torch
 
 from isaaclab.app import add_launcher_args, launch_simulation
 
-from .protocol import DT, SHAPES, SIZES, command, episodes, pose, release_velocity
+from .protocol import DT, SHAPES, SIZES, command, episodes, pose, release_velocity, support_episodes
 
 
 def select_records(args):
     """Resolve full campaign episodes or separately labeled evaluation references."""
-    records = [r for r in episodes() if r["shape"] == args.shape and r["mode"] == args.mode]
+    if args.support:
+        if args.mode != "dynamic" or args.reference:
+            raise ValueError("--support needs --mode dynamic and no --reference")
+        records = support_episodes(args.shape, args.support)
+    else:
+        records = [r for r in episodes() if r["shape"] == args.shape and r["mode"] == args.mode]
     if args.episode_ids:
         records = [r for r in records if r["id"] in args.episode_ids]
         if len(records) != len(args.episode_ids):
@@ -69,6 +74,12 @@ def main():
     parser.add_argument("--shape", choices=SHAPES, required=True)
     parser.add_argument("--mode", choices=("prescribed", "dynamic"), required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--support",
+        type=int,
+        default=0,
+        help="Collect this many long drop-and-support episodes (20 s) of the shape instead of the campaign episodes",
+    )
     parser.add_argument("--limit", type=int, help="Limit episodes for a local smoke check")
     parser.add_argument("--episode-ids", nargs="+", help="Collect specified complete episodes for validation")
     parser.add_argument("--duration", type=float, help="Override duration for a smoke check only")

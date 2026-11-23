@@ -158,7 +158,7 @@ The first reproduces the nominal six-second horizontal push. The second records 
 
 ## Training and evaluation
 
-`learning/train.py` uses the shared Particle Transolver architecture from `contrib/particle_nerd/network/model.py`. The current method selects Top-K active particles and 512 background samples, then applies the shared G1 blending, displacement stabilization and tray projection. There is no force filter. The feature encoder includes the interacting object and all five actual tray boxes. Cylinder distance features use an analytic capped cylinder along local z; plane, box, sphere, and grid-SDF encodings retain their existing definitions.
+`learning/train.py` uses the shared Particle Transolver architecture from `contrib/legacy/particle_nerd/network/model.py`. The current method selects Top-K active particles and 512 background samples, then applies the shared G1 blending, displacement stabilization and tray projection. There is no force filter. The feature encoder includes the interacting object and all five actual tray boxes. Cylinder distance features use an analytic capped cylinder along local z; plane, box, sphere, and grid-SDF encodings retain their existing definitions.
 
 `learning/network.py` loads those same production source files in a private package namespace. This avoids the eager Gym task registration in `isaaclab_tasks.__init__` and dependencies belonging to unrelated RL environments. The model and feature implementations are neither copied nor modified by this loader. Distributed training allows 30 minutes for synchronization because nonzero ranks wait while rank zero evaluates the validation windows.
 

@@ -2,3 +2,9 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
+
+"""The Particle NeRD network and the builder of its inputs."""
+
+from isaaclab.utils.module import lazy_export
+
+lazy_export()

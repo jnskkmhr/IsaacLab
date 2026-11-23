@@ -39,6 +39,10 @@ class Episodes:
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicate trajectory IDs in the dataset")
 
+    def num_frames(self, index) -> int:
+        with h5py.File(self.records[index][2], "r") as handle:
+            return int(len(handle["particle_position"]))
+
     def sequence(self, rng, horizon, device, *, index=None, start=None):
         record, manifest, path = self.records[int(rng.integers(len(self.records))) if index is None else index]
         with h5py.File(path, "r") as handle:

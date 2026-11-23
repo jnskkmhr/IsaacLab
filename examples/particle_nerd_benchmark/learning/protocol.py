@@ -105,6 +105,46 @@ def freefall_toss_episodes(count: int = 240):
     return records
 
 
+def support_episodes(shape: str, count: int = 20, duration_s: float = 20.0):
+    """Return long drop-and-support episodes of one free object resting on the bed.
+
+    The object is released at 1 s from a random height, position and yaw, and the trajectory runs on long
+    enough for the object and the bed under it to come to rest. Long unrolls train on the resting part.
+    """
+    records = []
+    shape_index = SHAPES.index(shape)
+    for index in range(count):
+        seed = SEED + 1000 * (6 + shape_index) + index
+        rng = np.random.default_rng(seed)
+        records.append(
+            {
+                "id": f"{shape}-support-{index:04d}",
+                "shape": shape,
+                "mode": "dynamic",
+                "motion": "drop",
+                "split": "validation" if index % 10 == 8 else "test" if index % 10 == 9 else "train",
+                "seed": seed,
+                "particle_seed": seed + 100000,
+                "duration_s": float(duration_s),
+                "dt_s": DT,
+                "terrain": "flat",
+                "yaw": float(rng.uniform(-np.pi, np.pi)),
+                "direction": int(rng.choice((-1, 1))),
+                "y": float(rng.uniform(-0.12, 0.12)),
+                "travel": float(rng.uniform(0.65, 1.25)),
+                "depth": float(rng.uniform(-0.06, 0.01)),
+                "radius": float(rng.uniform(0.18, 0.28)),
+                "entry_s": float(rng.uniform(0.7, 1.3)),
+                "release_height": float(rng.uniform(0.18, 0.35)),
+                "speed": float(rng.uniform(0.2, 0.65)),
+                "spin": float(rng.uniform(-3.0, 3.0)),
+                "rest_unroll": True,
+                "rest_start_s": 2.5,
+            }
+        )
+    return records
+
+
 def rest_episodes(count: int = 48, duration_s: float = 20.0):
     """Return long resting sand-bed episodes in the finite tray (no object), differing in particle jitter.
 
@@ -138,6 +178,8 @@ def rest_episodes(count: int = 48, duration_s: float = 20.0):
                 "release_height": 0.0,
                 "speed": 0.0,
                 "spin": 0.0,
+                "rest_unroll": True,
+                "rest_start_s": 0.0,
             }
         )
     return records

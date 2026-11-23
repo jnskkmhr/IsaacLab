@@ -11,7 +11,7 @@ from isaaclab.utils import configclass
 
 from isaaclab_contrib.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
-from isaaclab_tasks.contrib.particle_nerd import ParticleNeRDSolverCfg
+from isaaclab_tasks.contrib.legacy.particle_nerd import ParticleNeRDSolverCfg
 
 RIGID_ENTRY = "robot"
 """Name of the MJWarp rigid entry."""
@@ -30,7 +30,7 @@ class G1ParticleNeRDPhysicsCfg(NewtonCfg):
     """Two-way MJWarp/Particle NeRD coupling with fixed-size particle recycling."""
 
     solver_cfg: CouplerProxyCfg = CouplerProxyCfg(
-        class_type="isaaclab_tasks.contrib.particle_nerd.manager:NewtonParticleNeRDCouplerManager",
+        class_type="isaaclab_tasks.contrib.legacy.particle_nerd.manager:NewtonParticleNeRDCouplerManager",
         entries=[
             CouplerEntryCfg(
                 name=RIGID_ENTRY,
@@ -54,7 +54,7 @@ class G1ParticleNeRDPhysicsCfg(NewtonCfg):
             CouplerEntryCfg(
                 name=PARTICLE_ENTRY,
                 solver_cfg=ParticleNeRDSolverCfg(
-                    checkpoint=str(Path(__file__).resolve().parents[2] / "particle_nerd/checkpoint/best.pt"),
+                    checkpoint=str(Path(__file__).resolve().parents[2] / "legacy/particle_nerd/checkpoint/best.pt"),
                     # Match the validated fixed-terrain task; retain moving-patch coordinates.
                     active_k="auto",
                     selection_interval=4,

@@ -65,9 +65,17 @@ for value in sorted(candidates):
     relative = Path(value.decode())
     if any(p.startswith(".") for p in relative.parts):
         continue
+    in_g1_asset = (
+        relative.is_relative_to("source/isaaclab_assets/data/unitree")
+        and len(relative.parts) > 4
+        and relative.parts[4].startswith("g1_29dof_rev_1_0")
+    )
     if relative.parts[0] == "source":
-        # These are Python package trees: data/datasets/logs can be runtime modules.
-        if relative.is_relative_to("source/isaaclab_assets/data") or {"test", "tests", "__pycache__"}.intersection(relative.parts):
+        # These are Python package trees: data/datasets/logs can be runtime modules. The small G1 USD asset is
+        # bundled because the dataset's G1 episodes spawn the robot from it.
+        if not in_g1_asset and (
+            relative.is_relative_to("source/isaaclab_assets/data") or {"test", "tests", "__pycache__"}.intersection(relative.parts)
+        ):
             continue
     elif benchmark_excluded_parts.intersection(relative.parts):
         continue
@@ -75,6 +83,7 @@ for value in sorted(candidates):
         relative.as_posix() in root_files
         or relative.as_posix() in legacy_force_files
         or (relative.is_relative_to("examples/particle_nerd/force_estimation") and relative.suffix == ".py")
+        or in_g1_asset
         or (relative.parts[0] == "source" and relative.suffix in source_suffixes)
         or (relative.parts[0] == "apps" and relative.suffix in {".kit", ".toml"})
         or (relative.is_relative_to("examples/particle_nerd_benchmark") and relative.suffix in benchmark_suffixes)
@@ -117,7 +126,11 @@ required = {
     "examples/particle_nerd_benchmark/learning/collect.py",
     "examples/particle_nerd_benchmark/learning/protocol.py",
     "examples/particle_nerd_benchmark/learning/osmo/bootstrap.sh",
-    "source/isaaclab_tasks/isaaclab_tasks/contrib/particle_nerd/network/features.py",
+    "source/isaaclab_tasks/isaaclab_tasks/contrib/legacy/particle_nerd/network/features.py",
+    "source/isaaclab_tasks/isaaclab_tasks/contrib/particle_nerd/network/nerd_network.py",
+    "source/isaaclab_tasks/isaaclab_tasks/contrib/particle_nerd/network/feature_builder.py",
+    "source/isaaclab_tasks/isaaclab_tasks/contrib/particle_nerd/modules/attention.py",
+    "source/isaaclab_tasks/isaaclab_tasks/contrib/particle_nerd/nerd_kernels.py",
 }
 if missing := required.difference(files):
     raise SystemExit(f"Bundle is missing required files: {sorted(missing)}")

@@ -1,0 +1,113 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+# Open-loop evaluation of two checkpoints on the test split of the terrain / category dataset.
+# Submit with: run_collection.sh --workflow eval_v1.yaml PRIVATE_OUTPUT_URI --pool POOL \
+#   --set-string checkpoint_a=URL label_a=NAME checkpoint_b=URL label_b=NAME
+workflow:
+  name: "{{ workflow_name }}"
+  resources:
+    default:
+      gpu: 1
+      cpu: 8
+      memory: 32Gi
+      storage: "{{ storage }}"
+      platform: "{{ platform }}"
+  tasks:
+  - name: eval
+    image: "{{ image }}"
+    command: [bash, /tmp/run.sh]
+    environment:
+      HEADLESS: "1"
+      PYTHONUNBUFFERED: "1"
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OMP_NUM_THREADS: "8"
+      MKL_NUM_THREADS: "8"
+      OPENBLAS_NUM_THREADS: "8"
+      NCCL_DEBUG: WARN
+      TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+      UV_PYTHON: "3.12"
+      UV_PYTHON_PREFERENCE: only-managed
+      UV_PROJECT_ENVIRONMENT: /tmp/isaaclab-venv
+      UV_INSTALL_DIR: /tmp/uv
+      UV_NO_MODIFY_PATH: "1"
+      UV_VERSION: "{{ uv_version }}"
+    files:
+    - path: /tmp/run.sh
+      contents: |
+        set -euo pipefail
+        mkdir -p '{{output}}'
+        exec > >(tee -a "{{output}}/job.log") 2>&1
+        printf '%s  %s\n' '{{ source_sha256 }}' '{{input:0}}/source.tar.gz' | sha256sum --check --strict
+        mkdir -p /tmp/isaaclab
+        tar -xzf '{{input:0}}/source.tar.gz' -C /tmp/isaaclab
+        data_root=$(dirname '{{input:0}}')
+        unset PYTHONPATH VIRTUAL_ENV DISPLAY
+        export PATH="/tmp/uv:$PATH"
+        if ! command -v uv >/dev/null; then
+          curl --fail --location --retry 3 "https://astral.sh/uv/{{ uv_version }}/install.sh" | sh
+        fi
+        cd /tmp/isaaclab
+        uv sync --locked --no-dev
+        export PYTHONPATH=/tmp/isaaclab/examples
+        for label in a b; do
+          case $label in a) ckpt='{{input:1}}'; name='{{ label_a }}' ;; b) ckpt='{{input:2}}'; name='{{ label_b }}' ;; esac
+          # one evaluation per particle-sleeping threshold [m/s]; 0 is the plain model
+          for sleep in {{ sleep_speeds }}; do
+            suffix=""
+            if [ "$sleep" != "0" ]; then suffix="_sleep$sleep"; fi
+            uv run --no-sync python -m particle_nerd_benchmark.learning.eval_v1 \
+              --data "$data_root" --checkpoint "$(find "$ckpt" -name best.pt | sort | head -n 1)" \
+              --label "$name$suffix" --out "{{output}}/$name$suffix.json" --per-cell '{{ per_cell }}' \
+              --sleep-speed "$sleep" {{ eval_args }}
+          done
+        done
+    inputs:
+    - url: "{{ source_url }}"
+    - url: "{{ checkpoint_a }}"
+    - url: "{{ checkpoint_b }}"
+    - url: "{{ v1_url }}/test/flat/lateral_push/"
+    - url: "{{ v1_url }}/test/flat/vertical_push/"
+    - url: "{{ v1_url }}/test/flat/impact/"
+    - url: "{{ v1_url }}/test/flat/rest/"
+    - url: "{{ sand_url }}/test/flat/freefall/"
+    - url: "{{ sand_url }}/test/flat/rest_bed/"
+    - url: "{{ v1_url }}/test/slope/lateral_push/"
+    - url: "{{ v1_url }}/test/slope/vertical_push/"
+    - url: "{{ v1_url }}/test/slope/impact/"
+    - url: "{{ v1_url }}/test/slope/rest/"
+    - url: "{{ sand_url }}/test/slope/freefall/"
+    - url: "{{ sand_url }}/test/slope/rest_bed/"
+    - url: "{{ v1_url }}/test/wave/lateral_push/"
+    - url: "{{ v1_url }}/test/wave/vertical_push/"
+    - url: "{{ v1_url }}/test/wave/impact/"
+    - url: "{{ v1_url }}/test/wave/rest/"
+    - url: "{{ sand_url }}/test/wave/freefall/"
+    - url: "{{ sand_url }}/test/wave/rest_bed/"
+    outputs:
+    - url: "{{ output_url }}/{{workflow_id}}/eval"
+
+default-values:
+  v1_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-mpm-benchmark/v1
+  # freefall and rest_bed come from the regenerated files (same scene and settings as the object episodes)
+  sand_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-mpm-benchmark/v1.1
+  data_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-object-benchmark
+  image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
+  platform: ovx-l40s
+  uv_version: 0.12.12
+  workflow_name: particle-nerd-local-v1-eval
+  storage: 250Gi
+  per_cell: 2
+  # particle-sleeping thresholds to evaluate [m/s], separated by spaces; 0 is the plain model
+  sleep_speeds: "0"
+  # extra eval_v1.py arguments, for example --active-k 2048 --anchors 256
+  eval_args: ""
+  checkpoint_a: ""
+  label_a: a
+  checkpoint_b: ""
+  label_b: b
+  output_url: ""
+  source_url: ""
+  source_sha256: ""

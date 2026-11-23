@@ -3,6 +3,11 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Config-driven learned particle dynamics and proxy contact reconstruction."""
+"""Particle NeRD: a trained network that steps a particle bed coupled to rigid bodies, as a Newton solver.
 
-from .solver_cfg import ParticleNeRDSolverCfg
+See ``README.md`` in this directory for the file layout and the tasks.
+"""
+
+from isaaclab.utils.module import lazy_export
+
+lazy_export()

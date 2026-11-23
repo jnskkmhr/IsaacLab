@@ -26,7 +26,7 @@ from isaaclab.utils import configclass
 
 from isaaclab_contrib.coupling import CouplerEntryCfg, CouplerProxyCfg, CouplerProxyMappingCfg
 
-from isaaclab_tasks.contrib.particle_nerd.solver_cfg import ParticleNeRDSolverCfg
+from isaaclab_tasks.contrib.legacy.particle_nerd.solver_cfg import ParticleNeRDSolverCfg
 
 RIGID_ENTRY = "robot"
 """Name of the MJWarp coupler entry."""
@@ -62,7 +62,7 @@ def g1_particle_nerd_physics_cfg(
     """
     return G1ParticleNeRDPhysicsCfg(
         solver_cfg=CouplerProxyCfg(
-            class_type="isaaclab_tasks.contrib.particle_nerd.manager:NewtonParticleNeRDCouplerManager",
+            class_type="isaaclab_tasks.contrib.legacy.particle_nerd.manager:NewtonParticleNeRDCouplerManager",
             entries=[
                 CouplerEntryCfg(
                     name=RIGID_ENTRY,
@@ -84,7 +84,7 @@ def g1_particle_nerd_physics_cfg(
                 CouplerEntryCfg(
                     name=PARTICLE_ENTRY,
                     solver_cfg=ParticleNeRDSolverCfg(
-                        checkpoint=str(Path(__file__).resolve().parents[2] / "particle_nerd/checkpoint/best.pt"),
+                        checkpoint=str(Path(__file__).resolve().parents[2] / "legacy/particle_nerd/checkpoint/best.pt"),
                         # Pin the recorded demo settings instead of inheriting experimental defaults.
                         active_k="auto",
                         selection_interval=4,

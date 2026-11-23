@@ -28,6 +28,10 @@ def surface_height(x, terrain):
         return 0.12 * np.asarray(x)
     if terrain == "descend":
         return -0.12 * np.asarray(x)
+    if terrain.startswith("slope_"):
+        # slope_p10 / slope_m5: rises (p) or falls (m) along +x at the given angle in degrees.
+        sign = 1.0 if terrain[6] == "p" else -1.0
+        return sign * np.tan(np.radians(float(terrain[7:]))) * np.asarray(x)
     if terrain == "wave":
         return 0.06 * np.sin(2 * np.pi * np.asarray(x) / 1.2)
     raise ValueError(f"Unknown terrain: {terrain}")

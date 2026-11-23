@@ -14,7 +14,6 @@ import time
 from datetime import timedelta
 from pathlib import Path
 
-import h5py
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -22,16 +21,18 @@ import warp as wp
 from torch.nn.parallel import DistributedDataParallel
 
 from .data import Episodes
+from .data_v1 import DEFAULT_CATEGORIES, EpisodesV1
 from .network import (
     CONTACT_SETTINGS,
     OBJECT_PIPELINE,
     OBJECT_SCHEMA,
+    PARTICLE_NERD_ARCHITECTURE,
+    PARTICLE_NERD_SOURCES,
     ObjectParticleStepper,
-    ParticleNeRDLocalNetwork,
+    ParticleNeRDNetwork,
     ParticleTransolver,
     WorldParticleNetwork,
     features,
-    features_particle_nerd_local,
     features_world_particle,
     nerd_source_hashes,
 )
@@ -44,8 +45,10 @@ def _unwrap_model(model):
 def rollout(model, sample, return_vel=False, return_history=False):
     """Advance predicted particle history without reference-state replacement."""
     raw_model = _unwrap_model(model)
-    is_world_particle = isinstance(raw_model, (WorldParticleNetwork, ParticleNeRDLocalNetwork))
-    use_vel_state = is_world_particle and bool(raw_model.config.get("translation_invariant", False))
+    is_world_particle = isinstance(raw_model, (WorldParticleNetwork, ParticleNeRDNetwork))
+    use_vel_state = isinstance(raw_model, ParticleNeRDNetwork) or (
+        is_world_particle and bool(raw_model.config.get("translation_invariant", False))
+    )
     history = sample["history"]
     stepper = (
         None
@@ -109,9 +112,10 @@ def rest_unroll(model, dataset, rest_indices, rng, device, steps, segment):
     gradient is accumulated before the graph is freed, so memory matches one short window.
     """
     idx = int(rng.choice(rest_indices))
-    with h5py.File(dataset.records[idx][2], "r") as handle:
-        length = len(handle["particle_position"])
-    start = int(rng.integers(0, length - steps))
+    length = dataset.num_frames(idx)
+    record = dataset.records[idx][0]
+    earliest = round(float(record.get("rest_start_s", 0.0)) / float(record["dt_s"]))
+    start = int(rng.integers(min(earliest, length - steps - 1), length - steps))
     sample = dataset.sequence(rng, steps, device, index=idx, start=start)
     history, dt, count = sample["history"], sample["dt"], steps // segment
     total = 0.0
@@ -261,8 +265,11 @@ def validate(model, dataset, device, horizon, count):
     for indices in groups.values():
         selected.extend(indices[i] for i in np.linspace(0, len(indices) - 1, min(per_group, len(indices))).astype(int))
     for index in selected:
-        motion = dataset.records[index][0]["motion"]
-        contact_start = {"horizontal": 600, "circle": 600, "vertical": 400, "hold": 1000}.get(motion, 200)
+        record = dataset.records[index][0]
+        contact_start = record.get(
+            "contact_start",
+            {"horizontal": 600, "circle": 600, "vertical": 400, "hold": 1000}.get(record["motion"], 200),
+        )
         per_episode = []
         # Every selected trajectory contributes initial settling and actual body
         # interaction. Dynamic objects are released at 1 s; prescribed entries
@@ -327,15 +334,15 @@ def main():  # noqa: C901
     parser.add_argument("--smoke", action="store_true", help="Short overfit check on local training episodes only")
     parser.add_argument(
         "--update-mode",
-        choices=("gated", "ballistic"),
+        choices=("gated",),
         default="gated",
-        help="Particle update rule of particle_nerd_local: gated, or ballistic (exact inertia, explicit gravity)",
+        help="Particle update rule of particle_nerd_local; only the gated rule exists (kept for existing job files)",
     )
     parser.add_argument(
         "--finetune-from",
         type=Path,
         default=None,
-        help="Initialize weights from a checkpoint (step and optimizer restart); extra output rows keep their init",
+        help="Initialize weights from a checkpoint (step and optimizer restart)",
     )
     parser.add_argument(
         "--rest-fraction", type=float, default=0.0, help="Share of training steps that unroll a long resting bed"
@@ -343,8 +350,21 @@ def main():  # noqa: C901
     parser.add_argument("--rest-steps", type=int, default=1000, help="Native steps in one long resting-bed unroll")
     parser.add_argument("--rest-segment", type=int, default=100, help="Truncation length of each gradient segment")
     parser.add_argument(
+        "--rest-windows",
+        action="store_true",
+        help="Also sample resting episodes (object resting on the bed, bare bed) as ordinary training windows",
+    )
+    parser.add_argument(
         "--freefall-fraction", type=float, default=0.40, help="Share of training windows drawn from free-fall episodes"
     )
+    parser.add_argument(
+        "--data-format",
+        choices=("legacy", "v1"),
+        default="legacy",
+        help="legacy: manifest.json + one .h5 per trajectory; v1: the terrain / category dataset (attributes only)",
+    )
+    parser.add_argument("--categories", nargs="+", default=list(DEFAULT_CATEGORIES), help="v1 categories to train on")
+    parser.add_argument("--terrains", nargs="+", default=None, help="v1 terrains to train on (default: all)")
     args = parser.parse_args()
     rank, world = int(os.environ.get("RANK", 0)), int(os.environ.get("WORLD_SIZE", 1))
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
@@ -360,18 +380,26 @@ def main():  # noqa: C901
         dist.init_process_group("nccl", device_id=torch.device(device), timeout=timedelta(minutes=30))
     is_world = args.arch in ("world_particle", "particle_nerd_local")
     collider_input = "material_step" if is_world else OBJECT_PIPELINE["collider_input"]
-    train = Episodes(args.data, "train", collider_input=collider_input)
-    validation = train if args.smoke else Episodes(args.data, "validation", collider_input=collider_input)
+    if args.data_format == "v1":
+
+        def load(split):
+            return EpisodesV1(args.data, split, categories=tuple(args.categories), terrains=args.terrains)
+
+    else:
+
+        def load(split):
+            return Episodes(args.data, split, collider_input=collider_input)
+
+    train = load("train")
+    validation = train if args.smoke else load("validation")
     if args.arch == "particle_nerd_local":
-        model = ParticleNeRDLocalNetwork(
+        model = ParticleNeRDNetwork(
             far_support_scale=args.far_support_scale,
             far_gap_weight=args.far_gap_weight,
             far_influence_weight=args.far_influence_weight,
-            use_cloud_context=True,
-            update_mode=args.update_mode,
         ).to(device)
-        source_objs = (features_particle_nerd_local, ParticleNeRDLocalNetwork)
-        arch_tag = "particle_nerd_local_v1"
+        source_objs = PARTICLE_NERD_SOURCES
+        arch_tag = PARTICLE_NERD_ARCHITECTURE
     elif args.arch == "world_particle":
         model = WorldParticleNetwork(
             translation_invariant=True,
@@ -392,23 +420,12 @@ def main():  # noqa: C901
     best = float("inf")
     if args.finetune_from is not None:
         source = torch.load(args.finetune_from, map_location=device, weights_only=False)["model"]
-        own = model.state_dict()
-        padded = {}
-        for name, value in source.items():
-            target = own.get(name)
-            if (
-                target is not None
-                and target.shape != value.shape
-                and target.ndim == value.ndim
-                and target.shape[1:] == value.shape[1:]
-                and target.shape[0] > value.shape[0]
-            ):
-                grown = target.clone()
-                grown[: value.shape[0]] = value
-                padded[name] = grown
-            else:
-                padded[name] = value
-        missing, unexpected = model.load_state_dict(padded, strict=False)
+        if isinstance(model, ParticleNeRDNetwork):
+            # Drops the weights of removed modules and fails on any other mismatch
+            model.load_checkpoint_state(source)
+            missing, unexpected = [], []
+        else:
+            missing, unexpected = model.load_state_dict(source, strict=False)
         if rank == 0:
             print(
                 f"Initialized from {args.finetune_from} (missing={len(missing)}, unexpected={len(unexpected)})",
@@ -485,9 +502,21 @@ def main():  # noqa: C901
     log = (args.output / "metrics.jsonl").open("a") if rank == 0 else None
     try:
         wp_horizons = (8, 16, 32, 64, 100, 100)
-        obj_indices = [i for i, (r, _, _) in enumerate(train.records) if r["shape"] not in ("freefall", "rest")]
+        # Resting episodes are only seen in the long unrolls unless --rest-windows also samples them as windows.
+        obj_indices = [
+            i
+            for i, (r, _, _) in enumerate(train.records)
+            if r["shape"] != "freefall" and (args.rest_windows or (r["shape"] != "rest" and not r.get("rest_unroll")))
+        ]
         ff_indices = [i for i, (r, _, _) in enumerate(train.records) if r["shape"] == "freefall"]
-        rest_indices = [i for i, (r, _, _) in enumerate(train.records) if r["shape"] == "rest"]
+        rest_indices = [i for i, (r, _, _) in enumerate(train.records) if r.get("rest_unroll")]
+        if rank == 0:
+            resting = len(set(obj_indices) & set(rest_indices))
+            print(
+                f"Window episodes: {len(obj_indices)} ({resting} resting), free-fall pool: {len(ff_indices)}, "
+                f"long-unroll pool: {len(rest_indices)}",
+                flush=True,
+            )
         for step in range(start_step, args.steps + 1):
             stage = min(5, 6 * (step - 1) // args.steps)
             horizon = min(args.horizon, wp_horizons[stage] if is_world else 4 * 2**stage)

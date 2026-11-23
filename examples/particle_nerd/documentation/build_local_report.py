@@ -7,6 +7,7 @@
 
 Run with uv run --no-project --with playwright --with pymupdf python
 examples/particle_nerd/documentation/build_local_report.py.
+Pass --source, --name and --title to build another HTML document of this folder.
 Requires Chrome/Chromium and network access for MathJax.
 """
 
@@ -19,13 +20,19 @@ import pymupdf
 from playwright.async_api import async_playwright
 
 
-async def build(output: Path, browser_path: str | None) -> None:
+async def build(
+    output: Path,
+    browser_path: str | None,
+    source_name: str = "local_methodology.html",
+    name: str = "particle_nerd_local_methodology",
+    title: str = "Particle NeRD Local | Methodology",
+) -> None:
     """Typeset equations, reject overflowing content, and export A4 pages."""
-    source = Path(__file__).with_name("local_methodology.html")
+    source = Path(__file__).with_name(source_name)
     output.mkdir(parents=True, exist_ok=True)
-    html_path = output / "particle_nerd_local_methodology.html"
-    pdf_path = output / "particle_nerd_local_methodology.pdf"
-    raw_path = output / "particle_nerd_local_methodology_body.pdf"
+    html_path = output / f"{name}.html"
+    pdf_path = output / f"{name}.pdf"
+    raw_path = output / f"{name}_body.pdf"
     html_path.write_text(source.read_text())
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(executable_path=browser_path, args=["--no-sandbox"])
@@ -58,26 +65,29 @@ async def build(output: Path, browser_path: str | None) -> None:
     with pymupdf.open(raw_path) as document:
         for number, page in enumerate(document, start=1):
             page.wrap_contents()
-            page.insert_text((34, 24), "Particle NeRD Local | Methodology", fontsize=8, color=(0.35, 0.35, 0.35))
+            page.insert_text((34, 24), title, fontsize=8, color=(0.35, 0.35, 0.35))
             page.insert_textbox(
                 pymupdf.Rect(0, page.rect.height - 30, page.rect.width, page.rect.height - 12),
                 str(number),
                 fontsize=9,
                 align=1,
             )
-        document.set_metadata({"title": "Particle NeRD Local Methodology"})
+        document.set_metadata({"title": title.replace(" | ", " ")})
         document.save(pdf_path, garbage=4, deflate=True)
         print(f"Wrote {pdf_path} ({len(document)} pages)")
     raw_path.unlink()
 
 
 def main() -> None:
-    """Parse output directory and browser options."""
+    """Parse output directory, browser, and document options."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[3] / "docs/_build")
     parser.add_argument("--browser", default=shutil.which("google-chrome") or shutil.which("chromium"))
+    parser.add_argument("--source", default="local_methodology.html", help="HTML file name in this folder")
+    parser.add_argument("--name", default="particle_nerd_local_methodology", help="Base name of the output files")
+    parser.add_argument("--title", default="Particle NeRD Local | Methodology", help="Page header text")
     args = parser.parse_args()
-    asyncio.run(build(args.output.resolve(), args.browser))
+    asyncio.run(build(args.output.resolve(), args.browser, args.source, args.name, args.title))
 
 
 if __name__ == "__main__":

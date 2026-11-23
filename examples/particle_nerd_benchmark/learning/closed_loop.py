@@ -32,11 +32,11 @@ from .forces import NeRDRecordedForceEstimator, RecordedForceEstimator
 from .network import (
     CONTACT_SETTINGS,
     OBJECT_PIPELINE,
+    PARTICLE_NERD_SOURCES,
     ObjectParticleStepper,
-    ParticleNeRDLocalNetwork,
+    ParticleNeRDNetwork,
     ParticleTransolver,
     WorldParticleNetwork,
-    features_particle_nerd_local,
     features_world_particle,
     nerd_source_hashes,
     validate_object_checkpoint,
@@ -126,17 +126,17 @@ def main():
     if not is_world_like:
         validate_object_checkpoint(saved)
     if arch == "particle_nerd_local_v1":
-        m_cfg = dict(saved["model_config"])
-        if "spatial_slice_assign" not in m_cfg:
-            m_cfg["spatial_slice_assign"] = False
-            m_cfg["use_rms_swiglu"] = False
-        network = ParticleNeRDLocalNetwork(**m_cfg).to(device).eval()
+        network = ParticleNeRDNetwork.from_config(saved["model_config"]).to(device).eval()
+        network.load_checkpoint_state(saved["model"])
     elif arch == "world_particle_v1":
         network = WorldParticleNetwork(**saved["model_config"]).to(device).eval()
+        network.load_state_dict(saved["model"])
     else:
         network = ParticleTransolver(**saved["model_config"]).to(device).eval()
-    network.load_state_dict(saved["model"])
-    use_vel_state = is_world_like and bool(network.config.get("translation_invariant", False))
+        network.load_state_dict(saved["model"])
+    use_vel_state = isinstance(network, ParticleNeRDNetwork) or (
+        is_world_like and bool(network.config.get("translation_invariant", False))
+    )
     dataset = Episodes(
         args.reference.parent, "test", collider_input="material_step" if is_world_like else "pre_rigid_step"
     )
@@ -343,7 +343,7 @@ def main():
             {
                 str(Path(inspect.getfile(obj)).name): digest(inspect.getfile(obj))
                 for obj in (
-                    (features_particle_nerd_local, ParticleNeRDLocalNetwork)
+                    PARTICLE_NERD_SOURCES
                     if arch == "particle_nerd_local_v1"
                     else (features_world_particle, WorldParticleNetwork)
                 )

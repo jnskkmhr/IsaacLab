@@ -12,6 +12,7 @@ import importlib.metadata
 import inspect
 import json
 import os
+import time
 from pathlib import Path
 
 import h5py
@@ -25,12 +26,12 @@ from .metrics import CommonGrid, body_distance, force_errors, particle_rmse, sur
 from .network import (
     CONTACT_SETTINGS,
     OBJECT_PIPELINE,
+    PARTICLE_NERD_SOURCES,
     ObjectParticleStepper,
-    ParticleNeRDLocalNetwork,
+    ParticleNeRDNetwork,
     ParticleTransolver,
     WorldParticleNetwork,
     features,
-    features_particle_nerd_local,
     features_world_particle,
     nerd_source_hashes,
     validate_object_checkpoint,
@@ -67,11 +68,80 @@ def below_body_mass(points, state, shape, size, mass, depth=0.10):
     return float(mass[keep].sum())
 
 
+def select_active(history, pose, half_size, dt, k_act, anchors):
+    """Active set of the Particle NeRD solver (`nerd_solver.py`), for one environment.
+
+    The ``k_act`` particles with the lowest score (distance to the object box minus 0.12 times the speed) are active.
+    ``anchors`` background particles, evenly spread over the particle index, are added as extra tokens; each carries
+    a weight so that together they stand in for every particle outside the active set. Returns the active indices,
+    the token indices (active then anchors), the token weights (None without anchors) and the blend factor of each
+    active particle, which fades the update out towards the selection cut-off.
+    """
+    pos, prev = history[:, -1], history[:, -2]
+    n = pos.shape[0]
+    speed = torch.linalg.vector_norm(pos - prev, dim=-1) / dt
+    axis, w = pose[3:6].expand_as(pos), pose[6]
+    rel = pos - pose[:3]
+    twice = 2.0 * torch.linalg.cross(axis, rel)
+    local = rel - w * twice + torch.linalg.cross(axis, twice)  # inverse rotation by the quaternion (x, y, z, w)
+    q = local.abs() - half_size
+    gap = torch.linalg.vector_norm(q.clamp_min(0.0), dim=-1) + q.amax(dim=-1).clamp_max(0.0)
+    score = gap - 0.12 * speed.clamp_max(2.0)
+    top_vals, topk = torch.topk(score, k=k_act, largest=False, sorted=False)
+    thresh = top_vals.amax()
+    tau = ((thresh - top_vals) / 0.015).clamp(0.0, 1.0)
+    gamma = tau * tau * (3.0 - 2.0 * tau)
+    if anchors <= 0:
+        return topk, topk, None, gamma
+    background = torch.linspace(0, n - 1, anchors, device=pos.device).long()
+    valid = (score[background] > thresh).float()
+    if valid.sum() < 1.0:
+        valid = torch.ones_like(valid)
+    weights = torch.cat((torch.ones_like(top_vals), valid * (float(n - k_act) / valid.sum().clamp_min(1.0))))
+    return topk, torch.cat((topk, background)), weights, gamma
+
+
+def active_step(model, history, pose, velocity, sample, selection):
+    """One step in which only the active particles move; the others keep their position and get zero velocity."""
+    topk, index, weights, gamma = selection
+    next_sub, vel_sub = model.step_from_history_batched(
+        history[index][None].contiguous(),
+        pose[None].contiguous(),
+        velocity[None].contiguous(),
+        sample["kinds"],
+        sample["sizes"],
+        sample["friction"],
+        sample["material"],
+        dt=sample["dt"],
+        multiplicity=None if weights is None else weights[None].contiguous(),
+        return_vel=True,
+    )
+    k = topk.shape[0]
+    current = history[:, -1].clone()
+    vel_next = torch.zeros_like(current)
+    current[topk] += gamma[:, None] * (next_sub[0, :k].float() - current[topk])
+    vel_next[topk] = gamma[:, None] * vel_sub[0, :k].float()
+    return current, vel_next
+
+
 @torch.no_grad()
-def predict(model, sample):
-    """Full recurrent prediction; stop explicitly on nonfinite or unbounded states."""
-    is_world_particle = isinstance(model, (WorldParticleNetwork, ParticleNeRDLocalNetwork))
-    use_vel_state = is_world_particle and bool(model.config.get("translation_invariant", False))
+def predict(model, sample, sleep_speed=0.0, active=None, step_seconds=None):
+    """Full recurrent prediction; stop explicitly on nonfinite or unbounded states.
+
+    If ``step_seconds`` is a list, the time of every model step after the first ten is appended to it (the device
+    is synchronized around each step, and copying the result to the host is not included).
+
+    With ``sleep_speed`` > 0 [m/s], a particle whose predicted move in one step is slower than that stays exactly
+    where it is and gets zero velocity (particle sleeping). It moves again as soon as a later prediction is faster.
+
+    ``active`` selects which particles go through the network: ``{"k": K, "anchors": M, "interval": I}``. It is the
+    active set of the Isaac Lab solver: the top K particles plus M weighted background anchors, with the features
+    computed on those particles only, reselected every I steps.
+    """
+    is_world_particle = isinstance(model, (WorldParticleNetwork, ParticleNeRDNetwork))
+    use_vel_state = isinstance(model, ParticleNeRDNetwork) or (
+        is_world_particle and bool(model.config.get("translation_invariant", False))
+    )
     history = sample["history"]
     stepper = (
         None
@@ -84,8 +154,21 @@ def predict(model, sample):
         raise ValueError("NeRD evaluation requires pre-rigid collider inputs")
     positions = [history[:, -1].cpu().numpy()]
     failure = None
+    selection = None
+    if active is not None and not isinstance(model, ParticleNeRDNetwork):
+        raise ValueError("Active-particle evaluation needs a Particle NeRD model")
     for step, (pose, velocity) in enumerate(zip(sample["poses"], sample["velocities"], strict=True)):
-        if is_world_particle:
+        if step_seconds is not None:
+            torch.cuda.synchronize()
+            tic = time.perf_counter()
+        if active is not None:
+            if step % max(1, int(active.get("interval", 4))) == 0:
+                selection = select_active(
+                    history, pose[0], sample["sizes"][0], sample["dt"], int(active["k"]), int(active["anchors"])
+                )
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                current, vel_next = active_step(model, history, pose, velocity, sample, selection)
+        elif is_world_particle:
             with torch.autocast("cuda", dtype=torch.bfloat16):
                 if use_vel_state:
                     current, vel_next = model.step_from_history(
@@ -112,6 +195,18 @@ def predict(model, sample):
                     )
         else:
             current = stepper.step(model, history, pose, velocity)
+        if sleep_speed > 0.0:
+            previous = history[:, -1]
+            asleep = torch.linalg.vector_norm(current.float() - previous, dim=-1, keepdim=True) < (
+                sleep_speed * sample["dt"]
+            )
+            current = torch.where(asleep, previous, current.float())
+            if use_vel_state:
+                vel_next = torch.where(asleep, torch.zeros_like(vel_next), vel_next)
+        if step_seconds is not None:
+            torch.cuda.synchronize()
+            if step >= 10:
+                step_seconds.append(time.perf_counter() - tic)
         x = current.cpu().numpy()
         if not np.isfinite(x).all() or np.max(np.abs(x)) > 5.0:
             failure = {
@@ -144,8 +239,8 @@ def evaluate_one(model, dataset, index, output, checkpoint_sha, device="cuda:0")
     predicted, failure = predict(model, sample)
     reference = np.concatenate((sample["history"][:, -1].cpu().numpy()[None], sample["targets"].cpu().numpy()))
     dt = sample["dt"]
-    if isinstance(model, ParticleNeRDLocalNetwork):
-        source_objs = (features_particle_nerd_local, ParticleNeRDLocalNetwork)
+    if isinstance(model, ParticleNeRDNetwork):
+        source_objs = PARTICLE_NERD_SOURCES
     elif isinstance(model, WorldParticleNetwork):
         source_objs = (features_world_particle, WorldParticleNetwork)
     else:
@@ -367,20 +462,15 @@ def main():
     if not is_world_like:
         validate_object_checkpoint(saved)
     if arch == "particle_nerd_local_v1":
-        model_cls = ParticleNeRDLocalNetwork
-        m_cfg = dict(saved["model_config"])
-        if "spatial_slice_assign" not in m_cfg:
-            m_cfg["spatial_slice_assign"] = False
-            m_cfg["use_rms_swiglu"] = False
-        model = model_cls(**m_cfg).to(device).eval()
+        model = ParticleNeRDNetwork.from_config(saved["model_config"]).to(device).eval()
+        model.load_checkpoint_state(saved["model"])
     elif arch == "world_particle_v1":
-        model_cls = WorldParticleNetwork
-        model = model_cls(**saved["model_config"]).to(device).eval()
+        model = WorldParticleNetwork(**saved["model_config"]).to(device).eval()
+        model.load_state_dict(saved["model"])
     else:
-        model_cls = ParticleTransolver
-        model = model_cls(**saved["model_config"]).to(device).eval()
+        model = ParticleTransolver(**saved["model_config"]).to(device).eval()
+        model.load_state_dict(saved["model"])
     dataset = Episodes(args.data, "test", collider_input="material_step" if is_world_like else "pre_rigid_step")
-    model.load_state_dict(saved["model"])
     sha = file_hash(args.checkpoint)
     summaries = []
     indices = list(range(len(dataset.records)))[rank::world]
