@@ -14,7 +14,8 @@
 
 from __future__ import annotations
 
-import numpy as np
+import math
+
 import torch
 import warp as wp
 
@@ -27,30 +28,27 @@ from ..nerd_kernels import (
 )
 
 
-def material_features(manifest: dict, particle_mass: float, particle_radius: float, dt: float = 0.005) -> np.ndarray:
-    """Normalize the 13-element continuum material and timestep feature vector."""
+def material_features(manifest: dict, particle_mass: float, particle_radius: float, dt: float = 0.005) -> torch.Tensor:
+    """Normalize the 13-element continuum material and timestep feature vector (float32, on the CPU)."""
     m = manifest["material"]
-    return np.asarray(
+    return torch.tensor(
         [
             m["density"] / 1600.0,
-            np.log10(m["young_modulus"]) / 15.0,
+            math.log10(m["young_modulus"]) / 15.0,
             m["poisson_ratio"],
             m["friction"],
-            np.log1p(m["yield_pressure"]) / np.log1p(1e15),
+            math.log1p(m["yield_pressure"]) / math.log1p(1e15),
             m["tensile_yield_ratio"],
-            np.log1p(m["yield_stress"]) / 15.0,
+            math.log1p(m["yield_stress"]) / 15.0,
             m["hardening"],
             m["dilatancy"],
-            np.log1p(m["viscosity"]) / 10.0,
+            math.log1p(m["viscosity"]) / 10.0,
             particle_mass / 0.05,
             particle_radius / 0.02,
             dt / 0.02,
         ],
-        dtype=np.float32,
+        dtype=torch.float32,
     )
-
-
-_GRAVITY_TENSORS: dict[tuple, torch.Tensor] = {}
 
 
 def integrate_pos_vel(
@@ -59,13 +57,14 @@ def integrate_pos_vel(
     gravity: tuple[float, float, float] = (0.0, 0.0, -9.81),
     dt: float = 0.005,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Semi-implicit Euler predictor step under gravity."""
-    key = (pos.device, pos.dtype, tuple(float(v) for v in gravity))
-    g = _GRAVITY_TENSORS.get(key)
-    if g is None:
-        g = torch.tensor(gravity, device=pos.device, dtype=pos.dtype)
-        _GRAVITY_TENSORS[key] = g
-    vel_pred = vel + dt * g
+    """Semi-implicit Euler predictor step under gravity.
+
+    The gravity increment is added per axis as a scalar, so the step creates no tensor from host memory and can
+    be recorded in a CUDA graph.
+    """
+    vel_pred = vel.clone()
+    for axis in range(3):
+        vel_pred[..., axis] += dt * gravity[axis]
     pos_pred = pos + 0.5 * dt * (vel + vel_pred)
     return pos_pred, vel_pred
 
@@ -227,9 +226,6 @@ def compute_features(
     return pos_pred, vel_pred, nodes_t, pairs_t, inf_t
 
 
-_FEAT_BATCH_BUFFERS: dict[tuple, tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = {}
-
-
 def compute_features_batched(
     history_env: torch.Tensor,
     poses_env: torch.Tensor,
@@ -245,7 +241,7 @@ def compute_features_batched(
     far_influence_weight: float = 0.15,
     gravity: tuple[float, float, float] = (0.0, 0.0, -9.81),
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """:func:`compute_features` for [E, M, H, 3] histories in one launch (inference only, reuses its buffers)."""
+    """:func:`compute_features` for [E, M, H, 3] histories in one launch (inference only)."""
     pos_cur = history_env[:, :, -1]
     vel_cur = (history_env[:, :, -1] - history_env[:, :, -2]) / dt
     pos_pred, vel_pred = integrate_pos_vel(pos_cur, vel_cur, gravity=gravity, dt=dt)
@@ -258,15 +254,9 @@ def compute_features_batched(
     sizes_env = (sizes.unsqueeze(0).expand(num_envs, -1, -1) if sizes.ndim == 2 else sizes).contiguous()
     friction_env = (friction.unsqueeze(0).expand(num_envs, -1) if friction.ndim == 1 else friction).contiguous()
     material_env = (material.unsqueeze(0).expand(num_envs, -1) if material.ndim == 1 else material).contiguous()
-    buf_key = (device, num_envs, m_pts, h_len, n_col, torch.is_inference_mode_enabled())
-    cached = _FEAT_BATCH_BUFFERS.get(buf_key)
-    if cached is None:
-        nodes_t = torch.empty((num_envs, m_pts, 16 + 3 * (h_len - 1)), dtype=torch.float32, device=history_env.device)
-        pairs_t = torch.empty((num_envs, m_pts, n_col, 8), dtype=torch.float32, device=history_env.device)
-        inf_t = torch.empty((num_envs, m_pts, n_col), dtype=torch.float32, device=history_env.device)
-        _FEAT_BATCH_BUFFERS[buf_key] = (nodes_t, pairs_t, inf_t)
-    else:
-        nodes_t, pairs_t, inf_t = cached
+    nodes_t = torch.empty((num_envs, m_pts, 16 + 3 * (h_len - 1)), dtype=torch.float32, device=history_env.device)
+    pairs_t = torch.empty((num_envs, m_pts, n_col, 8), dtype=torch.float32, device=history_env.device)
+    inf_t = torch.empty((num_envs, m_pts, n_col), dtype=torch.float32, device=history_env.device)
 
     with wp.ScopedStream(warp_stream(history_env.device)):
         wp.launch(

@@ -485,7 +485,7 @@ class EpisodeWindows:
             "targets": tensor(positions[3:]),
             "poses": poses.contiguous(),
             "velocities": velocities.contiguous(),
-            "material": tensor(material),
+            "material": material.to(device),
             "kinds": kinds,
             "sizes": sizes.contiguous(),
             "friction": tensor([1.0] * 6),

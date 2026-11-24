@@ -265,28 +265,21 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
         self.zero_wall_vel = torch.zeros((num_envs, 5, 6), device=device, dtype=torch.float32)
 
         # Material features, and the neighbourhood scales that follow the particle radius of the scene
-        mass = wp.to_torch(model.particle_mass)[:: self.capacity].cpu().numpy()
-        radius = wp.to_torch(model.particle_radius)[:: self.capacity].cpu().numpy()
-        if float(radius[0]) > 0.0:
-            self.network.local_agg.radius = 4.5 * float(radius[0])
-            self.support = max(0.035, 4.375 * float(radius[0]))
+        mass = wp.to_torch(model.particle_mass)[:: self.capacity].tolist()
+        radius = wp.to_torch(model.particle_radius)[:: self.capacity].tolist()
+        if radius[0] > 0.0:
+            self.network.local_agg.radius = 4.5 * radius[0]
+            self.support = max(0.035, 4.375 * radius[0])
         mpm = getattr(model, "mpm", None)
         raw = {
-            name: wp.to_torch(getattr(mpm, name))[:: self.capacity].cpu().numpy()
+            name: wp.to_torch(getattr(mpm, name))[:: self.capacity].tolist()
             if hasattr(mpm, name)
-            else np.full(num_envs, default, dtype=np.float32)
+            else [default] * num_envs
             for name, default in _MATERIAL_DEFAULTS.items()
         }
         materials = [
-            torch.as_tensor(
-                material_features(
-                    {"material": {name: float(raw[name][env]) for name in _MATERIAL_DEFAULTS}},
-                    mass[env],
-                    radius[env],
-                    self.dt,
-                ),
-                device=device,
-                dtype=torch.float32,
+            material_features(
+                {"material": {name: raw[name][env] for name in _MATERIAL_DEFAULTS}}, mass[env], radius[env], self.dt
             )
             for env in range(num_envs)
         ]
