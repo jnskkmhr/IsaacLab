@@ -1,0 +1,19 @@
+# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+
+"""G1 towing a sled by a rope tied to its pelvis over mixed rigid ground and analytical (RFT) sand."""
+
+import gymnasium as gym
+
+for suffix, config in (("", "G1TowEnvCfg"), ("-Play", "G1TowEnvCfg_PLAY")):
+    gym.register(
+        id="IsaacContrib-Tow-G1-29dof-SoftContact" + suffix,
+        entry_point=f"{__name__}.tow_env:G1SoftContactTowEnv",
+        disable_env_checker=True,
+        kwargs={
+            "env_cfg_entry_point": f"{__name__}.tow_env_cfg:{config}",
+            "rsl_rl_cfg_entry_point": f"{__name__}.agents.rsl_rl_ppo_cfg:G1TowPPORunnerCfg",
+        },
+    )
