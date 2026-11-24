@@ -90,9 +90,9 @@ workflow:
 
 default-values:
   # object categories (lateral_push, vertical_push, impact, rest)
-  object_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-mpm-benchmark/v1
+  object_url: swift://PRIVATE_BUCKET/particle-nerd-mpm-benchmark/v1
   # sand-only categories (freefall, rest_bed): the regenerated files, same scene and settings as the object episodes
-  sand_url: swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-mpm-benchmark/v1.1
+  sand_url: swift://PRIVATE_BUCKET/particle-nerd-mpm-benchmark/v1.1
   image: nvcr.io/nvidia/isaac-lab:3.0.0-rc1
   platform: ovx-l40
   uv_version: 0.12.12
