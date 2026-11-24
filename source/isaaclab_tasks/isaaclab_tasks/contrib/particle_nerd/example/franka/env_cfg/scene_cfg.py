@@ -43,7 +43,7 @@ PADDLE_MASS = 0.5
 
 
 def sand_grid_positions(size: tuple[float, float, float] = BED_SIZE, spacing: float = SPACING) -> list[list[float]]:
-    """Build jittered particle positions matching `particle_nerd_benchmark.core.terrain.sand_cfg` (`N=9,176`)."""
+    """Build jittered particle positions of the sand bed (`N=9,176`)."""
     length, width, depth = size
     axes = [
         np.arange(-length / 2 + spacing / 2, length / 2, spacing),
