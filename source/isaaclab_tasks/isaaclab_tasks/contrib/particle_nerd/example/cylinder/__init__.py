@@ -15,7 +15,6 @@ gym.register(
     disable_env_checker=True,
     kwargs={
         "env_cfg_entry_point": f"{__name__}.cylinder_env_cfg:CylinderParticleNeRDEnvCfg",
-        "play_entry_point": "isaaclab_tasks.contrib.particle_nerd.example.play",
         "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CylinderParticleNeRDPPORunnerCfg",
         "compositional_rsl_rl_cfg_entry_point": (
             f"{agents.__name__}.compositional_rsl_rl_cfg:CylinderParticleNeRDCompositionalPPORunnerCfg"
