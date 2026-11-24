@@ -54,6 +54,46 @@ _PRE_OVRTX_STAGE_FILE = "pre_ovrtx_renderer_stage.usda"
 _OVRTX_STAGE_FILE = "ovrtx_renderer_stage.usda"
 
 
+def test_native_static_clones_follow_environment_origins():
+    """Static tray geometry must follow each clone's frame, just like simulated particles."""
+    import ovstage
+    from isaaclab_ov.stage import OvstageBackend, OvstageBackendCfg
+
+    stage = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(stage, "/World")
+    UsdGeom.Xform.Define(stage, "/World/envs/env_0").AddTranslateOp().Set(Gf.Vec3d(2.5, -2.5, 0.0))
+    UsdGeom.Xform.Define(stage, "/World/envs/env_0/Floor").AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -0.4))
+    UsdGeom.Cube.Define(stage, "/World/envs/env_0/Floor/mesh")
+    origins = np.array([[2.5, -2.5, 0.0], [2.5, 2.5, 0.0], [-2.5, -2.5, 1.0], [-2.5, 2.5, -1.0]])
+    plan = make_clone_plan((AssetBaseCfg(prim_path="/World/envs/env_[^/]+/Floor"),), ((0,),), 4, positions=origins)
+    backend = OvstageBackend(OvstageBackendCfg())
+    try:
+        backend.populate(stage, plan)
+        native = backend.stage
+        native.compute_hierarchy(1, 2, ovstage.HierarchyComputationModel.RUNTIME_DEFAULT)
+        native.advance_write_floor(2, ovstage.Scope.ALL).wait()
+        matrices = np.full((4, 4, 4), np.nan)
+        with ovstage.PathDictionary(native) as paths:
+            path_list = paths.create_path_list_from_strings([f"/World/envs/env_{i}/Floor/mesh" for i in range(4)])
+            try:
+                with native.query_from_path_list(path_list) as query:
+                    token = paths.intern_token("omni:fabric:worldMatrix")
+                    with native.read_attributes(query, [token], ovstage.OrdinalRange.latest(2)) as read:
+                        read.wait()
+                        group = read.fetch_next()
+                        while group is not None:
+                            rows = np.from_dlpack(group.dlpack(0)).reshape(-1, 4, 4)
+                            for local in range(group.prim_count):
+                                matrices[group.prim_index(local)] = rows[group.data_row_index(local)]
+                            native.release_group(group)
+                            group = read.fetch_next()
+            finally:
+                paths.destroy_path_list(path_list)
+        np.testing.assert_allclose(matrices[:, 3, :3], origins + [0.0, 0.0, -0.4])
+    finally:
+        backend.close()
+
+
 def _make_multi_env_stage(num_envs: int) -> Usd.Stage:
     """Build an in-memory stage with distinguishable content per environment."""
     stage = Usd.Stage.CreateInMemory()

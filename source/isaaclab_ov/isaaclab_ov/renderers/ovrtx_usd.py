@@ -337,7 +337,11 @@ def _collect_prims_to_deactivate(parent_prim: Usd.Prim, source_paths: frozenset[
 
 
 def export_stage_to_string(
-    stage: Usd.Stage, num_envs: int, source_paths: tuple[str, ...], keep_env_roots: bool = True
+    stage: Usd.Stage,
+    num_envs: int,
+    source_paths: tuple[str, ...],
+    keep_env_roots: bool = True,
+    env_root_paths: tuple[str, ...] = (),
 ) -> str:
     """Export the USD stage as a USDA string for OVRTX loading.
 
@@ -347,16 +351,16 @@ def export_stage_to_string(
     partition settings are authored on that same session layer before exporting.
 
     When ``keep_env_roots`` is True (the legacy ``renderer.clone_usd`` path) the non-source env root prims stay
-    active so the exported stage retains a slot for every env. The ovstage ``stage.clone`` path passes False, which
-    additionally trims the non-source env roots themselves; ``stage.clone`` recreates them and the RenderProduct's
-    camera relationship is re-authored after clone.
+    active so the exported stage retains a slot for every env. Passing False additionally trims non-source env
+    roots. Native cloning uses ``env_root_paths`` to populate explicit environment frames before copying assets.
 
     Args:
         stage: USD stage to export.
         num_envs: Number of parallel environments on the stage.
         source_paths: The paths to source prims to keep in the exported stage.
-        keep_env_roots: Whether to keep the non-source env root prims active in the exported stage. Pass False for
-            the ovstage clone path, which repopulates env roots itself.
+        keep_env_roots: Whether to retain non-source environment roots when trimming the stage.
+        env_root_paths: Environment frames to define as active Xforms in the exported stage. Native cloning
+            requires these frames to be populated before copying their children so hierarchy updates can place them.
 
     Returns:
         USDA text of the (possibly trimmed) stage.
@@ -365,6 +369,8 @@ def export_stage_to_string(
     export_session.subLayerPaths = [stage.GetSessionLayer().identifier]
     export_stage = Usd.Stage.Open(stage.GetRootLayer(), export_session)
     export_stage.SetEditTarget(export_session)
+    for path in env_root_paths:
+        UsdGeom.Xform.Define(export_stage, path).GetPrim().SetActive(True)
     # Perspective cameras see every partition; sensor cameras retain their explicit partition.
     settings_path = export_stage.GetMetadata("renderSettingsPrimPath") or "/Render/IsaacLabSettings"
     settings = UsdRender.Settings.Define(export_stage, settings_path)
@@ -398,5 +404,7 @@ def export_stage_to_string(
         for prim_path in prim_paths:
             Sdf.CreatePrimInLayer(export_session, prim_path).active = False
             logger.debug("Deactivated prim: %s", prim_path)
+        for path in env_root_paths:
+            Sdf.CreatePrimInLayer(export_session, path).active = True
     logger.info("Deactivated %d prims in total", len(prim_paths))
     return export_stage.ExportToString()

@@ -206,7 +206,12 @@ class OvstageBackend:
         sources = None
         if plan is not None:
             sources = tuple(source for source in cloner_path.get_asset_prototype_paths(plan) if source is not None)
-        usda = export_stage_to_string(stage, num_envs, source_paths=sources, keep_env_roots=False)
+        # Native clone creates implicit parents without hierarchy state. Populate explicit Xforms first,
+        # otherwise static assets stay at the origin while simulated bodies and particles move to their worlds.
+        env_roots = tuple(plan.env_template.format(i) for i in range(num_envs)) if plan is not None else ()
+        usda = export_stage_to_string(
+            stage, num_envs, source_paths=sources, keep_env_roots=True, env_root_paths=env_roots
+        )
         ovstage.population.open_usd_from_string(self.stage, usda, ordinal=1, domains=ovstage.PopulationDomain.RENDERING)
         if num_envs > 1:
             ovstage_replicate(self.stage, plan, ordinal=1)
