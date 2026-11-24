@@ -26,9 +26,9 @@ uv run python scripts/neural/record.py --dataset /data/particle_nerd --terrain f
     --category lateral_push --shape cube --size-level 1
 ```
 
-The dataset recorded so far is on OSMO storage, under
-`swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/particle-nerd-mpm-benchmark/`: the object categories
-in `v1/`, and `freefall` and `rest_bed` in `v1.1/`.
+The OSMO workflows in `scripts/neural/osmo/` read the dataset from two private storage folders, set as
+`object_url` (the object categories) and `sand_url` (`freefall` and `rest_bed`) in `train.yaml` and
+`evaluate.yaml`. Replace the `swift://PRIVATE_BUCKET/...` placeholders there with your own locations.
 
 ## 2 Training
 
@@ -68,6 +68,17 @@ uv run python scripts/neural/evaluate.py --dataset /data/particle_nerd \
 `--sleep-speed 0.01` keeps particles still that are predicted to move slower than 1 cm/s; it removes the slow
 sinking of a resting bed. `--active-k 2048` steps only the particles near the object, as the solver option
 `active_k` does.
+
+The closed-loop benchmark in `scripts/neural/benchmark/` runs an example task with Particle NeRD and with MPM,
+with the object coupled to the sand both ways, and compares the two runs. A case is an object (`box`, `sphere`,
+`cylinder`) and a motion (`push`, `circle`, `stamp`, `drop`); results go to `logs/neural/benchmark/<case>/`.
+
+```bash
+uv run python scripts/neural/benchmark/run_case.py --shape box --motion push --solver nerd
+uv run python scripts/neural/benchmark/run_case.py --shape box --motion push --solver mpm
+uv run python scripts/neural/benchmark/kinetic_energy.py logs/neural/benchmark/box-push
+uv run --with scikit-image python scripts/neural/benchmark/surface_distance.py logs/neural/benchmark/box-push
+```
 
 ## 4 Integration with Isaac Lab
 
