@@ -42,10 +42,10 @@ class ParticleNeRDSolverCfg(NewtonSolverCfg):
     selection_interval: int = 4
     """Number of steps between two selections of the stepped particles (only with :attr:`active_k`)."""
 
-    sleep_speed: float = 0.0
+    sleep_speed: float = 0.02
     """Speed below which a particle sleeps [m/s]. A particle whose predicted move in a step is shorter than
-    ``sleep_speed * dt`` keeps its position and gets zero velocity. 0 disables sleeping. The benchmark recommends
-    0.01: it stops the slow sinking of a resting bed and does not change the response to a moving collider."""
+    ``sleep_speed * dt`` keeps its position and gets zero velocity. 0 disables sleeping. Sleeping stops the slow
+    sinking of a resting bed."""
 
     compile_model: bool = True
     """Compile the network with :func:`torch.compile`."""
