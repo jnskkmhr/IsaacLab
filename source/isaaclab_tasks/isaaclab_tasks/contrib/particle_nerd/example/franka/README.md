@@ -4,14 +4,14 @@ Batched manager-based environment for a 7-DoF Franka Emika Panda manipulator cou
 
 ## Registered Gym Environments
 
-- `IsaacContrib-ParticleNeRDLocal-Franka-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
-- `IsaacContrib-ParticleNeRDLocal-Franka-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
+- `IsaacContrib-ParticleNeRD-Franka-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
+- `IsaacContrib-ParticleNeRD-Franka-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
 
 ## Usage
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-Franka-v0 \
+    --task IsaacContrib-ParticleNeRD-Franka-v0 \
     --num_envs 4 \
     --headless
 ```

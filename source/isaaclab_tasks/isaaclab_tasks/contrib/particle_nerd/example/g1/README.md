@@ -4,8 +4,8 @@ Batched manager-based environment for a 29-DoF Unitree G1 humanoid with box feet
 
 ## Registered Gym Environments
 
-- `IsaacContrib-ParticleNeRDLocal-G1-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
-- `IsaacContrib-ParticleNeRDLocal-G1-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
+- `IsaacContrib-ParticleNeRD-G1-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
+- `IsaacContrib-ParticleNeRD-G1-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
 
 ## Usage
 
@@ -14,7 +14,7 @@ Play the reference MPM policy (`5f1xyc21`):
 ```bash
 uv run --with wandb --extra ovrtx isaaclab play \
     --rl_library rsl_rl \
-    --task IsaacContrib-ParticleNeRDLocal-G1-v0 \
+    --task IsaacContrib-ParticleNeRD-G1-v0 \
     --num_envs 4 \
     --wandb_run 5f1xyc21 \
     --wandb_project g1_29dof_mpm_mixed_terrain \
@@ -33,7 +33,7 @@ To step without a policy:
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-G1-v0 \
+    --task IsaacContrib-ParticleNeRD-G1-v0 \
     --num_envs 4 \
     --headless
 ```

@@ -62,7 +62,7 @@ CIRCLE_RATE = 2.0 * math.pi / 2.0
 
 def task_name(shape: str, solver: str) -> str:
     """Gym task of the example scene for this object and solver."""
-    return f"IsaacContrib-ParticleNeRDLocal-{shape.capitalize()}{'-MPM' if solver == 'mpm' else ''}-v0"
+    return f"IsaacContrib-ParticleNeRD-{shape.capitalize()}{'-MPM' if solver == 'mpm' else ''}-v0"
 
 
 def main(argv: list[str] | None = None) -> int:

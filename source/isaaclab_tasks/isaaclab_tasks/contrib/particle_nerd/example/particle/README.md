@@ -6,8 +6,8 @@ The sand is released `0.20 m` above the floor, centred at `x = -0.15 m`. The sol
 
 ## Registered Gym Environments
 
-`IsaacContrib-ParticleNeRDLocal-Particle-<Shape>-<Motion>-v0` (Particle NeRD Local) and
-`IsaacContrib-ParticleNeRDLocal-Particle-<Shape>-<Motion>-MPM-v0` (implicit MPM ground truth), where
+`IsaacContrib-ParticleNeRD-Particle-<Shape>-<Motion>-v0` (Particle NeRD Local) and
+`IsaacContrib-ParticleNeRD-Particle-<Shape>-<Motion>-MPM-v0` (implicit MPM ground truth), where
 `<Shape>` is `Cube`, `Sphere` or `Cylinder` and `<Motion>` is:
 
 - `Drop`: released from rest.
@@ -19,7 +19,7 @@ Episodes last 6 s at 200 Hz (`decimation = 1`).
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-Particle-Cube-Throw-v0 \
+    --task IsaacContrib-ParticleNeRD-Particle-Cube-Throw-v0 \
     --num_envs 1 \
     --visualizer newton_gl
 ```

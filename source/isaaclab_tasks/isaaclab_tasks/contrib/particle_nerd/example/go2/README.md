@@ -4,14 +4,14 @@ Batched manager-based environment for a 12-DoF Unitree Go2 quadruped coupled two
 
 ## Registered Gym Environments
 
-- `IsaacContrib-ParticleNeRDLocal-Go2-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
-- `IsaacContrib-ParticleNeRDLocal-Go2-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
+- `IsaacContrib-ParticleNeRD-Go2-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
+- `IsaacContrib-ParticleNeRD-Go2-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
 
 ## Usage
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-Go2-v0 \
+    --task IsaacContrib-ParticleNeRD-Go2-v0 \
     --num_envs 4 \
     --headless
 ```

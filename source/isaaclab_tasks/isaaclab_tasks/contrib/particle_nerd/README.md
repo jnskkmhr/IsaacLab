@@ -86,20 +86,20 @@ The solver is configured with `ParticleNeRDSolverCfg` and loads `checkpoint/best
 tasks are in `example/`. Every task has an `-MPM-v0` twin that runs the same scene with implicit MPM.
 
 ```bash
---task IsaacContrib-ParticleNeRDLocal-Box-v0
---task IsaacContrib-ParticleNeRDLocal-Sphere-v0
---task IsaacContrib-ParticleNeRDLocal-Cylinder-v0
---task IsaacContrib-ParticleNeRDLocal-Franka-v0
---task IsaacContrib-ParticleNeRDLocal-Go2-v0
---task IsaacContrib-ParticleNeRDLocal-G1-v0
+--task IsaacContrib-ParticleNeRD-Box-v0
+--task IsaacContrib-ParticleNeRD-Sphere-v0
+--task IsaacContrib-ParticleNeRD-Cylinder-v0
+--task IsaacContrib-ParticleNeRD-Franka-v0
+--task IsaacContrib-ParticleNeRD-Go2-v0
+--task IsaacContrib-ParticleNeRD-G1-v0
 ```
 
 Run a task with zero or random actions, and its MPM twin for comparison:
 
 ```bash
-uv run python scripts/environments/zero_agent.py --task IsaacContrib-ParticleNeRDLocal-Box-v0 --num_envs 4
-uv run python scripts/environments/zero_agent.py --task IsaacContrib-ParticleNeRDLocal-Box-MPM-v0 --num_envs 4
-uv run python scripts/environments/random_agent.py --task IsaacContrib-ParticleNeRDLocal-Go2-v0 --num_envs 4 \
+uv run python scripts/environments/zero_agent.py --task IsaacContrib-ParticleNeRD-Box-v0 --num_envs 4
+uv run python scripts/environments/zero_agent.py --task IsaacContrib-ParticleNeRD-Box-MPM-v0 --num_envs 4
+uv run python scripts/environments/random_agent.py --task IsaacContrib-ParticleNeRD-Go2-v0 --num_envs 4 \
     --visualizer newton_gl
 ```
 
@@ -107,13 +107,13 @@ Train a policy with RSL-RL PPO. The tasks are set up to log to Weights & Biases,
 `agent.logger=tensorboard` logs to `logs/rsl_rl/` instead:
 
 ```bash
-uv run isaaclab train --rl_library rsl_rl --task IsaacContrib-ParticleNeRDLocal-Go2-v0 --num_envs 16 \
+uv run isaaclab train --rl_library rsl_rl --task IsaacContrib-ParticleNeRD-Go2-v0 --num_envs 16 \
     agent.logger=tensorboard
 ```
 
 Play a trained policy:
 
 ```bash
-uv run isaaclab play --rl_library rsl_rl --task IsaacContrib-ParticleNeRDLocal-Go2-v0 --num_envs 4 \
+uv run isaaclab play --rl_library rsl_rl --task IsaacContrib-ParticleNeRD-G1-v0 --num_envs 4 \
     --checkpoint /path/to/model.pt --viz newton_gl
 ```

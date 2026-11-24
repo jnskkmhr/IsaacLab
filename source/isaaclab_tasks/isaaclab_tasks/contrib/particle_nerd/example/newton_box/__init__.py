@@ -8,14 +8,14 @@
 import gymnasium as gym
 
 gym.register(
-    id="IsaacContrib-ParticleNeRDLocal-NewtonBox-v0",
+    id="IsaacContrib-ParticleNeRD-NewtonBox-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={"env_cfg_entry_point": f"{__name__}.newton_box_env_cfg:NewtonBoxEnvCfg"},
 )
 
 gym.register(
-    id="IsaacContrib-ParticleNeRDLocal-NewtonBox-MPM-v0",
+    id="IsaacContrib-ParticleNeRD-NewtonBox-MPM-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={"env_cfg_entry_point": f"{__name__}.newton_box_env_cfg:NewtonBoxMPMEnvCfg"},

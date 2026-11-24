@@ -13,7 +13,7 @@ for _shape in ("Cube", "Sphere", "Cylinder"):
     for _motion in ("Drop", "Throw"):
         for _suffix, _class_suffix in (("", ""), ("-MPM", "MPM")):
             gym.register(
-                id=f"IsaacContrib-ParticleNeRDLocal-Particle-{_shape}-{_motion}{_suffix}-v0",
+                id=f"IsaacContrib-ParticleNeRD-Particle-{_shape}-{_motion}{_suffix}-v0",
                 entry_point="isaaclab.envs:ManagerBasedRLEnv",
                 disable_env_checker=True,
                 kwargs={"env_cfg_entry_point": f"{_MODULE}:Particle{_shape}{_motion}{_class_suffix}EnvCfg"},

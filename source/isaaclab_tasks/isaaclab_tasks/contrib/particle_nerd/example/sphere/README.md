@@ -4,14 +4,14 @@ Batched manager-based environment for a dynamic rigid sphere (`radius = 0.10 m`,
 
 ## Registered Gym Environments
 
-- `IsaacContrib-ParticleNeRDLocal-Sphere-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
-- `IsaacContrib-ParticleNeRDLocal-Sphere-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
+- `IsaacContrib-ParticleNeRD-Sphere-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
+- `IsaacContrib-ParticleNeRD-Sphere-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
 
 ## Usage
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-Sphere-v0 \
+    --task IsaacContrib-ParticleNeRD-Sphere-v0 \
     --num_envs 4 \
     --headless
 ```

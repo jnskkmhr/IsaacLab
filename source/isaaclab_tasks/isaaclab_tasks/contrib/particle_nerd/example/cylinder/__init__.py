@@ -10,7 +10,7 @@ import gymnasium as gym
 from . import agents
 
 gym.register(
-    id="IsaacContrib-ParticleNeRDLocal-Cylinder-v0",
+    id="IsaacContrib-ParticleNeRD-Cylinder-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -23,7 +23,7 @@ gym.register(
 )
 
 gym.register(
-    id="IsaacContrib-ParticleNeRDLocal-Cylinder-MPM-v0",
+    id="IsaacContrib-ParticleNeRD-Cylinder-MPM-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

@@ -4,14 +4,14 @@ Batched manager-based environment for a dynamic rigid cylinder (`radius = 0.10 m
 
 ## Registered Gym Environments
 
-- `IsaacContrib-ParticleNeRDLocal-Cylinder-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
-- `IsaacContrib-ParticleNeRDLocal-Cylinder-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
+- `IsaacContrib-ParticleNeRD-Cylinder-v0`: Two-way coupled `ParticleNeRDSolver` + MuJoCo Warp rigid solver.
+- `IsaacContrib-ParticleNeRD-Cylinder-MPM-v0`: Ground-truth Implicit MPM + MuJoCo Warp counterpart.
 
 ## Usage
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-Cylinder-v0 \
+    --task IsaacContrib-ParticleNeRD-Cylinder-v0 \
     --num_envs 4 \
     --headless
 ```

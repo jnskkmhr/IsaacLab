@@ -8,14 +8,14 @@ The Particle NeRD Local network was trained with a single rigid collider. Six bo
 
 ## Registered Gym Environments
 
-- `IsaacContrib-ParticleNeRDLocal-NewtonBox-v0`: Particle NeRD Local + MuJoCo Warp.
-- `IsaacContrib-ParticleNeRDLocal-NewtonBox-MPM-v0`: implicit MPM + MuJoCo Warp.
+- `IsaacContrib-ParticleNeRD-NewtonBox-v0`: Particle NeRD Local + MuJoCo Warp.
+- `IsaacContrib-ParticleNeRD-NewtonBox-MPM-v0`: implicit MPM + MuJoCo Warp.
 
 ## Usage
 
 ```bash
 uv run --no-sync python scripts/environments/zero_agent.py \
-    --task IsaacContrib-ParticleNeRDLocal-NewtonBox-v0 \
+    --task IsaacContrib-ParticleNeRD-NewtonBox-v0 \
     --num_envs 1 \
     --visualizer newton_gl
 ```
