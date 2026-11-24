@@ -23,6 +23,7 @@ from isaaclab_tasks.contrib.g1_29dof_mpm.env_cfg.scene_cfg import MPM_VISUAL_COL
 from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
 VOXEL_SIZE = 0.04
+FOOT_MARGIN = 0.02
 SPACING = VOXEL_SIZE / 1.25
 SAND_DENSITY = 1600.0
 PARTICLE_JITTER = 0.20 * SPACING
@@ -74,7 +75,7 @@ class G1SceneCfg(InteractiveSceneCfg):
 
     robot = replace(UNITREE_G1_29DOF_BOX_FOOT_CFG, prim_path="{ENV_REGEX_NS}/Robot")
     robot.spawn.collision_props = {
-        r"/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=0.02, contact_gap=0.0)]
+        r"/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=FOOT_MARGIN, contact_gap=0.0)]
     }
     robot.init_state.pos = (-1.2, 0.0, 0.76)
 

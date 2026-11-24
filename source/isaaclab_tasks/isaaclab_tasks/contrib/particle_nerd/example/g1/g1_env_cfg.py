@@ -38,7 +38,7 @@ class G1ParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
         super().__post_init__()
         # The reference policy samples actions and observation history at 50 Hz.
         self.decimation = 4
-        self.episode_length_s = 12.0
+        self.episode_length_s = 6.0
         self.sim = make_particle_nerd_sim_cfg()
         self.sim.visualizer_cfgs = [
             NewtonGLVisualizerCfg(
