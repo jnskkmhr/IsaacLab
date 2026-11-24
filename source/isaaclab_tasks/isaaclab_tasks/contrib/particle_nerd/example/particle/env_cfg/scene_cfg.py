@@ -54,7 +54,9 @@ def block_positions(shape: str) -> list[list[float]]:
     return points.astype(np.float32).tolist()
 
 
-def _boundary_cfg(name: str, size: tuple[float, float, float], pos: tuple[float, float, float], visible: bool):
+def _boundary_cfg(
+    name: str, size: tuple[float, float, float], pos: tuple[float, float, float], visible: bool
+) -> AssetBaseCfg:
     return AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/" + name,
         spawn=sim.CuboidCfg(
@@ -118,7 +120,7 @@ class ParticleSceneCfg(InteractiveSceneCfg):
             ),
         )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         wall_height = 0.5
         self.floor = _boundary_cfg("Floor", (4.0, 4.0, 0.20), (0.0, 0.0, FLOOR_TOP_Z - 0.10), True)
         self.wall_x0 = _boundary_cfg("WallX0", (0.10, 4.0, wall_height), (-10.0, 0.0, 0.0), False)
@@ -137,7 +139,7 @@ class ParticleSceneCfg(InteractiveSceneCfg):
 class ParticleCubeSceneCfg(ParticleSceneCfg):
     """Cube-shaped sand block."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self._add_sand("cube")
 
@@ -146,7 +148,7 @@ class ParticleCubeSceneCfg(ParticleSceneCfg):
 class ParticleSphereSceneCfg(ParticleSceneCfg):
     """Sphere-shaped sand block."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self._add_sand("sphere")
 
@@ -155,6 +157,6 @@ class ParticleSphereSceneCfg(ParticleSceneCfg):
 class ParticleCylinderSceneCfg(ParticleSceneCfg):
     """Cylinder-shaped sand block with a vertical axis."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self._add_sand("cylinder")

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import torch
@@ -70,7 +71,7 @@ class foot_air_time(ManagerTermBase):
         self._air_time = torch.zeros_like(foot_contact(env))
         self._step = -1
 
-    def reset(self, env_ids=None):
+    def reset(self, env_ids: Sequence[int] | None = None) -> None:
         self._air_time[slice(None) if env_ids is None else env_ids] = 0.0
 
     def __call__(self, env: ManagerBasedRLEnv, filter_time: float = 0.5) -> torch.Tensor:

@@ -5,19 +5,26 @@
 
 """Observation and reset terms for the `go2` quadruped granular locomotion task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
-def go2_base_pos(env) -> torch.Tensor:
+
+def go2_base_pos(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return Unitree Go2 trunk position relative to environment origin [num_envs, 3]."""
     pos = env.scene["robot"].data.root_pos_w.torch.clone()
     return pos - env.scene.env_origins
 
 
-def reset_sand_particles(env, env_ids: torch.Tensor) -> None:
+def reset_sand_particles(env: ManagerBasedRLEnv, env_ids: torch.Tensor) -> None:
     """Restore particle positions and reset MPM / Particle NeRD solver histories on reset."""
     ids = torch.arange(env.num_envs, device=env.device)[env_ids]
     if ids.numel() == 0:

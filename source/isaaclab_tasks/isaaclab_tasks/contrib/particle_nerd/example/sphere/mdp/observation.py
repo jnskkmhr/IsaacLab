@@ -5,6 +5,10 @@
 
 """Observation and reset terms for the `sphere` two-way coupling task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import newton
 import torch
 import warp as wp
@@ -12,11 +16,15 @@ from isaaclab_newton.physics import NewtonManager
 
 from isaaclab.managers import ActionTerm
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
+    from isaaclab.managers import ActionTermCfg
+
 
 class SphereWrenchAction(ActionTerm):
     """Apply world-frame 3D force and torque at the rigid sphere center of mass."""
 
-    def __init__(self, cfg, env):
+    def __init__(self, cfg: ActionTermCfg, env: ManagerBasedEnv):
         super().__init__(cfg, env)
         self._scale = float(getattr(cfg, "scale", 250.0))
         self._actions = torch.zeros((env.num_envs, 6), device=env.device)
@@ -48,26 +56,28 @@ class SphereWrenchAction(ActionTerm):
         )
 
 
-def sphere_pose(env) -> torch.Tensor:
+def sphere_pose(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return sphere position relative to env origin and orientation quaternion [num_envs, 7]."""
     pose = env.scene["sphere"].data.root_pose_w.torch.clone()
     pose[:, :3] -= env.scene.env_origins
     return pose
 
 
-def sphere_lin_vel(env) -> torch.Tensor:
+def sphere_lin_vel(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return sphere world linear and angular velocity [num_envs, 6]."""
     return env.scene["sphere"].data.root_vel_w.torch
 
 
-def sphere_target_error(env, target_pos: tuple[float, float, float] = (0.0, 0.0, 0.25)) -> torch.Tensor:
+def sphere_target_error(
+    env: ManagerBasedRLEnv, target_pos: tuple[float, float, float] = (0.0, 0.0, 0.25)
+) -> torch.Tensor:
     """Return 3D offset from sphere position (in env frame) to target support position."""
     pos = env.scene["sphere"].data.root_pose_w.torch[:, :3] - env.scene.env_origins
     target = pos.new_tensor(target_pos).unsqueeze(0)
     return target - pos
 
 
-def reset_sand_particles(env, env_ids: torch.Tensor) -> None:
+def reset_sand_particles(env: ManagerBasedRLEnv, env_ids: torch.Tensor) -> None:
     """Restore particle positions and reset MPM / Particle NeRD solver histories on reset."""
     ids = torch.arange(env.num_envs, device=env.device)[env_ids]
     if ids.numel() == 0:

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import newton
 import numpy as np
@@ -38,6 +39,9 @@ from .nerd_kernels import (
 from .nerd_wrench_solver import ContactWrenchSolver
 from .network.feature_builder import material_features
 from .network.nerd_network import ParticleNeRDNetwork
+
+if TYPE_CHECKING:
+    from .nerd_solver_cfg import ParticleNeRDSolverCfg
 
 _NETWORK_KINDS = {
     int(newton.GeoType.BOX): 1,
@@ -126,7 +130,7 @@ def resolve_active_k(active_k: int | str | None, num_particles: int, material: t
 class ParticleNeRDSolver(SolverBase, CouplingInterface):
     """Step the particles with a trained network and return the contact wrenches on the colliders."""
 
-    def __init__(self, model: newton.Model, cfg):
+    def __init__(self, model: newton.Model, cfg: ParticleNeRDSolverCfg):
         """Initialize the solver.
 
         Args:
@@ -283,7 +287,7 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
             )
             for env in range(num_envs)
         ]
-        self.mat_env = torch.stack(materials, dim=0).contiguous()
+        self.mat_env = torch.stack(materials, dim=0).to(device).contiguous()
 
         if cfg.compile_model:
             self.network.encode = torch.compile(
@@ -327,7 +331,7 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
             contact_offset=cfg.contact_offset,
         )
 
-    def notify_model_changed(self, flags):
+    def notify_model_changed(self, flags: newton.ModelFlags | int) -> None:
         if flags & newton.ModelFlags.BODY_INERTIAL_PROPERTIES:
             self.wrench_solver.refresh_body_inertia()
 
@@ -341,7 +345,14 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
         )
         self._has_neural_state = True
 
-    def coupling_rewind_proxy_body(self, mapping, state, forces, body_gravity_acceleration, dt):
+    def coupling_rewind_proxy_body(
+        self,
+        mapping: wp.array,
+        state: newton.State,
+        forces: wp.array,
+        body_gravity_acceleration: wp.array,
+        dt: float,
+    ) -> None:
         del body_gravity_acceleration
         wp.launch(
             rewind_proxy,
@@ -350,7 +361,7 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
             device=self.model.device,
         )
 
-    def coupling_harvest_proxy_wrenches(self, mapping, out_body_f, **kwargs):
+    def coupling_harvest_proxy_wrenches(self, mapping: wp.array, out_body_f: wp.array, **kwargs: object) -> None:
         del kwargs
         out_body_f.zero_()
         wp.launch(
@@ -360,7 +371,12 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
             device=self.model.device,
         )
 
-    def reset(self, state, world_mask=None, flags=None):
+    def reset(
+        self,
+        state: newton.State,
+        world_mask: wp.array | None = None,
+        flags: newton.StateFlags | int | None = None,
+    ) -> None:
         self._normalize_reset_world_mask(world_mask)
         if flags is not None and not (flags & newton.StateFlags.PARTICLE):
             return
@@ -455,7 +471,16 @@ class ParticleNeRDSolver(SolverBase, CouplingInterface):
         self._gamma.copy_(tau * tau * (3.0 - 2.0 * tau))
 
     @torch.inference_mode()
-    def step(self, state_in, state_out, control, contacts, dt, *, observables=None):
+    def step(
+        self,
+        state_in: newton.State,
+        state_out: newton.State,
+        control: newton.Control | None,
+        contacts: newton.Contacts | None,
+        dt: float,
+        *,
+        observables: SolverBase.Observables | None = None,
+    ) -> None:
         del control
         self.validate_observables(observables, contacts)
         if self.model.particle_count == 0:

@@ -5,11 +5,18 @@
 
 """Reward terms for the `franka` sand-pushing task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
+
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
 
 def franka_ee_sand_immersion_reward(
-    env,
+    env: ManagerBasedRLEnv,
     target_z: float = 0.08,
     std: float = 0.10,
 ) -> torch.Tensor:
@@ -20,11 +27,11 @@ def franka_ee_sand_immersion_reward(
     return torch.exp(-((z - target_z) ** 2) / (std * std))
 
 
-def franka_action_l2(env) -> torch.Tensor:
+def franka_action_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     """L2 penalty on joint position actions."""
     return env.action_manager.action.square().sum(dim=-1)
 
 
-def franka_alive_bonus(env) -> torch.Tensor:
+def franka_alive_bonus(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Constant alive reward per step."""
     return torch.ones(env.num_envs, device=env.device)

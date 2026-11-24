@@ -5,19 +5,26 @@
 
 """Observation and reset terms for the `g1` humanoid granular locomotion task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
-def g1_base_pos(env) -> torch.Tensor:
+
+def g1_base_pos(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return Unitree G1 pelvis position relative to environment origin [num_envs, 3]."""
     pos = env.scene["robot"].data.root_pos_w.torch.clone()
     return pos - env.scene.env_origins
 
 
-def g1_velocity_command(env, forward_speed: float = 0.35) -> torch.Tensor:
+def g1_velocity_command(env: ManagerBasedRLEnv, forward_speed: float = 0.35) -> torch.Tensor:
     """Return 7D forward velocity + heading quaternion command [num_envs, 7]."""
     result = torch.zeros((env.num_envs, 7), device=env.device)
     result[:, 0] = forward_speed
@@ -25,7 +32,7 @@ def g1_velocity_command(env, forward_speed: float = 0.35) -> torch.Tensor:
     return result
 
 
-def reset_sand_particles(env, env_ids: torch.Tensor) -> None:
+def reset_sand_particles(env: ManagerBasedRLEnv, env_ids: torch.Tensor) -> None:
     """Restore particle positions and reset MPM / Particle NeRD solver histories on reset."""
     ids = torch.arange(env.num_envs, device=env.device)[env_ids]
     if ids.numel() == 0:

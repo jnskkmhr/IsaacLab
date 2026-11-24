@@ -74,21 +74,21 @@ class _DifferentiableFeatures(torch.autograd.Function):
 
     @staticmethod
     def forward(
-        ctx,
-        history,
-        poses,
-        velocities,
-        kinds,
-        sizes,
-        friction,
-        material,
-        dt,
-        support,
-        far_support_scale,
-        far_gap_weight,
-        far_influence_weight,
-        gravity,
-    ):
+        ctx: torch.autograd.function.FunctionCtx,
+        history: torch.Tensor,
+        poses: torch.Tensor,
+        velocities: torch.Tensor,
+        kinds: torch.Tensor,
+        sizes: torch.Tensor,
+        friction: torch.Tensor,
+        material: torch.Tensor,
+        dt: float,
+        support: float,
+        far_support_scale: float,
+        far_gap_weight: float,
+        far_influence_weight: float,
+        gravity: tuple[float, float, float],
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         n, h = history.shape[:2]
         device = str(history.device)
         grad = wp.zeros(history.shape, dtype=float, device=device) if history.requires_grad else None
@@ -133,7 +133,9 @@ class _DifferentiableFeatures(torch.autograd.Function):
         return tuple(wp.to_torch(x) for x in ctx.outputs)
 
     @staticmethod
-    def backward(ctx, *gradients):
+    def backward(
+        ctx: torch.autograd.function.FunctionCtx, *gradients: torch.Tensor | None
+    ) -> tuple[torch.Tensor | None, ...]:
         with wp.ScopedStream(wp.stream_from_torch(torch.cuda.current_stream(ctx.device))):
             grads = {out: wp.from_torch(g.contiguous()) for out, g in zip(ctx.outputs, gradients) if g is not None}
             ctx.tape.zero()

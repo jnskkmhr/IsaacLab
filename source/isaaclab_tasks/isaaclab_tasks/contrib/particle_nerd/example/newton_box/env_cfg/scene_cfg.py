@@ -70,7 +70,9 @@ def bed_positions() -> list[list[float]]:
     return points.astype(np.float32).tolist()
 
 
-def _boundary_cfg(name: str, size, pos, visible: bool) -> AssetBaseCfg:
+def _boundary_cfg(
+    name: str, size: tuple[float, float, float], pos: tuple[float, float, float], visible: bool
+) -> AssetBaseCfg:
     return AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/" + name,
         spawn=sim.CuboidCfg(
@@ -139,7 +141,7 @@ class NewtonBoxSceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         wall = 0.5
         self.floor = _boundary_cfg("Floor", (30.0, 30.0, 0.20), (0.0, 0.0, -0.10), True)
         self.wall_x0 = _boundary_cfg("WallX0", (0.10, 30.0, wall), (-10.0, 0.0, 0.0), False)

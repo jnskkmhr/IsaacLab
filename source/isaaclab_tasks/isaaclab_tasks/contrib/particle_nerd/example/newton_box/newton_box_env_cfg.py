@@ -21,7 +21,7 @@ from .env_cfg.physics_cfg import make_mpm_coupler_sim_cfg, make_particle_nerd_si
 from .env_cfg.scene_cfg import MPM_VISUAL_COLOR, NewtonBoxSceneCfg
 
 
-def _visualizers():
+def _visualizers() -> list[NewtonGLVisualizerCfg | NewtonRTXVisualizerCfg]:
     eye, lookat = (3.5, -4.0, 2.5), (0.0, 0.0, 0.8)
     return [
         NewtonGLVisualizerCfg(
@@ -56,7 +56,7 @@ class NewtonBoxEnvCfg(ManagerBasedRLEnvCfg):
     events: ParticleEventsCfg = ParticleEventsCfg()
     curriculum: ParticleCurriculumCfg = ParticleCurriculumCfg()
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.decimation = 1
         self.episode_length_s = 6.0
@@ -68,7 +68,7 @@ class NewtonBoxEnvCfg(ManagerBasedRLEnvCfg):
 class NewtonBoxMPMEnvCfg(NewtonBoxEnvCfg):
     """The same scene with the implicit MPM ground-truth solver."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()

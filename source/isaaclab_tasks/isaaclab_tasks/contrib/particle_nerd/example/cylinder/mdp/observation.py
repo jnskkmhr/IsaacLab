@@ -5,6 +5,10 @@
 
 """Observation and reset terms for the `cylinder` two-way coupling task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import newton
 import torch
 import warp as wp
@@ -12,11 +16,15 @@ from isaaclab_newton.physics import NewtonManager
 
 from isaaclab.managers import ActionTerm
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedEnv, ManagerBasedRLEnv
+    from isaaclab.managers import ActionTermCfg
+
 
 class CylinderWrenchAction(ActionTerm):
     """Apply world-frame 3D force and torque at the rigid cylinder center of mass."""
 
-    def __init__(self, cfg, env):
+    def __init__(self, cfg: ActionTermCfg, env: ManagerBasedEnv):
         super().__init__(cfg, env)
         self._scale = float(getattr(cfg, "scale", 250.0))
         self._actions = torch.zeros((env.num_envs, 6), device=env.device)
@@ -48,26 +56,28 @@ class CylinderWrenchAction(ActionTerm):
         )
 
 
-def cylinder_pose(env) -> torch.Tensor:
+def cylinder_pose(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return cylinder position relative to env origin and orientation quaternion [num_envs, 7]."""
     pose = env.scene["cylinder"].data.root_pose_w.torch.clone()
     pose[:, :3] -= env.scene.env_origins
     return pose
 
 
-def cylinder_lin_vel(env) -> torch.Tensor:
+def cylinder_lin_vel(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return cylinder world linear and angular velocity [num_envs, 6]."""
     return env.scene["cylinder"].data.root_vel_w.torch
 
 
-def cylinder_target_error(env, target_pos: tuple[float, float, float] = (0.0, 0.0, 0.25)) -> torch.Tensor:
+def cylinder_target_error(
+    env: ManagerBasedRLEnv, target_pos: tuple[float, float, float] = (0.0, 0.0, 0.25)
+) -> torch.Tensor:
     """Return 3D offset from cylinder position (in env frame) to target support position."""
     pos = env.scene["cylinder"].data.root_pose_w.torch[:, :3] - env.scene.env_origins
     target = pos.new_tensor(target_pos).unsqueeze(0)
     return target - pos
 
 
-def reset_sand_particles(env, env_ids: torch.Tensor) -> None:
+def reset_sand_particles(env: ManagerBasedRLEnv, env_ids: torch.Tensor) -> None:
     """Restore particle positions and reset MPM / Particle NeRD solver histories on reset."""
     ids = torch.arange(env.num_envs, device=env.device)[env_ids]
     if ids.numel() == 0:

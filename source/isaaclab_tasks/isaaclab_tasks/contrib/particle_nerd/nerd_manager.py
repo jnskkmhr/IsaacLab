@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import gc
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import newton
 import torch
@@ -25,6 +25,13 @@ from isaaclab.physics import PhysicsManager
 from isaaclab_contrib.coupling.coupler import NewtonCouplerManager
 
 from .nerd_solver_cfg import ParticleNeRDSolverCfg
+
+if TYPE_CHECKING:
+    from isaaclab_newton.physics import NewtonSolverCfg
+
+    from isaaclab_contrib.coupling.coupler_cfg import CouplerCfg
+
+    from .nerd_solver import ParticleNeRDSolver
 
 _MATERIAL_ATTRIBUTES = (
     ("young_modulus", 1.0e15),
@@ -68,7 +75,7 @@ class NewtonParticleNeRDManager(NewtonManager):
     """Build a :class:`~.nerd_solver.ParticleNeRDSolver` for a coupler entry."""
 
     @classmethod
-    def _register_builder_attributes(cls, builder):
+    def _register_builder_attributes(cls, builder: newton.ModelBuilder) -> None:
         # Register only the material parameters that the particle asset writes. The MPM solver would also
         # register its per-particle state (148 bytes per particle in every model and state copy).
         if builder.has_custom_attribute("mpm:young_modulus"):
@@ -86,7 +93,7 @@ class NewtonParticleNeRDManager(NewtonManager):
             )
 
     @classmethod
-    def _prepare_builder_for_finalize(cls, builder):
+    def _prepare_builder_for_finalize(cls, builder: newton.ModelBuilder) -> None:
         for name in _MPM_STATE_ATTRIBUTES:
             builder.custom_attributes.pop(name, None)
         # Kinematic bodies get zero mass, so the wrench solver treats them as immovable
@@ -99,7 +106,7 @@ class NewtonParticleNeRDManager(NewtonManager):
                 builder.body_inv_inertia[body] = wp.mat33()
 
     @classmethod
-    def _create_solver(cls, model, solver_cfg):
+    def _create_solver(cls, model: newton.Model, solver_cfg: ParticleNeRDSolverCfg) -> ParticleNeRDSolver:
         from .nerd_solver import ParticleNeRDSolver
 
         return ParticleNeRDSolver(model, solver_cfg)
@@ -113,14 +120,14 @@ class NewtonParticleNeRDCouplerManager(NewtonCouplerManager):
     _solver_graph_signature: ClassVar[tuple | None] = None
 
     @classmethod
-    def _solver_specific_clear(cls):
+    def _solver_specific_clear(cls) -> None:
         cls._solver_graphs = {}
         cls._solver_graph_pool = None
         cls._solver_graph_signature = None
         super()._solver_specific_clear()
 
     @classmethod
-    def _build_solver(cls, model, solver_cfg):
+    def _build_solver(cls, model: newton.Model, solver_cfg: CouplerCfg) -> None:
         # Free the host-side particle lists of the finalized builders before the coupled solver creates its
         # per-entry views; with many environments they otherwise exhaust the host memory.
         from isaaclab.sim import SimulationContext
@@ -156,13 +163,13 @@ class NewtonParticleNeRDCouplerManager(NewtonCouplerManager):
                 model.particle_count = particle_count
 
     @staticmethod
-    def _requires_external_contacts(solver_cfg):
+    def _requires_external_contacts(solver_cfg: NewtonSolverCfg) -> bool:
         if isinstance(solver_cfg, ParticleNeRDSolverCfg):
             return False
         return NewtonCouplerManager._requires_external_contacts(solver_cfg)
 
     @classmethod
-    def _get_cuda_graph_model_signature(cls):
+    def _get_cuda_graph_model_signature(cls) -> tuple:
         return (
             tuple((name, getattr(entry.solver, "capture_revision", 0)) for name, entry in cls._solver._entries.items())
             if cls._solver is not None
@@ -170,7 +177,14 @@ class NewtonParticleNeRDCouplerManager(NewtonCouplerManager):
         )
 
     @classmethod
-    def _step_solver(cls, state_0, state_1, control, contacts, substep_dt):
+    def _step_solver(
+        cls,
+        state_0: newton.State,
+        state_1: newton.State,
+        control: newton.Control,
+        contacts: newton.Contacts | None,
+        substep_dt: float,
+    ) -> None:
         from .nerd_solver import ParticleNeRDSolver
 
         neural_solvers = []

@@ -5,9 +5,17 @@
 
 """Placeholder action term for the `particle` task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 
 from isaaclab.managers import ActionTerm
+
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedEnv
+    from isaaclab.managers import ActionTermCfg
 
 
 class NullAction(ActionTerm):
@@ -16,7 +24,7 @@ class NullAction(ActionTerm):
     The scene is passive (a free sand block), but the action manager needs at least one term.
     """
 
-    def __init__(self, cfg, env):
+    def __init__(self, cfg: ActionTermCfg, env: ManagerBasedEnv):
         super().__init__(cfg, env)
         self._actions = torch.zeros((env.num_envs, 1), device=env.device)
 

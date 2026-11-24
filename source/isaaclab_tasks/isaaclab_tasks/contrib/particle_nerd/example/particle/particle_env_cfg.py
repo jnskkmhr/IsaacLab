@@ -29,7 +29,7 @@ THROW_VELOCITY = (1.0, 0.0, 0.25)
 """World-frame release velocity of the tossed blocks (m/s)."""
 
 
-def _visualizers():
+def _visualizers() -> list[NewtonGLVisualizerCfg | NewtonRTXVisualizerCfg]:
     eye, lookat = (1.05, -1.7, 0.45), (0.2, 0.0, -0.22)
     return [
         NewtonGLVisualizerCfg(
@@ -58,7 +58,7 @@ class ParticleEnvCfg(ManagerBasedRLEnvCfg):
     curriculum: ParticleCurriculumCfg = ParticleCurriculumCfg()
     release_velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.decimation = 1
         self.episode_length_s = 6.0
@@ -119,7 +119,7 @@ class ParticleCylinderThrowEnvCfg(ParticleEnvCfg):
 class ParticleCubeDropMPMEnvCfg(ParticleCubeDropEnvCfg):
     """Cube of sand dropped from rest; implicit MPM ground truth."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()
@@ -129,7 +129,7 @@ class ParticleCubeDropMPMEnvCfg(ParticleCubeDropEnvCfg):
 class ParticleCubeThrowMPMEnvCfg(ParticleCubeThrowEnvCfg):
     """Cube of sand tossed at 1.0 m/s along +x and 0.25 m/s up; implicit MPM ground truth."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()
@@ -139,7 +139,7 @@ class ParticleCubeThrowMPMEnvCfg(ParticleCubeThrowEnvCfg):
 class ParticleSphereDropMPMEnvCfg(ParticleSphereDropEnvCfg):
     """Sphere of sand dropped from rest; implicit MPM ground truth."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()
@@ -149,7 +149,7 @@ class ParticleSphereDropMPMEnvCfg(ParticleSphereDropEnvCfg):
 class ParticleSphereThrowMPMEnvCfg(ParticleSphereThrowEnvCfg):
     """Sphere of sand tossed at 1.0 m/s along +x and 0.25 m/s up; implicit MPM ground truth."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()
@@ -159,7 +159,7 @@ class ParticleSphereThrowMPMEnvCfg(ParticleSphereThrowEnvCfg):
 class ParticleCylinderDropMPMEnvCfg(ParticleCylinderDropEnvCfg):
     """Cylinder of sand dropped from rest; implicit MPM ground truth."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()
@@ -169,7 +169,7 @@ class ParticleCylinderDropMPMEnvCfg(ParticleCylinderDropEnvCfg):
 class ParticleCylinderThrowMPMEnvCfg(ParticleCylinderThrowEnvCfg):
     """Cylinder of sand tossed at 1.0 m/s along +x and 0.25 m/s up; implicit MPM ground truth."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = _visualizers()

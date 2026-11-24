@@ -5,13 +5,20 @@
 
 """Observation and reset terms for the `franka` sand-pushing task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
-def franka_ee_pos(env) -> torch.Tensor:
+
+def franka_ee_pos(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return `panda_hand` position relative to environment origin [num_envs, 3]."""
     robot = env.scene["robot"]
     hand_idx = robot.body_names.index("panda_hand")
@@ -19,7 +26,7 @@ def franka_ee_pos(env) -> torch.Tensor:
     return pos - env.scene.env_origins
 
 
-def reset_sand_particles(env, env_ids: torch.Tensor) -> None:
+def reset_sand_particles(env: ManagerBasedRLEnv, env_ids: torch.Tensor) -> None:
     """Restore particle positions and reset MPM / Particle NeRD solver histories on reset."""
     ids = torch.arange(env.num_envs, device=env.device)[env_ids]
     if ids.numel() == 0:

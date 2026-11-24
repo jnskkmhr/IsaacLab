@@ -8,12 +8,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 if TYPE_CHECKING:
     from pxr import Usd
+
+    from isaaclab.assets import ArticulationCfg
 
 from isaaclab_newton.assets import MPMObjectCfg
 from isaaclab_newton.sim.schemas import MujocoJointCfg, NewtonCollisionCfg
@@ -77,7 +79,7 @@ def _spawn_fixed_paddle(
     cfg: sim.CuboidCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Usd.Prim:
     """Spawn a mass-bearing box paddle welded to its parent rigid body (`panda_hand`)."""
     from pxr import Gf, Sdf, UsdGeom, UsdPhysics  # noqa: PLC0415
@@ -88,7 +90,7 @@ def _spawn_fixed_paddle(
         cfg: sim.CuboidCfg,
         translation: tuple[float, float, float] | None = None,
         orientation: tuple[float, float, float, float] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Usd.Prim:
         paddle_prim = sim.spawn_cuboid(
             prim_path,
@@ -123,7 +125,7 @@ def _spawn_franka_with_paddle(
     cfg: FrankaWithPaddleCfg,
     translation: tuple[float, float, float] | None = None,
     orientation: tuple[float, float, float, float] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Usd.Prim:
     """Author the welded box paddle under `panda_hand` inside the robot's clone prototype."""
     robot_prim = sim.spawn_from_usd(prim_path, cfg, translation, orientation, **kwargs)
@@ -158,7 +160,7 @@ class FrankaWithPaddleCfg(sim.UsdFileCfg):
     )
 
 
-def _make_franka_paddle_robot_cfg():
+def _make_franka_paddle_robot_cfg() -> ArticulationCfg:
     cfg = replace(FRANKA_PANDA_HIGH_PD_CFG, prim_path="{ENV_REGEX_NS}/Robot")
     old_spawn = cfg.spawn
     cfg.spawn = FrankaWithPaddleCfg(
@@ -224,7 +226,7 @@ class FrankaSceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         length, width, depth = BED_SIZE
         wall_top = 0.04
         wall_height = depth + wall_top

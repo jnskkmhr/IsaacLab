@@ -5,11 +5,18 @@
 
 """Reward terms for the `box` two-way coupling task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
+
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
 
 def box_target_position_reward(
-    env,
+    env: ManagerBasedRLEnv,
     target_pos: tuple[float, float, float] = (0.0, 0.0, 0.25),
     std: float = 0.25,
 ) -> torch.Tensor:
@@ -20,17 +27,17 @@ def box_target_position_reward(
     return torch.exp(-dist_sq / (std * std))
 
 
-def box_height_support_reward(env, min_height: float = -0.05) -> torch.Tensor:
+def box_height_support_reward(env: ManagerBasedRLEnv, min_height: float = -0.05) -> torch.Tensor:
     """Reward keeping the box supported above the sand bed surface."""
     z = env.scene["box"].data.root_pose_w.torch[:, 2] - env.scene.env_origins[:, 2]
     return (z > min_height).float()
 
 
-def box_action_l2(env) -> torch.Tensor:
+def box_action_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     """L2 penalty on applied wrench actions."""
     return env.action_manager.action.square().sum(dim=-1)
 
 
-def box_alive_bonus(env) -> torch.Tensor:
+def box_alive_bonus(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Constant alive reward per step."""
     return torch.ones(env.num_envs, device=env.device)

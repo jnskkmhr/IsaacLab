@@ -100,7 +100,7 @@ class G1SceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         length, width, depth = BED_SIZE
         wall_top = 0.20
         wall_height = depth + wall_top

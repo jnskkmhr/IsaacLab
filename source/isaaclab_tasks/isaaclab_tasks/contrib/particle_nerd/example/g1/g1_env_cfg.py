@@ -34,7 +34,7 @@ class G1ParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
     events: G1EventsCfg = G1EventsCfg()
     curriculum: G1CurriculumCfg = G1CurriculumCfg()
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         # The reference policy samples actions and observation history at 50 Hz.
         self.decimation = 4
@@ -65,7 +65,7 @@ class G1ParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
 class G1MPMCouplerEnvCfg(G1ParticleNeRDEnvCfg):
     """Ground-truth Implicit MPM counterpart using `NewtonMPMCouplerManager`."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = [

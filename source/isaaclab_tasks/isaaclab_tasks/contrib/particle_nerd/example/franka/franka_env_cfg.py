@@ -34,7 +34,7 @@ class FrankaParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
     events: FrankaEventsCfg = FrankaEventsCfg()
     curriculum: FrankaCurriculumCfg = FrankaCurriculumCfg()
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.decimation = 1
         self.episode_length_s = 6.0
@@ -64,7 +64,7 @@ class FrankaParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
 class FrankaMPMCouplerEnvCfg(FrankaParticleNeRDEnvCfg):
     """Ground-truth Implicit MPM counterpart using `NewtonMPMCouplerManager`."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = [

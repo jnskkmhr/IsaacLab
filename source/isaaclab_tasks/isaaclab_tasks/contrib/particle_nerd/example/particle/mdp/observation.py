@@ -5,19 +5,28 @@
 
 """Observation and reset terms for the `particle` task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import NewtonManager
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
-def block_center_of_mass(env) -> torch.Tensor:
+
+def block_center_of_mass(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Return the mean particle position of the sand block relative to the env origin [num_envs, 3]."""
     positions = wp.to_torch(NewtonManager.get_state_0().particle_q).view(env.num_envs, -1, 3)
     return positions.mean(dim=1) - env.scene.env_origins
 
 
-def reset_particle_block(env, env_ids: torch.Tensor, velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> None:
+def reset_particle_block(
+    env: ManagerBasedRLEnv, env_ids: torch.Tensor, velocity: tuple[float, float, float] = (0.0, 0.0, 0.0)
+) -> None:
     """Restore the sand block to its release pose with a uniform initial velocity and reset solver history.
 
     Args:

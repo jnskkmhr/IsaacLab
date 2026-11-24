@@ -415,7 +415,7 @@ class ParticleNeRDNetwork(nn.Module):
         support: float = 0.07,
         gravity: tuple[float, float, float] = (0.0, 0.0, -9.81),
         return_vel: bool = False,
-    ):
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """One step of one environment; differentiable with respect to ``history`` (used for training).
 
         Args:

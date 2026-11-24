@@ -34,7 +34,7 @@ class BoxParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
     events: BoxEventsCfg = BoxEventsCfg()
     curriculum: BoxCurriculumCfg = BoxCurriculumCfg()
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.decimation = 1
         self.episode_length_s = 6.0
@@ -44,18 +44,19 @@ class BoxParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
                 eye=(1.65, -2.0, 1.55),
                 lookat=(0.0, 0.0, -0.05),
                 focal_length=24.0,
-                origin_type="asset",
-                origin_track_path="box",
-                show_particles=True,
+                # origin_type="asset",
+                # origin_track_path="box",
+                # show_particles=True,
                 particle_color=MPM_VISUAL_COLOR,
                 streaming_view=False,
+                show_particles=True,
             ),
             NewtonRTXVisualizerCfg(
                 eye=(1.65, -2.0, 1.55),
                 lookat=(0.0, 0.0, -0.05),
                 focal_length=20.0,
-                origin_type="asset",
-                origin_track_path="box",
+                # origin_type="asset",
+                # origin_track_path="box",
                 streaming_view=False,
             ),
         ]
@@ -65,7 +66,7 @@ class BoxParticleNeRDEnvCfg(ManagerBasedRLEnvCfg):
 class BoxMPMCouplerEnvCfg(BoxParticleNeRDEnvCfg):
     """Ground-truth Implicit MPM counterpart using `NewtonMPMCouplerManager`."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         self.sim = make_mpm_coupler_sim_cfg()
         self.sim.visualizer_cfgs = [

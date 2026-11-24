@@ -5,26 +5,33 @@
 
 """Reward terms for the `g1` humanoid granular locomotion task."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedRLEnv
 
-def g1_forward_vel_reward(env, target_vx: float = 0.25, std: float = 0.25) -> torch.Tensor:
+
+def g1_forward_vel_reward(env: ManagerBasedRLEnv, target_vx: float = 0.25, std: float = 0.25) -> torch.Tensor:
     """Exponential kernel reward for tracking forward velocity along +X over sand."""
     vx = env.scene["robot"].data.root_lin_vel_b.torch[:, 0]
     return torch.exp(-((vx - target_vx) ** 2) / (std * std))
 
 
-def g1_base_height_reward(env, target_z: float = 0.74, std: float = 0.10) -> torch.Tensor:
+def g1_base_height_reward(env: ManagerBasedRLEnv, target_z: float = 0.74, std: float = 0.10) -> torch.Tensor:
     """Reward maintaining nominal humanoid standing height on the sand bed."""
     z = env.scene["robot"].data.root_pos_w.torch[:, 2] - env.scene.env_origins[:, 2]
     return torch.exp(-((z - target_z) ** 2) / (std * std))
 
 
-def g1_action_l2(env) -> torch.Tensor:
+def g1_action_l2(env: ManagerBasedRLEnv) -> torch.Tensor:
     """L2 penalty on joint position actions."""
     return env.action_manager.action.square().sum(dim=-1)
 
 
-def g1_alive_bonus(env) -> torch.Tensor:
+def g1_alive_bonus(env: ManagerBasedRLEnv) -> torch.Tensor:
     """Constant alive reward per step."""
     return torch.ones(env.num_envs, device=env.device)
