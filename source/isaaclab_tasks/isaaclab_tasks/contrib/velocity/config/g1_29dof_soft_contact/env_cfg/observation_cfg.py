@@ -21,7 +21,7 @@ from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 from isaaclab_tasks.contrib.velocity.config.g1_29dof_soft_contact import mdp as soft_mdp
 from isaaclab_tasks.contrib.velocity.config.vel_mdp import rough_height
 
-from ..mdp import observations as local_mdp
+from ..mdp.mpm_align import observations as local_mdp
 from .action_cfg import ACTIVE_JOINT
 
 

@@ -3,14 +3,15 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import isaaclab.envs.mdp as mdp
-from isaaclab.utils import configclass
+"""MPM joint-position actions with rigid contact only."""
+
+from isaaclab.utils.configclass import configclass
 
 from isaaclab_contrib.mdp import MirrorJointPositionActionCfg
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.symmetry import mirror_g1_joints
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
 
-JOINT_NAMES = [
+ACTIVE_JOINT = [
     "left_hip_pitch_joint",
     "left_hip_roll_joint",
     "left_hip_yaw_joint",
@@ -45,18 +46,14 @@ JOINT_NAMES = [
 
 @configclass
 class G1ActionsCfg:
-    joint_pos = mdp.JointPositionActionCfg(
-        asset_name="robot", joint_names=JOINT_NAMES, scale=0.25, use_default_offset=True, preserve_order=True
-    )
+    """Action specifications for the MDP."""
 
-
-@configclass
-class G1SymmetricActionsCfg(G1ActionsCfg):
     joint_pos = MirrorJointPositionActionCfg(
-        **vars(G1ActionsCfg().joint_pos.copy()), mirror=mirror_g1_joints, mirror_params={"joint_names": JOINT_NAMES}
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+        asset_name="robot",
+        joint_names=ACTIVE_JOINT,
+        scale=0.25,
+        use_default_offset=True,
+        preserve_order=True,
     )
-
-
-@configclass
-class G1RoughActionsCfg(G1SymmetricActionsCfg):
-    pass

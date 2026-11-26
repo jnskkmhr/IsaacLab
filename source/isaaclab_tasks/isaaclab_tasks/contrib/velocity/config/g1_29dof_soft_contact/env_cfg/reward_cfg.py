@@ -17,7 +17,7 @@ from isaaclab_tasks.contrib.velocity.config.g1_29dof_soft_contact import mdp as 
 from isaaclab_tasks.contrib.velocity.config.vel_mdp import rough_height
 from isaaclab_tasks.contrib.velocity.config.vel_mdp.rewards import foot_clearance_reward
 
-from ..mdp import rewards as local_mdp
+from ..mdp.mpm_align import rewards as local_mdp
 
 
 @configclass

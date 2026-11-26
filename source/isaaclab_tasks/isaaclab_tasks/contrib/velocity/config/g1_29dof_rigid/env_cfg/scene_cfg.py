@@ -3,191 +3,59 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+
 from isaaclab_newton.sensors.ray_caster.legacy_ray_caster import LegacyRayCaster
-from isaaclab_physx.sim.spawners.materials import PhysxRigidBodyMaterialCfg
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
-from isaaclab.terrains import TerrainImporterCfg
+from isaaclab.sim import RigidBodyMaterialCfg
+from isaaclab.terrains import MeshPlaneTerrainCfg, TerrainGeneratorCfg, TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.util.terrain import ContactTerrainImporterCfg
 from isaaclab_tasks.contrib.velocity.config.vel_mdp.rough_height import elevated_grid_pattern
 
-from isaaclab_assets import ISAACLAB_ASSETS_DATA_DIR
+from isaaclab_assets.robots.unitree import UNITREE_G1_29DOF_BOX_FOOT_CFG
 
 from .terrain_cfg import ROUGH_TERRAINS_CFG
 
 
 @configclass
 class G1SceneCfg(InteractiveSceneCfg):
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(
+        prim_path="{ENV_REGEX_NS}/Robot",
+        init_state=UNITREE_G1_29DOF_BOX_FOOT_CFG.init_state.replace(pos=(0.0, 0.0, 0.76)),
+    )
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
-        terrain_type="plane",
+        terrain_type="generator",
         collision_group=-1,
-        physics_material=PhysxRigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
-    )
-    robot = ArticulationCfg(
-        prim_path="{ENV_REGEX_NS}/Robot",
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/unitree/g1_29dof_rev_1_0/g1_29dof_rev_1_0.usd",
-            activate_contact_sensors=True,
-            rigid_props=sim_utils.PhysxRigidBodyPropertiesCfg(
-                linear_damping=0,
-                angular_damping=0,
-                disable_gravity=False,
-                max_linear_velocity=1000,
-                max_angular_velocity=1000,
-                retain_accelerations=False,
-                max_depenetration_velocity=1,
-            ),
-            articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-                enabled_self_collisions=True, solver_position_iteration_count=4, solver_velocity_iteration_count=1
-            ),
+        max_init_terrain_level=0,
+        physics_material=RigidBodyMaterialCfg(
+            static_friction=1.0,
+            dynamic_friction=1.0,
         ),
-        init_state=ArticulationCfg.InitialStateCfg(
-            pos=[0, 0, 0.76],
-            rot=(0.0, 0.0, 0.0, 1.0),
-            ang_vel=[0, 0, 0],
-            lin_vel=[0, 0, 0],
-            joint_pos={
-                ".*_knee_joint": 0.669,
-                ".*_elbow_joint": 0.6,
-                ".*_hip_pitch_joint": -0.312,
-                ".*_ankle_pitch_joint": -0.363,
-                "left_shoulder_roll_joint": 0.2,
-                "left_shoulder_pitch_joint": 0.2,
-                "right_shoulder_roll_joint": -0.2,
-                "right_shoulder_pitch_joint": 0.2,
+        terrain_generator=TerrainGeneratorCfg(
+            size=(8.0, 8.0),
+            num_rows=10,
+            num_cols=10,
+            border_width=0.0,
+            curriculum=True,
+            use_cache=False,
+            sub_terrains={
+                "hard_ground": MeshPlaneTerrainCfg(size=(8.0, 8.0), proportion=1.0, ground_height_range=(0.0, 0.0)),
             },
-            joint_vel={".*": 0},
         ),
-        actuators={
-            "arms": ImplicitActuatorCfg(
-                damping={
-                    ".*_elbow_joint": 0.907222843292423,
-                    ".*_wrist_yaw_joint": 1.06814150219,
-                    ".*_wrist_roll_joint": 0.907222843292423,
-                    ".*_wrist_pitch_joint": 1.06814150219,
-                    ".*_shoulder_yaw_joint": 0.907222843292423,
-                    ".*_shoulder_roll_joint": 0.907222843292423,
-                    ".*_shoulder_pitch_joint": 0.907222843292423,
-                },
-                armature={
-                    ".*_elbow_joint": 0.003609725,
-                    ".*_wrist_yaw_joint": 0.00425,
-                    ".*_wrist_roll_joint": 0.003609725,
-                    ".*_wrist_pitch_joint": 0.00425,
-                    ".*_shoulder_yaw_joint": 0.003609725,
-                    ".*_shoulder_roll_joint": 0.003609725,
-                    ".*_shoulder_pitch_joint": 0.003609725,
-                },
-                stiffness={
-                    ".*_elbow_joint": 14.25062309787429,
-                    ".*_wrist_yaw_joint": 16.77832748089279,
-                    ".*_wrist_roll_joint": 14.25062309787429,
-                    ".*_wrist_pitch_joint": 16.77832748089279,
-                    ".*_shoulder_yaw_joint": 14.25062309787429,
-                    ".*_shoulder_roll_joint": 14.25062309787429,
-                    ".*_shoulder_pitch_joint": 14.25062309787429,
-                },
-                joint_effort_limit={
-                    ".*_elbow_joint": 25,
-                    ".*_wrist_yaw_joint": 5,
-                    ".*_wrist_roll_joint": 25,
-                    ".*_wrist_pitch_joint": 5,
-                    ".*_shoulder_yaw_joint": 25,
-                    ".*_shoulder_roll_joint": 25,
-                    ".*_shoulder_pitch_joint": 25,
-                },
-                joint_names_expr=[
-                    ".*_shoulder_pitch_joint",
-                    ".*_shoulder_roll_joint",
-                    ".*_shoulder_yaw_joint",
-                    ".*_elbow_joint",
-                    ".*_wrist_roll_joint",
-                    ".*_wrist_pitch_joint",
-                    ".*_wrist_yaw_joint",
-                ],
-                joint_velocity_limit={
-                    ".*_elbow_joint": 37,
-                    ".*_wrist_yaw_joint": 22,
-                    ".*_wrist_roll_joint": 37,
-                    ".*_wrist_pitch_joint": 22,
-                    ".*_shoulder_yaw_joint": 37,
-                    ".*_shoulder_roll_joint": 37,
-                    ".*_shoulder_pitch_joint": 37,
-                },
-            ),
-            "feet": ImplicitActuatorCfg(
-                damping=1.814445686584846,
-                armature=0.00721945,
-                stiffness=28.50124619574858,
-                joint_effort_limit=50,
-                joint_names_expr=[".*_ankle_pitch_joint", ".*_ankle_roll_joint"],
-                joint_velocity_limit=37,
-            ),
-            "legs": ImplicitActuatorCfg(
-                damping={
-                    ".*_knee_joint": 6.3088018534966395,
-                    ".*_hip_yaw_joint": 2.5578897650279457,
-                    ".*_hip_roll_joint": 6.3088018534966395,
-                    ".*_hip_pitch_joint": 2.5578897650279457,
-                },
-                armature={
-                    ".*_knee_joint": 0.025101925,
-                    ".*_hip_yaw_joint": 0.01017752,
-                    ".*_hip_roll_joint": 0.025101925,
-                    ".*_hip_pitch_joint": 0.01017752,
-                },
-                stiffness={
-                    ".*_knee_joint": 99.09842777666113,
-                    ".*_hip_yaw_joint": 40.17923847137318,
-                    ".*_hip_roll_joint": 99.09842777666113,
-                    ".*_hip_pitch_joint": 40.17923847137318,
-                },
-                joint_effort_limit={
-                    ".*_knee_joint": 139,
-                    ".*_hip_yaw_joint": 88,
-                    ".*_hip_roll_joint": 139,
-                    ".*_hip_pitch_joint": 88,
-                },
-                joint_names_expr=[".*_hip_yaw_joint", ".*_hip_roll_joint", ".*_hip_pitch_joint", ".*_knee_joint"],
-                joint_velocity_limit={
-                    ".*_knee_joint": 20,
-                    ".*_hip_yaw_joint": 32,
-                    ".*_hip_roll_joint": 20,
-                    ".*_hip_pitch_joint": 32,
-                },
-            ),
-            "waist": ImplicitActuatorCfg(
-                damping=1.814445686584846,
-                armature=0.00721945,
-                stiffness=28.50124619574858,
-                joint_effort_limit=50,
-                joint_names_expr=["waist_roll_joint", "waist_pitch_joint"],
-                joint_velocity_limit=37,
-            ),
-            "waist_yaw": ImplicitActuatorCfg(
-                damping=2.5578897650279457,
-                armature=0.01017752,
-                stiffness=40.17923847137318,
-                joint_effort_limit=88,
-                joint_names_expr=["waist_yaw_joint"],
-                joint_velocity_limit=32,
-            ),
-        },
-        soft_joint_pos_limit_factor=0.9,
     )
     contact_forces = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Robot/.*",
         history_length=3,
         track_air_time=True,
         update_period=0.005,
-        force_threshold=1.0,
+        force_threshold=5.0,
     )
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",
@@ -200,7 +68,7 @@ class G1SceneCfg(InteractiveSceneCfg):
 
 @configclass
 class HeightGridPatternCfg(patterns.GridPatternCfg):
-    """Downward rays starting above the body in world Z [m]."""
+    """Start downward rays above the robot in world Z [m]."""
 
     func = elevated_grid_pattern
     height: float = 20.0
@@ -208,20 +76,19 @@ class HeightGridPatternCfg(patterns.GridPatternCfg):
 
 @configclass
 class G1RoughSceneCfg(G1SceneCfg):
-    """Reference robot and sensors with terrain-relative height measurements."""
+    """Box-foot robot with surface-relative measurements on generated rough terrain."""
 
-    terrain = TerrainImporterCfg(
+    terrain = ContactTerrainImporterCfg(
         prim_path="/World/ground",
         terrain_type="generator",
         collision_group=-1,
         max_init_terrain_level=0,
         terrain_generator=ROUGH_TERRAINS_CFG.copy(),
-        physics_material=PhysxRigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
+        physics_material=RigidBodyMaterialCfg(static_friction=1.0, dynamic_friction=1.0),
     )
     height_scanner = RayCasterCfg(
-        class_type=LegacyRayCaster,  # Query only the specified surface mesh, not buried support.
+        class_type=LegacyRayCaster,
         prim_path="{ENV_REGEX_NS}/Robot/.*pelvis",
-        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0)),
         ray_alignment="yaw",
         pattern_cfg=HeightGridPatternCfg(resolution=0.1, size=(0.2, 0.2)),
         mesh_prim_paths=["/World/ground/terrain"],

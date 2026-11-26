@@ -3,33 +3,33 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import isaaclab.envs.mdp as mdp
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.managers import TerminationTermCfg as Term
-from isaaclab.utils import configclass
+import math
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid import mdp as rigid_mdp
+from isaaclab.managers import SceneEntityCfg, TerminationTermCfg
+from isaaclab.utils.configclass import configclass
+
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.contrib.velocity.config.vel_mdp as vel_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
+
+from ..mdp.mpm_align.terminations import root_state_infinite
 
 
 @configclass
 class G1TerminationsCfg:
-    time_out = Term(func=mdp.time_out, time_out=True)
+    """Termination terms for the MDP."""
 
-    base_too_low = Term(
-        func=rigid_mdp.root_height_below_minimum_adaptive,
-        params={
-            "asset_cfg": SceneEntityCfg(name="robot", body_names=".*_ankle_roll_link", preserve_order=False),
-            "minimum_height": 0.2,
-        },
-        time_out=False,
+    time_out = TerminationTermCfg(func=mdp.time_out, time_out=True)
+    base_too_low = TerminationTermCfg(
+        func=g1_mdp.root_height_below_minimum_adaptive,
+        params={"minimum_height": 0.2, "asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},
     )
-
-    bad_orientation = Term(func=mdp.bad_orientation, params={"limit_angle": 0.8}, time_out=False)
-
-
-from isaaclab_tasks.core.velocity.mdp.terminations import terrain_out_of_bounds
-
-
-@configclass
-class G1RoughTerminationsCfg(G1TerminationsCfg):
-    terrain_boundary = Term(func=terrain_out_of_bounds, params={"distance_buffer": 3.0}, time_out=True)
+    bad_orientation = TerminationTermCfg(func=mdp.bad_orientation, params={"limit_angle": math.pi / 4})
+    terrain_out_of_bounds = TerminationTermCfg(
+        func=g1_mdp.terrain_out_of_bounds, params={"distance_buffer": 0.5, "asset_cfg": SceneEntityCfg("robot")}
+    )
+    extreme_action = TerminationTermCfg(
+        func=vel_mdp.ExtremeJointPositionAction,
+        params={"action_name": "joint_pos", "torque_fraction": 5.0, "asset_cfg": SceneEntityCfg("robot")},
+    )
+    solver_diverged = TerminationTermCfg(func=root_state_infinite, params={"asset_cfg": SceneEntityCfg("robot")})

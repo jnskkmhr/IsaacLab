@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Newton rigid-body solver coupled to the reference analytical RFT foot forces."""
+"""Newton MJWarp rigid-contact solver, matching the aligned RFT task settings."""
 
 from isaaclab_newton.physics import MJWarpSolverCfg, NewtonCfg, NewtonCollisionPipelineCfg, NewtonShapeCfg
 

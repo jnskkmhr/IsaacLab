@@ -3,173 +3,201 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import isaaclab.envs.mdp as mdp
-from isaaclab.managers import ObservationGroupCfg, SceneEntityCfg
-from isaaclab.managers import ObservationTermCfg as Term
-from isaaclab.utils import configclass
-from isaaclab.utils.noise import UniformNoiseCfg
+"""Aligned observation layout with rigid contact forces and matching mirror rules."""
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid import mdp as rigid_mdp
+import math
 
-from ..mdp.reference_observations import (
-    foot_air_time as reference_foot_air_time,
-)
-from ..mdp.reference_observations import (
-    foot_contact_forces as reference_foot_contact_forces,
-)
-from ..mdp.reference_observations import (
-    foot_contact_forces_raw as reference_foot_contact_forces_raw,
-)
-from ..mdp.reference_observations import (
-    root_quat_wxyz as reference_root_quat_wxyz,
-)
-from ..mdp.reference_observations import (
-    terrain_material_parameters as reference_terrain_material_parameters,
-)
-from ..mdp.reference_observations import (
-    velocity_commands_wxyz as reference_velocity_commands_wxyz,
-)
-from .action_cfg import JOINT_NAMES
+from isaaclab.managers import ObservationGroupCfg as ObsGroup
+from isaaclab.managers import SceneEntityCfg
+from isaaclab.utils.configclass import configclass
+from isaaclab.utils.noise import UniformNoiseCfg as Unoise
+
+from isaaclab_contrib.mdp import MirrorObservationTermCfg as ObsTerm
+from isaaclab_contrib.mdp import mirror_identity, mirror_quat, mirror_vec3
+
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+import isaaclab_tasks.core.velocity.mdp as mdp
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp import symmetry
+from isaaclab_tasks.contrib.velocity.config.vel_mdp import rough_height
+
+from ..mdp.mpm_align import observations as local_mdp
+from .action_cfg import ACTIVE_JOINT
 
 
 @configclass
-class PolicyCfg(ObservationGroupCfg):
-    enable_corruption = False
-    concatenate_terms = True
-    history_length = 10
-    flatten_history_dim = True
-    base_ang_vel = Term(
-        func=mdp.base_ang_vel, scale=0.25, noise=UniformNoiseCfg(n_max=0.2, n_min=-0.2, operation="add")
-    )
-    projected_gravity = Term(
-        func=mdp.projected_gravity, noise=UniformNoiseCfg(n_max=0.05, n_min=-0.05, operation="add")
-    )
-    velocity_commands = Term(func=reference_velocity_commands_wxyz, params={"command_name": "base_velocity"})
-    joint_pos = Term(
-        func=mdp.joint_pos_rel,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                name="robot",
-                joint_names=JOINT_NAMES,
-                preserve_order=True,
-            )
-        },
-        noise=UniformNoiseCfg(n_max=0.01, n_min=-0.01, operation="add"),
-    )
-    joint_vel = Term(
-        func=mdp.joint_vel_rel,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                name="robot",
-                joint_names=JOINT_NAMES,
-                preserve_order=True,
-            )
-        },
-        scale=0.05,
-        noise=UniformNoiseCfg(n_max=1.5, n_min=-1.5, operation="add"),
-    )
-    actions = Term(func=mdp.last_action)
+class PolicyCfg(ObsGroup):
+    """Observations for the actor."""
 
-
-@configclass
-class CriticCfg(ObservationGroupCfg):
-    enable_corruption = False
-    concatenate_terms = True
-    history_length = 10
-    flatten_history_dim = True
-    base_ang_vel = Term(func=mdp.base_ang_vel, scale=0.25)
-    base_quat = Term(func=reference_root_quat_wxyz, params={"make_quat_unique": True})
-    velocity_commands = Term(func=reference_velocity_commands_wxyz, params={"command_name": "base_velocity"})
-    joint_pos = Term(
-        func=mdp.joint_pos_rel,
+    base_ang_vel = ObsTerm(
+        func=mdp.base_ang_vel,
+        mirror=mirror_vec3,
+        mirror_params={"axial": True},
+        noise=Unoise(n_min=-0.2, n_max=0.2),
+        scale=0.25,
+    )
+    projected_gravity = ObsTerm(
+        func=mdp.bias_projected_gravity,
+        mirror=mirror_vec3,
         params={
-            "asset_cfg": SceneEntityCfg(
-                name="robot",
-                joint_names=JOINT_NAMES,
-                preserve_order=True,
-            )
+            "roll_bias_range": (-math.radians(3.0), math.radians(3.0)),
+            "pitch_bias_range": (-math.radians(3.0), math.radians(3.0)),
         },
     )
-    joint_vel = Term(
+    joint_pos = ObsTerm(
+        func=mdp.joint_pos_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+        noise=Unoise(n_min=-0.01, n_max=0.01),
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ACTIVE_JOINT, preserve_order=True)},
+    )
+    joint_vel = ObsTerm(
         func=mdp.joint_vel_rel,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                name="robot",
-                joint_names=JOINT_NAMES,
-                preserve_order=True,
-            )
-        },
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+        noise=Unoise(n_min=-1.5, n_max=1.5),
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ACTIVE_JOINT, preserve_order=True)},
         scale=0.05,
     )
-    actions = Term(func=mdp.last_action)
+    actions = ObsTerm(
+        func=mdp.last_action, mirror=symmetry.mirror_g1_joints, mirror_params={"joint_names": ACTIVE_JOINT}
+    )
+
+    def __post_init__(self):
+        self.enable_corruption = True
+        self.concatenate_terms = True
+        self.history_length = 1
 
 
 @configclass
-class PrivilegedCfg(ObservationGroupCfg):
-    enable_corruption = False
-    concatenate_terms = True
-    history_length = 10
-    flatten_history_dim = True
-    base_lin_vel = Term(func=mdp.base_lin_vel)
-    foot_height = Term(
-        func=rigid_mdp.foot_height,
-        params={"asset_cfg": SceneEntityCfg(name="robot", body_names=".*_ankle_roll_link", preserve_order=False)},
+class CriticCfg(ObsGroup):
+    """Noise-free proprioception for the critic."""
+
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel, mirror=mirror_vec3, mirror_params={"axial": True}, scale=0.25)
+    base_quat = ObsTerm(func=mdp.root_quat_w, mirror=mirror_quat, params={"make_quat_unique": True})
+    joint_pos = ObsTerm(
+        func=mdp.joint_pos_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ACTIVE_JOINT, preserve_order=True)},
     )
-    foot_contact = Term(
-        func=rigid_mdp.foot_contact,
-        params={
-            "threshold": 5,
-            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=False),
-        },
+    joint_vel = ObsTerm(
+        func=mdp.joint_vel_rel,
+        mirror=symmetry.mirror_g1_joints,
+        mirror_params={"joint_names": ACTIVE_JOINT},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=ACTIVE_JOINT, preserve_order=True)},
+        scale=0.05,
     )
-    foot_contact_force = Term(
-        func=reference_foot_contact_forces,
-        params={
-            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=False),
-            "force_filter_threshold": 5,
-        },
+    actions = ObsTerm(
+        func=mdp.last_action, mirror=symmetry.mirror_g1_joints, mirror_params={"joint_names": ACTIVE_JOINT}
     )
-    foot_air_time = Term(
-        func=reference_foot_air_time,
-        params={
-            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=False),
-        },
-    )
-    terrain_material_parameters = Term(
-        func=reference_terrain_material_parameters,
-        params={
-            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=False),
-        },
-    )
+
+    def __post_init__(self):
+        self.enable_corruption = False
+        self.concatenate_terms = True
+        self.history_length = 1
 
 
 @configclass
-class LoggingCfg(ObservationGroupCfg):
-    enable_corruption = False
-    concatenate_terms = True
-    history_length = None
-    flatten_history_dim = True
-    base_pos = Term(func=mdp.root_pos_w)
-    base_quat = Term(func=reference_root_quat_wxyz)
-    base_lin_vel = Term(func=mdp.base_lin_vel)
-    base_ang_vel = Term(func=mdp.base_ang_vel)
-    commands = Term(func=reference_velocity_commands_wxyz, params={"command_name": "base_velocity"})
-    contact_forces = Term(
-        func=reference_foot_contact_forces_raw,
+class PolicyHistoryCfg(PolicyCfg):
+    def __post_init__(self):
+        self.history_length = 10
+
+
+@configclass
+class CriticHistoryCfg(CriticCfg):
+    def __post_init__(self):
+        self.history_length = 10
+
+
+@configclass
+class CommandCfg(ObsGroup):
+    """Command observations for the actor and critic."""
+
+    velocity_commands = ObsTerm(
+        func=mdp.generated_commands, mirror=symmetry.mirror_velocity_heading, params={"command_name": "base_velocity"}
+    )
+
+    def __post_init__(self):
+        self.enable_corruption = False
+        self.concatenate_terms = True
+        self.history_length = 1
+
+
+@configclass
+class PrivilegedObsCfg(ObsGroup):
+    """Granular-terrain information available to the critic only."""
+
+    base_lin_vel = ObsTerm(func=mdp.base_lin_vel, mirror=mirror_vec3)
+    foot_height = ObsTerm(
+        func=g1_mdp.foot_height,
+        mirror=symmetry.mirror_foot_scalars,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=".*_ankle_roll_link")},
+    )
+    foot_contact = ObsTerm(
+        func=g1_mdp.foot_contact,
+        mirror=symmetry.mirror_foot_scalars,
         params={
-            "sensor_cfg": SceneEntityCfg(name="contact_forces", body_names=".*_ankle_roll_link", preserve_order=False),
-            "force_filter_threshold": 5,
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link", preserve_order=True),
+            "threshold": 5.0,
         },
     )
+    foot_contact_force = ObsTerm(
+        func=g1_mdp.foot_contact_forces,
+        mirror=symmetry.mirror_foot_forces,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link", preserve_order=True),
+            "force_filter_threshold": 5.0,
+            "max_force": 1000.0,
+        },
+    )
+    foot_air_time = ObsTerm(
+        func=g1_mdp.foot_air_time,
+        mirror=symmetry.mirror_foot_scalars,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_ankle_roll_link", preserve_order=True),
+            "filter_time": 0.5,
+        },
+    )
+    terrain_material_parameters = ObsTerm(func=local_mdp.terrain_material_parameters, mirror=mirror_identity)
+
+    def __post_init__(self):
+        self.enable_corruption = False
+        self.concatenate_terms = True
+        self.history_length = 1
+
+
+@configclass
+class PrivilegedHistoryCfg(PrivilegedObsCfg):
+    def __post_init__(self):
+        self.history_length = 10
 
 
 @configclass
 class G1ObservationsCfg:
-    policy: PolicyCfg = PolicyCfg()
-    critic: CriticCfg = CriticCfg()
-    privileged: PrivilegedCfg = PrivilegedCfg()
-    logging: LoggingCfg = LoggingCfg()
+    """Observation specifications for the MDP."""
+
+    policy: PolicyHistoryCfg = PolicyHistoryCfg()
+    critic: CriticHistoryCfg = CriticHistoryCfg()
+    command: CommandCfg = CommandCfg()
+    privileged: PrivilegedHistoryCfg = PrivilegedHistoryCfg()
 
 
-# Compatibility name used by the existing tree-task observation group.
-PrivilegedHistoryCfg = PrivilegedCfg
+@configclass
+class RoughPrivilegedHistoryCfg(PrivilegedHistoryCfg):
+    """Same history layout, with foot sole height relative to each foot's local surface."""
+
+    foot_height = PrivilegedHistoryCfg().foot_height.replace(
+        func=rough_height.foot_height,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=["left_ankle_roll_link", "right_ankle_roll_link"], preserve_order=True
+            ),
+            "left_sensor_cfg": SceneEntityCfg("left_foot_scanner"),
+            "right_sensor_cfg": SceneEntityCfg("right_foot_scanner"),
+        },
+    )
+
+
+@configclass
+class G1RoughObservationsCfg(G1ObservationsCfg):
+    privileged = RoughPrivilegedHistoryCfg()

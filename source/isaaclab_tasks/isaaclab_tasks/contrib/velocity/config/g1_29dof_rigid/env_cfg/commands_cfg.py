@@ -3,25 +3,24 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp.commands.commands_cfg import UniformVelocityYawCommandCfg
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 
 
 @configclass
 class G1CommandsCfg:
-    base_velocity = UniformVelocityYawCommandCfg(
-        debug_vis=True,
+    """Command specifications for the MDP."""
+
+    base_velocity = g1_mdp.UniformVelocityYawCommandCfg(
         asset_name="robot",
-        heading_command=False,
-        rel_heading_envs=1,
+        resampling_time_range=(10.0, 10.0),
         rel_standing_envs=0.2,
-        resampling_time_range=[10, 10],
+        rel_heading_envs=1.0,
+        heading_command=False,
         heading_control_stiffness=0.5,
-        ranges=UniformVelocityYawCommandCfg.Ranges(
-            heading=[-3.141592653589793, 3.141592653589793],
-            ang_vel_z=[-1, 1],
-            lin_vel_x=[-1, 1.5],
-            lin_vel_y=[-0.5, 0.5],
+        debug_vis=True,
+        ranges=g1_mdp.UniformVelocityYawCommandCfg.Ranges(
+            lin_vel_x=(-1.0, 1.5), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.0, 1.0)
         ),
     )

@@ -3,11 +3,9 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab_physx.sim.spawners.materials import PhysxRigidBodyMaterialCfg
-
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.envs.utils.video_recorder_cfg import VideoRecorderCfg
-from isaaclab.sim import SimulationCfg
+from isaaclab.sim import RigidBodyMaterialCfg, SimulationCfg
 from isaaclab.utils import configclass
 from isaaclab.visualizers import VisualizerCfg
 from isaaclab.visualizers.visualizer_cfg import WindowCfg
@@ -41,8 +39,8 @@ class G1FlatEnvCfg(ManagerBasedRLEnvCfg):
         dt=0.005,
         render_interval=4,
         physics=G1PhysicsCfg(),
-        # One shared view; the backend is chosen on the command line (``--viz newton_gl`` or ``newton_rtx``).
         visualizer_cfgs=[
+            # One shared view; the backend is chosen on the command line (``--viz newton_gl`` or ``newton_rtx``).
             VisualizerCfg(
                 headless=True,
                 window=WindowCfg(size=(1280, 720), fps=30.0),
@@ -52,7 +50,7 @@ class G1FlatEnvCfg(ManagerBasedRLEnvCfg):
                 lookat=(0.0, 0.0, 0.0),
             ),
         ],
-        physics_material=PhysxRigidBodyMaterialCfg(
+        physics_material=RigidBodyMaterialCfg(
             static_friction=1.0,
             dynamic_friction=1.0,
         ),

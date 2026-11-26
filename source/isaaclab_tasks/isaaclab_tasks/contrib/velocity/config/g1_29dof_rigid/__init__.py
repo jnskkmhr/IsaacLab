@@ -5,67 +5,14 @@
 
 import gymnasium as gym
 
-from . import agents
-
-##
-# Register Gym environments.
-##
-
-gym.register(
-    id="IsaacContrib-Velocity-Flat-G1-29dof-Rigid",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.flat_env_cfg:G1FlatEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1FlatPPORunnerCfg",
-        "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1FlatFlashSACRunnerCfg",
-        "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1FlatFastSACRunnerCfg",
-    },
-)
-
-gym.register(
-    id="IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Play",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.flat_env_cfg:G1FlatEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1FlatPPORunnerCfg",
-        "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1FlatFlashSACRunnerCfg",
-        "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1FlatFastSACRunnerCfg",
-    },
-)
-
-gym.register(
-    id="IsaacContrib-Velocity-Rough-G1-29dof-Rigid",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1RoughPPORunnerCfg",
-        "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1RoughFlashSACRunnerCfg",
-        "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1RoughFastSACRunnerCfg",
-    },
-)
-
-gym.register(
-    id="IsaacContrib-Velocity-Rough-G1-29dof-Rigid-Play",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.rough_env_cfg:G1RoughEnvCfg_PLAY",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1RoughPPORunnerCfg",
-        "rsl_rl_flash_sac_cfg_entry_point": f"{agents.__name__}.compositional_flash_sac_cfg:G1RoughFlashSACRunnerCfg",
-        "rsl_rl_fast_sac_cfg_entry_point": f"{agents.__name__}.compositional_fast_sac_cfg:G1RoughFastSACRunnerCfg",
-    },
-)
-
-
-gym.register(
-    id="IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Symmetry",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.flat_symmetry_env_cfg:G1FlatSymmetryEnvCfg",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:G1FlatSymmetryPPORunnerCfg",
-    },
-)
+for terrain in ("Flat", "Rough"):
+    for suffix, config_suffix in (("", ""), ("-Play", "_PLAY")):
+        gym.register(
+            id=f"IsaacContrib-Velocity-{terrain}-G1-29dof-Rigid{suffix}",
+            entry_point="isaaclab.envs:ManagerBasedRLEnv",
+            disable_env_checker=True,
+            kwargs={
+                "env_cfg_entry_point": f"{__name__}.{terrain.lower()}_env_cfg:G1{terrain}EnvCfg{config_suffix}",
+                "rsl_rl_cfg_entry_point": f"{__name__}.agents.rsl_rl_ppo_cfg:G1{terrain}PPORunnerCfg",
+            },
+        )

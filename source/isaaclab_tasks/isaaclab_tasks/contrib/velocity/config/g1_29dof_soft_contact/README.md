@@ -1,6 +1,6 @@
 # Flat RFT locomotion aligned with moving-patch MPM
 
-Task: `IsaacContrib-Velocity-Flat-G1-29dof-SoftContact-MPMAlign`
+Task: `IsaacContrib-Velocity-Flat-G1-29dof-SoftContact`
 
 This standalone manager-based task uses Newton MJWarp rigid dynamics and the
 analytical `3D-warp` RFT callback. It creates **no MPM particles**. The robot is
@@ -52,7 +52,7 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
     platform=ovx-l40 \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/contact-benchmark/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-Flat-G1-29dof-SoftContact-MPMAlign --num_envs 1024 --seed 42 --logger wandb --wandb_project g1_29dof_contact_benchmark --run_name rft_flat_mpm_align_box --viz newton_gl --video"
+    args="--task IsaacContrib-Velocity-Flat-G1-29dof-SoftContact --num_envs 1024 --seed 42 --logger wandb --wandb_project g1_29dof_contact_benchmark --run_name rft_flat_mpm_align_box --viz newton_gl --video"
 ```
 
 Training starts from scratch. The launcher snapshots the checkout and uploads
@@ -72,7 +72,7 @@ quality after training.
 
 ## Rough RFT variant
 
-Task: `IsaacContrib-Velocity-Rough-G1-29dof-SoftContact-MPMAlign` (also `-Play`).
+Task: `IsaacContrib-Velocity-Rough-G1-29dof-SoftContact` (also `-Play`).
 `rough_env_cfg.py` composes the rough terms defined in `env_cfg/`. Flat task
 configuration remains unchanged, including the recipe used by run `u4za5id6`.
 
@@ -105,7 +105,7 @@ bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
     platform=ovx-l40 \
     output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/contact-benchmark/runs \
     wandb_credential=wb-auth wandb_key=wb_api_key \
-    args="--task IsaacContrib-Velocity-Rough-G1-29dof-SoftContact-MPMAlign --num_envs 1024 --seed 42 --logger wandb --wandb_project g1_29dof_contact_benchmark --run_name rft_rough_mpm_align_box --viz newton_gl --video"
+    args="--task IsaacContrib-Velocity-Rough-G1-29dof-SoftContact --num_envs 1024 --seed 42 --logger wandb --wandb_project g1_29dof_contact_benchmark --run_name rft_rough_mpm_align_box --viz newton_gl --video"
 ```
 
 The rough task passed a 20-environment, 120-step reset/contact/height check and a

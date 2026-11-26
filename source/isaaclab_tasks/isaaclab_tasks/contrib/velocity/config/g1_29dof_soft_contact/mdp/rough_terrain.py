@@ -13,7 +13,7 @@ import trimesh
 from isaaclab.terrains.utils import create_prim_from_mesh
 from isaaclab.utils import configclass
 
-from .contact_terrain_importer import (
+from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.util.terrain import (
     ContactTerrainImporter,
     ContactTerrainImporterCfg,
 )

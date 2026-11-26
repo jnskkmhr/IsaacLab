@@ -14,7 +14,7 @@ from isaaclab_tasks.contrib.velocity.config.vel_mdp.contact_terrain import (
     terrain_levels_vel as rough_terrain_levels_vel,
 )
 
-from ..mdp.curriculums import terrain_levels_vel
+from ..mdp.mpm_align.curriculums import terrain_levels_vel
 
 
 @configclass

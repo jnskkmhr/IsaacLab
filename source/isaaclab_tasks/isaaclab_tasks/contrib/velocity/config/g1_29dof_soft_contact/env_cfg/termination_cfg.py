@@ -12,7 +12,7 @@ import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
 import isaaclab_tasks.contrib.velocity.config.vel_mdp as vel_mdp
 import isaaclab_tasks.core.velocity.mdp as mdp
 
-from ..mdp.terminations import root_state_infinite
+from ..mdp.mpm_align.terminations import root_state_infinite
 
 
 @configclass

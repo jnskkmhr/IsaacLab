@@ -3,44 +3,101 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab.managers import CurriculumTermCfg as Term
-from isaaclab.utils import configclass
+import math
 
-from isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid import mdp as rigid_mdp
+import isaaclab.envs.mdp as mdp
+from isaaclab.managers import CurriculumTermCfg as CurrTerm
+from isaaclab.utils.configclass import configclass
+
+import isaaclab_tasks.contrib.velocity.config.g1_29dof_rigid.mdp as g1_mdp
+from isaaclab_tasks.contrib.velocity.config.vel_mdp.contact_terrain import (
+    terrain_levels_vel as rough_terrain_levels_vel,
+)
 
 
 @configclass
 class G1CurriculumCfg:
-    terrain_levels = None
+    """Curriculum terms for the MDP."""
 
-    command_vel = Term(
-        func=rigid_mdp.commands_vel,
+    terrain_levels = None
+    command_vel = CurrTerm(
+        func=g1_mdp.commands_vel,
         params={
             "command_name": "base_velocity",
             "velocity_stages": [
-                {"step": 0, "ang_vel_z": [-0.5, 0.5], "lin_vel_x": [-1, 1]},
-                {"step": 240000, "ang_vel_z": [-0.7, 0.7], "lin_vel_x": [-1, 1.7]},
-                {"step": 360000, "ang_vel_z": [-1, 1], "lin_vel_x": [-1, 2.5]},
+                {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
+                {"step": 10000 * 24, "lin_vel_x": (-1.0, 1.7), "ang_vel_z": (-0.7, 0.7)},
+                {"step": 15000 * 24, "lin_vel_x": (-1.0, 2.5), "ang_vel_z": (-1.0, 1.0)},
             ],
         },
     )
-
-    track_lin_vel = Term(
-        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 480000, "term_name": "track_lin_vel_xy"}
+    gravity_roll_bias = CurrTerm(
+        func=mdp.modify_term_cfg,
+        params={
+            "address": "observations.policy.projected_gravity.params.roll_bias_range",
+            "modify_fn": mdp.linear_ramp,
+            "modify_params": {
+                "initial_value": (0.0, 0.0),
+                "final_value": (-math.radians(3.0), math.radians(3.0)),
+                "start_step": 0,
+                "end_step": 5000 * 24,
+            },
+        },
     )
-
-    track_ang_vel = Term(
-        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 480000, "term_name": "track_ang_vel_z"}
+    gravity_pitch_bias = CurrTerm(
+        func=mdp.modify_term_cfg,
+        params={
+            "address": "observations.policy.projected_gravity.params.pitch_bias_range",
+            "modify_fn": mdp.linear_ramp,
+            "modify_params": {
+                "initial_value": (0.0, 0.0),
+                "final_value": (-math.radians(3.0), math.radians(3.0)),
+                "start_step": 0,
+                "end_step": 5000 * 24,
+            },
+        },
     )
-
-    track_heading = Term(
-        func=rigid_mdp.modify_reward_std, params={"std": 0.25, "num_steps": 480000, "term_name": "track_heading"}
+    track_lin_vel = CurrTerm(
+        func=g1_mdp.ramp_reward_param,
+        params={
+            "term_name": "track_lin_vel_xy",
+            "param_name": "std",
+            "val_0": math.sqrt(1.0),
+            "val_1": math.sqrt(0.1),
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        },
     )
-
-
-from isaaclab_tasks.contrib.velocity.config.vel_mdp.contact_terrain import terrain_levels_vel
+    track_ang_vel = CurrTerm(
+        func=g1_mdp.ramp_reward_param,
+        params={
+            "term_name": "track_ang_vel_z",
+            "param_name": "std",
+            "val_0": math.sqrt(1.0),
+            "val_1": math.sqrt(0.1),
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        },
+    )
+    track_heading = CurrTerm(
+        func=g1_mdp.ramp_reward_param,
+        params={
+            "term_name": "track_heading",
+            "param_name": "std",
+            "val_0": math.sqrt(1.0),
+            "val_1": math.sqrt(0.1),
+            "step_0": 0,
+            "step_1": 15000 * 24,
+        },
+    )
+    track_lin_vel_weight = CurrTerm(
+        func=g1_mdp.ramp_reward_weight,
+        params={"term_name": "track_lin_vel_xy", "weight_0": 4.0, "weight_1": 8.0, "step_0": 0, "step_1": 15000 * 24},
+    )
 
 
 @configclass
 class G1RoughCurriculumCfg(G1CurriculumCfg):
-    terrain_levels = Term(func=terrain_levels_vel)
+    """Progress roughness without changing command/reward ramps."""
+
+    terrain_levels = CurrTerm(func=rough_terrain_levels_vel)
