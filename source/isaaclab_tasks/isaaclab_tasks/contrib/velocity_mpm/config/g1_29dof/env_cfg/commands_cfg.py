@@ -15,7 +15,7 @@ class G1CommandsCfg:
     base_velocity = g1_mdp.UniformVelocityYawCommandCfg(
         asset_name="robot",
         resampling_time_range=(10.0, 10.0),
-        rel_standing_envs=0.2,
+        rel_standing_envs=0.0,
         rel_heading_envs=1.0,
         heading_command=False,
         heading_control_stiffness=0.5,

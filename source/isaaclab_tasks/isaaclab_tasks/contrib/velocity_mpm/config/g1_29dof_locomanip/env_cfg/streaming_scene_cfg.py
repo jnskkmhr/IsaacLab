@@ -11,7 +11,8 @@ import isaaclab.sim as sim_utils
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.utils import configclass
 
-from ...g1_29dof.env_cfg.streaming_scene_cfg import FOOT_CONTACT_MARGIN, G1MPMSceneCfg
+from ...g1_29dof.env_cfg.physics_cfg import FOOT_CONTACT_MARGIN
+from ...g1_29dof.env_cfg.streaming_scene_cfg import G1MPMSceneCfg
 
 BOX_NAME = "Box"
 """Prim and body name of the box; the streaming pool and the activity region find it by this name."""

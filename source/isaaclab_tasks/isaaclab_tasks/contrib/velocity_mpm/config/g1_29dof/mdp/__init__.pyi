@@ -23,6 +23,7 @@ __all__ = [
     "joint_action_l2",
     "metric_sliderbar",
     "reset_root_state_on_terrain",
+    "root_out_of_patch",
     "root_outside_sand_bed",
     "root_outside_testbed",
     "root_outside_workspace",
@@ -57,4 +58,10 @@ from .rewards import (
     reward_soft_landing,
     stance_foot_angle_penalty,
 )
-from .terminations import root_outside_sand_bed, root_outside_testbed, root_outside_workspace, root_state_infinite
+from .terminations import (
+    root_out_of_patch,
+    root_outside_sand_bed,
+    root_outside_testbed,
+    root_outside_workspace,
+    root_state_infinite,
+)

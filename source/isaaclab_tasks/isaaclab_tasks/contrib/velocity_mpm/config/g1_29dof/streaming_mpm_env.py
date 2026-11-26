@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import math
 import re
 from collections.abc import Sequence
 
@@ -15,10 +14,8 @@ import newton
 import torch
 import warp as wp
 from isaaclab_newton.physics import configure_mpm_sleeping, configure_mpm_streaming, reset_mpm_solver_state
-from isaaclab_newton.physics.newton_builder_cfg import NewtonBuilderCfg
 
 from isaaclab.envs import ManagerBasedRLEnv
-from isaaclab.physics import PhysicsEvent
 
 from ...util.solver_setting import get_mpm_solver_cfg
 from ...util.visualizer import CameraFollow, attach_particle_filter
@@ -39,10 +36,6 @@ class G1MPMEnv(ManagerBasedRLEnv):
     def __init__(self, cfg, render_mode=None, **kwargs):
         self.mpm_streaming = None
         """Newton's streaming particle pool, or None when every spawned particle stays in place."""
-        if cfg.foot_contact_margin_range is not None:
-            lower, upper = cfg.foot_contact_margin_range
-            if not (math.isfinite(lower) and math.isfinite(upper) and 0.0 <= lower <= upper):
-                raise ValueError("foot_contact_margin_range must contain finite, nonnegative, ordered bounds.")
         # Activity colors need a sleeping preset; without one every particle is simply active.
         self._activity_colors_enabled = bool(
             cfg.mpm_activity_colors and cfg.sim.visualizer_cfgs and get_mpm_solver_cfg(cfg).sleeping is not None
@@ -53,39 +46,6 @@ class G1MPMEnv(ManagerBasedRLEnv):
             cfg.scene.sand.class_type = ActivityMPMObject
         self._settled_bed = None
         super().__init__(cfg, render_mode, **kwargs)
-
-    def _init_sim(self):
-        # The model is finalized inside the simulation reset, so margins must be registered before it.
-        callback = self.sim.backend_manager.register_callback(self._set_contact_margin, PhysicsEvent.MODEL_INIT)
-        try:
-            super()._init_sim()
-        finally:
-            callback.deregister()
-
-    def _set_contact_margin(self, payload=None):
-        """Assign sampled margins before model finalization when configured."""
-        if self.cfg.foot_contact_margin_range is None:
-            return
-        lower, upper = self.cfg.foot_contact_margin_range
-        ratios = torch.linspace(0.0, 1.0, self.num_envs)
-        ratios = ratios[torch.randperm(self.num_envs)]
-        self._set_foot_contact_margins((lower + ratios * (upper - lower)).tolist())
-
-    def _set_foot_contact_margins(self, margins: Sequence[float]) -> None:
-        """Set each environment's foot shape margins before the solvers copy them."""
-        builder = self.sim.get_or_create_backend(NewtonBuilderCfg(physics_cfg=self.cfg.sim.physics))
-        matched_envs = set()
-        for shape_index, body_index in enumerate(builder.shape_body):
-            if body_index < 0 or not re.fullmatch(
-                self.cfg.foot_body_expr, builder.body_label[body_index].rsplit("/", 1)[-1]
-            ):
-                continue
-            env_id = builder.body_world[body_index]
-            if 0 <= env_id < self.num_envs:
-                builder.shape_margin[shape_index] = margins[env_id]
-                matched_envs.add(env_id)
-        if len(matched_envs) != self.num_envs:
-            raise ValueError("Could not find foot shapes in every environment when setting contact margins.")
 
     def step(self, action: torch.Tensor):
         obs, reward, terminated, truncated, extras = super().step(action)

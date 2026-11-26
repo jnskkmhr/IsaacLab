@@ -63,7 +63,7 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
     size=(8.0, 8.0),
     border_width=5.0,
     num_rows=10,
-    num_cols=5,
+    num_cols=10,
     horizontal_scale=0.1,
     vertical_scale=0.005,
     slope_threshold=0.75,
@@ -75,8 +75,10 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
             num_waves=4,
             border_width=0.25,
         ),
+        # Heights up to 8 cm: neighbouring cells then differ by at most 6 cm, below the slope threshold, so no
+        # vertical walls form. With 10 cm the 8 cm jumps become walls that a leg collides with violently.
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.2, noise_range=(0.02, 0.10), noise_step=0.02, border_width=0.25
+            proportion=0.2, noise_range=(0.02, 0.08), noise_step=0.02, border_width=0.25
         ),
         "hf_pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
             proportion=0.2, slope_range=(0.0, 0.4), platform_width=2.0, border_width=0.25

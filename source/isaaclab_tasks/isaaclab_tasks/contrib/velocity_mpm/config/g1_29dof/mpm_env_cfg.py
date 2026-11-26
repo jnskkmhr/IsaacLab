@@ -92,6 +92,7 @@ class G1TestbedEnvCfg(G1MPMEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_y = (-0.5, 0.5)
         self.commands.base_velocity.ranges.ang_vel_z = (-0.5, 0.5)
         self.commands.base_velocity.resampling_time_range = (5.0, 5.0)
+        self.commands.base_velocity.rel_standing_envs = 0.0
 
         self.sim.visualizer_cfgs = [
             VisualizerCfg(
@@ -155,7 +156,7 @@ class G1TestbedEnvCfg_PLAY(G1TestbedEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (1.0, 1.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
-        self.commands.base_velocity.rel_standing_envs = 0.9
+        self.commands.base_velocity.rel_standing_envs = 0.0
         self.commands.base_velocity.resampling_time_range = (self.episode_length_s, self.episode_length_s)
 
         self.sim.visualizer_cfgs = [
@@ -280,7 +281,7 @@ class G1TiltingTestbedEnvCfg(G1TestbedEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_x = (0.0, 0.0)
         self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
-        self.commands.base_velocity.rel_standing_envs = 1.0
+        self.commands.base_velocity.rel_standing_envs = 0.0
         self.events.push_robot = None
         self.events.reset_base.params["pose_range"] = {"x": (-0.1, 0.1), "y": (-0.1, 0.1), "yaw": (0.0, 0.0)}
         self.events.reset_base.params["velocity_range"] = {}

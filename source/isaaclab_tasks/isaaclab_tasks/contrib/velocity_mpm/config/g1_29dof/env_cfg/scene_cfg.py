@@ -41,7 +41,6 @@ from .streaming_scene_cfg import StripMaterialPreset
 MPM_VOXEL_SIZE = 0.04
 # MPM_VOXEL_SIZE = 0.02
 MPM_COLLIDER_MARGIN = 0.0
-FOOT_CONTACT_MARGIN = 0.04 * 0.5
 PLATFORM_CONTACT_MARGIN = 0.004
 PLATFORM_CONTACT_GAP = 0.002
 MPM_PARTICLES_PER_CELL = 1.25
@@ -72,7 +71,8 @@ MATERIAL_PRESETS = {
     "poppy_seed_packed": StripMaterialPreset(682.0, 1.0e15, 1.07, 1.0e15, 0.0, 0.0, 0.0, 0.0, 0.0),
 }
 
-MATERIAL_NAME = "poppy_seed_packed"
+# MATERIAL_NAME = "poppy_seed_packed"
+MATERIAL_NAME = "poppy_seed_loose"
 
 SAND_MATERIAL_CFG = MPMParticleMaterialCfg(**MATERIAL_PRESETS[MATERIAL_NAME]._asdict())
 
@@ -166,9 +166,8 @@ class G1TestbedSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
         spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(
-            collision_props={
-                "/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=FOOT_CONTACT_MARGIN, contact_gap=0.0)]
-            }
+            # No margin on the feet's rigid contact; the sand's margin is MPMSolverCfg.collider_margins.
+            collision_props={"/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=0.0, contact_gap=0.0)]}
         ),
     )
     sand = _sand_cfg(size=(4.0, 2.0, 0.3))

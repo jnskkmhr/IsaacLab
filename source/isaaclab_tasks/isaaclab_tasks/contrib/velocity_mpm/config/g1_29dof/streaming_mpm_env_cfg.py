@@ -65,13 +65,6 @@ class G1MPMEnvCfg(ManagerBasedRLEnvCfg):
     foot_contact_force_threshold: float = 5.0
     """Granular reaction magnitude above which a foot counts as in contact [N]."""
 
-    foot_contact_margin_range: tuple[float, float] | None = None
-    """Optional foot collider margins [m], evenly spaced and randomly assigned per environment.
-    Applied before solver construction to both rigid and MPM contact. None preserves
-    asset margins. Mixed terrain uses its fixed per-terrain margin settings instead.
-    A single environment receives the lower bound. Margins remain fixed across resets.
-    """
-
     reset_particle_jitter: float = 0.0
     """Half-width of the uniform position jitter applied when the bed is reset [m]."""
 
@@ -165,12 +158,11 @@ class G1MPMEnvCfg_PLAY(G1MPMEnvCfg):
         self.curriculum.gravity_roll_bias = None
         self.curriculum.gravity_pitch_bias = None
 
-        generator = terrain_generator_cfg.ROUGH_TERRAINS_DIFFICULT_CFG
-        # generator = terrain_generator_cfg.SLOPE_TERRAINS_CFG
-        # generator = terrain_generator_cfg.WAVE_TERRAINS_CFG
-        # generator = terrain_generator_cfg.FLAT_TERRAINS_CFG
-
-        self.scene.terrain.terrain_generator = generator
+        # generator = terrain_generator_cfg.ROUGH_TERRAINS_DIFFICULT_CFG
+        # # generator = terrain_generator_cfg.SLOPE_TERRAINS_CFG
+        # # generator = terrain_generator_cfg.WAVE_TERRAINS_CFG
+        # # generator = terrain_generator_cfg.FLAT_TERRAINS_CFG
+        # self.scene.terrain.terrain_generator = generator
         self.scene.terrain.sand.particle_depth = 0.35
 
         for name in ("add_base_mass", "push_robot", "physics_material", "scale_actuator_gains"):

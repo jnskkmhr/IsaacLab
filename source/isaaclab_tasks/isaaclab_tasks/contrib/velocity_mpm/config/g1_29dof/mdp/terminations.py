@@ -31,6 +31,30 @@ def root_outside_workspace(
     return ((root < lo) | (root > hi)).any(dim=1)
 
 
+def root_out_of_patch(
+    env: G1MPMEnv, margin: float = 0.5, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Terminate when the base leaves the patch of mixed terrain its environment was placed on.
+
+    The patch is the environment's terrain column over all rows. Beyond it lies the other ground model, or the
+    border around the terrain tiles.
+
+    Args:
+        env: Environment instance.
+        margin: Distance inside the patch edge at which the episode ends [m].
+        asset_cfg: Configuration of the tracked articulation.
+
+    Returns:
+        Whether the base is outside its patch, shape ``(num_envs,)``.
+    """
+    terrain = env.scene.terrain
+    generator = terrain.cfg.terrain_generator
+    root = env.scene[asset_cfg.name].data.root_pos_w.torch
+    outside_x = root[:, 0].abs() > 0.5 * generator.num_rows * generator.size[0] - margin
+    outside_y = (root[:, 1] - terrain.env_origins[:, 1]).abs() > 0.5 * generator.size[1] - margin
+    return outside_x | outside_y
+
+
 def root_outside_sand_bed(
     env: G1MPMEnv, margin: float = 0.3, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:

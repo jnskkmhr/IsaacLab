@@ -25,14 +25,10 @@ from isaaclab_assets import UNITREE_G1_29DOF_BOX_FOOT_CFG
 from ....util.terrain import MPMTerrainImporterCfg, SandLayerCfg
 from . import terrain_generator_cfg
 
-VOXEL_SIZE = 0.03
+VOXEL_SIZE = 0.04
 """MPM voxel size [m]."""
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
-# FOOT_CONTACT_MARGIN = 0.01875
-# FOOT_CONTACT_MARGIN = VOXEL_SIZE * 0.5
-FOOT_CONTACT_MARGIN = 0.04 * 0.5
-"""Sole contact margin [m], retained with the existing policy/physics settings."""
 
 
 class StripMaterialPreset(NamedTuple):
@@ -120,11 +116,12 @@ class G1MPMSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
         prim_path="{ENV_REGEX_NS}/Robot",
         spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
-            # inflate the contact margin for the ankle roll links
+            # The feet's rigid contact has no margin. The sand keeps its distance from the feet through
+            # MPMSolverCfg.collider_margins, which the rigid contact does not read.
             collision_props={
                 r"/.*_ankle_roll_link/.*": [
                     NewtonCollisionCfg(
-                        contact_margin=FOOT_CONTACT_MARGIN,
+                        contact_margin=0.0,
                         contact_gap=0.0,
                     ),
                 ],

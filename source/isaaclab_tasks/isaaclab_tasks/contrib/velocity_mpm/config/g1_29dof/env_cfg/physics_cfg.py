@@ -34,6 +34,9 @@ from .streaming_scene_cfg import VOXEL_SIZE, SandLayerCfg
 RIGID_ENTRY = "robot"
 """Name of the MJWarp coupler entry."""
 
+FOOT_CONTACT_MARGIN = 0.02
+"""Sole contact margin [m], retained with the existing policy/physics settings."""
+
 FOOT_PROXY_BODIES = [r"/World/envs/env_.*/Robot/.*ankle_roll_link"]
 """Rigid bodies handed to the MPM solver as colliders."""
 
@@ -92,6 +95,8 @@ class G1PhysicsProxyCfgAllParticleActive(NewtonCfg):
                     critical_fraction=0.0,
                     separate_worlds=True,
                     project_outside_colliders=False,
+                    collider_margins={r"/World/envs/env_.*/Robot/.*_ankle_roll_link": FOOT_CONTACT_MARGIN},
+                    convex_collider_bodies=[],
                 ),
                 # Retaining boxes of the flat bed, or the support body of a generated sand surface.
                 bodies=[r"/World/envs/env_.*/(Sand/)?MPM(BedFloor|BedWallFront|BedWallBack|BedWallLeft|BedWallRight)"],
@@ -200,6 +205,8 @@ class G1StreamPhysicsProxyCfgAllParticleActiveNoCache(NewtonCfg):
                     critical_fraction=0.0,
                     separate_worlds=True,
                     project_outside_colliders=False,
+                    collider_margins={r"/World/envs/env_.*/Robot/.*_ankle_roll_link": FOOT_CONTACT_MARGIN},
+                    convex_collider_bodies=[],
                     # Fixed pool of sand that follows the pelvis; the cache is not used.
                     streaming=StreamingCfg(body_names="pelvis", size=(1.2, 1.2), tile_size=0.2, margin=0.2),
                 ),
