@@ -311,6 +311,17 @@ class MPMSolverCfg(NewtonSolverCfg):
     """Velocity basis function, such as ``"Q1"``, ``"B2"``, or ``"B3"``."""
 
     # collision handling (applied by the Isaac Lab manager, not the Newton solver config)
+    collider_margins: dict[str, float] | None = None
+    """Collider margin [m] the particles see on the shapes of the bodies whose name matches a pattern.
+
+    Keys are regular expressions matched in full against a body's label (its prim path, for example
+    ``"/World/envs/env_.*/Robot/.*_ankle_roll_link"``), values are the margin by which the material stays clear
+    of that body's collision shapes. A pattern that matches no body is an error. Newton's implicit MPM otherwise takes
+    this thickness from the shapes' contact margin, which the rigid contact reads as well; a margin given here
+    reaches the particles only and leaves the rigid contact of those shapes as authored. ``None`` keeps the shapes'
+    own margin for both.
+    """
+
     project_outside_colliders: bool = False
     """Whether to hard-project particles out of collider interiors after each substep.
 
@@ -325,4 +336,19 @@ class MPMSolverCfg(NewtonSolverCfg):
 
     This is a manager-level stepping option and is intentionally **not** part of
     ``SolverImplicitMPM.Config``.
+    """
+
+    convex_collider_bodies: list[str] | None = None
+    """Bodies whose convex-hull shapes are classified as triangle meshes for the granular solver.
+
+    Newton's implicit MPM accepts only the triangle-mesh geometry type for mesh colliders, so the convex hulls of
+    its colliders must be classified as meshes. ``None`` classifies every convex hull of the scene this way. As
+    meshes, hulls that the granular solver never sees, such as the links of a robot whose feet are primitive
+    shapes, take the mesh-against-mesh path of the rigid collision detection, which is far slower than the
+    convex path.
+
+    A list restricts the classification to the convex hulls of the bodies whose label fully matches one of its
+    regular expressions, and to static shapes; every other convex hull keeps its type. List the bodies that are
+    granular colliders by their convex hull. An empty list leaves every body's hulls convex. An expression that
+    matches no body raises an error.
     """

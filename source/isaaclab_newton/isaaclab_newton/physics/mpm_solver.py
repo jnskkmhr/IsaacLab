@@ -498,6 +498,43 @@ def mpm_solver_config(cfg: MPMSolverCfg) -> SolverImplicitMPM.Config:
     return _make_solver_config(cfg, scene_prim)
 
 
+def classify_convex_colliders_as_meshes(builder: ModelBuilder, body_patterns: Sequence[str] | None) -> int:
+    """Classify convex-hull shapes as triangle meshes, the only mesh geometry type implicit MPM accepts.
+
+    The geometry is unchanged. Hulls that stay convex are tested as convex hulls by the rigid collision detection
+    instead of as triangle meshes.
+
+    Args:
+        builder: Builder holding the shapes of the scene.
+        body_patterns: Regular expressions matched in full against the body labels. ``None`` classifies every
+            convex hull. Otherwise only the hulls of the matching bodies and of static shapes are classified.
+
+    Returns:
+        The number of shapes classified as triangle meshes.
+
+    Raises:
+        ValueError: If an expression matches no body label.
+    """
+    selected: set[int] | None = None
+    if body_patterns is not None:
+        selected = set()
+        for pattern in body_patterns:
+            expression = re.compile(pattern)
+            matches = [body for body, label in enumerate(builder.body_label) if expression.fullmatch(label)]
+            if not matches:
+                raise ValueError(f"MPMSolverCfg.convex_collider_bodies: {pattern!r} matches no body label.")
+            selected.update(matches)
+    classified = 0
+    for shape_id, shape_type in enumerate(builder.shape_type):
+        if shape_type != GeoType.CONVEX_MESH:
+            continue
+        body = int(builder.shape_body[shape_id])
+        if selected is None or body < 0 or body in selected:
+            builder.shape_type[shape_id] = GeoType.MESH
+            classified += 1
+    return classified
+
+
 class MPMSolver(NewtonSolver):
     """Newton's implicit MPM solver, which steps particle materials in place on one state."""
 
@@ -513,7 +550,8 @@ class MPMSolver(NewtonSolver):
 
         Newton's implicit MPM treats positive-mass body colliders as finite-mass colliders, so kinematic bodies lose
         their mass and inertia, matching Newton's MPM examples. The solver accepts only the triangle-mesh geometry
-        type, so convex meshes are classified as meshes without changing their geometry.
+        type, so convex meshes are classified as meshes without changing their geometry;
+        :attr:`MPMSolverCfg.convex_collider_bodies` restricts this to the bodies that are granular colliders.
         """
         kinematic_flag = int(BodyFlags.KINEMATIC)
         for body_id, flags in enumerate(builder.body_flags):
@@ -522,9 +560,7 @@ class MPMSolver(NewtonSolver):
                 builder.body_inv_mass[body_id] = 0.0
                 builder.body_inertia[body_id] = wp.mat33()
                 builder.body_inv_inertia[body_id] = wp.mat33()
-        for shape_id, shape_type in enumerate(builder.shape_type):
-            if shape_type == GeoType.CONVEX_MESH:
-                builder.shape_type[shape_id] = GeoType.MESH
+        classify_convex_colliders_as_meshes(builder, cfg.convex_collider_bodies)
 
     @classmethod
     def coupling_error(cls, cfg: MPMSolverCfg, in_place: bool) -> str | None:
@@ -540,7 +576,26 @@ class MPMSolver(NewtonSolver):
 
     def build(self, model: Model, mode: wp.DeterministicMode, env_template: str | None) -> SolverImplicitMPM:
         """Construct implicit MPM from the configuration authored on the active physics scene."""
-        return self.solver_class(model, mpm_solver_config(self.cfg), temporary_store=TemporaryStore())
+        if not self.cfg.collider_margins:
+            return self.solver_class(model, mpm_solver_config(self.cfg), temporary_store=TemporaryStore())
+        # Implicit MPM copies each collider's thickness from the shape margins while it is constructed. The margins
+        # meant for the particles are in place for that moment only, so the rigid contact keeps the authored ones.
+        authored = model.shape_margin.numpy().copy()
+        for_particles = authored.copy()
+        shape_body = model.shape_body.numpy()
+        matched = set()
+        for body, label in enumerate(model.body_label):
+            for pattern, margin in self.cfg.collider_margins.items():
+                if re.fullmatch(pattern, label):
+                    for_particles[shape_body == body] = margin
+                    matched.add(pattern)
+        if unmatched := set(self.cfg.collider_margins) - matched:
+            raise ValueError(f"MPMSolverCfg.collider_margins matches no body for: {sorted(unmatched)}.")
+        model.shape_margin.assign(for_particles)
+        try:
+            return self.solver_class(model, mpm_solver_config(self.cfg), temporary_store=TemporaryStore())
+        finally:
+            model.shape_margin.assign(authored)
 
     def applies_body_forces(self) -> bool:
         return False
