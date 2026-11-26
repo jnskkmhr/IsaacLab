@@ -119,6 +119,7 @@ class PhysicsCallbackAction(ActionTerm):
                 }
             self.contact_solver = RFT_3D_WARP(
                 **terrain_kwargs,
+                horizontal_impulse_cap_mass=cfg.horizontal_impulse_cap_mass,
                 material_cfg=material_cfg,
                 num_envs=self.num_envs,
                 num_bodies=num_bodies,

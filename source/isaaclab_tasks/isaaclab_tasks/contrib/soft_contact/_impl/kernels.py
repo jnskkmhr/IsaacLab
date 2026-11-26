@@ -989,6 +989,36 @@ def compute_contact_force(
 
 
 @wp.kernel
+def limit_horizontal_impulse(
+    body_lin_vel: wp.array2d(dtype=wp.vec3f),  # (N, B, 3)
+    cap_mass: wp.float32,
+    dt: wp.float32,
+    num_cp: wp.int32,
+    resistive_force: wp.array2d(dtype=wp.vec3f),  # (N, B * C, 3)
+):
+    """Scale each body's horizontal force so one step cannot reverse the horizontal motion of ``cap_mass``."""
+    env_id, body_id = wp.tid()
+    velocity = body_lin_vel[env_id, body_id]
+    speed = wp.sqrt(velocity[0] * velocity[0] + velocity[1] * velocity[1])
+    start = body_id * num_cp
+
+    force_x = wp.float32(0.0)
+    force_y = wp.float32(0.0)
+    for i in range(num_cp):
+        force = resistive_force[env_id, start + i]
+        force_x += force[0]
+        force_y += force[1]
+
+    opposing = -(force_x * velocity[0] + force_y * velocity[1]) / (speed + 1.0e-9)
+    limit = cap_mass * speed / dt
+    if opposing > limit:
+        scale = limit / opposing
+        for i in range(num_cp):
+            force = resistive_force[env_id, start + i]
+            resistive_force[env_id, start + i] = wp.vec3f(force[0] * scale, force[1] * scale, force[2])
+
+
+@wp.kernel
 def compute_contact_wrench(
     body_pos: wp.array2d(dtype=wp.vec3f),  # (N, B, 3)
     contact_point_pos_w: wp.array3d(dtype=wp.vec3f),  # (N, B, C, 3)

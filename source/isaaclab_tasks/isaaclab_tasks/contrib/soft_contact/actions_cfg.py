@@ -64,6 +64,11 @@ class PhysicsCallbackActionCfg(ActionTermCfg):
     """Scene terrain queried by the 3D Warp model. None retains the flat surface at world z=0."""
     terrain_ray_height: float = 20.0
     """Vertical ray start offset above each contact point [m]. Must exceed the terrain relief and penetration."""
+    horizontal_impulse_cap_mass: float | None = None
+    """Mass [kg] whose horizontal motion each body's force may stop, but not reverse, in one physics step.
+
+    Only the 3D Warp model uses it. None leaves the force uncapped.
+    """
     contact_data_history_length: int = 3
     """Length of the contact data history."""
     history_logging_decimation: int = 1
