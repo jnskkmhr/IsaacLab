@@ -1,55 +1,66 @@
-# G1 Newton rigid locomotion
+# Rigid locomotion aligned with the RFT/MPM training terms
 
-The flat and rough task configurations are ported from
-`~/isaac/experiment/ral-gm-loco-lab-3.0`, branch `ral_gm_loco_lab_3.0`.
-The reference rough policy is W&B run `ioo32x36` in `g1_29dof_contact_benchmark`.
-The source configuration port was compared against that worktree; this does not
-claim identical trajectories across different Newton/MJWarp dependency revisions.
+Standalone manager-based Newton MJWarp tasks using `UNITREE_G1_29DOF_BOX_FOOT_CFG`
+with the pelvis-contour/hip-pitch collision exclusions:
 
-## Task layout
+- `IsaacContrib-Velocity-Flat-G1-29dof-Rigid`
+- `IsaacContrib-Velocity-Rough-G1-29dof-Rigid`
+- Both also have a `-Play` registration.
 
-`flat_env_cfg.py` and `rough_env_cfg.py` assemble the built-in `ManagerBasedRLEnv`.
-All term configurations live in `env_cfg/`. Rough terms inherit only from this
-task's own flat terms. Reusable reward/observation helpers remain in `mdp/`.
-No particle simulation or MPM environment class is used.
+Term configs live in `env_cfg/`; the top-level environment configs only compose
+them and define simulation/viewer settings. Reusable rigid contact, terrain and
+height-query implementations come from the existing rigid and shared velocity
+MDP modules. Config classes do not inherit from another task package.
 
-| Task | Actor input | PPO |
-|---|---|---|
-| `IsaacContrib-Velocity-Flat-G1-29dof-Rigid` | Policy history including command history: 1000 values | Reference flat PPO |
-| `IsaacContrib-Velocity-Flat-G1-29dof-Rigid-Symmetry` | Policy history 930 + current command 7 | Augmentation and mirror loss 0.1 |
-| `IsaacContrib-Velocity-Rough-G1-29dof-Rigid` | Policy history 930 + current command 7 | Augmentation and mirror loss 0.1 |
+## Alignment
 
-Existing `-Play` IDs retain the corresponding training observation layout and
-use one environment by default. Training uses 24 rollout steps, 20,000 PPO
-iterations, actor/critic MLPs `[512, 256, 128]`, and no observation normalization.
-Default runner configurations are in `agents/rsl_rl_ppo_cfg.py`.
+Reference: `g1_29dof_soft_contact` (flat run `u4za5id6`).
 
-## Terrain and measurements
+| Component | Rigid variant |
+| --- | --- |
+| Robot, gains, actions | Same filtered box-foot asset, 29 joint actions, scale 0.25 |
+| Physics | Same MJWarp settings; zero foot/ground margins; no RFT callback or MPM particles |
+| Observations | Same 930 policy, 940 critic, 7 command, 160 privileged layout; same histories/noise/mirrors |
+| Foot contact | Built-in ContactSensor; 5 N force-norm threshold |
+| Force observations | Same signed log compression, 5 N component threshold, ±1000 N clipping |
+| Contact rewards | Same formulas/weights, using rigid sensor stance, air time, first contact and forces |
+| All rewards | Same 24 terms and weights, including stance-only pitch, foot distance and sliding |
+| Events | Same robot randomization, resets and pushes; remove RFT-only material events |
+| Curriculum | Same command, gravity-bias, reward-std and weight ramps; terrain progression only on rough terrain |
+| PPO | Same network and optimization, augmentation and mirror loss coefficient 0.1 |
+| Video/viewer | Same camera setup and video schedule; no visible-environment restriction added |
 
-The rough generator uses 10 rows and 10 columns of 8 m tiles, with equal shares
-of waves, random roughness, uphill slopes, downhill slopes, and flat terrain.
-The complete generator is in `env_cfg/terrain_cfg.py`. Terrain difficulty advances
-with walking distance. Root resets sample the terrain height at the randomized XY.
+Flat terrain is entirely rigid at world z=0; base target is 0.75 m. Rough terrain
+uses the same 10 × 10, 8 × 8 m tile generator as aligned RFT rough: 20% each waves,
+random roughness, positive/inverted pyramid slopes and flat ground. Every tile
+has rigid collision at its surface. Terrain difficulty progresses across rows.
+Rough root resets and foot/base height terms query the surface; stance pitch uses
+the scanned terrain plane. The actor does not receive a terrain height map.
 
-Base-height reward targets 0.75 m above the queried terrain surface. Foot height
-uses the sole point 0.03539 m below the ankle frame and the surface ray beneath each
-foot. The three scanners query the specified surface mesh, rather than arbitrary
-rigid colliders. Other reward weights, events, and command curricula follow the
-reference Newton task. Cameras track the robot with eye `(4, -4, 3)` and look-at
-`(0, 0, 0)`, using the same 1280 × 720 window as the reference.
+## Training
 
-## Play the rough policy
-
-Run from `/home/jkamohara/isaac/IsaacLab`:
+From `/home/jkamohara/isaac/IsaacLab`, four GPUs with W&B and video:
 
 ```bash
-uv run --with wandb isaaclab play --rl_library rsl_rl \
-  --task IsaacContrib-Velocity-Rough-G1-29dof-Rigid-Play \
-  --num_envs 1 --viz newton_rtx \
-  --wandb_run ioo32x36 --wandb_project g1_29dof_contact_benchmark \
-  "env.video_recorders=[]"
+bash osmo/run_multinode.sh osmo/osmo_multi_gpu.yaml \
+  --pool isaac-lab-l40-07 \
+  --set num_nodes=1 num_gpu=4 num_cpu=32 memory=192 \
+  --set-string \
+    workflow_name=isaac-lab-g1-rigid-rough-mpm-align \
+    platform=ovx-l40 \
+    output_url=swift://pdx.s8k.io/AUTH_team-isaac-sqa/isaac-sqa/jkamohara/contact-benchmark/runs \
+    wandb_credential=wb-auth wandb_key=wb_api_key \
+    args="--task IsaacContrib-Velocity-Rough-G1-29dof-Rigid --num_envs 1024 --seed 42 --logger wandb --wandb_project g1_29dof_contact_benchmark --run_name rigid_rough_mpm_align_box --viz newton_gl --video"
 ```
 
-The RSS benchmark entry points are under
-`~/isaac/IsaacLab/examples/RSS/locomotion`. Evaluation must use one
-explicit IsaacLab checkout for all policies and record that checkout's revision.
+For flat training replace `Rough` with `Flat` in the task ID and use a distinct
+flat workflow/run name. Both start from scratch unless explicitly given a checkpoint.
+
+## Validation
+
+Both variants passed 120 steps with 20 environments, finite observations/rewards,
+resets, contact forces, zero foot margins, and the appropriate base-height reference.
+Both passed two PPO updates with symmetry enabled. Configuration checks compared
+all reward weights, proprioceptive/command observations, rough generator and
+robot settings against the aligned RFT task. Local validation artifacts are in
+`logs/contact_mpm_align_rough_validation/`; smoke tests do not establish final gait quality.
