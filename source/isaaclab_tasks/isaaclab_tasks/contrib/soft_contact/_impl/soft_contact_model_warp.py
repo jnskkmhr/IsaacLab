@@ -49,7 +49,6 @@ from .kernels import (
     compute_tilt_angle,
     compute_twist_angle,
     compute_v_direction_w,
-    limit_horizontal_impulse,
     expand_vec3_to_3d_vec3,
     reset,
     reset_2d,
@@ -86,7 +85,6 @@ class RFT_3D:
         enable_ema_filter: bool = True,
         terrain_mesh: wp.Mesh | None = None,
         terrain_ray_height: float = 20.0,
-        horizontal_impulse_cap_mass: float | None = None,
     ) -> None:
         """
         Soft contact model based on 3D RFT proposed in
@@ -102,8 +100,6 @@ class RFT_3D:
             collider_cfg: collider geometry configuration
             terrain_mesh: world-space material surface mesh; None retains world z=0
             terrain_ray_height: ray start height above each contact point [m]
-            horizontal_impulse_cap_mass: mass [kg] whose horizontal motion a body's force may stop,
-                but not reverse, in one step; None leaves the force uncapped
         """
 
         self.cfg = material_cfg
@@ -125,7 +121,6 @@ class RFT_3D:
 
         self._data: SoftContactData = SoftContactData()
 
-        self.horizontal_impulse_cap_mass = horizontal_impulse_cap_mass
         self.terrain_mesh = terrain_mesh
         self.terrain_ray_height = terrain_ray_height
         self.create_buffers()
@@ -729,20 +724,6 @@ class RFT_3D:
                 self.resitive_force,
             ],
         )
-
-        if self.horizontal_impulse_cap_mass is not None:
-            wp.launch(
-                kernel=limit_horizontal_impulse,
-                dim=(self.num_envs, self.num_bodies),
-                inputs=[
-                    self.body_lin_vel,
-                    self.horizontal_impulse_cap_mass,
-                    self.dt,
-                    self.num_contact_points,
-                    self.resitive_force,
-                ],
-                device=self.device,
-            )
 
         # Step5: sum up contact point forces to get net contact force and torque on the body, and transform to body frame
         # clear contact wrench before atomic add
