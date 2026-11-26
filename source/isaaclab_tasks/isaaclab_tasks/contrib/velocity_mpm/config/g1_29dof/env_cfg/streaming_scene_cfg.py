@@ -9,7 +9,6 @@ from typing import NamedTuple
 
 from isaaclab_newton.assets import MPMObjectCfg
 from isaaclab_newton.physics import StreamingCfg
-from isaaclab_newton.sim.schemas import NewtonCollisionCfg
 from isaaclab_newton.sim.spawners.mpm import MPMGridCfg, MPMParticleMaterialCfg, StreamingMPMGridCfg
 
 import isaaclab.sim as sim_utils
@@ -113,21 +112,9 @@ class G1MPMSceneCfg(InteractiveSceneCfg):
             visual_color=(0.72, 0.55, 0.34),
         ),
     )
-    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
-        prim_path="{ENV_REGEX_NS}/Robot",
-        spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
-            # The feet's rigid contact has no margin. The sand keeps its distance from the feet through
-            # MPMSolverCfg.collider_margins, which the rigid contact does not read.
-            collision_props={
-                r"/.*_ankle_roll_link/.*": [
-                    NewtonCollisionCfg(
-                        contact_margin=0.0,
-                        contact_gap=0.0,
-                    ),
-                ],
-            },
-        ),
-    )
+    # The robot keeps the collision properties of its asset. The distance the sand keeps from the feet is set in
+    # the MPM solver configuration (MPMSolverCfg.collider_margins), which the rigid contact does not read.
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
 
     height_scanner = RayCasterCfg(
         # the URDF importer nests bodies along the kinematic tree, so match the leaf name anywhere

@@ -13,7 +13,7 @@ MJWarp owns a floor beneath the sand bed.
 import math
 
 from isaaclab_newton.assets import MPMObjectCfg
-from isaaclab_newton.sim.schemas import NewtonCollisionCfg, NewtonCollisionPropertiesCfg
+from isaaclab_newton.sim.schemas import NewtonCollisionPropertiesCfg
 from isaaclab_newton.sim.spawners.mpm import MPMGridCfg, MPMParticleMaterialCfg
 
 import isaaclab.sim as sim_utils
@@ -163,13 +163,9 @@ class G1TestbedSceneCfg(InteractiveSceneCfg):
     for support geometry and robot placement.
     """
 
-    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(
-        prim_path="{ENV_REGEX_NS}/Robot",
-        spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(
-            # No margin on the feet's rigid contact; the sand's margin is MPMSolverCfg.collider_margins.
-            collision_props={"/.*_ankle_roll_link/.*": [NewtonCollisionCfg(contact_margin=0.0, contact_gap=0.0)]}
-        ),
-    )
+    # The robot keeps the collision properties of its asset; the sand's margin on the feet is
+    # MPMSolverCfg.collider_margins.
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
     sand = _sand_cfg(size=(4.0, 2.0, 0.3))
     bed_floor: RigidObjectCfg | None = None
     bed_wall_front: RigidObjectCfg | None = None
