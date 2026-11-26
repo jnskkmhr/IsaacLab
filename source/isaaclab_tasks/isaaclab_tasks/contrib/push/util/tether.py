@@ -42,6 +42,14 @@ class Tether:
         """Rope force on the robot in world frame [N], shape ``(num_envs, 3)``."""
         self._ends = (torch.zeros(count, 3, device=device), torch.zeros(count, 3, device=device))
 
+    def set_object_offsets(self, offsets: torch.Tensor) -> None:
+        """Set the attachment point on the object per environment, for scenes whose objects differ.
+
+        Args:
+            offsets: Attachment points in the object's frame [m], shape ``(num_envs, 3)``.
+        """
+        self._object_offset = offsets.to(self._object_offset).clone()
+
     @property
     def tension(self) -> torch.Tensor:
         """Rope tension [N], shape ``(num_envs,)``."""

@@ -17,3 +17,14 @@ for suffix, config in (("", "G1TowEnvCfg"), ("-Play", "G1TowEnvCfg_PLAY")):
             "rsl_rl_cfg_entry_point": f"{__name__}.agents.rsl_rl_ppo_cfg:G1TowPPORunnerCfg",
         },
     )
+
+# The walking task's rough terrain, a sled of random mass, and a quarter of the environments towing nothing.
+gym.register(
+    id="IsaacContrib-Tow-Rough-G1-29dof-SoftContact",
+    entry_point=f"{__name__}.tow_rough_env:G1SoftContactTowRoughEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.tow_rough_env_cfg:G1TowRoughEnvCfg",
+        "rsl_rl_cfg_entry_point": f"{__name__}.agents.rsl_rl_ppo_cfg:G1TowPPORunnerCfg",
+    },
+)

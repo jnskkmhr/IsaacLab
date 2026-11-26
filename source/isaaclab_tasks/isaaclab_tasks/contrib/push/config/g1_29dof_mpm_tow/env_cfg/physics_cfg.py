@@ -34,6 +34,9 @@ from .scene_cfg import SLED_NAME, VOXEL_SIZE, SandLayerCfg
 RIGID_ENTRY = "robot"
 """Name of the MJWarp coupler entry."""
 
+FOOT_CONTACT_MARGIN = 0.02
+"""Sole contact margin [m], retained with the existing policy/physics settings."""
+
 SLED_BODY = r"/World/envs/env_.*/" + SLED_NAME
 """The sled as a rigid body of the MJWarp entry and as a collider of the MPM entry."""
 
@@ -91,6 +94,13 @@ class G1TowPhysicsCfgAllParticleActive(NewtonCfg):
                     critical_fraction=0.0,
                     separate_worlds=True,
                     project_outside_colliders=False,
+                    # Distance the sand keeps from the feet and from the sled [m]; the rigid contact has no margin.
+                    collider_margins={
+                        r"/World/envs/env_.*/Robot/.*_ankle_roll_link": FOOT_CONTACT_MARGIN,
+                        r"/World/envs/env_.*/Sled": FOOT_CONTACT_MARGIN,
+                    },
+                    # Only the towed object may meet the sand with a convex hull; the robot's links stay convex.
+                    convex_collider_bodies=[r"/World/envs/env_.*/Sled"],
                     # One pool per anchor body. Several pools need the tile cache, which also keeps the trench
                     # the sled leaves behind.
                     streaming=StreamingCfg(

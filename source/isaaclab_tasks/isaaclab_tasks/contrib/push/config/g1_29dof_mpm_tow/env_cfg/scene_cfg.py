@@ -29,8 +29,6 @@ VOXEL_SIZE = 0.04
 """MPM voxel size [m]."""
 SAND_DEPTH = 0.25
 """Additional depth of the sand layer above the ground [m]."""
-FOOT_CONTACT_MARGIN = 0.02
-"""Sole contact margin [m], as in the walking task; the sled uses the same value."""
 
 SAND_MATERIAL = MPMParticleMaterialCfg(
     # Loosely packed poppy seed, the sand of the walking task's playback configuration. One fixed
@@ -97,20 +95,9 @@ class G1TowSceneCfg(InteractiveSceneCfg):
             visual_color=(0.72, 0.55, 0.34),
         ),
     )
-    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(  # type: ignore
-        prim_path="{ENV_REGEX_NS}/Robot",
-        spawn=UNITREE_G1_29DOF_BOX_FOOT_CFG.spawn.replace(  # type: ignore
-            # inflate the contact margin for the ankle roll links
-            collision_props={
-                r"/.*_ankle_roll_link/.*": [
-                    NewtonCollisionCfg(
-                        contact_margin=FOOT_CONTACT_MARGIN,
-                        contact_gap=0.0,
-                    ),
-                ],
-            },
-        ),
-    )
+    # The robot keeps the collision properties of its asset. The distance the sand keeps from the feet is set in
+    # the MPM solver configuration (MPMSolverCfg.collider_margins), which the rigid contact does not read.
+    robot: ArticulationCfg = UNITREE_G1_29DOF_BOX_FOOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")  # type: ignore
     sled: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/" + SLED_NAME,
         spawn=sim_utils.CuboidCfg(
@@ -119,7 +106,8 @@ class G1TowSceneCfg(InteractiveSceneCfg):
             mass_props=sim_utils.MassCfg(mass=SLED_MASS),
             collision_props=[
                 UsdPhysicsCollisionCfg(),
-                NewtonCollisionCfg(contact_margin=FOOT_CONTACT_MARGIN, contact_gap=0.0),
+                # No margin on the sled's rigid contact; the sand's margin is MPMSolverCfg.collider_margins.
+                NewtonCollisionCfg(contact_margin=0.0, contact_gap=0.0),
             ],
             physics_material=RigidBodyMaterialBaseCfg(static_friction=SLED_FRICTION, dynamic_friction=SLED_FRICTION),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.15, 0.35, 0.75), roughness=0.6),

@@ -13,7 +13,7 @@ import torch
 import warp as wp
 
 import isaaclab.utils.math as math_utils
-from isaaclab.managers import SceneEntityCfg
+from isaaclab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
 
 if TYPE_CHECKING:
     from isaaclab.assets import Articulation, RigidObject
@@ -61,3 +61,41 @@ def reset_object_behind_robot(
     asset.write_root_velocity_to_sim_index(
         root_velocity=torch.zeros(positions.shape[0], 6, device=env.device), env_ids=env_ids
     )
+
+
+class randomize_sled_mass(ManagerTermBase):
+    """Draw the mass of the towed object anew at every reset.
+
+    The mass and the inertia are scaled together from the object's default values, as the mass curriculum does.
+    """
+
+    def __init__(self, cfg: EventTermCfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        self._sled: RigidObject = env.scene[cfg.params["asset_cfg"].name]
+        self._default_mass = self._sled.data.body_mass.torch.clone()
+        self._default_inertia = self._sled.data.body_inertia.torch.clone()
+        self.mass = self._default_mass[:, 0].clone()
+        """Current mass of the towed object [kg], shape ``(num_envs,)``."""
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        env_ids: torch.Tensor,
+        asset_cfg: SceneEntityCfg,
+        mass_range: tuple[float, float],
+    ) -> None:
+        """Set a mass drawn uniformly from ``mass_range`` in the environments being reset.
+
+        Args:
+            env: Environment instance.
+            env_ids: Environment indices to reset.
+            asset_cfg: The towed object.
+            mass_range: Lowest and highest mass [kg].
+        """
+        if isinstance(env_ids, slice):
+            env_ids = torch.arange(env.num_envs, device=env.device)[env_ids]
+        low, high = mass_range
+        self.mass[env_ids] = low + (high - low) * torch.rand(len(env_ids), device=env.device)
+        scale = (self.mass[env_ids] / self._default_mass[env_ids, 0]).view(-1, 1)
+        self._sled.set_masses_index(masses=self._default_mass[env_ids] * scale, env_ids=env_ids)
+        self._sled.set_inertias_index(inertias=self._default_inertia[env_ids] * scale.unsqueeze(-1), env_ids=env_ids)

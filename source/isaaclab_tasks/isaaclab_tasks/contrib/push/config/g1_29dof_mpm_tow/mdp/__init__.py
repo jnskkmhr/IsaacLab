@@ -22,5 +22,5 @@ from isaaclab_tasks.contrib.velocity_mpm.config.g1_29dof.mdp import (
 )
 
 from .curriculums import sled_mass_levels
-from .events import reset_object_behind_robot
+from .events import randomize_sled_mass, reset_object_behind_robot
 from .rewards import lean_orientation_l2

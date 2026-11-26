@@ -22,9 +22,11 @@ class G1TowMixedEnv(G1TowEnv, G1MPMMixedEnv):
     cfg: G1TowMixedEnvCfg
 
     def _set_contact_margin(self, payload=None):
-        """Use a fixed margin for each ground model on the feet and on the sled."""
+        """Set the margin of the rigid contact of the feet and of the sled before the solvers copy the shapes.
+
+        The sand's margin on them is ``mpm_contact_margin``, which the MPM solver takes from its configuration.
+        """
         super()._set_contact_margin(payload)
-        mpm = self.scene.terrain.mpm_env_mask.cpu().tolist()
         builder = self.sim.get_or_create_backend(NewtonBuilderCfg(physics_cfg=self.cfg.sim.physics))
         matched_envs = set()
         for shape_index, body_index in enumerate(builder.shape_body):
@@ -32,9 +34,7 @@ class G1TowMixedEnv(G1TowEnv, G1MPMMixedEnv):
                 continue
             env_id = builder.body_world[body_index]
             if 0 <= env_id < self.num_envs:
-                builder.shape_margin[shape_index] = (
-                    self.cfg.mpm_contact_margin if mpm[env_id] else self.cfg.rigid_contact_margin
-                )
+                builder.shape_margin[shape_index] = self.cfg.rigid_contact_margin
                 matched_envs.add(env_id)
         if len(matched_envs) != self.num_envs:
             raise ValueError("Could not find the sled shape in every environment when setting contact margins.")

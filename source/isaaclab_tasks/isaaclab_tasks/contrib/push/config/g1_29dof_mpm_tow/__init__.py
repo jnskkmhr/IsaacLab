@@ -31,3 +31,16 @@ for suffix, config in (("", "G1TowMixedEnvCfg"), ("-Play", "G1TowMixedEnvCfg_PLA
             "rsl_rl_standard_cfg_entry_point": f"{__name__}.agents.rsl_rl_ppo_cfg:G1TowPPORunnerCfg",
         },
     )
+
+# Mixed terrain with a towed object that differs between environments: a box, a sphere or a wheel.
+for suffix, config in (("", "G1TowObjectsEnvCfg"), ("-Play", "G1TowObjectsEnvCfg_PLAY")):
+    gym.register(
+        id="IsaacContrib-Tow-G1-29dof-MPM-Mixed-Objects" + suffix,
+        entry_point=f"{__name__}.tow_objects_env:G1TowObjectsEnv",
+        disable_env_checker=True,
+        kwargs={
+            "env_cfg_entry_point": f"{__name__}.tow_objects_env_cfg:{config}",
+            "rsl_rl_cfg_entry_point": f"{__name__}.agents.compositional_ppo_cfg:G1TowPPORunnerCfg",
+            "rsl_rl_standard_cfg_entry_point": f"{__name__}.agents.rsl_rl_ppo_cfg:G1TowPPORunnerCfg",
+        },
+    )

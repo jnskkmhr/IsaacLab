@@ -42,7 +42,7 @@ from isaaclab_tasks.contrib.velocity_mpm.util.solver_setting import (
 from isaaclab_tasks.contrib.velocity_mpm.util.terrain import TexturedTerrainImporter, WarpTerrainMesh
 
 from .env_cfg import G1TerminationsCfg, terrain_generator_cfg
-from .env_cfg.scene_cfg import FOOT_CONTACT_MARGIN, SLED_FRICTION
+from .env_cfg.scene_cfg import SLED_FRICTION
 from .tow_env_cfg import G1TowEnvCfg, G1TowEnvCfg_PLAY
 
 MIXED_FLAT_TERRAINS_CFG = terrain_generator_cfg.FLAT_TERRAINS_CFG.replace(num_cols=2)
@@ -104,11 +104,11 @@ class G1TowMixedEnvCfg(G1TowEnvCfg):
 
     terminations: G1TowMixedTerminationsCfg = G1TowMixedTerminationsCfg()
 
-    mpm_contact_margin: float = FOOT_CONTACT_MARGIN
-    """Fixed foot and sled collider margin in sand environments [m]."""
+    mpm_contact_margin: float = 0.02
+    """Margin by which the sand stays clear of the feet and of the sled [m]; given to the MPM solver only."""
 
     rigid_contact_margin: float = 0.0
-    """Fixed foot and sled collider margin in rigid-ground environments [m]."""
+    """Contact margin of the rigid contact of the feet and of the sled, in sand and rigid-ground environments [m]."""
 
     def __post_init__(self):
         super().__post_init__()
